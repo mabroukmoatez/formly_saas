@@ -450,7 +450,12 @@ export const Entreprises: React.FC = () => {
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       <div>{company.contact_full_name || '-'}</div>
-                      <div className="text-sm text-gray-500">{company.contact_email || ''}</div>
+                      {company.contact_email && (
+                        <div className="text-sm text-gray-500">{company.contact_email}</div>
+                      )}
+                      {company.contact_phone && (
+                        <div className="text-sm text-gray-500">{company.contact_phone}</div>
+                      )}
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       {new Date(company.created_at).toLocaleDateString('fr-FR')}

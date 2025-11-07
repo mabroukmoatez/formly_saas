@@ -88,10 +88,41 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (companyUuid) {
+    if (companyUuid && isOpen) {
       fetchCompany();
+    } else if (!companyUuid && isOpen) {
+      // Reset form for new company creation
+      setFormData({
+        name: '',
+        legal_name: '',
+        siret: '',
+        siren: '',
+        vat_number: '',
+        ape_code: '',
+        email: '',
+        phone: '',
+        mobile: '',
+        website: '',
+        address: '',
+        postal_code: '',
+        city: '',
+        country: 'France',
+        legal_form: '',
+        capital: '',
+        registration_number: '',
+        registration_city: '',
+        contact_first_name: '',
+        contact_last_name: '',
+        contact_position: '',
+        contact_email: '',
+        contact_phone: '',
+        notes: '',
+        employee_count: '',
+        industry: '',
+        is_active: true,
+      });
     }
-  }, [companyUuid]);
+  }, [companyUuid, isOpen]);
 
   const fetchCompany = async () => {
     try {
