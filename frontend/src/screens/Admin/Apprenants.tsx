@@ -143,28 +143,16 @@ useEffect(() => {
         per_page: 10,
         search: searchTerm || undefined,
       });
-      
-      console.log('📊 Full API Response:', response);
-      console.log('📋 Students data:', response.data);
-      console.log('📏 Students count:', response.data?.length);
-      console.log('🔢 Is array?', Array.isArray(response.data));
-      
+
       if (response.success && response.data) {
         const studentsData = Array.isArray(response.data) ? response.data : [];
-        console.log('✅ Setting students:', studentsData);
         setStudents(studentsData);
-        
+
         if (response.pagination) {
           setPagination(response.pagination);
-          console.log('📄 Pagination:', response.pagination);
         }
       }
     } catch (err: any) {
-      console.error('❌ Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-      });
       showError(t('common.error'), 'Impossible de charger les apprenants');
       setStudents([]);
     } finally {
