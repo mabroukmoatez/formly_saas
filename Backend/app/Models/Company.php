@@ -54,6 +54,11 @@ class Company extends Model
         'updated_at' => 'datetime'
     ];
 
+    protected $appends = [
+        'active_students_count',
+        'trainings_count'
+    ];
+
     protected static function booted()
     {
         static::creating(function ($model) {
@@ -114,6 +119,11 @@ class Company extends Model
     public function getActiveStudentsCountAttribute()
     {
         return $this->students()->where('status', 1)->count();
+    }
+
+    public function getTrainingsCountAttribute()
+    {
+        return $this->trainings()->count();
     }
 }
 
