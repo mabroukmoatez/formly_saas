@@ -392,8 +392,8 @@ useEffect(() => {
           <div className={`mb-6 p-6 rounded-xl border ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}>
-            <div className="flex items-end justify-between gap-4">
-              <div className="flex-1 grid grid-cols-3 gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Formation Filter */}
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
@@ -405,8 +405,8 @@ useEffect(() => {
                     value={selectedFormation}
                     onChange={(e) => setSelectedFormation(e.target.value)}
                     className={`w-full px-3 py-2 rounded-lg border ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                     } focus:outline-none focus:ring-2 focus:ring-${primaryColor}`}
                   >
@@ -428,8 +428,8 @@ useEffect(() => {
                     value={selectedCompany}
                     onChange={(e) => setSelectedCompany(e.target.value)}
                     className={`w-full px-3 py-2 rounded-lg border ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
                         : 'bg-white border-gray-300 text-gray-900'
                     } focus:outline-none focus:ring-2 focus:ring-${primaryColor}`}
                   >
@@ -467,7 +467,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 lg:flex-shrink-0">
                 {hasActiveFilters && (
                   <Button
                     onClick={resetFilters}
