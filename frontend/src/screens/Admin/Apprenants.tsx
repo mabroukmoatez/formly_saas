@@ -514,54 +514,54 @@ useEffect(() => {
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-max">
                   <thead>
                     <tr className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                      <th className="px-6 py-4 text-left">
+                      <th className="px-3 py-3 text-left w-10">
                         <Checkbox
                           checked={isAllSelected}
                           onCheckedChange={(checked) => toggleAll()}
                           className="w-5 h-5"
                         />
                       </th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-left text-sm font-semibold min-w-[100px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
                         Nom
                       </th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-left text-sm font-semibold min-w-[100px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
                         Prénom
                       </th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-left text-sm font-semibold min-w-[180px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
                         Email
                       </th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-left text-sm font-semibold min-w-[120px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
                         Téléphone
                       </th>
-                      <th className={`px-6 py-4 text-center text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-center text-sm font-semibold min-w-[140px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
-                        Formations attribuées
+                        Formations
                       </th>
-                      <th className={`px-6 py-4 text-left text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-left text-sm font-semibold min-w-[150px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
-                        Entreprise affiliée
+                        Entreprise
                       </th>
-                      <th className={`px-6 py-4 text-center text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-center text-sm font-semibold min-w-[120px] ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
                       }`}>
-                        Date d'inscription
+                        Inscription
                       </th>
-                      <th className={`px-6 py-4 text-center text-sm font-semibold ${
+                      <th className={`px-3 py-3 text-center text-sm font-semibold w-24 ${
                         isDark ? 'text-gray-300' : 'text-gray-700'
-                      }`}></th>
+                      }`}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -576,39 +576,39 @@ useEffect(() => {
                             studentIsSelected ? (isDark ? 'bg-gray-700/50' : 'bg-blue-50/50') : ''
                           } hover:${isDark ? 'bg-gray-700/30' : 'bg-gray-50'} transition-colors`}
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-3 py-3">
                             <Checkbox
                               checked={studentIsSelected}
                               onCheckedChange={() => toggleStudent(studentId)}
                               className="w-5 h-5"
                             />
                           </td>
-                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                          <td className={`px-3 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
                                 style={{ backgroundColor: primaryColor }}
                               >
                                 {student.last_name?.charAt(0) || student.name?.charAt(0) || 'U'}
                               </div>
-                              {student.last_name || student.name || '-'}
+                              <span className="truncate">{student.last_name || student.name || '-'}</span>
                             </div>
                           </td>
-                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                          <td className={`px-3 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                             {student.first_name || '-'}
                           </td>
-                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            {student.email}
+                          <td className={`px-3 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                            <span className="truncate block">{student.email}</span>
                           </td>
-                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                          <td className={`px-3 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                             {student.phone || '-'}
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-3 py-3 text-center">
                             <button
                               onClick={() => {
                                 const studentName = `${student.first_name || ''} ${student.last_name || student.name || ''}`.trim();
-                                setStudentForCourses({ 
-                                  id: studentId, 
+                                setStudentForCourses({
+                                  id: studentId,
                                   name: studentName || 'Apprenant'
                                 });
                                 setIsCoursesModalOpen(true);
@@ -617,14 +617,14 @@ useEffect(() => {
                               style={{ color: primaryColor }}
                               disabled={!student.total_courses || student.total_courses === 0}
                             >
-                              {student.total_courses || 0} Formation
+                              {student.total_courses || 0}
                             </button>
                           </td>
-                          <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            {student.company?.name || '-'}
+                          <td className={`px-3 py-3 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                            <span className="truncate block">{student.company?.name || '-'}</span>
                           </td>
-                          <td className={`px-6 py-4 text-sm text-center ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            {student.registration_date 
+                          <td className={`px-3 py-3 text-sm text-center ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
+                            {student.registration_date
                               ? new Date(student.registration_date).toLocaleDateString('fr-FR', {
                                   day: '2-digit',
                                   month: '2-digit',
@@ -632,11 +632,11 @@ useEffect(() => {
                                 })
                               : '-'}
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center justify-center gap-2">
+                          <td className="px-3 py-3">
+                            <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleViewStudent(student)}
-                                className={`p-2 rounded-lg transition-colors ${
+                                className={`p-1.5 rounded-lg transition-colors ${
                                   isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                                 }`}
                                 title="Voir les détails"
@@ -648,7 +648,7 @@ useEffect(() => {
                                   setStudentToDelete(studentId);
                                   setShowDeleteModal(true);
                                 }}
-                                className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                 title="Supprimer"
                               >
                                 <Trash2 className="w-4 h-4 text-red-500" />
