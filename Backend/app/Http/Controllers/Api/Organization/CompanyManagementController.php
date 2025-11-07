@@ -274,7 +274,7 @@ class CompanyManagementController extends Controller
     public function getStudents($uuid)
     {
         $organization_id = $this->getOrganizationId();
-        
+
         $company = Company::where('uuid', $uuid)
             ->where('organization_id', $organization_id)
             ->first();
@@ -283,10 +283,29 @@ class CompanyManagementController extends Controller
             return $this->failed([], 'Company not found');
         }
 
+        // Get all students for this company with their details
         $students = $company->students()
-            ->with(['user', 'enrollments.course', 'sessionParticipations.session'])
-            ->where('status', 1)
-            ->get();
+            ->with(['user', 'enrollments.course'])
+            ->get()
+            ->map(function($student) {
+                return [
+                    'id' => $student->id,
+                    'uuid' => $student->uuid,
+                    'full_name' => $student->full_name,
+                    'first_name' => $student->first_name,
+                    'last_name' => $student->last_name,
+                    'email' => $student->user->email ?? null,
+                    'phone' => $student->phone_number,
+                    'status' => $student->status,
+                    'created_at' => $student->created_at,
+                    'courses' => $student->enrollments->map(function($enrollment) {
+                        return [
+                            'title' => $enrollment->course->title ?? 'N/A',
+                            'status' => $enrollment->status ?? 'N/A',
+                        ];
+                    }),
+                ];
+            });
 
         return $this->success($students);
     }
