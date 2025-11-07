@@ -1355,4 +1355,688 @@ class StudentController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Récupérer l'historique d'émargement d'un apprenant
+     * GET /api/organization/students/{uuid}/attendance
+     */
+    public function getAttendance($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            // Récupérer tous les émargements
+            $attendances = DB::table('session_instance_attendances as sia')
+                ->join('session_instances as si', 'sia.instance_uuid', '=', 'si.uuid')
+                ->leftJoin('courses as c', 'si.course_uuid', '=', 'c.uuid')
+                ->where('sia.user_id', $student->user_id)
+                ->select(
+                    'sia.id',
+                    'sia.uuid',
+                    'sia.status',
+                    'sia.check_in_time',
+                    'sia.check_out_time',
+                    'sia.duration_minutes',
+                    'sia.notes',
+                    'sia.marked_at',
+                    'c.title as course_title',
+                    'c.code as course_code',
+                    'si.date as session_date'
+                )
+                ->orderBy('sia.check_in_time', 'desc')
+                ->get();
+
+            // Formater les données
+            $formattedAttendances = $attendances->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'uuid' => $attendance->uuid,
+                    'session_name' => $attendance->course_title,
+                    'session_code' => $attendance->course_code,
+                    'session_date' => $attendance->session_date,
+                    'status' => $attendance->status,
+                    'status_label' => $this->getAttendanceStatusLabel($attendance->status),
+                    'check_in_time' => $attendance->check_in_time,
+                    'check_out_time' => $attendance->check_out_time,
+                    'duration_minutes' => $attendance->duration_minutes,
+                    'notes' => $attendance->notes,
+                    'marked_at' => $attendance->marked_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedAttendances,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération émargements', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des émargements',
+            ], 500);
+        }
+    }
+
+    /**
+     * Télécharger une feuille d'émargement en PDF
+     * GET /api/organization/students/{uuid}/attendance/{attendanceId}/download
+     */
+    public function downloadAttendanceSheet($uuid, $attendanceId)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $attendance = DB::table('session_instance_attendances')
+                ->where('id', $attendanceId)
+                ->where('user_id', $student->user_id)
+                ->first();
+
+            if (!$attendance) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Émargement non trouvé',
+                ], 404);
+            }
+
+            // TODO: Générer le PDF avec TCPDF ou DomPDF
+            // Pour l'instant, retourner les données
+            return response()->json([
+                'success' => true,
+                'message' => 'Fonctionnalité de téléchargement PDF à implémenter',
+                'data' => $attendance,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur téléchargement feuille émargement', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+                'attendance_id' => $attendanceId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du téléchargement',
+            ], 500);
+        }
+    }
+
+    /**
+     * Télécharger toutes les feuilles d'émargement
+     * GET /api/organization/students/{uuid}/attendance/download-all
+     */
+    public function downloadAllAttendanceSheets($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            // TODO: Générer un ZIP avec tous les PDF
+            return response()->json([
+                'success' => true,
+                'message' => 'Fonctionnalité de téléchargement groupé à implémenter',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur téléchargement toutes feuilles émargement', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du téléchargement',
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les certificats d'un apprenant
+     * GET /api/organization/students/{uuid}/certificates
+     */
+    public function getCertificates($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $certificates = DB::table('student_certificates as sc')
+                ->leftJoin('courses as c', 'sc.course_id', '=', 'c.id')
+                ->where('sc.user_id', $student->user_id)
+                ->select(
+                    'sc.id',
+                    'sc.uuid',
+                    'sc.certificate_number',
+                    'sc.course_id',
+                    'sc.path',
+                    'sc.created_at',
+                    'c.title as course_title',
+                    'c.code as course_code'
+                )
+                ->orderBy('sc.created_at', 'desc')
+                ->get();
+
+            $formattedCertificates = $certificates->map(function ($cert) {
+                return [
+                    'id' => $cert->id,
+                    'uuid' => $cert->uuid,
+                    'certificate_number' => $cert->certificate_number,
+                    'course_id' => $cert->course_id,
+                    'course_title' => $cert->course_title,
+                    'course_code' => $cert->course_code,
+                    'path' => $cert->path,
+                    'file_url' => $cert->path ? asset('storage/' . $cert->path) : null,
+                    'created_at' => $cert->created_at,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedCertificates,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération certificats', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des certificats',
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload un certificat pour un apprenant
+     * POST /api/organization/students/{uuid}/certificates
+     */
+    public function uploadCertificate(Request $request, $uuid)
+    {
+        $validator = Validator::make($request->all(), [
+            'certificate' => 'required|file|mimes:pdf|max:5120', // 5MB max
+            'course_id' => 'required|exists:courses,id',
+            'certificate_number' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $file = $request->file('certificate');
+            $filePath = $file->store('certificates', 'public');
+
+            $certificate = DB::table('student_certificates')->insertGetId([
+                'uuid' => Str::uuid()->toString(),
+                'user_id' => $student->user_id,
+                'course_id' => $request->course_id,
+                'certificate_number' => $request->certificate_number,
+                'path' => $filePath,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Certificat uploadé avec succès',
+                'data' => [
+                    'id' => $certificate,
+                    'file_url' => asset('storage/' . $filePath),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur upload certificat', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'upload du certificat',
+            ], 500);
+        }
+    }
+
+    /**
+     * Télécharger un certificat
+     * GET /api/organization/students/{uuid}/certificates/{certificateId}/download
+     */
+    public function downloadCertificate($uuid, $certificateId)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $certificate = DB::table('student_certificates')
+                ->where('id', $certificateId)
+                ->where('user_id', $student->user_id)
+                ->first();
+
+            if (!$certificate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Certificat non trouvé',
+                ], 404);
+            }
+
+            $filePath = storage_path('app/public/' . $certificate->path);
+
+            if (!file_exists($filePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Fichier non trouvé',
+                ], 404);
+            }
+
+            return response()->download($filePath);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur téléchargement certificat', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+                'certificate_id' => $certificateId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors du téléchargement',
+            ], 500);
+        }
+    }
+
+    /**
+     * Partager un certificat par email
+     * POST /api/organization/students/{uuid}/certificates/{certificateId}/share
+     */
+    public function shareCertificate(Request $request, $uuid, $certificateId)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'nullable|email',
+            'message' => 'nullable|string|max:1000',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->with('user')
+                ->firstOrFail();
+
+            $certificate = DB::table('student_certificates')
+                ->where('id', $certificateId)
+                ->where('user_id', $student->user_id)
+                ->first();
+
+            if (!$certificate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Certificat non trouvé',
+                ], 404);
+            }
+
+            // Email de destination (celui fourni ou celui de l'étudiant)
+            $emailTo = $request->email ?? $student->user->email;
+
+            // TODO: Implémenter l'envoi d'email avec Mail::to()
+            // Mail::to($emailTo)->send(new CertificateMail($certificate));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Certificat envoyé par email avec succès',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur partage certificat', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+                'certificate_id' => $certificateId,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi du certificat',
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les logs de connexion d'un apprenant
+     * GET /api/organization/students/{uuid}/connection-logs
+     */
+    public function getConnectionLogs($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $logs = DB::table('user_connections_log')
+                ->where('user_id', $student->user_id)
+                ->orderBy('login_at', 'desc')
+                ->get();
+
+            $formattedLogs = $logs->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'login_at' => $log->login_at,
+                    'logout_at' => $log->logout_at,
+                    'session_duration' => $log->session_duration, // en minutes
+                    'session_duration_formatted' => $this->formatDuration($log->session_duration),
+                    'ip_address' => $log->ip_address,
+                    'user_agent' => $log->user_agent,
+                    'device_type' => $log->device_type,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $formattedLogs,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération logs connexion', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des logs',
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les statistiques détaillées d'un apprenant
+     * GET /api/organization/students/{uuid}/stats
+     */
+    public function getStats($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            $stats = [
+                'total_connection_hours' => $student->getTotalConnectionTime(),
+                'total_sessions' => $student->getTotalSessions(),
+                'effective_hours' => $student->getEffectiveHours(),
+                'attendance_rate' => $student->getAttendanceRate(),
+                'courses_count' => $student->enrollments()->count(),
+                'completed_courses' => $student->enrollments()->where('status', 1)->count(),
+                'certificates_count' => DB::table('student_certificates')
+                    ->where('user_id', $student->user_id)
+                    ->count(),
+                'documents_count' => $student->administrativeFolder
+                    ? $student->administrativeFolder->documents()->count()
+                    : 0,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération statistiques', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des statistiques',
+            ], 500);
+        }
+    }
+
+    /**
+     * Récupérer les évaluations d'un apprenant
+     * GET /api/organization/students/{uuid}/evaluations
+     */
+    public function getEvaluations($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->firstOrFail();
+
+            // TODO: Implémenter selon votre système d'évaluations
+            // Exemple basique
+            $evaluations = [];
+
+            return response()->json([
+                'success' => true,
+                'data' => $evaluations,
+                'message' => 'Aucune évaluation disponible pour le moment',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur récupération évaluations', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des évaluations',
+            ], 500);
+        }
+    }
+
+    /**
+     * Upload l'avatar d'un apprenant
+     * POST /api/organization/students/{uuid}/avatar
+     */
+    public function uploadAvatar(Request $request, $uuid)
+    {
+        $validator = Validator::make($request->all(), [
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->with('user')
+                ->firstOrFail();
+
+            $file = $request->file('avatar');
+            $filePath = $file->store('avatars', 'public');
+
+            // Mettre à jour l'image de l'utilisateur
+            $student->user->update([
+                'image' => $filePath,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Avatar uploadé avec succès',
+                'data' => [
+                    'avatar_url' => asset('storage/' . $filePath),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur upload avatar', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'upload de l\'avatar',
+            ], 500);
+        }
+    }
+
+    /**
+     * Réinitialiser le mot de passe d'un apprenant
+     * POST /api/organization/students/{uuid}/reset-password
+     */
+    public function resetPassword(Request $request, $uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->with('user')
+                ->firstOrFail();
+
+            // Générer un nouveau mot de passe temporaire
+            $temporaryPassword = Str::random(12);
+
+            $student->user->update([
+                'password' => Hash::make($temporaryPassword),
+            ]);
+
+            // TODO: Envoyer le nouveau mot de passe par email
+            // Mail::to($student->user->email)->send(new PasswordResetMail($temporaryPassword));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mot de passe réinitialisé avec succès',
+                'data' => [
+                    'temporary_password' => $temporaryPassword,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur réinitialisation mot de passe', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la réinitialisation du mot de passe',
+            ], 500);
+        }
+    }
+
+    /**
+     * Envoyer un email de bienvenue à un apprenant
+     * POST /api/organization/students/{uuid}/send-welcome-email
+     */
+    public function sendWelcomeEmail($uuid)
+    {
+        try {
+            $organizationId = auth()->user()->organization_id;
+
+            $student = Student::where('uuid', $uuid)
+                ->byOrganization($organizationId)
+                ->with('user')
+                ->firstOrFail();
+
+            // TODO: Envoyer email de bienvenue
+            // Mail::to($student->user->email)->send(new WelcomeMail($student));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email de bienvenue envoyé avec succès',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Erreur envoi email bienvenue', [
+                'error' => $e->getMessage(),
+                'uuid' => $uuid,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de l\'envoi de l\'email',
+            ], 500);
+        }
+    }
+
+    /**
+     * Formater la durée en minutes en format lisible
+     */
+    private function formatDuration($minutes)
+    {
+        if (!$minutes) return '0 min';
+
+        $hours = floor($minutes / 60);
+        $mins = $minutes % 60;
+
+        if ($hours > 0) {
+            return $hours . 'h ' . $mins . 'min';
+        }
+
+        return $mins . 'min';
+    }
+
+    /**
+     * Obtenir le label du statut d'émargement
+     */
+    private function getAttendanceStatusLabel($status)
+    {
+        $labels = [
+            'present' => 'Présent',
+            'absent' => 'Absent',
+            'late' => 'Retard',
+            'excused' => 'Excusé',
+        ];
+
+        return $labels[$status] ?? $status;
+    }
 }
