@@ -69,7 +69,6 @@ class FunderManagementController extends Controller
             ->with([
                 'students.user',
                 'students.enrollments.course',
-                'students.sessionParticipations.session',
                 'documents',
                 'user',
                 'company'
@@ -198,14 +197,13 @@ class FunderManagementController extends Controller
         }
 
         // Récupérer toutes les formations des étudiants financés
-        $students = $funder->students()->with(['enrollments.course', 'sessionParticipations.session'])->get();
-        
+        $students = $funder->students()->with(['enrollments.course'])->get();
+
         $courses = $students->flatMap->enrollments->pluck('course')->unique('id');
-        $sessions = $students->flatMap->sessionParticipations->pluck('session')->unique('uuid');
 
         return $this->success([
             'courses' => $courses,
-            'sessions' => $sessions
+            'sessions' => []
         ]);
     }
 
