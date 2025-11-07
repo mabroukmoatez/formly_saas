@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Edit, Trash2, Download, Upload, Eye, Mail, Calendar, Clock, Award, Target, FileText, CheckCircle } from 'lucide-react';
+import { X, Edit, Trash2, Download, Upload, Eye, Mail, Calendar, Clock, Award, Target, FileText, CheckCircle, Search } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { studentsService } from '../../services/Students';
