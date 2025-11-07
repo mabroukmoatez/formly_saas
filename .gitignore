@@ -1,0 +1,214 @@
+# Laravel & PHP
+/backend/node_modules
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+/backend/vendor
+/backend/.env
+/backend/.env.backup
+/backend/.env.production
+/backend/.phpunit.result.cache
+/backend/Homestead.json
+/backendHomestead.yaml
+/backendauth.json
+/backendnpm-debug.log
+/backendyarn-error.log
+
+# IDE & Editors
+/backend/.idea
+/backend/.vscode
+/backend/*.swp
+/backend/*.swo
+/backend/*~
+/backend/.DS_Store
+/backend/Thumbs.db
+
+# Logs
+/backend/*.log
+/backend/storage/logs/*
+/backend/!storage/logs/.gitkeep
+
+# Composer
+/backend/composer.phar
+/backend/composer.lock
+
+# NPM & Node
+/backend/node_modules/
+/backend/npm-debug.log*
+/backend/yarn-debug.log*
+/backend/yarn-error.log*
+/backend/package-lock.json
+/backend/yarn.lock
+
+# Build files
+/backend/public/build
+/backend/public/mix-manifest.json
+/backend/public/js/app.js
+/backend/public/css/app.css
+
+# Storage
+/backendstorage/framework/cache/*
+/backend!storage/framework/cache/.gitkeep
+/backendstorage/framework/sessions/*
+/backend!storage/framework/sessions/.gitkeep
+/backendstorage/framework/views/*
+/backend!storage/framework/views/.gitkeep
+/backendstorage/debugbar/*
+
+# Public uploads
+/backend/public/uploads/*
+/backend/public/storage/*
+/backend/public/documents/*
+/backend/public/certificates/*
+
+# Documentation temporaire (généré pendant développement)
+/backend/*.md
+/backend/!README.md
+/backend/!CHANGELOG.md
+/backend/!CONTRIBUTING.md
+/backend/!LICENSE.md
+
+# Scripts temporaires
+/backend/*test*.php
+/backend/*debug*.php
+/backend/*check*.php
+/backend/send_*.php
+/backend/verify_*.php
+
+# Temporary files
+/backend/*.tmp
+/backend/*.temp
+/backend/*.cache
+/backend/*.bak
+/backend/*.backup
+/backend/~*
+
+# OS generated files
+/backend/.DS_Store
+/backend/.DS_Store?
+/backend/._*
+/backend/.Spotlight-V100
+/backend/.Trashes
+/backend/ehthumbs.db
+/backend/Thumbs.db
+
+# PHP Storm
+/backend/.idea/
+/backend/*.iml
+/backend/out/
+
+# VS Code
+/backend/.vscode/
+/backend/*.code-workspace
+
+# Sublime Text
+/backend/*.sublime-project
+/backend/*.sublime-workspace
+
+# NetBeans
+/backend/nbproject/
+/backend/build/
+/backend/nbbuild/
+/backend/dist/
+/backend/nbdist/
+
+# Laravel specific
+/backend/public_html/
+/backend/bootstrap/cache/*
+/backend/!bootstrap/cache/.gitkeep
+
+# Deployment
+/backend/deploy.sh
+/backend/deploy.php
+/backend/.deployer/
+
+# Laravel Mix
+/backend/public/js/
+/backend/public/css/
+/backend/mix-manifest.json
+
+# Test coverage
+/backend/coverage/
+/backend/.phpunit.cache/
+
+# Backup files
+/backend/*~
+/backend/*.bak
+/backend/*.backup
+/backend/*.old
+
+# Large archive files
+/backend/*.zip
+/backend/app.zip
+
+# PWA
+/backend/public/serviceworker.js
+/backend/public/manifest.json
+
+# Composer vendor binaries
+/backend/vendor/bin/
+
+# Laravel Nova (if used)
+/backend/nova
+
+# Laravel Telescope (if used)
+/backend/telescope/
+
+# API Documentation
+/backend/public/docs/api/
+
+# Clockwork (if used)
+/backend/.clockwork/
+
+# PHP CS Fixer
+/backend/.php_cs
+/backend/.php_cs.cache
+
+# PHPStan
+/backend/phpstan.neon
+/backend/.phpstan.cache/
+
+# Rector
+/backend/rector.php
+/backend/.rector.cache/
+
+
+#front
+# Logs
+/frontend8/logs
+/frontend8/*.log
+/frontend8/npm-debug.log*
+/frontend8/yarn-debug.log*
+/frontend8/yarn-error.log*
+/frontend8/pnpm-debug.log*
+/frontend8/lerna-debug.log*
+
+# Dependencies
+/frontend8/node_modules
+/frontend8/dist
+/frontend8/dist-ssr
+/frontend8/*.local
+
+# Environment variables
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.*.local
+
+# Editor directories and files
+/frontend/.vscode/*
+/frontend/!.vscode/extensions.json
+/frontend/.idea
+/frontend/.DS_Store
+/frontend/*.suo
+/frontend/*.ntvs*
+/frontend/*.njsproj
+/frontend/*.sln
+/frontend/*.sw?
+
+# OS files
+/frontend/Thumbs.db
+/frontend/.DS_Store
+
+# Build files
+/frontend/*.zip
+/frontend/src.zip
