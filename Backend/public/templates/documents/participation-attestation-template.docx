@@ -1,0 +1,21 @@
+ATTESTATION DE PARTICIPATION
+
+Je soussigné(e) {{trainer_name}}, formateur certifié, atteste que {{participant_name}} a participé activement à la formation "{{course_title}}" organisée par {{organization_name}}.
+
+Détails de la formation:
+- Titre: {{course_title}}
+- Durée: {{course_duration}} heures
+- Période: du {{course_start_date}} au {{course_end_date}}
+- Lieu: {{training_location}}
+
+Le participant a démontré un engagement constant et une participation active tout au long de la formation.
+
+Fait à {{location}}, le {{attestation_date}}
+
+Signature du formateur: {{trainer_signature}}
+Cachet de l'organisation: {{organization_stamp}}
+
+{{organization_name}}
+{{organization_address}}
+Tél: {{organization_phone}}
+Email: {{organization_email}}

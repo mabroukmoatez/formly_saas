@@ -1,0 +1,179 @@
+# Laravel & PHP
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# IDE & Editors
+/.idea
+/.vscode
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+storage/logs/*
+!storage/logs/.gitkeep
+
+# Composer
+composer.phar
+composer.lock
+
+# NPM & Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Build files
+/public/build
+/public/mix-manifest.json
+/public/js/app.js
+/public/css/app.css
+
+# Storage
+storage/framework/cache/*
+!storage/framework/cache/.gitkeep
+storage/framework/sessions/*
+!storage/framework/sessions/.gitkeep
+storage/framework/views/*
+!storage/framework/views/.gitkeep
+storage/debugbar/*
+
+# Public uploads
+/public/uploads/*
+/public/storage/*
+/public/documents/*
+/public/certificates/*
+
+# Database
+*.sql
+!base.sql
+*.sqlite
+*.db
+
+# Documentation temporaire (généré pendant développement)
+*.md
+!README.md
+!CHANGELOG.md
+!CONTRIBUTING.md
+!LICENSE.md
+
+# Scripts temporaires
+*test*.php
+*debug*.php
+*check*.php
+send_*.php
+verify_*.php
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.backup
+~*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PHP Storm
+.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# NetBeans
+nbproject/
+build/
+nbbuild/
+dist/
+nbdist/
+
+# Laravel specific
+public_html/
+bootstrap/cache/*
+!bootstrap/cache/.gitkeep
+
+# Deployment
+deploy.sh
+deploy.php
+.deployer/
+
+# Laravel Mix
+/public/js/
+/public/css/
+mix-manifest.json
+
+# Test coverage
+coverage/
+.phpunit.cache/
+
+# Backup files
+*~
+*.bak
+*.backup
+*.old
+
+# Large archive files
+*.zip
+app.zip
+
+# PWA
+/public/serviceworker.js
+/public/manifest.json
+
+# Composer vendor binaries
+/vendor/bin/
+
+# Laravel Nova (if used)
+/nova
+
+# Laravel Telescope (if used)
+telescope/
+
+# API Documentation
+/public/docs/api/
+
+# Clockwork (if used)
+.clockwork/
+
+# PHP CS Fixer
+.php_cs
+.php_cs.cache
+
+# PHPStan
+phpstan.neon
+.phpstan.cache/
+
+# Rector
+rector.php
+.rector.cache/

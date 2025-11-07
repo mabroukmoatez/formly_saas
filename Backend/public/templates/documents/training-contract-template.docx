@@ -1,0 +1,38 @@
+CONTRAT DE FORMATION
+
+Entre les soussignés:
+
+{{organization_name}}, représentée par {{organization_representative}}, d'une part,
+{{participant_name}}, d'autre part,
+
+Il est convenu ce qui suit:
+
+ARTICLE 1 - OBJET
+Le présent contrat a pour objet la formation de {{participant_name}} dans le cadre du programme "{{course_title}}".
+
+ARTICLE 2 - DURÉE
+La formation se déroulera du {{course_start_date}} au {{course_end_date}}, pour une durée totale de {{course_duration}} heures.
+
+ARTICLE 3 - LIEU
+La formation aura lieu à l'adresse suivante: {{training_location}}
+
+ARTICLE 4 - FORMATEUR
+La formation sera dispensée par {{trainer_name}}, formateur qualifié.
+
+ARTICLE 5 - ENGAGEMENTS
+Le participant s'engage à:
+- Assister à toutes les sessions de formation
+- Respecter les règles de l'organisation
+- Participer activement aux activités proposées
+
+ARTICLE 6 - CONDITIONS FINANCIÈRES
+Le coût de la formation s'élève à {{course_price}} € {{currency}}.
+
+Fait en double exemplaire à {{location}}, le {{contract_date}}
+
+Signature du participant: {{participant_signature}}
+Signature du représentant: {{organization_signature}}
+
+{{organization_name}}
+{{organization_address}}
+{{organization_contact}}

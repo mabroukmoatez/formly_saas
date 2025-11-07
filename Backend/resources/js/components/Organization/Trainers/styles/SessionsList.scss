@@ -1,0 +1,414 @@
+// Variables de design (héritées)
+$color-primary: #3b82f6;
+$color-primary-light: #60a5fa;
+$color-primary-lighter: #dbeafe;
+$color-success: #10b981;
+$color-warning: #f59e0b;
+$color-danger: #ef4444;
+$color-gray-50: #f9fafb;
+$color-gray-100: #f3f4f6;
+$color-gray-200: #e5e7eb;
+$color-gray-300: #d1d5db;
+$color-gray-400: #9ca3af;
+$color-gray-500: #6b7280;
+$color-gray-600: #4b5563;
+$color-gray-700: #374151;
+$color-gray-800: #1f2937;
+$color-gray-900: #111827;
+
+$border-radius-sm: 8px;
+$border-radius-md: 12px;
+$border-radius-lg: 16px;
+
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+// Conteneur principal
+.sessions-list-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  
+  // Header
+  .sessions-header {
+    padding: $spacing-lg;
+    border-bottom: 2px solid $color-gray-100;
+    
+    .sessions-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: $color-gray-800;
+      margin: 0;
+      text-align: center;
+    }
+  }
+  
+  // Onglets
+  .sessions-tabs {
+    display: flex;
+    border-bottom: 2px solid $color-gray-100;
+    background-color: $color-gray-50;
+    
+    .tab-button {
+      flex: 1;
+      padding: $spacing-md $spacing-lg;
+      background-color: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: $color-gray-600;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      
+      &:hover {
+        color: $color-gray-800;
+        background-color: $color-gray-100;
+      }
+      
+      &.active {
+        color: $color-primary;
+        background-color: white;
+        border-bottom-color: $color-primary;
+        font-weight: 600;
+      }
+    }
+  }
+  
+  // Contenu
+  .sessions-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: $spacing-lg;
+    
+    // État vide
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: $spacing-xl;
+      min-height: 300px;
+      
+      i {
+        font-size: 64px;
+        color: $color-gray-300;
+        margin-bottom: $spacing-md;
+      }
+      
+      p {
+        color: $color-gray-500;
+        font-size: 16px;
+        margin: 0;
+      }
+    }
+    
+    // Liste des formations
+    .courses-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+      
+      // Item de formation
+      .course-item {
+        background-color: white;
+        border: 2px solid $color-gray-200;
+        border-radius: $border-radius-md;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          border-color: $color-primary-light;
+          box-shadow: $shadow-md;
+        }
+        
+        // Header de la formation
+        .course-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: $spacing-md $spacing-lg;
+          background-color: $color-gray-50;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+          
+          &:hover {
+            background-color: $color-gray-100;
+          }
+          
+          .course-info {
+            display: flex;
+            align-items: center;
+            gap: $spacing-md;
+            flex: 1;
+            
+            .course-icon {
+              width: 48px;
+              height: 48px;
+              border-radius: $border-radius-sm;
+              overflow: hidden;
+              flex-shrink: 0;
+              background-color: $color-primary-lighter;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              
+              img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
+              
+              .course-icon-placeholder {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                
+                i {
+                  font-size: 24px;
+                  color: $color-primary;
+                }
+              }
+            }
+            
+            .course-title {
+              font-size: 16px;
+              font-weight: 600;
+              color: $color-gray-800;
+              margin: 0;
+            }
+          }
+          
+          .toggle-button {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: white;
+            border: 1px solid $color-gray-300;
+            border-radius: 50%;
+            color: $color-gray-600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background-color: $color-primary;
+              border-color: $color-primary;
+              color: white;
+            }
+            
+            &.expanded {
+              background-color: $color-primary;
+              border-color: $color-primary;
+              color: white;
+            }
+            
+            i {
+              font-size: 12px;
+            }
+          }
+        }
+        
+        // Sessions détails
+        .sessions-details {
+          padding: $spacing-md;
+          background-color: white;
+          border-top: 1px solid $color-gray-200;
+          
+          .session-item {
+            padding: $spacing-md;
+            border-left: 4px solid $color-primary;
+            background-color: $color-gray-50;
+            border-radius: $border-radius-sm;
+            margin-bottom: $spacing-md;
+            
+            &:last-child {
+              margin-bottom: 0;
+            }
+            
+            // Header de la session
+            .session-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: $spacing-sm;
+              
+              .session-title {
+                font-size: 14px;
+                font-weight: 600;
+                color: $color-gray-800;
+                margin: 0;
+              }
+              
+              .session-stats {
+                .session-progress-percentage {
+                  font-size: 14px;
+                  font-weight: 700;
+                  color: $color-gray-700;
+                }
+              }
+            }
+            
+            // Barre de progression
+            .progress-container {
+              margin-bottom: $spacing-sm;
+              
+              .progress-bar {
+                width: 100%;
+                height: 8px;
+                background-color: $color-gray-200;
+                border-radius: 4px;
+                overflow: hidden;
+                
+                .progress-fill {
+                  height: 100%;
+                  background: linear-gradient(90deg, #8b5cf6 0%, #6366f1 100%);
+                  border-radius: 4px;
+                  transition: width 0.3s ease;
+                }
+                
+                // Variantes de couleur selon la progression
+                &.progress-low .progress-fill {
+                  background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+                }
+                
+                &.progress-medium .progress-fill {
+                  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+                }
+                
+                &.progress-high .progress-fill {
+                  background: linear-gradient(90deg, #8b5cf6 0%, #a855f7 100%);
+                }
+              }
+            }
+            
+            // Informations de la session
+            .session-info {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: $spacing-sm;
+              
+              .session-dates {
+                display: flex;
+                align-items: center;
+                gap: $spacing-xs;
+                color: $color-gray-600;
+                font-size: 13px;
+                
+                i {
+                  color: $color-gray-400;
+                }
+              }
+              
+              .session-seances {
+                display: flex;
+                align-items: center;
+                gap: $spacing-xs;
+                font-size: 13px;
+                
+                .seances-label {
+                  color: $color-gray-600;
+                  font-weight: 500;
+                }
+                
+                .seances-count {
+                  color: $color-gray-700;
+                  font-weight: 700;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .sessions-list-container {
+    .sessions-header {
+      padding: $spacing-md;
+      
+      .sessions-title {
+        font-size: 18px;
+      }
+    }
+    
+    .sessions-tabs {
+      .tab-button {
+        padding: $spacing-sm;
+        font-size: 13px;
+      }
+    }
+    
+    .sessions-content {
+      padding: $spacing-md;
+      
+      .courses-list {
+        .course-item {
+          .course-header {
+            padding: $spacing-sm $spacing-md;
+            
+            .course-info {
+              .course-icon {
+                width: 40px;
+                height: 40px;
+              }
+              
+              .course-title {
+                font-size: 14px;
+              }
+            }
+          }
+          
+          .sessions-details {
+            padding: $spacing-sm;
+            
+            .session-item {
+              padding: $spacing-sm;
+              
+              .session-info {
+                flex-direction: column;
+                align-items: flex-start;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Scrollbar personnalisée
+.sessions-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sessions-content::-webkit-scrollbar-track {
+  background: $color-gray-100;
+  border-radius: 4px;
+}
+
+.sessions-content::-webkit-scrollbar-thumb {
+  background: $color-gray-300;
+  border-radius: 4px;
+  
+  &:hover {
+    background: $color-gray-400;
+  }
+}
+

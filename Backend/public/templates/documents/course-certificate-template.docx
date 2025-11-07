@@ -1,0 +1,16 @@
+CERTIFICAT DE FORMATION
+
+Formation: {{course_title}}
+Participant: {{participant_name}}
+Date de début: {{course_start_date}}
+Date de fin: {{course_end_date}}
+Durée: {{course_duration}} heures
+
+Ce certificat atteste que {{participant_name}} a suivi avec succès la formation "{{course_title}}" dispensée par {{organization_name}}.
+
+Date d'émission: {{certificate_date}}
+Signature du formateur: {{trainer_signature}}
+
+{{organization_name}}
+{{organization_address}}
+{{organization_contact}}

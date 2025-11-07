@@ -1,0 +1,1 @@
+export { GestionDesFormations } from './GestionDesFormations';

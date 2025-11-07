@@ -1,0 +1,269 @@
+// Variables de design (héritées)
+$color-primary: #3b82f6;
+$color-success: #10b981;
+$color-success-light: #6ee7b7;
+$color-danger: #ef4444;
+$color-danger-light: #f87171;
+$color-gray-50: #f9fafb;
+$color-gray-100: #f3f4f6;
+$color-gray-200: #e5e7eb;
+$color-gray-300: #d1d5db;
+$color-gray-400: #9ca3af;
+$color-gray-500: #6b7280;
+$color-gray-600: #4b5563;
+$color-gray-700: #374151;
+$color-gray-800: #1f2937;
+
+$border-radius-sm: 8px;
+$border-radius-md: 12px;
+$border-radius-lg: 16px;
+
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+
+// Conteneur du calendrier
+.calendar-container {
+  width: 100%;
+  
+  // Header avec navigation
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-lg;
+    padding-bottom: $spacing-md;
+    border-bottom: 2px solid $color-gray-100;
+    
+    .calendar-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: $color-gray-800;
+      margin: 0;
+    }
+    
+    .calendar-navigation {
+      display: flex;
+      gap: $spacing-sm;
+      
+      .btn-nav {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: $color-gray-100;
+        border: 1px solid $color-gray-200;
+        border-radius: 50%;
+        color: $color-gray-700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background-color: $color-gray-200;
+          border-color: $color-gray-300;
+          color: $color-gray-900;
+        }
+        
+        &:active {
+          transform: scale(0.95);
+        }
+        
+        i {
+          font-size: 14px;
+        }
+      }
+    }
+  }
+  
+  // Légende
+  .calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+    padding: $spacing-md;
+    background-color: $color-gray-50;
+    border-radius: $border-radius-sm;
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: $spacing-xs;
+      
+      .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        
+        &-training {
+          background-color: $color-primary;
+        }
+        
+        &-available {
+          background-color: $color-success;
+        }
+        
+        &-unavailable {
+          background-color: $color-danger;
+        }
+      }
+      
+      .legend-label {
+        font-size: 13px;
+        color: $color-gray-600;
+        font-weight: 500;
+      }
+    }
+  }
+  
+  // Grille du calendrier
+  .calendar-grid {
+    width: 100%;
+    
+    // Jours de la semaine (header)
+    .calendar-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: $spacing-xs;
+      
+      .weekday {
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: $color-gray-500;
+        text-transform: uppercase;
+        padding: $spacing-xs 0;
+      }
+    }
+    
+    // Jours du mois
+    .calendar-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      
+      .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: $border-radius-sm;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        background-color: $color-gray-50;
+        border: 2px solid transparent;
+        
+        .day-number {
+          position: relative;
+          z-index: 1;
+        }
+        
+        // Jour vide
+        &.day-empty {
+          background-color: transparent;
+          cursor: default;
+        }
+        
+        // Jour en formation (bleu)
+        &.day-in-training {
+          background-color: $color-primary;
+          color: white;
+          border-color: $color-primary;
+          
+          &:hover {
+            background-color: darken($color-primary, 5%);
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba($color-primary, 0.3);
+          }
+        }
+        
+        // Jour disponible (vert)
+        &.day-available {
+          background-color: $color-success-light;
+          color: $color-gray-800;
+          border-color: $color-success;
+          
+          &:hover {
+            background-color: $color-success;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba($color-success, 0.3);
+          }
+        }
+        
+        // Jour indisponible (rouge)
+        &.day-unavailable {
+          background-color: $color-danger-light;
+          color: white;
+          border-color: $color-danger;
+          
+          &:hover {
+            background-color: $color-danger;
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba($color-danger, 0.3);
+          }
+        }
+      }
+    }
+  }
+  
+  // Note (si pas de données)
+  .calendar-note {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-md;
+    margin-top: $spacing-lg;
+    background-color: $color-gray-50;
+    border-radius: $border-radius-sm;
+    border-left: 4px solid $color-gray-400;
+    
+    i {
+      color: $color-gray-400;
+      font-size: 18px;
+    }
+    
+    p {
+      margin: 0;
+      color: $color-gray-600;
+      font-size: 14px;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .calendar-container {
+    .calendar-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $spacing-md;
+      
+      .calendar-navigation {
+        align-self: flex-end;
+      }
+    }
+    
+    .calendar-legend {
+      flex-direction: column;
+      gap: $spacing-sm;
+    }
+    
+    .calendar-grid {
+      .calendar-days {
+        gap: 4px;
+        
+        .calendar-day {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
+

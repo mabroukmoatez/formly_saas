@@ -1,0 +1,1 @@
+export { CourseManagment } from "./CourseManagment";

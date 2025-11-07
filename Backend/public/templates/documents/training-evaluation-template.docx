@@ -1,0 +1,49 @@
+ÉVALUATION DE FORMATION
+
+Formation: {{course_title}}
+Participant: {{participant_name}}
+Formateur: {{trainer_name}}
+Date: {{evaluation_date}}
+
+SECTION 1 - ÉVALUATION DES OBJECTIFS
+Les objectifs de la formation ont-ils été atteints?
+□ Oui □ Partiellement □ Non
+
+Commentaires: {{objectives_comments}}
+
+SECTION 2 - QUALITÉ DU CONTENU
+Le contenu était-il adapté à vos besoins?
+□ Très adapté □ Adapté □ Peu adapté □ Pas adapté
+
+Le niveau de difficulté était-il approprié?
+□ Trop facile □ Approprié □ Trop difficile
+
+Commentaires: {{content_comments}}
+
+SECTION 3 - QUALITÉ DU FORMATEUR
+Le formateur était-il compétent?
+□ Très compétent □ Compétent □ Peu compétent □ Pas compétent
+
+Le formateur était-il disponible pour répondre aux questions?
+□ Très disponible □ Disponible □ Peu disponible □ Pas disponible
+
+Commentaires: {{trainer_comments}}
+
+SECTION 4 - ORGANISATION ET LOGISTIQUE
+Les locaux étaient-ils appropriés?
+□ Très appropriés □ Appropriés □ Peu appropriés □ Pas appropriés
+
+Le matériel était-il suffisant?
+□ Très suffisant □ Suffisant □ Peu suffisant □ Pas suffisant
+
+Commentaires: {{logistics_comments}}
+
+SECTION 5 - RECOMMANDATIONS
+Recommanderiez-vous cette formation?
+□ Oui □ Non □ Peut-être
+
+Notez-vous des améliorations à apporter?
+{{improvements_comments}}
+
+Signature du participant: {{participant_signature}}
+Date: {{evaluation_date}}

@@ -1,0 +1,1 @@
+export { GestionComercial } from "./GestionComercial";
