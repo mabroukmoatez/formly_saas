@@ -621,7 +621,7 @@ useEffect(() => {
                             </button>
                           </td>
                           <td className={`px-6 py-4 text-sm ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
-                            {student.company || '-'}
+                            {student.company?.name || '-'}
                           </td>
                           <td className={`px-6 py-4 text-sm text-center ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>
                             {student.registration_date 
