@@ -87,15 +87,32 @@ const {
 
   useEffect(() => {
   const fetchCompanies = async () => {
-    const response = await api.get('/api/organization/companies/list');
-    setCompanies(response.data.data);
+    try {
+      const response = await api.get('/api/organization/companies/list');
+      if (response.success && Array.isArray(response.data)) {
+        const companyNames = response.data.map((company: any) => company.name);
+        setCompanies(companyNames);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      setCompanies([]);
+    }
   };
   fetchCompanies();
 }, []);
+
 useEffect(() => {
   const fetchCourses = async () => {
-    const response = await api.get('/api/organization/courses/');
-    setFormations(response.data.data);
+    try {
+      const response = await api.get('/api/organization/courses/');
+      if (response.success && response.data?.courses) {
+        const courseNames = response.data.courses.data?.map((course: any) => course.title) || [];
+        setFormations(courseNames);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setFormations([]);
+    }
   };
   fetchCourses();
 }, []);

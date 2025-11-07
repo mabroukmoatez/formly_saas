@@ -2024,19 +2024,4 @@ class StudentController extends Controller
 
         return $mins . 'min';
     }
-
-    /**
-     * Obtenir le label du statut d'émargement
-     */
-    private function getAttendanceStatusLabel($status)
-    {
-        $labels = [
-            'present' => 'Présent',
-            'absent' => 'Absent',
-            'late' => 'Retard',
-            'excused' => 'Excusé',
-        ];
-
-        return $labels[$status] ?? $status;
-    }
 }
