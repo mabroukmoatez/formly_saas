@@ -23,9 +23,6 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const { success, error: showError } = useToast();
   const { organization } = useOrganization();
   const { companies, loading: companiesLoading, setSearchTerm } = useCompaniesSearch();
-  console.log('🏢 Companies from hook:', companies);
-console.log('📊 Companies loading:', companiesLoading);
-console.log('🔢 Companies count:', companies?.length);
 
   const primaryColor = organization?.primary_color || '#007aff';
   const [formData, setFormData] = useState<CreateStudentFormData>({
