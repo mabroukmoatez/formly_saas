@@ -4,14 +4,15 @@ namespace App\Http\Controllers\Api\Organization;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyDocument;
 use App\Models\Course;
-use App\Models\Document;
 use App\Models\Session;
 use App\Traits\ApiStatusTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class CompanyManagementController extends Controller
 {
@@ -127,7 +128,7 @@ class CompanyManagementController extends Controller
             'company' => $company,
             'trainings' => $trainings,
             'students_count' => $company->students()->where('status', 1)->count(),
-            'documents_count' => 0 // TODO: Implement document counting when documents system is ready
+            'documents_count' => $company->documents()->count()
         ];
 
         return $this->success($data);
@@ -306,11 +307,154 @@ class CompanyManagementController extends Controller
             return $this->failed([], 'Company not found');
         }
 
-        // TODO: Implement document management for companies
-        // For now, return empty array to avoid errors
-        $documents = [];
+        $documents = $company->documents()
+            ->with('uploadedBy:id,name,email')
+            ->notArchived()
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return $this->success($documents);
+    }
+
+    /**
+     * Upload document for company
+     * POST /api/organization/companies/{uuid}/documents
+     */
+    public function uploadDocument(Request $request, $uuid)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        $company = Company::where('uuid', $uuid)
+            ->where('organization_id', $organization_id)
+            ->first();
+
+        if (!$company) {
+            return $this->failed([], 'Company not found');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'document' => 'required|file|max:10240', // 10MB max
+            'file_type' => 'nullable|string|in:contract,convention,invoice,quote,other',
+            'description' => 'nullable|string',
+            'document_date' => 'nullable|date',
+            'reference_number' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->failed($validator->errors(), 'Validation failed', 422);
+        }
+
+        try {
+            $file = $request->file('document');
+            $originalFilename = $file->getClientOriginalName();
+
+            // Create unique filename
+            $filename = time() . '_' . Str::slug(pathinfo($originalFilename, PATHINFO_FILENAME)) . '.' . $file->getClientOriginalExtension();
+
+            // Store in organization/companies folder
+            $path = $file->storeAs(
+                "organizations/{$organization_id}/companies/{$company->id}/documents",
+                $filename,
+                'public'
+            );
+
+            $document = $company->documents()->create([
+                'organization_id' => $organization_id,
+                'uploaded_by' => auth()->id(),
+                'name' => pathinfo($originalFilename, PATHINFO_FILENAME),
+                'original_filename' => $originalFilename,
+                'file_path' => $path,
+                'file_type' => $request->file_type ?? 'other',
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'description' => $request->description,
+                'document_date' => $request->document_date,
+                'reference_number' => $request->reference_number,
+            ]);
+
+            return $this->success($document, 'Document uploaded successfully', 201);
+        } catch (\Exception $e) {
+            \Log::error('Error uploading company document', [
+                'error' => $e->getMessage(),
+                'company_uuid' => $uuid,
+            ]);
+
+            return $this->failed([], 'Error uploading document: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Download company document
+     * GET /api/organization/companies/{uuid}/documents/{documentId}/download
+     */
+    public function downloadDocument($uuid, $documentId)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        $company = Company::where('uuid', $uuid)
+            ->where('organization_id', $organization_id)
+            ->first();
+
+        if (!$company) {
+            return $this->failed([], 'Company not found');
+        }
+
+        $document = $company->documents()->find($documentId);
+
+        if (!$document) {
+            return $this->failed([], 'Document not found', 404);
+        }
+
+        $filePath = storage_path('app/public/' . $document->file_path);
+
+        if (!file_exists($filePath)) {
+            return $this->failed([], 'File not found on server', 404);
+        }
+
+        return response()->download($filePath, $document->original_filename);
+    }
+
+    /**
+     * Delete company document
+     * DELETE /api/organization/companies/{uuid}/documents/{documentId}
+     */
+    public function deleteDocument($uuid, $documentId)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        $company = Company::where('uuid', $uuid)
+            ->where('organization_id', $organization_id)
+            ->first();
+
+        if (!$company) {
+            return $this->failed([], 'Company not found');
+        }
+
+        $document = $company->documents()->find($documentId);
+
+        if (!$document) {
+            return $this->failed([], 'Document not found', 404);
+        }
+
+        try {
+            // Delete physical file
+            $filePath = storage_path('app/public/' . $document->file_path);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+
+            // Delete database record
+            $document->delete();
+
+            return $this->success([], 'Document deleted successfully');
+        } catch (\Exception $e) {
+            \Log::error('Error deleting company document', [
+                'error' => $e->getMessage(),
+                'document_id' => $documentId,
+            ]);
+
+            return $this->failed([], 'Error deleting document: ' . $e->getMessage(), 500);
+        }
     }
 
     /**

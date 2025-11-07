@@ -1985,7 +1985,12 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/compan
     // Relations
     Route::get('/{uuid}/trainings', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'getTrainings']);
     Route::get('/{uuid}/students', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'getStudents']);
+
+    // Documents
     Route::get('/{uuid}/documents', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'getDocuments']);
+    Route::post('/{uuid}/documents', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'uploadDocument']);
+    Route::get('/{uuid}/documents/{documentId}/download', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'downloadDocument']);
+    Route::delete('/{uuid}/documents/{documentId}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'deleteDocument']);
 });
 
 // Media serving routes with security

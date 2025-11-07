@@ -79,6 +79,11 @@ class Company extends Model
         return $this->hasMany(Funder::class);
     }
 
+    public function documents()
+    {
+        return $this->hasMany(CompanyDocument::class);
+    }
+
     // Get trainings through students
     public function trainings()
     {

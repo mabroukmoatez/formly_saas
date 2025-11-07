@@ -119,10 +119,10 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     }
   };
 
-  const handleDocumentUpload = async (file: File, type: string) => {
+  const handleDocumentUpload = async (file: File, type: string = 'other') => {
     const formData = new FormData();
     formData.append('document', file);
-    formData.append('type', type);
+    formData.append('file_type', type);
 
     try {
       const response = await api.post(`/api/organization/companies/${uuid}/documents`, formData);
@@ -132,6 +132,50 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
       }
     } catch (error: any) {
       showError('Erreur', 'Erreur lors de l\'upload');
+    }
+  };
+
+  const handleDocumentDownload = async (documentId: number, fileName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/organization/companies/${uuid}/documents/${documentId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      success('Succès', 'Document téléchargé');
+    } catch (error: any) {
+      showError('Erreur', 'Erreur lors du téléchargement');
+    }
+  };
+
+  const handleDocumentDelete = async (documentId: number) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(`/api/organization/companies/${uuid}/documents/${documentId}`);
+      if (response.success) {
+        success('Succès', 'Document supprimé');
+        fetchDocuments();
+      }
+    } catch (error: any) {
+      showError('Erreur', 'Erreur lors de la suppression');
     }
   };
 
@@ -411,17 +455,28 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                                     {doc.name}
                                   </div>
                                   <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {doc.type} • {new Date(doc.created_at).toLocaleDateString('fr-FR')}
+                                    {doc.file_type} • {new Date(doc.created_at).toLocaleDateString('fr-FR')}
                                   </div>
                                 </div>
                               </div>
-                              <button
-                                className={`p-2 rounded ${
-                                  isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
-                                }`}
-                              >
-                                <Download className="w-5 h-5" />
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleDocumentDownload(doc.id, doc.original_filename)}
+                                  className={`p-2 rounded ${
+                                    isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
+                                  }`}
+                                  title="Télécharger"
+                                >
+                                  <Download className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDocumentDelete(doc.id)}
+                                  className="p-2 rounded hover:bg-red-100"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-5 h-5 text-red-600" />
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
