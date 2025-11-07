@@ -30,15 +30,28 @@ export interface ApiResponse<T> {
 export const companiesService = {
   getCompaniesList: async (params?: GetCompaniesListParams): Promise<ApiResponse<Company[]>> => {
     console.log('🌐 companiesService.getCompaniesList called with params:', params);
-    
+
     try {
-      const response = await api.get('/api/organization/companies/list', { params });
-      
-      console.log('🌐 Raw axios response:', response);
-      console.log('🌐 Response data:', response.data);
-      console.log('🌐 Response status:', response.status);
-      
-      return response.data;
+      // Construire l'URL avec les query params
+      let url = '/api/organization/companies/list';
+      if (params) {
+        const queryParams = new URLSearchParams();
+        if (params.search) queryParams.append('search', params.search);
+        if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+        if (params.page) queryParams.append('page', params.page.toString());
+
+        const queryString = queryParams.toString();
+        if (queryString) url += `?${queryString}`;
+      }
+
+      const response = await api.get<ApiResponse<Company[]>>(url);
+
+      console.log('🌐 API response:', response);
+      console.log('🌐 Response.success:', response.success);
+      console.log('🌐 Response.data:', response.data);
+      console.log('🌐 Is array?', Array.isArray(response.data));
+
+      return response;
     } catch (error) {
       console.error('❌ API Error:', error);
       throw error;
@@ -49,39 +62,50 @@ export const companiesService = {
    * Récupérer toutes les entreprises avec pagination
    */
   getCompanies: async (params?: GetCompaniesListParams): Promise<ApiResponse<any>> => {
-    const response = await api.get('/api/organization/companies', { params });
-    return response.data;
+    let url = '/api/organization/companies';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.search) queryParams.append('search', params.search);
+      if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+      if (params.page) queryParams.append('page', params.page.toString());
+
+      const queryString = queryParams.toString();
+      if (queryString) url += `?${queryString}`;
+    }
+
+    const response = await api.get<ApiResponse<any>>(url);
+    return response;
   },
 
   /**
    * Récupérer une entreprise par UUID
    */
   getCompanyById: async (uuid: string): Promise<ApiResponse<Company>> => {
-    const response = await api.get(`/api/organization/companies/${uuid}`);
-    return response.data;
+    const response = await api.get<ApiResponse<Company>>(`/api/organization/companies/${uuid}`);
+    return response;
   },
 
   /**
    * Créer une entreprise
    */
   createCompany: async (data: Partial<Company>): Promise<ApiResponse<Company>> => {
-    const response = await api.post('/api/organization/companies', data);
-    return response.data;
+    const response = await api.post<ApiResponse<Company>>('/api/organization/companies', data);
+    return response;
   },
 
   /**
    * Mettre à jour une entreprise
    */
   updateCompany: async (uuid: string, data: Partial<Company>): Promise<ApiResponse<Company>> => {
-    const response = await api.put(`/api/organization/companies/${uuid}`, data);
-    return response.data;
+    const response = await api.put<ApiResponse<Company>>(`/api/organization/companies/${uuid}`, data);
+    return response;
   },
 
   /**
    * Supprimer une entreprise
    */
   deleteCompany: async (uuid: string): Promise<ApiResponse<void>> => {
-    const response = await api.delete(`/api/organization/companies/${uuid}`);
-    return response.data;
+    const response = await api.delete<ApiResponse<void>>(`/api/organization/companies/${uuid}`);
+    return response;
   },
 };
