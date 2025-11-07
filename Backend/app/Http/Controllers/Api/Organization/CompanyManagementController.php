@@ -112,8 +112,7 @@ class CompanyManagementController extends Controller
             ->where('organization_id', $organization_id)
             ->with([
                 'students.user',
-                'students.enrollments.course',
-                'students.sessionParticipations.session'
+                'students.enrollments.course'
             ])
             ->first();
 
