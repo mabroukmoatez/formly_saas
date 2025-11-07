@@ -112,8 +112,7 @@ class CompanyManagementController extends Controller
             ->with([
                 'students.user',
                 'students.enrollments.course',
-                'students.sessionParticipations.session',
-                'documents'
+                'students.sessionParticipations.session'
             ])
             ->first();
 
@@ -128,7 +127,7 @@ class CompanyManagementController extends Controller
             'company' => $company,
             'trainings' => $trainings,
             'students_count' => $company->students()->where('status', 1)->count(),
-            'documents_count' => $company->documents()->count()
+            'documents_count' => 0 // TODO: Implement document counting when documents system is ready
         ];
 
         return $this->success($data);
@@ -298,7 +297,7 @@ class CompanyManagementController extends Controller
     public function getDocuments($uuid)
     {
         $organization_id = $this->getOrganizationId();
-        
+
         $company = Company::where('uuid', $uuid)
             ->where('organization_id', $organization_id)
             ->first();
@@ -307,7 +306,9 @@ class CompanyManagementController extends Controller
             return $this->failed([], 'Company not found');
         }
 
-        $documents = $company->documents()->latest()->get();
+        // TODO: Implement document management for companies
+        // For now, return empty array to avoid errors
+        $documents = [];
 
         return $this->success($documents);
     }

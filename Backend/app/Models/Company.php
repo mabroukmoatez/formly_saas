@@ -79,11 +79,6 @@ class Company extends Model
         return $this->hasMany(Funder::class);
     }
 
-    public function documents()
-    {
-        return $this->morphMany(Document::class, 'documentable');
-    }
-
     // Get trainings through students
     public function trainings()
     {
