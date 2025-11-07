@@ -1970,14 +1970,18 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/compan
 
     Route::get('/list', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'list']);
 
+    // Export
+    Route::get('/export/csv', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'exportCsv']);
+    Route::get('/export/excel', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'exportExcel']);
+
     // Détails d'une entreprise
     Route::get('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'show']);
-    
+
     // CRUD
     Route::post('/', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'store']);
     Route::put('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'update']);
     Route::delete('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'destroy']);
-    
+
     // Relations
     Route::get('/{uuid}/trainings', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'getTrainings']);
     Route::get('/{uuid}/students', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'getStudents']);

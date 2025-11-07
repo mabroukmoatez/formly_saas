@@ -340,5 +340,105 @@ class CompanyManagementController extends Controller
             'sessions' => $sessions
         ];
     }
+
+    /**
+     * Export companies to CSV
+     * GET /api/organization/companies/export/csv
+     */
+    public function exportCsv(Request $request)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        $query = Company::where('organization_id', $organization_id)
+            ->with(['students' => function($q) {
+                $q->where('status', 1);
+            }]);
+
+        // Apply filters
+        if ($request->filled('uuids')) {
+            $uuids = explode(',', $request->uuids);
+            $query->whereIn('uuid', $uuids);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'LIKE', '%' . $request->search . '%')
+                  ->orWhere('siret', 'LIKE', '%' . $request->search . '%')
+                  ->orWhere('email', 'LIKE', '%' . $request->search . '%');
+            });
+        }
+
+        if ($request->filled('industry')) {
+            $query->where('industry', $request->industry);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $companies = $query->get();
+
+        // Generate CSV
+        $filename = 'entreprises_' . date('Y-m-d_His') . '.csv';
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($companies) {
+            $file = fopen('php://output', 'w');
+
+            // BOM for UTF-8
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // Header
+            fputcsv($file, [
+                'Nom',
+                'Raison sociale',
+                'SIRET',
+                'Secteur',
+                'Contact',
+                'Email',
+                'Téléphone',
+                'Ville',
+                'Apprenants actifs',
+                'Date d\'ajout',
+            ], ';');
+
+            // Data
+            foreach ($companies as $company) {
+                fputcsv($file, [
+                    $company->name,
+                    $company->legal_name,
+                    $company->siret,
+                    $company->industry,
+                    $company->contact_full_name,
+                    $company->contact_email ?: $company->email,
+                    $company->contact_phone ?: $company->phone,
+                    $company->city,
+                    $company->students->count(),
+                    $company->created_at->format('Y-m-d'),
+                ], ';');
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export companies to Excel
+     * GET /api/organization/companies/export/excel
+     */
+    public function exportExcel(Request $request)
+    {
+        // For now, use same as CSV - can be enhanced with Maatwebsite\Excel if needed
+        return $this->exportCsv($request);
+    }
 }
 
