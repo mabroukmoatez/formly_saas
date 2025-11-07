@@ -309,7 +309,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
           {/* Navigation tabs */}
           <div className="px-8 pb-6">
-            <div className="flex gap-3 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -317,18 +317,23 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as TabType)}
-                    className={`flex items-center gap-2 px-7 py-3 rounded-[20px] whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-[20px] whitespace-nowrap transition-all text-sm ${
                       isActive
                         ? 'bg-[#1E3A5F] text-white font-semibold'
                         : 'border-[1.5px] border-[#CBD5E1] text-[#64748B] hover:border-gray-400'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5" />
                     {tab.label}
                   </button>
                 );
               })}
             </div>
+            <style>{`
+              .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
           </div>
 
           {/* Content */}
