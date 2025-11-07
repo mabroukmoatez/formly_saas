@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, Users, FileText, ClipboardList, GraduationCap, Edit2 } from 'lucide-react';
+import { X, Building2, Users, FileText, ClipboardList, GraduationCap, Edit2, Download, Upload, Trash2, Search, File } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
@@ -26,8 +26,16 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<TabType>('information');
   const [company, setCompany] = useState<any>(null);
+  const [trainings, setTrainings] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Filters
+  const [documentTypeFilter, setDocumentTypeFilter] = useState('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   // Form data for editing
   const [formData, setFormData] = useState({
@@ -49,6 +57,16 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
       fetchCompanyDetails();
     }
   }, [uuid, isOpen]);
+
+  useEffect(() => {
+    if (activeTab === 'formations' && !trainings) {
+      fetchTrainings();
+    } else if (activeTab === 'documents' && documents.length === 0) {
+      fetchDocuments();
+    } else if (activeTab === 'apprenants' && students.length === 0) {
+      fetchStudents();
+    }
+  }, [activeTab]);
 
   const fetchCompanyDetails = async () => {
     setLoading(true);
@@ -86,6 +104,39 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     }
   };
 
+  const fetchTrainings = async () => {
+    try {
+      const response = await api.get(`/api/organization/companies/${uuid}/trainings`);
+      if (response.success) {
+        setTrainings(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching trainings:', error);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await api.get(`/api/organization/companies/${uuid}/documents`);
+      if (response.success) {
+        setDocuments(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
+  const fetchStudents = async () => {
+    try {
+      const response = await api.get(`/api/organization/companies/${uuid}/students`);
+      if (response.success) {
+        setStudents(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  };
+
   const handleSaveCompany = async () => {
     try {
       const payload = {
@@ -118,6 +169,72 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingDocument(true);
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('file_type', documentTypeFilter || 'other');
+
+    try {
+      const response = await api.post(`/api/organization/companies/${uuid}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.success) {
+        success('Succès', 'Document ajouté avec succès');
+        fetchDocuments();
+      }
+    } catch (error: any) {
+      showError('Erreur', 'Erreur lors de l\'upload du document');
+    } finally {
+      setUploadingDocument(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDocumentDownload = async (documentId: number, fileName: string) => {
+    try {
+      const response = await fetch(
+        `${api.defaults.baseURL}/api/organization/companies/${uuid}/documents/${documentId}/download`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+
+      if (!response.ok) throw new Error('Erreur lors du téléchargement');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      showError('Erreur', 'Impossible de télécharger le document');
+    }
+  };
+
+  const handleDocumentDelete = async (documentId: number) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer ce document ?')) return;
+
+    try {
+      const response = await api.delete(`/api/organization/companies/${uuid}/documents/${documentId}`);
+      if (response.success) {
+        success('Succès', 'Document supprimé');
+        fetchDocuments();
+      }
+    } catch (error: any) {
+      showError('Erreur', 'Erreur lors de la suppression');
+    }
+  };
+
   if (!isOpen) return null;
 
   const tabs = [
@@ -127,6 +244,18 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     { id: 'questionnaire', label: 'Questionnaire', icon: ClipboardList },
     { id: 'apprenants', label: 'Apprenants', icon: Users },
   ];
+
+  // Filter documents
+  const filteredDocuments = documents.filter(doc =>
+    !documentTypeFilter || doc.file_type === documentTypeFilter
+  );
+
+  // Filter students
+  const filteredStudents = students.filter(student =>
+    !studentSearchTerm ||
+    student.full_name?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    student.email?.toLowerCase().includes(studentSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -203,14 +332,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
           </div>
 
           {/* Content */}
-          <div className="px-8 pb-8">
+          <div className="px-8 pb-8 max-h-[60vh] overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-gray-500">Chargement...</div>
               </div>
             ) : activeTab === 'information' ? (
               <div className="space-y-4">
-                {/* Row 1: Full width - Nom */}
+                {/* Information Tab Content */}
                 <div>
                   <label className="block text-sm text-[#64748B] mb-2">
                     Nom De L'entreprise
@@ -225,7 +354,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   />
                 </div>
 
-                {/* Row 2: SIRET + Responsable */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[#64748B] mb-2">SIRET</label>
@@ -251,7 +379,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Row 3: N° TVA + Type D'entreprise */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[#64748B] mb-2">N° TVA</label>
@@ -277,7 +404,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Row 4: Full width - Address */}
                 <div>
                   <label className="block text-sm text-[#64748B] mb-2">Adresse</label>
                   <input
@@ -290,7 +416,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   />
                 </div>
 
-                {/* Row 5: Code Postal + Ville */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[#64748B] mb-2">Code Postal</label>
@@ -316,10 +441,8 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Dotted separator */}
                 <div className="border-t border-dashed border-[#E2E8F0] my-4"></div>
 
-                {/* Row 6: Email + Téléphone */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-[#64748B] mb-2">Email</label>
@@ -345,7 +468,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 </div>
 
-                {/* Row 7: Notes Internes */}
                 <div>
                   <label className="block text-sm text-[#64748B] mb-2">Notes Internes</label>
                   <textarea
@@ -358,7 +480,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   />
                 </div>
 
-                {/* Save button (only shown when editing) */}
                 {isEditing && (
                   <div className="flex justify-center mt-8">
                     <button
@@ -372,11 +493,173 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="py-12 text-center text-gray-500">
-                Contenu pour l'onglet "{activeTab}" à venir
+            ) : activeTab === 'formations' ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Formations Associées</h3>
+                {trainings?.courses && trainings.courses.length > 0 ? (
+                  <div className="space-y-3">
+                    {trainings.courses.map((course: any) => (
+                      <div key={course.id} className="p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{course.name}</h4>
+                            <p className="text-sm text-gray-500 mt-1">{course.description || 'Pas de description'}</p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-sm text-gray-600">
+                                <Users className="w-4 h-4 inline mr-1" />
+                                {course.students_count || 0} étudiant(s)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucune formation associée
+                  </div>
+                )}
               </div>
-            )}
+            ) : activeTab === 'documents' ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={documentTypeFilter}
+                      onChange={(e) => setDocumentTypeFilter(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="">Tous les types</option>
+                      <option value="contract">Contrat</option>
+                      <option value="convention">Convention</option>
+                      <option value="invoice">Facture</option>
+                      <option value="quote">Devis</option>
+                      <option value="other">Autre</option>
+                    </select>
+                    <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors">
+                      <Upload className="w-4 h-4" />
+                      {uploadingDocument ? 'Upload...' : 'Ajouter'}
+                      <input
+                        type="file"
+                        onChange={handleDocumentUpload}
+                        className="hidden"
+                        disabled={uploadingDocument}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {filteredDocuments.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredDocuments.map((doc: any) => (
+                      <div key={doc.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                        <div className="flex items-center gap-3 flex-1">
+                          <File className="w-5 h-5 text-gray-400" />
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">{doc.original_filename || doc.name}</p>
+                            <div className="flex items-center gap-3 text-sm text-gray-500">
+                              <span className="capitalize">{doc.file_type || 'autre'}</span>
+                              {doc.file_size && <span>{(doc.file_size / 1024 / 1024).toFixed(2)} MB</span>}
+                              {doc.created_at && <span>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleDocumentDownload(doc.id, doc.original_filename || doc.name)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Télécharger"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDocumentDelete(doc.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucun document
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'questionnaire' ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Questionnaires de Satisfaction</h3>
+                <div className="text-center py-12 text-gray-500">
+                  <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p>Fonctionnalité des questionnaires à venir</p>
+                  <p className="text-sm mt-2">Les questionnaires de satisfaction seront disponibles prochainement</p>
+                </div>
+              </div>
+            ) : activeTab === 'apprenants' ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Apprenants</h3>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={studentSearchTerm}
+                      onChange={(e) => setStudentSearchTerm(e.target.value)}
+                      placeholder="Rechercher un apprenant..."
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64"
+                    />
+                  </div>
+                </div>
+
+                {filteredStudents.length > 0 ? (
+                  <div className="space-y-3">
+                    {filteredStudents.map((student: any) => (
+                      <div key={student.id} className="p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{student.full_name || 'Sans nom'}</h4>
+                            <p className="text-sm text-gray-500 mt-1">{student.email || 'Pas d\'email'}</p>
+                            {student.phone && (
+                              <p className="text-sm text-gray-500">{student.phone}</p>
+                            )}
+                            {student.courses && student.courses.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium text-gray-600">Formations:</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {student.courses.map((course: any, idx: number) => (
+                                    <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                                      {course.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              student.status === 1 || student.status === 'active'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {student.status === 1 || student.status === 'active' ? 'Actif' : 'Inactif'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    {studentSearchTerm ? 'Aucun apprenant trouvé' : 'Aucun apprenant'}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
