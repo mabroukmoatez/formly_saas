@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\DocumentFolder;
+use App\Models\DocumentFolderItem;
+use App\Models\CourseDocument;
 use App\Models\Company;
 use App\Exports\StudentsExport;
 use App\Exports\ConnectionLogsExport;
