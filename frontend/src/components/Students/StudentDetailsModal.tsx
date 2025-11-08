@@ -51,6 +51,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   const [editMode, setEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUploadingDocument, setIsUploadingDocument] = useState(false);
 
   const documentInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,16 +133,25 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
+    setIsUploadingDocument(true);
     try {
-      await studentsService.uploadDocument(studentId, file);
+      const response = await studentsService.uploadDocument(studentId, file);
+
+      // Add the new document to the list immediately
+      if (response.success && response.data) {
+        setDocuments(prev => [...prev, response.data]);
+      }
+
       success(t('students.success'), t('students.documents.uploadSuccess'));
-      loadStudentDetails();
+
       // Reset input
       if (documentInputRef.current) {
         documentInputRef.current.value = '';
       }
     } catch (error: any) {
       showError(t('students.error'), error?.message || t('students.documents.downloadError'));
+    } finally {
+      setIsUploadingDocument(false);
     }
   };
 
@@ -849,26 +859,42 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
                   {/* Upload Area */}
                   <div
-                    onClick={() => documentInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                    onClick={() => !isUploadingDocument && documentInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors relative ${
+                      isUploadingDocument
+                        ? 'cursor-wait opacity-60'
+                        : 'cursor-pointer'
+                    } ${
                       isDark
                         ? 'border-gray-700 hover:border-gray-600 bg-gray-800'
                         : 'border-gray-300 hover:border-gray-400 bg-gray-50'
                     }`}
                   >
-                    <Upload className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {t('students.documents.uploadPrompt')} <span style={{ color: primaryColor }}>{t('students.documents.clickToBrowse')}</span>
-                    </p>
-                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                      {t('students.documents.uploadInfo')}
-                    </p>
+                    {isUploadingDocument ? (
+                      <>
+                        <Loader2 className={`w-12 h-12 mx-auto mb-3 animate-spin`} style={{ color: primaryColor }} />
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Téléchargement en cours...
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {t('students.documents.uploadPrompt')} <span style={{ color: primaryColor }}>{t('students.documents.clickToBrowse')}</span>
+                        </p>
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {t('students.documents.uploadInfo')}
+                        </p>
+                      </>
+                    )}
                     <input
                       ref={documentInputRef}
                       type="file"
                       onChange={handleUploadDocument}
                       className="hidden"
                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      disabled={isUploadingDocument}
                     />
                   </div>
 
