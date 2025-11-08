@@ -320,7 +320,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     if (!studentId) return;
 
     try {
-      await studentsService.shareCertificateByEmail(studentId, certId);
+      await studentsService.shareCertificate(studentId, certId);
       success(t('students.success'), t('students.certificates.shareSuccess'));
     } catch (error) {
       showError(t('students.error'), t('students.certificates.shareError'));
@@ -364,7 +364,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     setIsUpdating(true);
     try {
       // Prepare data - remove empty fields
-      const updateData = { ...editFormData };
+      const updateData: any = { ...editFormData };
 
       // Remove password fields if empty
       if (!updateData.password || updateData.password.trim() === '') {
@@ -372,8 +372,11 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
         delete updateData.password_confirmation;
       }
 
-      // Remove phone_number if empty
-      if (!updateData.phone_number || updateData.phone_number.trim() === '') {
+      // Map phone_number to phone (API expects 'phone', not 'phone_number')
+      if (updateData.phone_number !== undefined) {
+        if (updateData.phone_number && updateData.phone_number.trim() !== '') {
+          updateData.phone = updateData.phone_number;
+        }
         delete updateData.phone_number;
       }
 
