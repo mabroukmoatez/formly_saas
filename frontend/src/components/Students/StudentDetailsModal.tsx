@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Edit, Trash2, Download, Upload, Eye, Mail, Calendar, Clock, Award, Target, FileText, CheckCircle, Search } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { studentsService } from '../../services/Students';
 import { 
@@ -33,6 +34,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   onDelete,
 }) => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const { success, error: showError } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
@@ -46,7 +48,10 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
   const [stats, setStats] = useState<StudentStats | null>(null);
   const [searchDoc, setSearchDoc] = useState('');
-  
+  const [editMode, setEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState<any>({});
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const documentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -209,6 +214,51 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     }
   };
 
+  const handleEnterEditMode = () => {
+    const displayStudent = studentDetails || student;
+    setEditFormData({
+      first_name: displayStudent.first_name || '',
+      last_name: displayStudent.last_name || '',
+      email: displayStudent.email || '',
+      phone: displayStudent.phone || '',
+      address: displayStudent.address || '',
+      postal_code: displayStudent.postal_code || '',
+      city: displayStudent.city || '',
+      adaptation_needs: displayStudent.adaptation_needs || 'NON',
+      complementary_notes: displayStudent.complementary_notes || '',
+    });
+    setEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setEditFormData({});
+  };
+
+  const handleUpdateStudent = async () => {
+    if (!student) return;
+    const studentId = student.uuid || student.id?.toString();
+    if (!studentId) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await studentsService.updateStudent(studentId, editFormData);
+      if (response.success) {
+        success(t('students.updateSuccess'), t('students.updateSuccess'));
+        setEditMode(false);
+        loadStudentDetails();
+      }
+    } catch (error: any) {
+      showError(t('students.updateError'), error.message || t('students.updateError'));
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleEditFormChange = (field: string, value: any) => {
+    setEditFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
   if (!isOpen || !student) return null;
 
   const displayStudent = studentDetails || student;
@@ -304,22 +354,51 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
               {/* Tab 1: Information */}
               {activeTab === 'information' && (
                 <div className="space-y-6">
-                  <div className="flex items-center justify-end gap-3 mb-4">
-                    <Button
-                      onClick={() => onEdit(displayStudent)}
-                      className="inline-flex items-center gap-2"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span>Modifier</span>
-                    </Button>
-                    <Button
-                      onClick={() => onDelete(displayStudent.uuid || displayStudent.id?.toString() || '')}
-                      className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Supprimer</span>
-                    </Button>
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    {editMode ? (
+                      <>
+                        <Button
+                          onClick={handleCancelEdit}
+                          variant="outline"
+                          className="inline-flex items-center gap-2"
+                          disabled={isUpdating}
+                        >
+                          <X className="w-4 h-4" />
+                          <span>{t('students.cancel')}</span>
+                        </Button>
+                        <Button
+                          onClick={handleUpdateStudent}
+                          className="inline-flex items-center gap-2"
+                          style={{ backgroundColor: primaryColor }}
+                          disabled={isUpdating}
+                        >
+                          {isUpdating ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                          <span>{t('students.update')}</span>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={handleEnterEditMode}
+                          className="inline-flex items-center gap-2"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span>{t('students.edit')}</span>
+                        </Button>
+                        <Button
+                          onClick={() => onDelete(displayStudent.uuid || displayStudent.id?.toString() || '')}
+                          className="inline-flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>{t('students.delete')}</span>
+                        </Button>
+                      </>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-6">
@@ -327,10 +406,50 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Nom
+                        {t('students.lastName')}
+                      </label>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.last_name}
+                          onChange={(e) => handleEditFormChange('last_name', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.last_name || '-'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        {t('students.firstName')}
+                      </label>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.first_name}
+                          onChange={(e) => handleEditFormChange('first_name', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.first_name || '-'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className={`block text-sm font-medium mb-2 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        {t('students.company')}
                       </label>
                       <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.last_name || '-'}
+                        {displayStudent.company?.name || displayStudent.company || '-'}
                       </p>
                     </div>
 
@@ -338,109 +457,153 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Prénom
+                        {t('students.phone')}
                       </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.first_name || '-'}
-                      </p>
+                      {editMode ? (
+                        <input
+                          type="tel"
+                          value={editFormData.phone}
+                          onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.phone || '-'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Entreprise
+                        {t('students.email')}
                       </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.company || '-'}
-                      </p>
+                      {editMode ? (
+                        <input
+                          type="email"
+                          value={editFormData.email}
+                          onChange={(e) => handleEditFormChange('email', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.email}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className={`block text-sm font-medium mb-2 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        {t('students.adaptationNeeds')}
+                      </label>
+                      {editMode ? (
+                        <select
+                          value={editFormData.adaptation_needs}
+                          onChange={(e) => handleEditFormChange('adaptation_needs', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        >
+                          <option value="NON">{t('students.no')}</option>
+                          <option value="OUI">{t('students.yes')}</option>
+                        </select>
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.adaptation_needs || 'Non'}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className={`block text-sm font-medium mb-2 ${
+                        isDark ? 'text-gray-400' : 'text-gray-600'
+                      }`}>
+                        {t('students.address')}
+                      </label>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.address}
+                          onChange={(e) => handleEditFormChange('address', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.address || '-'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Téléphone
+                        {t('students.postalCode')}
                       </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.phone || '-'}
-                      </p>
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Email
-                      </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.email}
-                      </p>
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Besoins D'adaptation ?
-                      </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.adaptation_needs || 'Non'}
-                      </p>
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Adress
-                      </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.address || '-'}
-                      </p>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.postal_code}
+                          onChange={(e) => handleEditFormChange('postal_code', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.postal_code || '-'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Code Postal
+                        {t('students.city')}
                       </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.postal_code || '-'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        VILLE
-                      </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.city || '-'}
-                      </p>
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        Notes Complémentaires
-                      </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {displayStudent.additional_info || '-'}
-                      </p>
+                      {editMode ? (
+                        <input
+                          type="text"
+                          value={editFormData.city}
+                          onChange={(e) => handleEditFormChange('city', e.target.value)}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.city || '-'}
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-2">
                       <label className={`block text-sm font-medium mb-2 ${
                         isDark ? 'text-gray-400' : 'text-gray-600'
                       }`}>
-                        Mot De Passe
+                        {t('students.complementaryNotes')}
                       </label>
-                      <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        ••••••••••••••••••••
+                      {editMode ? (
+                        <textarea
+                          value={editFormData.complementary_notes}
+                          onChange={(e) => handleEditFormChange('complementary_notes', e.target.value)}
+                          rows={3}
+                          className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                      ) : (
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {displayStudent.complementary_notes || displayStudent.additional_info || '-'}
+                        </p>
+                      )}
+                    </div>
+
+                    {!editMode && (
+                      <div className="col-span-2">
+                        <label className={`block text-sm font-medium mb-2 ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
+                          Mot De Passe
+                        </label>
+                        <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          ••••••••••••••••••••
                       </p>
                     </div>
                   </div>
