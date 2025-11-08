@@ -156,6 +156,10 @@ const {
         page,
         per_page: 10,
         search: debouncedSearchTerm || undefined,
+        company: selectedCompany || undefined,
+        course_id: selectedFormation || undefined,
+        registration_date_from: dateFrom || undefined,
+        registration_date_to: dateTo || undefined,
       });
 
       if (response.success && response.data) {
@@ -263,6 +267,10 @@ const {
   const handleExportAllWithFilters = async () => {
     await exportAll({
       search: debouncedSearchTerm || undefined,
+      company: selectedCompany || undefined,
+      course_id: selectedFormation || undefined,
+      registration_date_from: dateFrom || undefined,
+      registration_date_to: dateTo || undefined,
     });
   };
 
