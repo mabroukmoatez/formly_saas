@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Download, Trash2, Filter, X, Building2 } from 'lucide-react';
+import { Search, Plus, Download, Trash2, Filter, X, Building2, Eye } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -7,6 +7,7 @@ import { useToast } from '../../components/ui/toast';
 import { companiesService } from '../../services/Companies';
 import { CompanyDetailsModal } from '../../components/Companies/CompanyDetailsModal';
 import { CompanyFormModal } from '../../components/Companies/CompanyFormModal';
+import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 
 interface Company {
   id: number;
@@ -52,6 +53,12 @@ export const Entreprises: React.FC = () => {
 
   // Industries list (unique from companies)
   const [industries, setIndustries] = useState<string[]>([]);
+
+  // Delete modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchCompanies();
@@ -111,22 +118,43 @@ export const Entreprises: React.FC = () => {
     }
   };
 
+  const handleViewCompany = (company: Company) => {
+    setSelectedCompanyUuid(company.uuid);
+  };
+
+  const handleDeleteCompany = async () => {
+    if (!companyToDelete) return;
+
+    setDeleting(true);
+    try {
+      await companiesService.deleteCompany(companyToDelete);
+      success('Succès', 'Entreprise supprimée avec succès');
+      setShowDeleteModal(false);
+      setCompanyToDelete(null);
+      fetchCompanies();
+    } catch (error: any) {
+      showError('Erreur', error.message || 'Impossible de supprimer l\'entreprise');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleDeleteSelected = async () => {
     if (selectedCompanies.length === 0) return;
 
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer ${selectedCompanies.length} entreprise(s) ?`)) {
-      return;
-    }
-
+    setDeleting(true);
     try {
       for (const uuid of selectedCompanies) {
         await companiesService.deleteCompany(uuid);
       }
       success('Succès', `${selectedCompanies.length} entreprise(s) supprimée(s)`);
+      setShowBulkDeleteModal(false);
       setSelectedCompanies([]);
       fetchCompanies();
     } catch (error: any) {
       showError('Erreur', error.message || 'Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -274,7 +302,7 @@ export const Entreprises: React.FC = () => {
 
           {selectedCompanies.length > 0 && (
             <button
-              onClick={handleDeleteSelected}
+              onClick={() => setShowBulkDeleteModal(true)}
               className="px-4 py-2 rounded-lg bg-red-600 text-white flex items-center gap-2 hover:bg-red-700"
             >
               <Trash2 className="w-5 h-5" />
@@ -406,18 +434,21 @@ export const Entreprises: React.FC = () => {
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Apprenants
                 </th>
+                <th className={`px-4 py-3 text-center text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className={isDark ? 'divide-y divide-gray-700' : 'divide-y divide-gray-200'}>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Chargement...
                   </td>
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Aucune entreprise trouvée
                   </td>
                 </tr>
@@ -461,6 +492,27 @@ export const Entreprises: React.FC = () => {
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       {company.active_students_count || 0}
+                    </td>
+                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewCompany(company)}
+                          title="Voir les détails"
+                          className="hover:opacity-80 transition-opacity"
+                        >
+                          <Eye className="w-4 h-4" style={{ color: primaryColor }} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCompanyToDelete(company.uuid);
+                            setShowDeleteModal(true);
+                          }}
+                          title="Supprimer"
+                          className="hover:opacity-80 transition-opacity"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -531,6 +583,34 @@ export const Entreprises: React.FC = () => {
           }}
         />
       )}
+
+      {/* Delete Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setCompanyToDelete(null);
+        }}
+        onConfirm={handleDeleteCompany}
+        title="Confirmer la suppression"
+        message="Êtes-vous sûr de vouloir supprimer cette entreprise ?"
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+        isLoading={deleting}
+      />
+
+      <ConfirmationModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={handleDeleteSelected}
+        title="Confirmer la suppression"
+        message={`Êtes-vous sûr de vouloir supprimer ${selectedCompanies.length} entreprise(s) ?`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+        isLoading={deleting}
+      />
     </div>
   );
 };
