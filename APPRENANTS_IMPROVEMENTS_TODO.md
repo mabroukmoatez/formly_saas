@@ -29,19 +29,22 @@
 ### 3. Student Form Modal (Create/Edit)
 
 #### Avatar Upload
-- [ ] Add avatar upload in create student modal
-- [ ] Add avatar upload in edit student modal
-- [ ] Support image preview
-- [ ] Validate file types (JPG, PNG)
-- [ ] Max file size handling
+- [x] Add avatar upload in create student modal
+- [x] Add avatar upload in edit student modal
+- [x] Support image preview
+- [x] Validate file types (JPG, PNG)
+- [x] Max file size handling
+- [x] Multilanguage support (FR/EN) for all avatar upload UI elements
 
 #### Edit Mode Behavior
-- [ ] Center "Modifier" and "Supprimer" buttons
-- [ ] On "Modifier" click:
-  - Remove `disabled` from all input fields
-  - Hide "Modifier" and "Supprimer" buttons
-  - Show "Annuler" and "Mettre à jour" buttons
-  - Use translations: `t('students.cancel')` and `t('students.update')`
+- [x] Center "Modifier" and "Supprimer" buttons
+- [x] On "Modifier" click:
+  - [x] Remove `disabled` from all input fields (inputs shown only in edit mode)
+  - [x] Hide "Modifier" and "Supprimer" buttons
+  - [x] Show "Annuler" and "Mettre à jour" buttons
+  - [x] Use translations: `t('students.cancel')` and `t('students.update')`
+  - [x] All field labels use multilanguage support
+  - [x] Update functionality implemented with proper API calls
 
 #### Delete Confirmation
 - [x] On "Supprimer" click: show confirmation popup
