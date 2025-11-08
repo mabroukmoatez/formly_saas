@@ -37,7 +37,6 @@ export const Apprenants = (): JSX.Element => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
   
@@ -84,23 +83,9 @@ const {
   clearSelection,
 } = useStudentsExportWithSelection(studentIds);
 
-  // Debounce search term with 2+ character minimum
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Only search if 2+ characters or empty (to show all results)
-      if (searchTerm.length >= 2 || searchTerm.length === 0) {
-        setDebouncedSearchTerm(searchTerm);
-        // Reset to page 1 when search term changes
-        setPage(1);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
   useEffect(() => {
     fetchStudents();
-  }, [page, debouncedSearchTerm, selectedFormation, selectedCompany, dateFrom, dateTo]);
+  }, [page, searchTerm, selectedFormation, selectedCompany, dateFrom, dateTo]);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -166,8 +151,8 @@ const {
         per_page: 10,
       };
 
-      if (debouncedSearchTerm) {
-        params.search = debouncedSearchTerm;
+      if (searchTerm) {
+        params.search = searchTerm;
       }
 
       if (selectedCompany && selectedCompany !== '') {
@@ -270,7 +255,7 @@ const {
     } else {
       // Export all with filters
       await exportAll({
-        search: debouncedSearchTerm || undefined,
+        search: searchTerm || undefined,
         company_id: selectedCompany || undefined,
         course_id: selectedFormation || undefined,
         date_from: dateFrom || undefined,
@@ -348,8 +333,11 @@ const {
                   isDark
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                } focus:outline-none focus:ring-2`}
-                style={{ focusRing: primaryColor }}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50`}
+                style={{
+                  ['--tw-ring-color' as any]: primaryColor,
+                }}
+                onFocus={(e) => e.currentTarget.style.setProperty('--tw-ring-color', primaryColor)}
               />
             </div>
           </div>
