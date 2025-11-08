@@ -155,20 +155,34 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     }
   };
 
-  const handleDownloadDocument = (doc: StudentDocument) => {
+  const handleViewDocument = (doc: StudentDocument) => {
     if (doc.file_url) {
       window.open(doc.file_url, '_blank');
     }
   };
 
+  const handleDownloadDocument = (doc: StudentDocument) => {
+    if (doc.file_url) {
+      const link = document.createElement('a');
+      link.href = doc.file_url;
+      link.download = doc.name || 'document';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const handleDeleteDocument = async (docId: number) => {
-    if (!confirm(t('students.documents.deleteConfirm'))) return;
+    const confirmMessage = t('students.documents.deleteConfirm') || 'Êtes-vous sûr de vouloir supprimer ce document ?';
+    if (!confirm(confirmMessage)) return;
     if (!student) return;
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
     try {
       await studentsService.deleteDocument(studentId, docId);
+      setDocuments(prev => prev.filter(d => d.id !== docId));
       success(t('students.success'), t('students.documents.deleteSuccess'));
       loadStudentDetails();
     } catch (error) {
@@ -960,7 +974,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                           {/* Action Icons */}
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => handleDownloadDocument(doc)}
+                              onClick={() => handleViewDocument(doc)}
                               className={`p-2 rounded-lg transition-colors ${
                                 isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                               }`}
