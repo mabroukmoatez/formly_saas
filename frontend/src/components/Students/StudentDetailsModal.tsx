@@ -78,8 +78,8 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
         setStats(response.data.stats || null);
       }
     } catch (err) {
-      console.error('Error loading student details:', err);
-      showError('Erreur', 'Impossible de charger les données');
+      // Error handled
+      showError(t('students.error'), t('students.errors.loadDataError'));
     } finally {
       setLoading(false);
     }
@@ -100,9 +100,9 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      success('Succès', 'Rapport téléchargé');
+      success(t('students.success'), t('students.connectionReport.downloadSuccess'));
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger le rapport');
+      showError(t('students.error'), t('students.connectionReport.downloadError'));
     }
   };
 
@@ -122,7 +122,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger la feuille');
+      showError(t('students.error'), t('students.attendance.downloadError'));
     }
   };
 
@@ -136,10 +136,10 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       const formData = new FormData();
       formData.append('document', file);
       await studentsService.uploadDocument(studentId, formData);
-      success('Succès', 'Document téléchargé');
+      success(t('students.success'), t('students.documents.uploadSuccess'));
       loadStudentDetails();
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger le document');
+      showError(t('students.error'), t('students.documents.downloadError'));
     }
   };
 
@@ -150,17 +150,17 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   };
 
   const handleDeleteDocument = async (docId: number) => {
-    if (!confirm('Supprimer ce document ?')) return;
+    if (!confirm(t('students.documents.deleteConfirm'))) return;
     if (!student) return;
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
     try {
       await studentsService.deleteDocument(studentId, docId);
-      success('Succès', 'Document supprimé');
+      success(t('students.success'), t('students.documents.deleteSuccess'));
       loadStudentDetails();
     } catch (error) {
-      showError('Erreur', 'Impossible de supprimer');
+      showError(t('students.error'), t('students.documents.deleteError'));
     }
   };
 
@@ -174,10 +174,10 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       const formData = new FormData();
       formData.append('certificate', file);
       await studentsService.uploadCertificate(studentId, formData);
-      success('Succès', 'Certificat téléchargé');
+      success(t('students.success'), t('students.certificates.uploadSuccess'));
       loadStudentDetails();
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger');
+      showError(t('students.error'), t('students.certificates.uploadError'));
     }
   };
 
@@ -197,7 +197,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger');
+      showError(t('students.error'), t('students.certificates.downloadError'));
     }
   };
 
@@ -208,9 +208,9 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
     try {
       await studentsService.shareCertificateByEmail(studentId, certId);
-      success('Succès', 'Certificat envoyé par email');
+      success(t('students.success'), t('students.certificates.shareSuccess'));
     } catch (error) {
-      showError('Erreur', 'Impossible d\'envoyer');
+      showError(t('students.error'), t('students.certificates.shareError'));
     }
   };
 
@@ -635,7 +635,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         variant="link"
                         className="text-green-600 p-0 h-auto"
                       >
-                        Télécharger
+                        {t('students.attendance.download')}
                       </Button>
                     </div>
 
@@ -755,7 +755,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                 <div className="space-y-4">
                   {attendance.length === 0 ? (
                     <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Aucune feuille d'émargement
+                      {t('students.attendance.noAttendance')}
                     </p>
                   ) : (
                     attendance.map((att) => (
@@ -1012,7 +1012,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                               onClick={() => handleDownloadCertificate(cert.id)}
                             >
                               <Download className="w-3 h-3 mr-1" />
-                              Télécharger PDF
+                              {t('students.attendance.downloadPdf')}
                             </Button>
                             <Button
                               size="sm"
