@@ -1300,7 +1300,7 @@ class StudentController extends Controller
 
         try {
             $organizationId = auth()->user()->organization_id;
-            
+
             $student = Student::where('uuid', $uuid)
                 ->byOrganization($organizationId)
                 ->with('administrativeFolder')
@@ -1316,19 +1316,41 @@ class StudentController extends Controller
             $file = $request->file('document');
             $filePath = $file->store('student-documents', 'public');
 
-            // Create document directly in course_documents with empty course_uuid
-            // This will be linked to the student's folder via document_folder_items
-            $document = $student->administrativeFolder->documents()->create([
-                'uuid' => Str::uuid()->toString(),
-                'name' => $file->getClientOriginalName(),
-                'file_name' => $file->getClientOriginalName(),
-                'file_url' => $filePath,
-                'file_size' => $file->getSize(),
-                'course_uuid' => '', // Empty for student admin documents
-                'created_by' => auth()->id(),
-                'document_type' => 'uploaded_file',
-                'category' => 'apprenant',
+            $documentUuid = Str::uuid()->toString();
+
+            try {
+                // Temporarily disable foreign key checks to allow empty course_uuid
+                \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+                // Create document in course_documents table
+                $document = CourseDocument::create([
+                    'uuid' => $documentUuid,
+                    'name' => $file->getClientOriginalName(),
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_url' => $filePath,
+                    'file_size' => $file->getSize(),
+                    'course_uuid' => '', // Empty for student admin documents
+                    'created_by' => auth()->id(),
+                    'document_type' => 'uploaded_file',
+                    'category' => 'apprenant',
+                ]);
+
+            } finally {
+                // Always re-enable foreign key checks
+                \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            }
+
+            // Link document to student's administrative folder via document_folder_items
+            DocumentFolderItem::create([
+                'folder_id' => $student->administrativeFolder->id,
+                'document_uuid' => $documentUuid,
+                'order' => DocumentFolderItem::where('folder_id', $student->administrativeFolder->id)->count() + 1,
+                'added_by' => auth()->id(),
+                'added_at' => now(),
             ]);
+
+            // Update folder statistics
+            $student->administrativeFolder->updateStatistics();
 
             return response()->json([
                 'success' => true,
