@@ -36,6 +36,7 @@ export const Apprenants = (): JSX.Element => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
   
@@ -81,9 +82,21 @@ const {
   clearSelection,
 } = useStudentsExportWithSelection(studentIds);
 
+  // Debounce search term with 2+ character minimum
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only search if 2+ characters or empty (to show all results)
+      if (searchTerm.length >= 2 || searchTerm.length === 0) {
+        setDebouncedSearchTerm(searchTerm);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchStudents();
-  }, [page, searchTerm]);
+  }, [page, debouncedSearchTerm]);
 
   useEffect(() => {
   const fetchCompanies = async () => {
@@ -141,7 +154,7 @@ useEffect(() => {
       const response = await studentsService.getStudents({
         page,
         per_page: 10,
-        search: searchTerm || undefined,
+        search: debouncedSearchTerm || undefined,
       });
 
       if (response.success && response.data) {
@@ -248,7 +261,7 @@ useEffect(() => {
   // Export avec les filtres actuels
   const handleExportAllWithFilters = async () => {
     await exportAll({
-      search: searchTerm || undefined,
+      search: debouncedSearchTerm || undefined,
     });
   };
 
