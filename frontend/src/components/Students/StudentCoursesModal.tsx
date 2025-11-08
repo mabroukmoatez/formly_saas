@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, BookOpen, Calendar, TrendingUp } from 'lucide-react';
 import { studentsService } from '../../services/Students';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface StudentCoursesModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
   studentName,
 }) => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,7 +33,7 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
       const response = await studentsService.getCourses(studentId);
       setCourses(response.data.courses || []);
     } catch (error) {
-      console.error('Error loading courses:', error);
+      // Error handled silently
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-bold">
-            Formations de {studentName}
+            {t('students.trainings.viewTrainings')} {studentName}
           </h2>
           <button onClick={onClose}>
             <X className="w-5 h-5" />
@@ -57,7 +59,7 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
           {courses.length === 0 ? (
-            <p className="text-center text-gray-500">Aucune formation</p>
+            <p className="text-center text-gray-500">{t('students.trainings.noTrainings')}</p>
           ) : (
             <div className="space-y-4">
               {courses.map((course) => (
@@ -81,14 +83,14 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
                           {course.start_date} - {course.end_date}
                         </span>
                         <span>
-                          Séances: {course.completed_sessions}/{course.total_sessions}
+                          {t('students.trainings.sessions')}: {course.completed_sessions}/{course.total_sessions}
                         </span>
                       </div>
 
                       {/* Progress Bar */}
                       <div className="mb-2">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium">Progression</span>
+                          <span className="text-sm font-medium">{t('students.trainings.progress')}</span>
                           <span className="text-sm font-semibold">
                             {course.progress_percentage}%
                           </span>
@@ -105,11 +107,11 @@ export const StudentCoursesModal: React.FC<StudentCoursesModalProps> = ({
                       <div className="flex items-center gap-2">
                         {course.is_completed ? (
                           <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
-                            Complétée
+                            {t('students.trainings.completed')}
                           </span>
                         ) : (
                           <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">
-                            En cours
+                            {t('students.trainings.inProgress')}
                           </span>
                         )}
                       </div>

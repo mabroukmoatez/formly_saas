@@ -908,6 +908,10 @@ export default {
       title: 'Formations suivies',
       noTrainings: 'Aucune formation suivie par cet étudiant',
       viewTrainings: 'Formations de',
+      sessions: 'Séances',
+      progress: 'Progression',
+      completed: 'Complétée',
+      inProgress: 'En cours',
     },
     documents: {
       title: 'Documents',

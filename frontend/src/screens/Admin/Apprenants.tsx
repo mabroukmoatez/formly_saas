@@ -608,8 +608,16 @@ useEffect(() => {
                                 });
                                 setIsCoursesModalOpen(true);
                               }}
-                              className="text-sm font-medium hover:underline"
-                              style={{ color: primaryColor }}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                !student.total_courses || student.total_courses === 0
+                                  ? 'cursor-not-allowed opacity-50'
+                                  : 'hover:opacity-80'
+                              }`}
+                              style={{
+                                backgroundColor: `${primaryColor}15`,
+                                color: primaryColor,
+                                border: `1px solid ${primaryColor}30`
+                              }}
                               disabled={!student.total_courses || student.total_courses === 0}
                             >
                               {student.total_courses || 0}
@@ -763,10 +771,10 @@ useEffect(() => {
           setStudentToDelete(null);
         }}
         onConfirm={handleDeleteStudent}
-        title="Voulez-vous vraiment supprimer cet apprenant ?"
-        message="Cette action est irréversible."
-        confirmText="Oui Supprimer"
-        cancelText="Non, Annuler"
+        title={t('students.deleteConfirmTitle')}
+        message={t('students.deleteConfirmMessage')}
+        confirmText={t('students.confirmDelete')}
+        cancelText={t('students.cancelDelete')}
         type="danger"
         isLoading={deleting}
       />
