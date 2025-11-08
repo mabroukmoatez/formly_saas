@@ -52,6 +52,8 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   const [editFormData, setEditFormData] = useState<any>({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
 
   const documentInputRef = useRef<HTMLInputElement>(null);
 
@@ -173,20 +175,27 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     }
   };
 
-  const handleDeleteDocument = async (docId: number) => {
-    const confirmMessage = t('students.documents.deleteConfirm') || 'Êtes-vous sûr de vouloir supprimer ce document ?';
-    if (!confirm(confirmMessage)) return;
-    if (!student) return;
+  const handleDeleteDocument = (docId: number) => {
+    setDocumentToDelete(docId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete || !student) return;
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
     try {
-      await studentsService.deleteDocument(studentId, docId);
-      setDocuments(prev => prev.filter(d => d.id !== docId));
+      await studentsService.deleteDocument(studentId, documentToDelete);
+      setDocuments(prev => prev.filter(d => d.id !== documentToDelete));
       success(t('students.success'), t('students.documents.deleteSuccess'));
+      setShowDeleteConfirm(false);
+      setDocumentToDelete(null);
       loadStudentDetails();
     } catch (error) {
       showError(t('students.error'), t('students.documents.deleteError'));
+      setShowDeleteConfirm(false);
+      setDocumentToDelete(null);
     }
   };
 
@@ -1096,6 +1105,42 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
+          <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${
+            isDark ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <div className="p-6">
+              <h3 className={`text-xl font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {t('students.documents.deleteConfirm') || 'Confirmer la suppression'}
+              </h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                {t('students.documents.deleteMessage') || 'Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.'}
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDocumentToDelete(null);
+                  }}
+                  className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
+                >
+                  {t('common.cancel') || 'Annuler'}
+                </Button>
+                <Button
+                  onClick={confirmDeleteDocument}
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {t('common.delete') || 'Supprimer'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
