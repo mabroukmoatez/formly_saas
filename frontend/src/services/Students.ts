@@ -92,7 +92,19 @@ export const studentsService = {
     page?: number;
     per_page?: number;
   }): Promise<PaginatedResponse<Student>> => {
-    const response = await apiClient.get(API_BASE, { params });
+    // Build query string manually
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.company_id) queryParams.append('company_id', params.company_id.toString());
+    if (params?.course_id) queryParams.append('course_id', params.course_id.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.date_from) queryParams.append('date_from', params.date_from);
+    if (params?.date_to) queryParams.append('date_to', params.date_to);
+
+    const endpoint = `${API_BASE}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await apiClient.get(endpoint);
     return response;
   },
 
