@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
-import api from '../../services/api';
+import { companiesService } from '../../services/Companies';
 import { CompanyDetailsModal } from '../../components/Companies/CompanyDetailsModal';
 import { CompanyFormModal } from '../../components/Companies/CompanyFormModal';
 
@@ -60,20 +60,16 @@ export const Entreprises: React.FC = () => {
   const fetchCompanies = async () => {
     setLoading(true);
     try {
-      const params: any = {
+      const response = await companiesService.getCompanies({
         page,
         per_page: perPage,
         sort_by: sortBy,
         sort_order: sortOrder,
-      };
-
-      if (searchTerm) params.search = searchTerm;
-      if (selectedIndustry) params.industry = selectedIndustry;
-      if (dateFrom) params.date_from = dateFrom;
-      if (dateTo) params.date_to = dateTo;
-
-      const queryParams = new URLSearchParams(params);
-      const response = await api.get(`/api/organization/companies?${queryParams.toString()}`);
+        search: searchTerm || undefined,
+        industry: selectedIndustry || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      });
 
       if (response.success) {
         const companiesData = response.data.companies?.data || response.data.data || [];
@@ -86,7 +82,6 @@ export const Entreprises: React.FC = () => {
         setIndustries(uniqueIndustries as string[]);
       }
     } catch (error: any) {
-      console.error('Error fetching companies:', error);
       showError('Erreur', error.message || 'Erreur lors du chargement des entreprises');
     } finally {
       setLoading(false);
@@ -125,7 +120,7 @@ export const Entreprises: React.FC = () => {
 
     try {
       for (const uuid of selectedCompanies) {
-        await api.delete(`/api/organization/companies/${uuid}`);
+        await companiesService.deleteCompany(uuid);
       }
       success('Succès', `${selectedCompanies.length} entreprise(s) supprimée(s)`);
       setSelectedCompanies([]);
@@ -137,17 +132,18 @@ export const Entreprises: React.FC = () => {
 
   const handleExport = async (format: 'csv' | 'excel') => {
     try {
-      const params = selectedCompanies.length > 0
-        ? `uuids=${selectedCompanies.join(',')}`
-        : `search=${searchTerm}&industry=${selectedIndustry}&date_from=${dateFrom}&date_to=${dateTo}`;
+      const exportParams = {
+        uuids: selectedCompanies.length > 0 ? selectedCompanies : undefined,
+        search: selectedCompanies.length === 0 ? searchTerm || undefined : undefined,
+        industry: selectedCompanies.length === 0 ? selectedIndustry || undefined : undefined,
+        date_from: selectedCompanies.length === 0 ? dateFrom || undefined : undefined,
+        date_to: selectedCompanies.length === 0 ? dateTo || undefined : undefined,
+      };
 
-      const response = await fetch(`${api.get ? '' : 'http://localhost:8000'}/api/organization/companies/export/${format}?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-      });
+      const blob = format === 'csv'
+        ? await companiesService.exportCompaniesCSV(exportParams)
+        : await companiesService.exportCompaniesExcel(exportParams);
 
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

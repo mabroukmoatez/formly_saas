@@ -3,7 +3,7 @@ import { X, Building2, Users, FileText, ClipboardList, GraduationCap, Edit2, Dow
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
-import api from '../../services/api';
+import { companiesService } from '../../services/Companies';
 
 interface CompanyDetailsModalProps {
   uuid: string;
@@ -71,9 +71,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
   const fetchCompanyDetails = async () => {
     setLoading(true);
     try {
-      console.log('Fetching company details for UUID:', uuid);
-      const response = await api.get(`/api/organization/companies/${uuid}`);
-      console.log('Company response:', response);
+      const response = await companiesService.getCompanyById(uuid);
 
       if (response.success) {
         const companyData = response.data.company || response.data;
@@ -97,7 +95,6 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         showError('Erreur', 'Impossible de charger les détails de l\'entreprise');
       }
     } catch (error: any) {
-      console.error('Error fetching company:', error);
       showError('Erreur', error.message || 'Impossible de charger les détails de l\'entreprise');
     } finally {
       setLoading(false);
@@ -106,7 +103,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
   const fetchTrainings = async () => {
     try {
-      const response = await api.get(`/api/organization/companies/${uuid}/trainings`);
+      const response = await companiesService.getCompanyTrainings(uuid);
       if (response.success) {
         setTrainings(response.data);
       }
@@ -117,7 +114,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
   const fetchDocuments = async () => {
     try {
-      const response = await api.get(`/api/organization/companies/${uuid}/documents`);
+      const response = await companiesService.getCompanyDocuments(uuid);
       if (response.success) {
         setDocuments(response.data);
       }
@@ -128,7 +125,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
   const fetchStudents = async () => {
     try {
-      const response = await api.get(`/api/organization/companies/${uuid}/students`);
+      const response = await companiesService.getCompanyStudents(uuid);
       if (response.success) {
         setStudents(response.data);
       }
@@ -154,7 +151,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         contact_last_name: formData.responsable.split(' ').slice(1).join(' ') || '',
       };
 
-      const response = await api.post(`/api/organization/companies/${uuid}`, payload);
+      const response = await companiesService.updateCompany(uuid, payload);
       if (response.success) {
         success('Succès', 'Entreprise mise à jour avec succès');
         setIsEditing(false);
@@ -174,13 +171,10 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     if (!file) return;
 
     setUploadingDocument(true);
-    const formData = new FormData();
-    formData.append('document', file);
-    formData.append('file_type', documentTypeFilter || 'other');
 
     try {
-      const response = await api.post(`/api/organization/companies/${uuid}/documents`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await companiesService.uploadCompanyDocument(uuid, file, {
+        file_type: documentTypeFilter as any || 'other',
       });
       if (response.success) {
         success('Succès', 'Document ajouté avec succès');
@@ -196,18 +190,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
   const handleDocumentDownload = async (documentId: number, fileName: string) => {
     try {
-      const response = await fetch(
-        `${api.defaults.baseURL}/api/organization/companies/${uuid}/documents/${documentId}/download`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
-
-      if (!response.ok) throw new Error('Erreur lors du téléchargement');
-
-      const blob = await response.blob();
+      const blob = await companiesService.downloadCompanyDocument(uuid, documentId);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -225,7 +208,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     if (!window.confirm('Voulez-vous vraiment supprimer ce document ?')) return;
 
     try {
-      const response = await api.delete(`/api/organization/companies/${uuid}/documents/${documentId}`);
+      const response = await companiesService.deleteCompanyDocument(uuid, documentId);
       if (response.success) {
         success('Succès', 'Document supprimé');
         fetchDocuments();
