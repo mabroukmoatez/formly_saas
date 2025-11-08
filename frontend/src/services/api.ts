@@ -92,13 +92,6 @@ class ApiService {
         responseData = await response.text();
       }
       
-      // Log successful GET responses for debugging
-      if (config.method === 'GET' && response.ok && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        if (url.includes('documents') || url.includes('questionnaires')) {
-          console.log('📥 [apiService] GET response:', url, responseData);
-        }
-      }
-      
       if (!response.ok) {
         // Use already parsed responseData as errorBody
         const errorBody = responseData || {};
@@ -840,17 +833,6 @@ class ApiService {
    * Generic POST request
    */
   async post<T>(endpoint: string, data?: any, options?: RequestInit): Promise<T> {
-    // Log the data being sent for debugging (only in development)
-    if (data && !(data instanceof FormData) && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-      const stringified = JSON.stringify(data);
-      console.log('📤 [apiService.post] Sending JSON:', stringified);
-      // Verify trainer_id is a string in the JSON
-      if (stringified.includes('trainer_id')) {
-        const parsed = JSON.parse(stringified);
-        console.log('📤 [apiService.post] trainer_id in payload:', parsed.trainer_id, 'Type:', typeof parsed.trainer_id);
-      }
-    }
-    
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
