@@ -154,7 +154,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         contact_last_name: formData.responsable.split(' ').slice(1).join(' ') || '',
       };
 
-      const response = await api.put(`/api/organization/companies/${uuid}`, payload);
+      const response = await api.post(`/api/organization/companies/${uuid}`, payload);
       if (response.success) {
         success('Succès', 'Entreprise mise à jour avec succès');
         setIsEditing(false);
@@ -398,14 +398,22 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                   <div>
                     <label className="block text-sm text-[#64748B] mb-2">Type D'entreprise</label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.type}
                       onChange={(e) => handleChange('type', e.target.value)}
                       disabled={!isEditing}
                       className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
-                      placeholder="-"
-                    />
+                    >
+                      <option value="">Sélectionner</option>
+                      <option value="SARL">SARL</option>
+                      <option value="SAS">SAS</option>
+                      <option value="SA">SA</option>
+                      <option value="EURL">EURL</option>
+                      <option value="SNC">SNC</option>
+                      <option value="Association">Association</option>
+                      <option value="Auto-entrepreneur">Auto-entrepreneur</option>
+                      <option value="Autre">Autre</option>
+                    </select>
                   </div>
                 </div>
 

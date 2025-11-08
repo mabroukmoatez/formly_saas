@@ -203,7 +203,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
       };
 
       const response = companyUuid
-        ? await api.put(`/api/organization/companies/${companyUuid}`, payload)
+        ? await api.post(`/api/organization/companies/${companyUuid}`, payload)
         : await api.post('/api/organization/companies', payload);
 
       if (response.success) {
