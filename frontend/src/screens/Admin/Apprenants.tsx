@@ -324,7 +324,7 @@ const {
   const confirmBulkDelete = async () => {
     setDeleting(true);
     try {
-      await studentsService.deleteMultipleStudents(selectedIds);
+      await studentsService.bulkDelete(selectedIds);
       success('Succès', `${selectedCount} apprenant(s) supprimé(s) avec succès`);
       clearSelection();
       setShowBulkDeleteModal(false);
