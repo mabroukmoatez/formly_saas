@@ -832,7 +832,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Télécharger des documents
+                      {t('students.documents.uploadTitle')}
                     </h3>
                   </div>
 
@@ -847,10 +847,10 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   >
                     <Upload className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Glissez vos fichiers ici ou <span style={{ color: primaryColor }}>cliquez pour parcourir</span>
+                      {t('students.documents.uploadPrompt')} <span style={{ color: primaryColor }}>{t('students.documents.clickToBrowse')}</span>
                     </p>
                     <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                      PDF, DOC, DOCX, JPG, PNG jusqu'à 10MB par fichier
+                      {t('students.documents.uploadInfo')}
                     </p>
                     <input
                       ref={documentInputRef}
@@ -867,7 +867,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   }`}>
                     <Search className="w-5 h-5 text-gray-400" />
                     <Input
-                      placeholder="Titre, Mot-Clé"
+                      placeholder={t('students.search')}
                       value={searchDoc}
                       onChange={(e) => setSearchDoc(e.target.value)}
                       className="border-0 bg-transparent focus-visible:ring-0 h-auto p-0"
@@ -877,7 +877,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   {/* Files List */}
                   <div className="flex items-center justify-between mb-3">
                     <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Files
+                      {t('students.documents.title')}
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       {documents.length}
@@ -886,45 +886,67 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
                   {documents.length === 0 ? (
                     <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Aucun document
+                      {t('students.documents.noDocuments')}
                     </p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {documents.map((doc) => (
                         <div
                           key={doc.id}
-                          className={`flex items-center justify-between p-3 rounded-lg ${
-                            isDark ? 'bg-gray-800' : 'bg-gray-50'
-                          }`}
+                          className={`flex flex-col items-center p-4 rounded-xl border ${
+                            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                          } hover:shadow-md transition-shadow`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              doc.type === 'PDF' ? 'bg-red-100' : 
-                              doc.type === 'PNG' ? 'bg-green-100' :
-                              doc.type === 'DOC' ? 'bg-blue-100' : 'bg-purple-100'
-                            }`}>
-                              <FileText className={`w-5 h-5 ${
-                                doc.type === 'PDF' ? 'text-red-600' :
-                                doc.type === 'PNG' ? 'text-green-600' :
-                                doc.type === 'DOC' ? 'text-blue-600' : 'text-purple-600'
-                              }`} />
-                            </div>
-                            <div>
-                              <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {doc.name}
-                              </p>
-                              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                {doc.type} • {doc.file_size || '9mb'}
-                              </p>
-                            </div>
+                          {/* Icon */}
+                          <div className={`w-16 h-16 rounded-lg flex items-center justify-center mb-3 ${
+                            doc.type?.toUpperCase().includes('PDF') ? 'bg-red-100' :
+                            doc.type?.toUpperCase().includes('PNG') || doc.type?.toUpperCase().includes('JPG') || doc.type?.toUpperCase().includes('JPEG') ? 'bg-green-100' :
+                            doc.type?.toUpperCase().includes('DOC') ? 'bg-blue-100' : 'bg-purple-100'
+                          }`}>
+                            <FileText className={`w-8 h-8 ${
+                              doc.type?.toUpperCase().includes('PDF') ? 'text-red-600' :
+                              doc.type?.toUpperCase().includes('PNG') || doc.type?.toUpperCase().includes('JPG') || doc.type?.toUpperCase().includes('JPEG') ? 'text-green-600' :
+                              doc.type?.toUpperCase().includes('DOC') ? 'text-blue-600' : 'text-purple-600'
+                            }`} />
                           </div>
+
+                          {/* File Name */}
+                          <p className={`text-sm font-medium text-center mb-1 truncate w-full ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {doc.name}
+                          </p>
+
+                          {/* File Type & Size */}
+                          <p className={`text-xs mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {doc.type || 'FILE'} • {doc.file_size || '0MB'}
+                          </p>
+
+                          {/* Action Icons */}
                           <div className="flex items-center gap-2">
-                            <Button size="sm" variant="ghost" onClick={() => handleDownloadDocument(doc)}>
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleDownloadDocument(doc)}>
-                              <Download className="w-4 h-4" />
-                            </Button>
+                            <button
+                              onClick={() => handleDownloadDocument(doc)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                              }`}
+                              title={t('students.documents.view')}
+                            >
+                              <Eye className="w-5 h-5" style={{ color: primaryColor }} />
+                            </button>
+                            <button
+                              onClick={() => handleDownloadDocument(doc)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                              }`}
+                              title={t('students.documents.download')}
+                            >
+                              <Download className="w-5 h-5" style={{ color: primaryColor }} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                              title={t('students.delete')}
+                            >
+                              <Trash2 className="w-5 h-5 text-red-500" />
+                            </button>
                           </div>
                         </div>
                       ))}

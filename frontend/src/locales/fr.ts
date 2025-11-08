@@ -923,12 +923,18 @@ export default {
     documents: {
       title: 'Documents',
       upload: 'Ajouter',
+      uploadTitle: 'Télécharger des documents',
+      uploadPrompt: 'Glissez vos fichiers ici ou',
+      clickToBrowse: 'cliquez pour parcourir',
+      uploadInfo: 'PDF, DOC, DOCX, JPG, PNG jusqu\'à 10MB par fichier',
       type: 'Type',
       size: 'Taille',
       noDocuments: 'Aucun document',
       uploadError: 'Erreur lors du téléchargement',
       uploadSuccess: 'Document ajouté avec succès',
       deleteSuccess: 'Document supprimé',
+      view: 'Voir',
+      download: 'Télécharger',
     },
   },
   

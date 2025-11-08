@@ -1241,12 +1241,18 @@ export default {
     documents: {
       title: 'Documents',
       upload: 'Add',
+      uploadTitle: 'Upload documents',
+      uploadPrompt: 'Drag your files here or',
+      clickToBrowse: 'click to browse',
+      uploadInfo: 'PDF, DOC, DOCX, JPG, PNG up to 10MB per file',
       type: 'Type',
       size: 'Size',
       noDocuments: 'No documents',
       uploadError: 'Upload error',
       uploadSuccess: 'Document added successfully',
       deleteSuccess: 'Document deleted',
+      view: 'View',
+      download: 'Download',
     },
   },
  
