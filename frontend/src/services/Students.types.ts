@@ -45,6 +45,7 @@ export interface StudentSession {
 }
 
 export interface StudentCourse {
+  id?: number;
   uuid: string;
   title: string;
   description?: string;
@@ -67,6 +68,7 @@ export interface StudentDocument {
   type: string;
   file_path?: string;
   file_url?: string;
+  file_size?: string | number;
   uploaded_at: string;
 }
 
