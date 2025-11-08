@@ -879,7 +879,7 @@ export default {
     exportExcel: 'Export EXCEL',
     name: 'Nom',
     assignedTrainings: 'Formations',
-    affil iatedCompany: 'Entreprise',
+    affiliatedCompany: 'Entreprise',
     registrationDateShort: 'Inscription',
     actions: 'Actions',
     details: 'Détails de l\'apprenant',
