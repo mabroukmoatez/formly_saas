@@ -260,8 +260,7 @@ Route::prefix('user-management')->group(function () {
     Route::get('create', [UserManagementController::class, 'create'])->name('user-management.create');
     Route::post('store', [UserManagementController::class, 'store'])->name('user-management.store');
     Route::get('edit/{id}', [UserManagementController::class, 'edit'])->name('user-management.edit');
-    Route::post('update/{id}', [UserManagementController::class, 'update'])->name('user-management.update');
-    Route::put('update/{id}', [UserManagementController::class, 'update'])->name('user-management.update');
+    Route::match(['post', 'put'], 'update/{id}', [UserManagementController::class, 'update'])->name('user-management.update');
     Route::delete('delete/{id}', [UserManagementController::class, 'destroy'])->name('user-management.delete');
     Route::post('toggle-status/{id}', [UserManagementController::class, 'toggleStatus'])->name('user-management.toggle-status');
 });
