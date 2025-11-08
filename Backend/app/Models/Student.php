@@ -226,23 +226,47 @@ class Student extends Model
 
     public function getTotalEvaluations()
     {
-        // Get all questionnaires assigned to student's enrolled courses
-        return \DB::table('course_questionnaires')
-            ->whereIn('course_id', function($query) {
-                $query->select('course_id')
-                    ->from('course_enrollments')
-                    ->where('student_id', $this->id);
-            })
-            ->count();
+        try {
+            if (!$this->user_id) {
+                return 0;
+            }
+
+            // Get all questionnaires assigned to student's enrolled courses
+            // Join enrollments -> courses -> course_questionnaires
+            return \DB::table('course_questionnaires as cq')
+                ->join('courses as c', 'cq.course_uuid', '=', 'c.uuid')
+                ->join('enrollments as e', 'e.course_id', '=', 'c.id')
+                ->where('e.user_id', $this->user_id)
+                ->where('cq.is_active', true)
+                ->where('cq.category', 'apprenant')
+                ->distinct()
+                ->count('cq.id');
+        } catch (\Exception $e) {
+            \Log::warning('Error calculating total evaluations for student ' . $this->id, [
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
     }
 
     public function getCompletedEvaluations()
     {
-        // Get questionnaire responses submitted by this student
-        return \DB::table('questionnaire_responses')
-            ->where('user_id', $this->user_id)
-            ->whereNotNull('completed_at')
-            ->count();
+        try {
+            // Get questionnaire responses submitted by this student
+            if (!$this->user_id) {
+                return 0;
+            }
+
+            return \DB::table('questionnaire_responses')
+                ->where('user_id', $this->user_id)
+                ->whereNotNull('completed_at')
+                ->count();
+        } catch (\Exception $e) {
+            \Log::warning('Error calculating completed evaluations for student ' . $this->id, [
+                'error' => $e->getMessage()
+            ]);
+            return 0;
+        }
     }
 
     public function getCoursesWithProgress()
