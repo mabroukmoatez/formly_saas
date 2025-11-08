@@ -380,7 +380,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
             {studentName || 'Apprenant'}
           </h2>
           <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {displayStudent.company || 'Apprenant'}
+            {typeof displayStudent.company === 'object' ? displayStudent.company?.name : displayStudent.company || 'Apprenant'}
           </p>
         </div>
 

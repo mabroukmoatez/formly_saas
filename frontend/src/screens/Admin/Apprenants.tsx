@@ -47,8 +47,8 @@ export const Apprenants = (): JSX.Element => {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
-  const [formations, setFormations] = useState<string[]>([]);
-  const [companies, setCompanies] = useState<string[]>([]);
+  const [formations, setFormations] = useState<Array<{id: string; title: string}>>([]);
+  const [companies, setCompanies] = useState<Array<{id: number; name: string}>>([]);
   
   // Modals
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -104,8 +104,11 @@ const {
       try {
         const response = await companiesService.getCompaniesList();
         if (response.success && Array.isArray(response.data)) {
-          const companyNames = response.data.map((company: any) => company.name);
-          setCompanies(companyNames);
+          const companyList = response.data.map((company: any) => ({
+            id: company.id,
+            name: company.name
+          }));
+          setCompanies(companyList);
         }
       } catch (error) {
         console.error('Error fetching companies:', error);
@@ -120,8 +123,11 @@ const {
       try {
         const response = await courseCreation.getCourses();
         if (response.success && response.data?.courses) {
-          const courseNames = response.data.courses.data?.map((course: any) => course.title) || [];
-          setFormations(courseNames);
+          const courseList = response.data.courses.data?.map((course: any) => ({
+            id: course.uuid || course.id,
+            title: course.title
+          })) || [];
+          setFormations(courseList);
         }
       } catch (error) {
         console.error('Error fetching courses:', error);
@@ -400,8 +406,8 @@ const {
           <div className={`mb-6 p-6 rounded-xl border ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}>
-            <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Formation Filter */}
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
@@ -420,7 +426,7 @@ const {
                   >
                     <option value="">Sélectionner</option>
                     {formations.map(formation => (
-                      <option key={formation} value={formation}>{formation}</option>
+                      <option key={formation.id} value={formation.id}>{formation.title}</option>
                     ))}
                   </select>
                 </div>
@@ -443,7 +449,7 @@ const {
                   >
                     <option value="">Sélectionner</option>
                     {companies.map(company => (
-                      <option key={company} value={company}>{company}</option>
+                      <option key={company.id} value={company.id}>{company.name}</option>
                     ))}
                   </select>
                 </div>
@@ -475,7 +481,7 @@ const {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 lg:flex-shrink-0">
+              <div className="flex items-center justify-end gap-2">
                 {hasActiveFilters && (
                   <Button
                     onClick={resetFilters}
