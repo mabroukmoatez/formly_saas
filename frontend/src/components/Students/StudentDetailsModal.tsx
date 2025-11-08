@@ -167,7 +167,6 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   };
 
   const handleViewDocument = (doc: StudentDocument) => {
-    console.log('View document:', doc);
     if (doc.file_url) {
       window.open(doc.file_url, '_blank');
     } else {
@@ -176,7 +175,6 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   };
 
   const handleDownloadDocument = async (doc: StudentDocument) => {
-    console.log('Download document:', doc);
     if (!doc.file_url) {
       showError(t('students.error'), 'URL du document non disponible');
       return;
@@ -199,7 +197,6 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download error:', error);
       // Fallback: try direct download
       const link = document.createElement('a');
       link.href = doc.file_url;
