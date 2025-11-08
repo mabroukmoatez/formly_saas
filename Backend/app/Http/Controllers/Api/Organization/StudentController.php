@@ -182,8 +182,35 @@ class StudentController extends Controller
 
             $student = Student::where('uuid', $uuid)
                 ->byOrganization($organizationId)
-                ->with(['user', 'company', 'organization'])
+                ->with(['user', 'company', 'organization', 'administrativeFolder.documents', 'certificates'])
                 ->firstOrFail();
+
+            // Préparer les documents
+            $documents = [];
+            if ($student->administrativeFolder) {
+                $documents = $student->administrativeFolder->documents->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'name' => $doc->name,
+                        'type' => $doc->file_type ?? pathinfo($doc->file_name, PATHINFO_EXTENSION),
+                        'file_url' => $doc->file_url,
+                        'file_size' => $doc->file_size,
+                        'uploaded_at' => $doc->created_at->format('Y-m-d H:i:s'),
+                    ];
+                });
+            }
+
+            // Préparer les certificats
+            $certificates = $student->certificates->map(function ($cert) {
+                return [
+                    'id' => $cert->id,
+                    'certificate_type' => $cert->certificate_type ?? 'completion',
+                    'course_name' => $cert->course_name ?? '',
+                    'issue_date' => $cert->created_at->format('Y-m-d'),
+                    'certificate_url' => $cert->certificate_url ?? '',
+                    'certificate_number' => $cert->certificate_number ?? '',
+                ];
+            });
 
             // Charger toutes les données pour la vue détaillée
             $data = [
@@ -207,6 +234,9 @@ class StudentController extends Controller
                     'registration_date' => $student->created_at->format('Y-m-d'),
                 ],
                 'courses' => $student->getCoursesWithProgress(),
+                'documents' => $documents,
+                'certificates' => $certificates,
+                'attendance' => [], // TODO: Add attendance data if needed
                 'stats' => [
                     'total_sessions' => $student->getTotalSessions(),
                     'effective_hours' => $student->getEffectiveHours(),
@@ -1290,10 +1320,14 @@ class StudentController extends Controller
                 'uuid' => Str::uuid()->toString(),
                 'name' => $file->getClientOriginalName(),
                 'file_name' => $file->getClientOriginalName(),
+                'file_url' => $filePath,
                 'file_path' => $filePath,
                 'file_type' => $file->getClientOriginalExtension(),
                 'file_size' => $file->getSize(),
+                'created_by' => auth()->id(),
                 'uploaded_by' => auth()->id(),
+                'document_type' => 'uploaded_file',
+                'course_uuid' => null, // Student admin documents don't belong to a course
             ]);
 
             return response()->json([
@@ -1302,7 +1336,10 @@ class StudentController extends Controller
                 'data' => [
                     'id' => $document->id,
                     'name' => $document->name,
+                    'type' => $document->file_type,
                     'file_url' => asset('storage/' . $filePath),
+                    'file_size' => $document->file_size,
+                    'uploaded_at' => $document->created_at->format('Y-m-d H:i:s'),
                 ],
             ]);
 
