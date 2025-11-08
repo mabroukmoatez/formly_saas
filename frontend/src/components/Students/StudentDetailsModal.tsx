@@ -59,6 +59,15 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
   useEffect(() => {
     if (isOpen && student) {
+      // Reset all data and reload
+      setStudentDetails(null);
+      setCourses([]);
+      setAttendance([]);
+      setDocuments([]);
+      setCertificates([]);
+      setStats(null);
+      setEditMode(false);
+      setActiveTab('information');
       loadStudentDetails();
     }
   }, [isOpen, student]);
@@ -1145,10 +1154,19 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]">
-          <div className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${
-            isDark ? 'bg-gray-800' : 'bg-white'
-          }`}>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]"
+          onClick={() => {
+            setShowDeleteConfirm(false);
+            setDocumentToDelete(null);
+          }}
+        >
+          <div
+            className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <h3 className={`text-xl font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {t('students.documents.deleteConfirm') || 'Confirmer la suppression'}

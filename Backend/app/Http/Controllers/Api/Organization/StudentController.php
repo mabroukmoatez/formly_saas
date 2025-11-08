@@ -191,6 +191,12 @@ class StudentController extends Controller
             $documents = [];
             if ($student->administrativeFolder) {
                 $documents = $student->administrativeFolder->documents->map(function ($doc) {
+                    Log::info('Retrieved document', [
+                        'id' => $doc->id,
+                        'file_url_raw' => $doc->getAttributes()['file_url'] ?? 'NOT SET',
+                        'file_url_accessor' => $doc->file_url,
+                    ]);
+
                     return [
                         'id' => $doc->id,
                         'name' => $doc->name,
@@ -1320,6 +1326,13 @@ class StudentController extends Controller
 
             $documentUuid = Str::uuid()->toString();
 
+            // Log for debugging
+            Log::info('Uploading student document', [
+                'filePath' => $filePath,
+                'documentUuid' => $documentUuid,
+                'fileName' => $file->getClientOriginalName(),
+            ]);
+
             try {
                 // Temporarily disable foreign key checks to allow empty course_uuid
                 \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
@@ -1335,6 +1348,11 @@ class StudentController extends Controller
                     'created_by' => auth()->id(),
                     'document_type' => 'uploaded_file',
                     'category' => 'apprenant',
+                ]);
+
+                Log::info('Document created', [
+                    'document_id' => $document->id,
+                    'file_url_saved' => $document->file_url,
                 ]);
 
             } finally {

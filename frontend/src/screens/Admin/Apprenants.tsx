@@ -213,19 +213,11 @@ const {
     }
   };
 
-  const handleViewStudent = async (student: Student) => {
-    try {
-      const studentId = student.uuid || student.id?.toString();
-      if (!studentId) return;
-      
-      const response = await studentsService.getStudentById(studentId);
-      if (response.success && response.data) {
-        setSelectedStudent(response.data.student);
-        setIsDetailsModalOpen(true);
-      }
-    } catch (err: any) {
-      showError('Erreur', 'Impossible de charger les détails de l\'apprenant');
-    }
+  const handleViewStudent = (student: Student) => {
+    // Open modal immediately with basic student data
+    // StudentDetailsModal will load full details on open
+    setSelectedStudent(student);
+    setIsDetailsModalOpen(true);
   };
 
   const handleDeleteStudent = async () => {
