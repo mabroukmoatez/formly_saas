@@ -333,12 +333,14 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       first_name: displayStudent.first_name || '',
       last_name: displayStudent.last_name || '',
       email: displayStudent.email || '',
-      phone: displayStudent.phone || '',
+      phone_number: displayStudent.phone || '',
       address: displayStudent.address || '',
       postal_code: displayStudent.postal_code || '',
       city: displayStudent.city || '',
       adaptation_needs: displayStudent.adaptation_needs || 'NON',
       complementary_notes: displayStudent.complementary_notes || '',
+      password: '',
+      password_confirmation: '',
     });
     setEditMode(true);
   };
@@ -353,9 +355,22 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
+    // Validate password confirmation if password is provided
+    if (editFormData.password && editFormData.password !== editFormData.password_confirmation) {
+      showError(t('students.error'), 'Les mots de passe ne correspondent pas');
+      return;
+    }
+
     setIsUpdating(true);
     try {
-      const response = await studentsService.updateStudent(studentId, editFormData);
+      // Prepare data - remove password fields if empty
+      const updateData = { ...editFormData };
+      if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password;
+        delete updateData.password_confirmation;
+      }
+
+      const response = await studentsService.updateStudent(studentId, updateData);
       if (response.success) {
         success(t('students.updateSuccess'), t('students.updateSuccess'));
         setEditMode(false);
@@ -572,8 +587,8 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       {editMode ? (
                         <input
                           type="tel"
-                          value={editFormData.phone}
-                          onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                          value={editFormData.phone_number}
+                          onChange={(e) => handleEditFormChange('phone_number', e.target.value)}
                           className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                         />
                       ) : (
@@ -705,7 +720,38 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       )}
                     </div>
 
-                    {!editMode && (
+                    {editMode ? (
+                      <>
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            Mot De Passe
+                          </label>
+                          <input
+                            type="password"
+                            value={editFormData.password}
+                            onChange={(e) => handleEditFormChange('password', e.target.value)}
+                            placeholder="Laisser vide pour ne pas modifier"
+                            className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'}`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-sm font-medium mb-2 ${
+                            isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
+                            Confirmer Mot De Passe
+                          </label>
+                          <input
+                            type="password"
+                            value={editFormData.password_confirmation}
+                            onChange={(e) => handleEditFormChange('password_confirmation', e.target.value)}
+                            placeholder="Confirmer le nouveau mot de passe"
+                            className={`w-full px-3 py-2 border rounded-md ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder:text-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'}`}
+                          />
+                        </div>
+                      </>
+                    ) : (
                       <div className="col-span-2">
                         <label className={`block text-sm font-medium mb-2 ${
                           isDark ? 'text-gray-400' : 'text-gray-600'
