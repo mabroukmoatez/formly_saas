@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
-import api from '../../services/api';
+import { companiesService } from '../../services/Companies';
 
 interface CompanyFormData {
   name: string;
@@ -126,7 +126,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 
   const fetchCompany = async () => {
     try {
-      const response = await api.get(`/api/organization/companies/${companyUuid}`);
+      const response = await companiesService.getCompanyById(companyUuid!);
       if (response.success) {
         const company = response.data.company || response.data;
         setFormData({
@@ -160,7 +160,6 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         });
       }
     } catch (error: any) {
-      console.error('Error fetching company:', error);
       showError('Erreur', 'Impossible de charger les données de l\'entreprise');
     }
   };
@@ -198,13 +197,13 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
     try {
       const payload = {
         ...formData,
-        employee_count: formData.employee_count ? parseInt(formData.employee_count) : null,
-        capital: formData.capital || null,
+        employee_count: formData.employee_count ? parseInt(formData.employee_count) : undefined,
+        capital: formData.capital || undefined,
       };
 
       const response = companyUuid
-        ? await api.put(`/api/organization/companies/${companyUuid}`, payload)
-        : await api.post('/api/organization/companies', payload);
+        ? await companiesService.updateCompany(companyUuid, payload)
+        : await companiesService.createCompany(payload);
 
       if (response.success) {
         success('Succès', response.message || `Entreprise ${companyUuid ? 'modifiée' : 'créée'} avec succès`);
@@ -212,7 +211,6 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         onClose();
       }
     } catch (error: any) {
-      console.error('Error:', error);
       showError('Erreur', error.message || `Erreur lors de ${companyUuid ? 'la modification' : 'la création'}`);
     } finally {
       setIsSubmitting(false);
