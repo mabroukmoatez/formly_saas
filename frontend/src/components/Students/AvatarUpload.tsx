@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Camera, X } from 'lucide-react';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface AvatarUploadProps {
   value?: File;
@@ -11,9 +12,10 @@ interface AvatarUploadProps {
 export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   value,
   onChange,
-  label = 'Photo de profil',
+  label,
   error,
 }) => {
+  const { t } = useLanguage();
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,13 +24,13 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
     if (file) {
       // Vérifier le type de fichier
       if (!file.type.startsWith('image/')) {
-        alert('Veuillez sélectionner une image');
+        alert(t('students.avatar.invalidType'));
         return;
       }
 
       // Vérifier la taille (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('La taille maximale est de 2MB');
+        alert(t('students.avatar.maxSize'));
         return;
       }
 
@@ -108,8 +110,8 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       )}
 
       <p className="mt-2 text-xs text-gray-500 text-center">
-        Cliquez pour choisir une photo<br />
-        (Max 2MB - JPG, PNG)
+        {t('students.avatar.clickToChoose')}<br />
+        {t('students.avatar.maxSizeInfo')}
       </p>
     </div>
   );

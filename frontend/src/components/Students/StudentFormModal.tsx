@@ -121,7 +121,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <AvatarUpload
                 value={formData.avatar}
                 onChange={(file) => handleChange('avatar', file)}
-                label={t('students.avatar') || 'Photo de profil (optionnel)'}
+                label={t('students.avatar.label')}
               />
             </div>
 
