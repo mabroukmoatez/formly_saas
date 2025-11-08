@@ -55,8 +55,14 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
   const [isDeletingDocument, setIsDeletingDocument] = useState(false);
+  const [showCertificateUploadModal, setShowCertificateUploadModal] = useState(false);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const [selectedCourseForCert, setSelectedCourseForCert] = useState<string>('');
+  const [certificateNumber, setCertificateNumber] = useState<string>('');
+  const [isUploadingCertificate, setIsUploadingCertificate] = useState(false);
 
   const documentInputRef = useRef<HTMLInputElement>(null);
+  const certificateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen && student) {
@@ -236,21 +242,56 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     }
   };
 
-  const handleUploadCertificate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertificateFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !student) return;
+    if (!file) return;
+
+    // Validate file type (PDF only for certificates)
+    if (file.type !== 'application/pdf') {
+      showError(t('students.error'), 'Veuillez sélectionner un fichier PDF');
+      e.target.value = '';
+      return;
+    }
+
+    setCertificateFile(file);
+    setShowCertificateUploadModal(true);
+    e.target.value = '';
+  };
+
+  const handleUploadCertificate = async () => {
+    if (!certificateFile || !student || !selectedCourseForCert || !certificateNumber) {
+      showError(t('students.error'), 'Veuillez remplir tous les champs requis');
+      return;
+    }
+
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
-    // Note: Certificate upload requires course_id and certificate_number
-    // For now, showing a message that this feature needs additional implementation
-    showError(
-      'Fonctionnalité en développement',
-      'L\'upload de certificat nécessite la sélection d\'une formation et un numéro de certificat. Cette fonctionnalité sera disponible prochainement.'
-    );
+    setIsUploadingCertificate(true);
+    try {
+      const response = await studentsService.uploadCertificate(
+        studentId,
+        certificateFile,
+        parseInt(selectedCourseForCert),
+        certificateNumber
+      );
 
-    // Reset input
-    e.target.value = '';
+      if (response.success && response.data) {
+        setCertificates(prev => [...prev, response.data]);
+        success(t('students.success'), t('students.certificates.uploadSuccess'));
+      }
+
+      // Reset and close
+      setShowCertificateUploadModal(false);
+      setCertificateFile(null);
+      setSelectedCourseForCert('');
+      setCertificateNumber('');
+      loadStudentDetails();
+    } catch (error: any) {
+      showError(t('students.error'), error?.message || t('students.certificates.uploadError'));
+    } finally {
+      setIsUploadingCertificate(false);
+    }
   };
 
   const handleDownloadCertificate = async (certId: number) => {
@@ -1065,6 +1106,27 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
               {/* Tab 5: Certificats */}
               {activeTab === 'certificates' && (
                 <div className="space-y-4">
+                  {/* Upload Button */}
+                  {certificates.length > 0 && (
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => certificateInputRef.current?.click()}
+                        style={{ backgroundColor: primaryColor }}
+                        className="text-white"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Ajouter un certificat
+                      </Button>
+                      <input
+                        ref={certificateInputRef}
+                        type="file"
+                        onChange={handleCertificateFileSelect}
+                        className="hidden"
+                        accept=".pdf"
+                      />
+                    </div>
+                  )}
+
                   {certificates.length === 0 ? (
                     <div className="text-center py-12">
                       <div
@@ -1084,9 +1146,10 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         </p>
                       </div>
                       <input
+                        ref={certificateInputRef}
                         id="cert-upload"
                         type="file"
-                        onChange={handleUploadCertificate}
+                        onChange={handleCertificateFileSelect}
                         className="hidden"
                         accept=".pdf"
                       />
@@ -1152,6 +1215,119 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Certificate Upload Modal */}
+      {showCertificateUploadModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]"
+          onClick={() => {
+            setShowCertificateUploadModal(false);
+            setCertificateFile(null);
+            setSelectedCourseForCert('');
+            setCertificateNumber('');
+          }}
+        >
+          <div
+            className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className={`text-xl font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Télécharger un certificat
+              </h3>
+
+              <div className="space-y-4 mb-6">
+                {/* File info */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Fichier sélectionné
+                  </label>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {certificateFile?.name}
+                  </p>
+                </div>
+
+                {/* Course selection */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Formation <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={selectedCourseForCert}
+                    onChange={(e) => setSelectedCourseForCert(e.target.value)}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDark
+                        ? 'bg-gray-700 border-gray-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2`}
+                    style={{ focusRing: primaryColor }}
+                  >
+                    <option value="">Sélectionner une formation</option>
+                    {courses.map((course) => (
+                      <option key={course.uuid || course.id} value={course.id || course.uuid}>
+                        {course.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Certificate number */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Numéro de certificat <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    value={certificateNumber}
+                    onChange={(e) => setCertificateNumber(e.target.value)}
+                    placeholder="Ex: CERT-2024-001"
+                    className={isDark ? 'bg-gray-700 border-gray-600 text-white' : ''}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowCertificateUploadModal(false);
+                    setCertificateFile(null);
+                    setSelectedCourseForCert('');
+                    setCertificateNumber('');
+                  }}
+                  className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
+                  disabled={isUploadingCertificate}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleUploadCertificate}
+                  style={{ backgroundColor: primaryColor }}
+                  className="text-white"
+                  disabled={isUploadingCertificate || !selectedCourseForCert || !certificateNumber}
+                >
+                  {isUploadingCertificate ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Téléchargement...
+                    </>
+                  ) : (
+                    'Télécharger'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
