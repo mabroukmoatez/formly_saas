@@ -91,6 +91,8 @@ const {
       // Only search if 2+ characters or empty (to show all results)
       if (searchTerm.length >= 2 || searchTerm.length === 0) {
         setDebouncedSearchTerm(searchTerm);
+        // Reset to page 1 when search term changes
+        setPage(1);
       }
     }, 500);
 
@@ -186,18 +188,65 @@ const {
 
   const applyFilters = async () => {
     setApplyingFilters(true);
+    setPage(1); // Reset to page 1 when applying filters
     try {
-      await fetchStudents();
+      setLoading(true);
+      const response = await studentsService.getStudents({
+        page: 1, // Use page 1 explicitly
+        per_page: 10,
+        search: debouncedSearchTerm || undefined,
+        company_id: selectedCompany || undefined,
+        course_id: selectedFormation || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      });
+
+      if (response.success && response.data) {
+        const studentsData = Array.isArray(response.data) ? response.data : [];
+        setStudents(studentsData);
+
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
+      }
+    } catch (err: any) {
+      showError(t('common.error'), 'Impossible de charger les apprenants');
+      setStudents([]);
     } finally {
+      setLoading(false);
       setApplyingFilters(false);
     }
   };
 
-  const resetFilters = () => {
+  const resetFilters = async () => {
     setSelectedFormation('');
     setSelectedCompany('');
     setDateFrom('');
     setDateTo('');
+    setPage(1); // Reset to page 1
+    // Fetch students with cleared filters
+    try {
+      setLoading(true);
+      const response = await studentsService.getStudents({
+        page: 1,
+        per_page: 10,
+        search: debouncedSearchTerm || undefined,
+      });
+
+      if (response.success && response.data) {
+        const studentsData = Array.isArray(response.data) ? response.data : [];
+        setStudents(studentsData);
+
+        if (response.pagination) {
+          setPagination(response.pagination);
+        }
+      }
+    } catch (err: any) {
+      showError(t('common.error'), 'Impossible de charger les apprenants');
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateStudent = () => {
