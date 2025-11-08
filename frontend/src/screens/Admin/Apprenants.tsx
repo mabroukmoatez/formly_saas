@@ -278,51 +278,16 @@ useEffect(() => {
             Gestion des apprenants
           </h1>
           
-          <div className="flex items-center gap-3">
-            {selectedCount > 0 && (
-              <>
-                <Button 
-                  onClick={handleDeleteMultiple}
-                  className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${
-                    isDark ? 'bg-red-900/20 hover:bg-red-900/30' : 'bg-[#ffe8e8]'
-                  }`}
-                  style={{ backgroundColor: isDark ? undefined : '#ffe8e8' }}
-                >
-                  <Trash2 className="w-4 h-4 text-[#ff4444]" />
-                  <span className="font-medium text-[15px] text-[#ff4444]">
-                    Supprimer ({selectedCount})
-                  </span>
-                </Button>
-                <Button 
-                  onClick={() => exportSelected()}
-                  disabled={exportingSelected}
-                  className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${
-                    isDark ? 'bg-green-900/20 hover:bg-green-900/30' : 'bg-[#e8f5e9]'
-                  }`}
-                  style={{ backgroundColor: isDark ? undefined : '#e8f5e9' }}
-                >
-                  {exportingSelected ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-[#4caf50]" />
-                  ) : (
-                    <Download className="w-4 h-4 text-[#4caf50]" />
-                  )}
-                  <span className="font-medium text-[15px] text-[#4caf50]">
-                    Export EXCEL ({selectedCount})
-                  </span>
-                </Button>
-              </>
-            )}
-            <Button 
-              onClick={handleCreateStudent}
-              className="inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <Plus className="w-4 h-4 text-white" />
-              <span className="font-medium text-[15px] text-white">
-                Ajouter Apprenant
-              </span>
-            </Button>
-          </div>
+          <Button
+            onClick={handleCreateStudent}
+            className="inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Plus className="w-4 h-4 text-white" />
+            <span className="font-medium text-[15px] text-white">
+              Ajouter Apprenant
+            </span>
+          </Button>
         </div>
 
         {/* Search and Filters Bar */}
@@ -355,22 +320,64 @@ useEffect(() => {
             <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
           </Button>
 
-          {/* Export All */}
-          {selectedCount === 0 && (
-            <Button 
+          {/* Bulk Delete Button - Modern Design */}
+          {selectedCount > 0 && (
+            <Button
+              onClick={handleDeleteMultiple}
+              variant="outline"
+              className={`px-4 py-2.5 rounded-[10px] border ${
+                isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+              style={{
+                backgroundColor: isDark ? undefined : `${primaryColor}10`,
+                borderColor: isDark ? undefined : `${primaryColor}30`
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" style={{ color: primaryColor }} />
+              <span style={{ color: primaryColor }}>Supprimer ({selectedCount})</span>
+            </Button>
+          )}
+
+          {/* Export Excel Button - Modern Design */}
+          {selectedCount > 0 ? (
+            <Button
+              onClick={() => exportSelected()}
+              disabled={exportingSelected}
+              variant="outline"
+              className={`px-4 py-2.5 rounded-[10px] border ${
+                isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white hover:bg-gray-50'
+              }`}
+              style={{
+                backgroundColor: isDark ? undefined : `${primaryColor}10`,
+                borderColor: isDark ? undefined : `${primaryColor}30`
+              }}
+            >
+              {exportingSelected ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" style={{ color: primaryColor }} />
+              ) : (
+                <Download className="w-4 h-4 mr-2" style={{ color: primaryColor }} />
+              )}
+              <span style={{ color: primaryColor }}>Export EXCEL ({selectedCount})</span>
+            </Button>
+          ) : (
+            <Button
               onClick={handleExportAllWithFilters}
               disabled={exportingAll}
               variant="outline"
               className={`px-4 py-2.5 rounded-[10px] border ${
-                isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+                isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white hover:bg-gray-50'
               }`}
+              style={{
+                backgroundColor: isDark ? undefined : `${primaryColor}10`,
+                borderColor: isDark ? undefined : `${primaryColor}30`
+              }}
             >
               {exportingAll ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <Loader2 className="w-4 h-4 animate-spin mr-2" style={{ color: primaryColor }} />
               ) : (
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="w-4 h-4 mr-2" style={{ color: primaryColor }} />
               )}
-              <span>Export EXCEL</span>
+              <span style={{ color: primaryColor }}>Export EXCEL</span>
             </Button>
           )}
         </div>
