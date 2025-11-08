@@ -18,10 +18,8 @@ class CourseDocument extends Model
         'description',
         'category',
         'file_url',
-        'file_path',
         'file_name',
         'file_size',
-        'file_type',
         'is_required',
         'template_id',
         'template_variables',
@@ -36,7 +34,6 @@ class CourseDocument extends Model
         'is_questionnaire',
         'questionnaire_type',
         'created_by',
-        'uploaded_by',
         'custom_template',
         'questions'
     ];

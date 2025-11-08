@@ -1316,18 +1316,18 @@ class StudentController extends Controller
             $file = $request->file('document');
             $filePath = $file->store('student-documents', 'public');
 
+            // Create document directly in course_documents with empty course_uuid
+            // This will be linked to the student's folder via document_folder_items
             $document = $student->administrativeFolder->documents()->create([
                 'uuid' => Str::uuid()->toString(),
                 'name' => $file->getClientOriginalName(),
                 'file_name' => $file->getClientOriginalName(),
                 'file_url' => $filePath,
-                'file_path' => $filePath,
-                'file_type' => $file->getClientOriginalExtension(),
                 'file_size' => $file->getSize(),
+                'course_uuid' => '', // Empty for student admin documents
                 'created_by' => auth()->id(),
-                'uploaded_by' => auth()->id(),
                 'document_type' => 'uploaded_file',
-                'course_uuid' => null, // Student admin documents don't belong to a course
+                'category' => 'apprenant',
             ]);
 
             return response()->json([
@@ -1336,7 +1336,7 @@ class StudentController extends Controller
                 'data' => [
                     'id' => $document->id,
                     'name' => $document->name,
-                    'type' => $document->file_type,
+                    'type' => pathinfo($document->file_name, PATHINFO_EXTENSION),
                     'file_url' => asset('storage/' . $filePath),
                     'file_size' => $document->file_size,
                     'uploaded_at' => $document->created_at->format('Y-m-d H:i:s'),
