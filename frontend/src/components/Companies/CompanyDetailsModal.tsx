@@ -41,7 +41,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     siret: '',
-    responsable: '',
+    industry: '',
     tva: '',
     type: '',
     address: '',
@@ -49,6 +49,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
     city: '',
     email: '',
     phone: '',
+    contact_first_name: '',
+    contact_last_name: '',
+    contact_position: '',
+    contact_email: '',
+    contact_phone: '',
     notes: '',
   });
 
@@ -81,7 +86,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         setFormData({
           name: companyData.name || '',
           siret: companyData.siret || '',
-          responsable: `${companyData.contact_first_name || ''} ${companyData.contact_last_name || ''}`.trim(),
+          industry: companyData.industry || '',
           tva: companyData.vat_number || '',
           type: companyData.legal_form || '',
           address: companyData.address || '',
@@ -89,6 +94,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
           city: companyData.city || '',
           email: companyData.email || '',
           phone: companyData.phone || '',
+          contact_first_name: companyData.contact_first_name || '',
+          contact_last_name: companyData.contact_last_name || '',
+          contact_position: companyData.contact_position || '',
+          contact_email: companyData.contact_email || '',
+          contact_phone: companyData.contact_phone || '',
           notes: companyData.notes || '',
         });
       } else {
@@ -139,6 +149,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
       const payload = {
         name: formData.name,
         siret: formData.siret,
+        industry: formData.industry,
         vat_number: formData.tva,
         legal_form: formData.type,
         address: formData.address,
@@ -147,8 +158,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         email: formData.email,
         phone: formData.phone,
         notes: formData.notes,
-        contact_first_name: formData.responsable.split(' ')[0] || '',
-        contact_last_name: formData.responsable.split(' ').slice(1).join(' ') || '',
+        contact_first_name: formData.contact_first_name,
+        contact_last_name: formData.contact_last_name,
+        contact_position: formData.contact_position,
+        contact_email: formData.contact_email,
+        contact_phone: formData.contact_phone,
       };
 
       const response = await companiesService.updateCompany(uuid, payload);
@@ -342,29 +356,30 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-[#64748B] mb-2">SIRET</label>
-                    <input
-                      type="text"
-                      value={formData.siret}
-                      onChange={(e) => handleChange('siret', e.target.value)}
-                      disabled={!isEditing}
-                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
-                      placeholder="-"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Responsable</label>
-                    <input
-                      type="text"
-                      value={formData.responsable}
-                      onChange={(e) => handleChange('responsable', e.target.value)}
-                      disabled={!isEditing}
-                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
-                      placeholder="-"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm text-[#64748B] mb-2">
+                    Secteur d'activité
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.industry}
+                    onChange={(e) => handleChange('industry', e.target.value)}
+                    disabled={!isEditing}
+                    className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                    placeholder="-"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-[#64748B] mb-2">SIRET</label>
+                  <input
+                    type="text"
+                    value={formData.siret}
+                    onChange={(e) => handleChange('siret', e.target.value)}
+                    disabled={!isEditing}
+                    className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                    placeholder="-"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -438,6 +453,76 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                 </div>
 
                 <div className="border-t border-dashed border-[#E2E8F0] my-4"></div>
+
+                <h3 className="text-base font-semibold text-[#1E293B] mb-4">Personne de contact</h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-[#64748B] mb-2">Prénom</label>
+                    <input
+                      type="text"
+                      value={formData.contact_first_name}
+                      onChange={(e) => handleChange('contact_first_name', e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                      placeholder="-"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#64748B] mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={formData.contact_last_name}
+                      onChange={(e) => handleChange('contact_last_name', e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                      placeholder="-"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-[#64748B] mb-2">Fonction</label>
+                    <input
+                      type="text"
+                      value={formData.contact_position}
+                      onChange={(e) => handleChange('contact_position', e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                      placeholder="-"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[#64748B] mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={formData.contact_email}
+                      onChange={(e) => handleChange('contact_email', e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                      placeholder="-"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-[#64748B] mb-2">Téléphone</label>
+                    <input
+                      type="tel"
+                      value={formData.contact_phone}
+                      onChange={(e) => handleChange('contact_phone', e.target.value)}
+                      disabled={!isEditing}
+                      className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
+                      placeholder="-"
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-dashed border-[#E2E8F0] my-4"></div>
+
+                <h3 className="text-base font-semibold text-[#1E293B] mb-4">Coordonnées entreprise</h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
