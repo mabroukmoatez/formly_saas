@@ -212,6 +212,8 @@ class StudentController extends Controller
                     'effective_hours' => $student->getEffectiveHours(),
                     'attendance_rate' => $student->getAttendanceRate(),
                     'total_connection_time' => $student->getTotalConnectionTime(),
+                    'total_evaluations' => $student->getTotalEvaluations(),
+                    'completed_evaluations' => $student->getCompletedEvaluations(),
                 ],
             ];
 
@@ -1806,9 +1808,12 @@ class StudentController extends Controller
 
             $stats = [
                 'total_connection_hours' => $student->getTotalConnectionTime(),
+                'total_connection_time' => $student->getTotalConnectionTime(),
                 'total_sessions' => $student->getTotalSessions(),
                 'effective_hours' => $student->getEffectiveHours(),
                 'attendance_rate' => $student->getAttendanceRate(),
+                'total_evaluations' => $student->getTotalEvaluations(),
+                'completed_evaluations' => $student->getCompletedEvaluations(),
                 'courses_count' => $student->enrollments()->count(),
                 'completed_courses' => $student->enrollments()->where('status', 1)->count(),
                 'certificates_count' => DB::table('student_certificates')

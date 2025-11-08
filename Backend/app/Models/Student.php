@@ -216,12 +216,33 @@ class Student extends Model
     {
         $total = SessionInstanceAttendance::where('user_id', $this->user_id)->count();
         if ($total === 0) return 0;
-        
+
         $present = SessionInstanceAttendance::where('user_id', $this->user_id)
             ->whereIn('status', ['present', 'late'])
             ->count();
 
         return round(($present / $total) * 100, 2);
+    }
+
+    public function getTotalEvaluations()
+    {
+        // Get all questionnaires assigned to student's enrolled courses
+        return \DB::table('course_questionnaires')
+            ->whereIn('course_id', function($query) {
+                $query->select('course_id')
+                    ->from('course_enrollments')
+                    ->where('student_id', $this->id);
+            })
+            ->count();
+    }
+
+    public function getCompletedEvaluations()
+    {
+        // Get questionnaire responses submitted by this student
+        return \DB::table('questionnaire_responses')
+            ->where('user_id', $this->user_id)
+            ->whereNotNull('completed_at')
+            ->count();
     }
 
     public function getCoursesWithProgress()

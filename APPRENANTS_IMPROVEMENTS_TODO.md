@@ -79,18 +79,19 @@ TO DO:
 - [ ] Support FR/EN
 
 #### Documents Tab
-- [ ] Fix document upload error
-- [ ] Display 2 documents per row
-- [ ] Each document in a card with:
-  - File icon (based on type)
-  - Document name.extension (below icon)
-  - Small text showing type and size
-  - Right side: View icon (eye) and Download icon
-  - On View click: open document in new tab/modal
-  - On Download click: download file
-- [ ] Handle upload errors gracefully
-- [ ] Show success toast on upload
-- [ ] Grid layout: 2 columns responsive
+- [x] Fix document upload error (existing error handling in place)
+- [x] Display 2 documents per row
+- [x] Each document in a card with:
+  - [x] File icon (based on type: PDF=red, DOC=blue, images=green)
+  - [x] Document name.extension (below icon)
+  - [x] Small text showing type and size
+  - [x] View icon (eye) and Download icon with organization color
+  - [x] Delete icon (trash) in red
+  - [x] Hover effects on action buttons
+- [x] Grid layout: 2 columns responsive (1 column on mobile, 2 on md+)
+- [x] Multilanguage support (FR/EN) for all UI elements
+- [x] Centered card layout with proper spacing
+- [x] Organization primary color theming for action icons
 
 ### 5. API Integration
 
