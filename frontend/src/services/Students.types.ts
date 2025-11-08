@@ -135,10 +135,10 @@ export interface GetStudentsParams {
   sort_by?: 'name' | 'registration_date' | 'company' | 'courses';
   sort_order?: 'asc' | 'desc';
   status?: 'active' | 'inactive' | 'pending';
-  company?: string;
+  company_id?: string;
   course_id?: string;
-  registration_date_from?: string;
-  registration_date_to?: string;
+  date_from?: string;
+  date_to?: string;
 }
 
 export interface ApiResponse<T> {
