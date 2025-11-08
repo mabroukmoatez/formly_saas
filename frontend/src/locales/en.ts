@@ -1226,6 +1226,10 @@ export default {
       title: 'Enrolled Trainings',
       noTrainings: 'No training enrolled by this student',
       viewTrainings: 'Trainings of',
+      sessions: 'Sessions',
+      progress: 'Progress',
+      completed: 'Completed',
+      inProgress: 'In Progress',
     },
     documents: {
       title: 'Documents',

@@ -15,16 +15,16 @@
 ### 2. UI/UX Improvements - Buttons & Layout
 
 #### Bulk Action Buttons
-- [ ] Update bulk delete button design to match Entreprises page style
-- [ ] Update export Excel button design to match Entreprises page style
-- [ ] Move bulk action buttons to same row as Filter button
-- [ ] Use modern design with light background + organization color text
+- [x] Update bulk delete button design to match Entreprises page style
+- [x] Update export Excel button design to match Entreprises page style
+- [x] Move bulk action buttons to same row as Filter button
+- [x] Use modern design with light background + organization color text
 
 #### Table
-- [ ] Make "Formations attribuées" a clickable button
-- [ ] Button style: light background with organization primary color
-- [ ] onClick: open popup showing student's formations OR message if none
-- [ ] Message when empty: "Aucune formation suivie par cet étudiant" (FR/EN)
+- [x] Make "Formations attribuées" a clickable button
+- [x] Button style: light background with organization primary color
+- [x] onClick: open popup showing student's formations OR message if none
+- [x] Message when empty: "Aucune formation suivie par cet étudiant" (FR/EN)
 
 ### 3. Student Form Modal (Create/Edit)
 
@@ -44,11 +44,11 @@
   - Use translations: `t('students.cancel')` and `t('students.update')`
 
 #### Delete Confirmation
-- [ ] On "Supprimer" click: show confirmation popup
-- [ ] Popup title: `t('students.deleteConfirmTitle')`
-- [ ] Popup message: `t('students.deleteConfirmMessage')`
-- [ ] Confirm button: `t('students.confirmDelete')`
-- [ ] Cancel button: `t('students.cancelDelete')`
+- [x] On "Supprimer" click: show confirmation popup
+- [x] Popup title: `t('students.deleteConfirmTitle')`
+- [x] Popup message: `t('students.deleteConfirmMessage')`
+- [x] Confirm button: `t('students.confirmDelete')`
+- [x] Cancel button: `t('students.cancelDelete')`
 
 ### 4. Student Details Modal - Real Data
 
@@ -151,15 +151,16 @@ Files to update:
 
 ### 8. Formations Popup Modal
 
-Create new component: `/frontend/src/components/Students/StudentFormationsModal.tsx`
+Component already exists: `/frontend/src/components/Students/StudentCoursesModal.tsx`
 
 Features:
-- [ ] Show list of student's formations
-- [ ] Display formation name, status, progress
-- [ ] Show sessions if applicable
-- [ ] Empty state with message
-- [ ] Close button
-- [ ] Responsive design
+- [x] Show list of student's formations
+- [x] Display formation name, status, progress
+- [x] Show sessions if applicable
+- [x] Empty state with message
+- [x] Close button
+- [x] Responsive design
+- [x] Multilanguage support (FR/EN)
 
 ### 9. Testing Checklist
 
