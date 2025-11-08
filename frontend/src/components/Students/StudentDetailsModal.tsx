@@ -604,8 +604,9 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         </label>
                         <p className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           ••••••••••••••••••••
-                      </p>
-                    </div>
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
