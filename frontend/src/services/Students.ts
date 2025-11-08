@@ -85,7 +85,7 @@ export const studentsService = {
   getStudents: async (params?: {
     search?: string;
     company_id?: number;
-    course_id?: number;
+    course_id?: string | number; // UUID string or numeric ID
     status?: string;
     date_from?: string;
     date_to?: string;

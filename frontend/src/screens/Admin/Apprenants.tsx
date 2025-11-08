@@ -156,11 +156,11 @@ const {
       }
 
       if (selectedCompany && selectedCompany !== '') {
-        params.company_id = selectedCompany;
+        params.company_id = parseInt(selectedCompany);
       }
 
       if (selectedFormation && selectedFormation !== '') {
-        params.course_id = selectedFormation;
+        params.course_id = selectedFormation; // Keep as string for UUID
       }
 
       if (dateFrom && dateFrom !== '') {
@@ -256,7 +256,7 @@ const {
       // Export all with filters
       await exportAll({
         search: searchTerm || undefined,
-        company_id: selectedCompany || undefined,
+        company_id: selectedCompany ? parseInt(selectedCompany) : undefined,
         course_id: selectedFormation || undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
