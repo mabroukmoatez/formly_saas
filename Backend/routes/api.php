@@ -1994,6 +1994,35 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/compan
     Route::delete('/{uuid}/documents/{documentId}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'deleteDocument']);
 });
 
+// Funder Management Routes
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/funders')->group(function () {
+    // Liste complète avec pagination et filtres
+    Route::get('/', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'index']);
+
+    // Export
+    Route::get('/export/csv', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'exportCsv']);
+    Route::get('/export/excel', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'exportExcel']);
+
+    // Détails d'un financeur
+    Route::get('/{uuid}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'show']);
+
+    // CRUD
+    Route::post('/', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'store']);
+    Route::put('/{uuid}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'update']);
+    Route::post('/{uuid}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'update']);
+    Route::delete('/{uuid}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'destroy']);
+
+    // Relations
+    Route::get('/{uuid}/trainings', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'getTrainings']);
+    Route::get('/{uuid}/students', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'getStudents']);
+
+    // Documents
+    Route::get('/{uuid}/documents', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'getDocuments']);
+    Route::post('/{uuid}/documents', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'uploadDocument']);
+    Route::get('/{uuid}/documents/{documentId}/download', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'downloadDocument']);
+    Route::delete('/{uuid}/documents/{documentId}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'deleteDocument']);
+});
+
 // Media serving routes with security
 Route::get('/media/{path}', [\App\Http\Controllers\Api\MediaController::class, 'serve'])
     ->where('path', '.*')
