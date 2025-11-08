@@ -160,15 +160,34 @@ const {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await studentsService.getStudents({
+
+      // Build filter params with proper type conversion
+      const params: any = {
         page,
         per_page: 10,
-        search: debouncedSearchTerm || undefined,
-        company_id: selectedCompany || undefined,
-        course_id: selectedFormation || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-      });
+      };
+
+      if (debouncedSearchTerm) {
+        params.search = debouncedSearchTerm;
+      }
+
+      if (selectedCompany && selectedCompany !== '') {
+        params.company_id = selectedCompany;
+      }
+
+      if (selectedFormation && selectedFormation !== '') {
+        params.course_id = selectedFormation;
+      }
+
+      if (dateFrom && dateFrom !== '') {
+        params.date_from = dateFrom;
+      }
+
+      if (dateTo && dateTo !== '') {
+        params.date_to = dateTo;
+      }
+
+      const response = await studentsService.getStudents(params);
 
       if (response.success && response.data) {
         const studentsData = Array.isArray(response.data) ? response.data : [];
@@ -191,15 +210,34 @@ const {
     setPage(1); // Reset to page 1 when applying filters
     try {
       setLoading(true);
-      const response = await studentsService.getStudents({
-        page: 1, // Use page 1 explicitly
+
+      // Build filter params with proper type conversion
+      const params: any = {
+        page: 1,
         per_page: 10,
-        search: debouncedSearchTerm || undefined,
-        company_id: selectedCompany || undefined,
-        course_id: selectedFormation || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-      });
+      };
+
+      if (debouncedSearchTerm) {
+        params.search = debouncedSearchTerm;
+      }
+
+      if (selectedCompany && selectedCompany !== '') {
+        params.company_id = selectedCompany;
+      }
+
+      if (selectedFormation && selectedFormation !== '') {
+        params.course_id = selectedFormation;
+      }
+
+      if (dateFrom && dateFrom !== '') {
+        params.date_from = dateFrom;
+      }
+
+      if (dateTo && dateTo !== '') {
+        params.date_to = dateTo;
+      }
+
+      const response = await studentsService.getStudents(params);
 
       if (response.success && response.data) {
         const studentsData = Array.isArray(response.data) ? response.data : [];

@@ -363,11 +363,18 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
     setIsUpdating(true);
     try {
-      // Prepare data - remove password fields if empty
+      // Prepare data - remove empty fields
       const updateData = { ...editFormData };
+
+      // Remove password fields if empty
       if (!updateData.password || updateData.password.trim() === '') {
         delete updateData.password;
         delete updateData.password_confirmation;
+      }
+
+      // Remove phone_number if empty
+      if (!updateData.phone_number || updateData.phone_number.trim() === '') {
+        delete updateData.phone_number;
       }
 
       const response = await studentsService.updateStudent(studentId, updateData);
@@ -525,7 +532,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     )}
                   </div>
 
-                  <div className="max-w-4xl mx-auto">
+                  <div className="max-w-4xl mx-auto mb-8">
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
