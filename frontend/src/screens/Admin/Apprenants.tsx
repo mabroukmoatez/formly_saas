@@ -24,7 +24,8 @@ import { StudentCoursesModal } from '../../components/Students/StudentCoursesMod
 import { StudentFormModal } from '../../components/Students/StudentFormModal';
 import { StudentDetailsModal } from '../../components/Students/StudentDetailsModal';
 import { useStudentsExportWithSelection } from '../../hooks/useStudentsExport';
-import api from '../../services/api';
+import { companiesService } from '../../services/Companies';
+import { courseCreationService } from '../../services/courseCreation';
 
 export const Apprenants = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -99,36 +100,36 @@ const {
   }, [page, debouncedSearchTerm]);
 
   useEffect(() => {
-  const fetchCompanies = async () => {
-    try {
-      const response = await api.get('/api/organization/companies/list');
-      if (response.success && Array.isArray(response.data)) {
-        const companyNames = response.data.map((company: any) => company.name);
-        setCompanies(companyNames);
+    const fetchCompanies = async () => {
+      try {
+        const response = await companiesService.getCompaniesList();
+        if (response.success && Array.isArray(response.data)) {
+          const companyNames = response.data.map((company: any) => company.name);
+          setCompanies(companyNames);
+        }
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+        setCompanies([]);
       }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      setCompanies([]);
-    }
-  };
-  fetchCompanies();
-}, []);
+    };
+    fetchCompanies();
+  }, []);
 
-useEffect(() => {
-  const fetchCourses = async () => {
-    try {
-      const response = await api.get('/api/organization/courses/');
-      if (response.success && response.data?.courses) {
-        const courseNames = response.data.courses.data?.map((course: any) => course.title) || [];
-        setFormations(courseNames);
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await courseCreationService.getCourses();
+        if (response.success && response.data?.courses) {
+          const courseNames = response.data.courses.data?.map((course: any) => course.title) || [];
+          setFormations(courseNames);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        setFormations([]);
       }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      setFormations([]);
-    }
-  };
-  fetchCourses();
-}, []);
+    };
+    fetchCourses();
+  }, []);
   // Afficher les messages de succès/erreur pour les exports
   useEffect(() => {
     if (selectedSuccess) {
