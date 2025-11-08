@@ -450,18 +450,23 @@ class StudentController extends Controller
     public function update(Request $request, $uuid)
     {
         $validator = Validator::make($request->all(), [
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|email',
-            'phone_number' => 'required|string|max:20',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:20',
+            'phone_number' => 'nullable|string|max:20',
             'company_id' => 'nullable|exists:companies,id',
             'gender' => 'nullable|in:male,female,other',
             'address' => 'nullable|string|max:500',
             'postal_code' => 'nullable|string|max:10',
             'city_id' => 'nullable|exists:cities,id',
             'about_me' => 'nullable|string',
+            'complementary_notes' => 'nullable|string',
+            'adaptation_needs' => 'nullable|string',
             'image' => 'nullable|image|max:2048',
+            'avatar' => 'nullable|image|max:2048',
             'password' => 'nullable|string|min:8',
+            'password_confirmation' => 'nullable|string|min:8',
         ]);
 
         if ($validator->fails()) {
@@ -482,7 +487,7 @@ class StudentController extends Controller
                 ->firstOrFail();
 
             // Vérifier l'unicité de l'email si changé
-            if ($request->email !== $student->user->email) {
+            if ($request->filled('email') && $request->email !== $student->user->email) {
                 $emailExists = User::where('email', $request->email)
                     ->where('id', '!=', $student->user_id)
                     ->exists();
@@ -496,37 +501,85 @@ class StudentController extends Controller
             }
 
             // Mettre à jour l'utilisateur
-            $userData = [
-                'name' => $request->first_name . ' ' . $request->last_name,
-                'email' => $request->email,
-            ];
+            $userData = [];
+
+            if ($request->filled('first_name') || $request->filled('last_name')) {
+                $firstName = $request->filled('first_name') ? $request->first_name : $student->first_name;
+                $lastName = $request->filled('last_name') ? $request->last_name : $student->last_name;
+                $userData['name'] = $firstName . ' ' . $lastName;
+            }
+
+            if ($request->filled('email')) {
+                $userData['email'] = $request->email;
+            }
 
             if ($request->filled('password')) {
                 $userData['password'] = Hash::make($request->password);
             }
 
-            if ($request->hasFile('image')) {
+            if ($request->hasFile('image') || $request->hasFile('avatar')) {
+                $file = $request->hasFile('avatar') ? $request->file('avatar') : $request->file('image');
                 // Supprimer l'ancienne image si elle existe
                 if ($student->user->image) {
                     \Storage::disk('public')->delete($student->user->image);
                 }
-                $userData['image'] = $request->file('image')->store('students', 'public');
+                $userData['image'] = $file->store('students', 'public');
             }
 
-            $student->user->update($userData);
+            if (!empty($userData)) {
+                $student->user->update($userData);
+            }
 
-            // Mettre à jour l'apprenant
-            $student->update([
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'phone_number' => $request->phone_number,
-                'company_id' => $request->company_id,
-                'gender' => $request->gender,
-                'address' => $request->address,
-                'postal_code' => $request->postal_code,
-                'city_id' => $request->city_id,
-                'about_me' => $request->about_me,
-            ]);
+            // Préparer les données de l'apprenant à mettre à jour
+            $studentData = [];
+
+            if ($request->filled('first_name')) {
+                $studentData['first_name'] = $request->first_name;
+            }
+
+            if ($request->filled('last_name')) {
+                $studentData['last_name'] = $request->last_name;
+            }
+
+            // Gérer phone et phone_number (accepter les deux)
+            if ($request->filled('phone')) {
+                $studentData['phone_number'] = $request->phone;
+            } elseif ($request->filled('phone_number')) {
+                $studentData['phone_number'] = $request->phone_number;
+            }
+
+            if ($request->filled('company_id')) {
+                $studentData['company_id'] = $request->company_id;
+            }
+
+            if ($request->filled('gender')) {
+                $studentData['gender'] = $request->gender;
+            }
+
+            if ($request->filled('address')) {
+                $studentData['address'] = $request->address;
+            }
+
+            if ($request->filled('postal_code')) {
+                $studentData['postal_code'] = $request->postal_code;
+            }
+
+            if ($request->filled('city_id')) {
+                $studentData['city_id'] = $request->city_id;
+            }
+
+            if ($request->filled('about_me')) {
+                $studentData['about_me'] = $request->about_me;
+            }
+
+            if ($request->filled('complementary_notes')) {
+                $studentData['about_me'] = $request->complementary_notes;
+            }
+
+            // Mettre à jour l'apprenant uniquement si des données sont fournies
+            if (!empty($studentData)) {
+                $student->update($studentData);
+            }
 
             DB::commit();
 

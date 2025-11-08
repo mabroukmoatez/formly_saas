@@ -1980,6 +1980,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/compan
     // CRUD
     Route::post('/', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'store']);
     Route::put('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'update']);
+    Route::post('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'update']);
     Route::delete('/{uuid}', [\App\Http\Controllers\Api\Organization\CompanyManagementController::class, 'destroy']);
 
     // Relations
