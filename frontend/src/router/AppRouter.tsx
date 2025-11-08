@@ -60,6 +60,7 @@ import { AccessDenied } from '../screens/AccessDenied';
 import { OrganizationNotFound } from '../screens/OrganizationNotFound';
 import ApprenantsPage from '../pages/Apprenants';
 import EntreprisesPage from '../pages/Entreprises';
+import FinanceursPage from '../pages/Financeurs';
 
 /**
  * Protected Route Component
@@ -956,6 +957,16 @@ export const AppRouter: React.FC = () => {
             <OrganizationRoute>
               <ProtectedRoute>
                 <EntreprisesPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/financeurs"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <FinanceursPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }
