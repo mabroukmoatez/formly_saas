@@ -158,13 +158,40 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   };
 
   const handleViewDocument = (doc: StudentDocument) => {
+    console.log('View document:', doc);
     if (doc.file_url) {
       window.open(doc.file_url, '_blank');
+    } else {
+      showError(t('students.error'), 'URL du document non disponible');
     }
   };
 
-  const handleDownloadDocument = (doc: StudentDocument) => {
-    if (doc.file_url) {
+  const handleDownloadDocument = async (doc: StudentDocument) => {
+    console.log('Download document:', doc);
+    if (!doc.file_url) {
+      showError(t('students.error'), 'URL du document non disponible');
+      return;
+    }
+
+    try {
+      // Fetch the file as blob
+      const response = await fetch(doc.file_url);
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = doc.name || 'document';
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback: try direct download
       const link = document.createElement('a');
       link.href = doc.file_url;
       link.download = doc.name || 'document';
@@ -940,7 +967,11 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       {t('students.documents.title')}
                     </span>
                     <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {documents.length}
+                      {documents.filter(doc =>
+                        !searchDoc ||
+                        doc.name?.toLowerCase().includes(searchDoc.toLowerCase()) ||
+                        doc.type?.toLowerCase().includes(searchDoc.toLowerCase())
+                      ).length}
                     </span>
                   </div>
 
@@ -950,7 +981,13 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {documents.map((doc) => (
+                      {documents
+                        .filter(doc =>
+                          !searchDoc ||
+                          doc.name?.toLowerCase().includes(searchDoc.toLowerCase()) ||
+                          doc.type?.toLowerCase().includes(searchDoc.toLowerCase())
+                        )
+                        .map((doc) => (
                         <div
                           key={doc.id}
                           className={`flex flex-col items-center p-4 rounded-xl border ${

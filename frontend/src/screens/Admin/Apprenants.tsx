@@ -179,7 +179,6 @@ const {
   };
 
   const applyFilters = () => {
-    setShowFilters(false);
     fetchStudents();
   };
 
