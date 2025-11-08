@@ -133,13 +133,15 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     if (!studentId) return;
 
     try {
-      const formData = new FormData();
-      formData.append('document', file);
-      await studentsService.uploadDocument(studentId, formData);
+      await studentsService.uploadDocument(studentId, file);
       success(t('students.success'), t('students.documents.uploadSuccess'));
       loadStudentDetails();
-    } catch (error) {
-      showError(t('students.error'), t('students.documents.downloadError'));
+      // Reset input
+      if (documentInputRef.current) {
+        documentInputRef.current.value = '';
+      }
+    } catch (error: any) {
+      showError(t('students.error'), error?.message || t('students.documents.downloadError'));
     }
   };
 
@@ -170,15 +172,15 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
-    try {
-      const formData = new FormData();
-      formData.append('certificate', file);
-      await studentsService.uploadCertificate(studentId, formData);
-      success(t('students.success'), t('students.certificates.uploadSuccess'));
-      loadStudentDetails();
-    } catch (error) {
-      showError(t('students.error'), t('students.certificates.uploadError'));
-    }
+    // Note: Certificate upload requires course_id and certificate_number
+    // For now, showing a message that this feature needs additional implementation
+    showError(
+      'Fonctionnalité en développement',
+      'L\'upload de certificat nécessite la sélection d\'une formation et un numéro de certificat. Cette fonctionnalité sera disponible prochainement.'
+    );
+
+    // Reset input
+    e.target.value = '';
   };
 
   const handleDownloadCertificate = async (certId: number) => {
@@ -284,44 +286,40 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" 
       onClick={onClose}
     >
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className={`relative w-[95%] max-w-[900px] max-h-[90vh] overflow-hidden rounded-[20px] ${
           isDark ? 'bg-gray-900' : 'bg-white'
-        } shadow-xl`}
+        } shadow-xl mx-8`}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-6 py-5 border-b ${
+        <div className={`flex flex-col items-center justify-center px-8 py-6 border-b ${
           isDark ? 'border-gray-700' : 'border-gray-200'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div 
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg"
-              style={{ backgroundColor: primaryColor }}
-            >
-              {displayStudent.last_name?.charAt(0) || displayStudent.first_name?.charAt(0) || 'U'}
-            </div>
-            <div>
-              <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {studentName || 'Apprenant'}
-              </h2>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {displayStudent.company || 'Apprenant'}
-              </p>
-            </div>
-          </div>
+        } relative`}>
           <button
             onClick={onClose}
-            className={`p-2 rounded-lg transition-colors ${
+            className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
               isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
             }`}
           >
             <X className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
           </button>
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl mb-3"
+            style={{ backgroundColor: primaryColor }}
+          >
+            {displayStudent.last_name?.charAt(0) || displayStudent.first_name?.charAt(0) || 'U'}
+          </div>
+          <h2 className={`text-2xl font-bold text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {studentName || 'Apprenant'}
+          </h2>
+          <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {displayStudent.company || 'Apprenant'}
+          </p>
         </div>
 
         {/* Tabs */}
-        <div className={`flex items-center gap-1 px-6 pt-4 border-b ${
+        <div className={`flex items-center gap-1 px-8 pt-4 border-b ${
           isDark ? 'border-gray-700' : 'border-gray-200'
         }`}>
           {tabs.map((tab) => (
@@ -344,7 +342,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-180px)] p-6">
+        <div className="overflow-y-auto max-h-[calc(90vh-220px)] px-8 py-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
@@ -401,6 +399,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     )}
                   </div>
 
+                  <div className="max-w-4xl mx-auto">
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${
@@ -608,6 +607,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       </div>
                     )}
                   </div>
+                  </div>
                 </div>
               )}
 
@@ -626,7 +626,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                             Compte Rendu Des Connexions
                           </p>
                           <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {stats?.total_connection_time || 167} H
+                            {stats?.total_connection_time || 0} H
                           </p>
                         </div>
                       </div>
@@ -694,8 +694,17 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     <h3 className={`font-semibold text-lg mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       Formations suivies
                     </h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      {courses.map((course) => (
+                    {courses.length === 0 ? (
+                      <div className={`text-center py-12 rounded-xl border ${
+                        isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-50'
+                      }`}>
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Aucune formation attribuée pour le moment
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-4">
+                        {courses.map((course) => (
                         <div
                           key={course.uuid}
                           className={`p-4 rounded-xl border ${
@@ -747,6 +756,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                         </div>
                       ))}
                     </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -986,44 +996,55 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {certificates.map((cert) => (
                         <div
                           key={cert.id}
-                          className={`p-4 rounded-xl border ${
+                          className={`rounded-xl border overflow-hidden ${
                             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
                           }`}
                         >
-                          <div className="flex items-center justify-center w-full h-32 mb-3 rounded-lg bg-orange-50">
-                            <Award className="w-16 h-16 text-orange-500" />
+                          {/* Certificate Image Placeholder */}
+                          <div className="w-full h-40 bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                            <Award className="w-20 h-20 text-white opacity-80" />
                           </div>
-                          <h4 className={`font-semibold text-sm mb-2 ${
-                            isDark ? 'text-white' : 'text-gray-900'
-                          }`}>
-                            Titre Formation
-                          </h4>
-                          <p className={`text-xs mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {new Date(cert.issue_date).toLocaleDateString('fr-FR')}
-                          </p>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 text-xs"
-                              onClick={() => handleDownloadCertificate(cert.id)}
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              {t('students.attendance.downloadPdf')}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 text-xs"
-                              onClick={() => handleShareCertificate(cert.id)}
-                            >
-                              <Mail className="w-3 h-3 mr-1" />
-                              Partager
-                            </Button>
+
+                          {/* Certificate Content */}
+                          <div className="p-4">
+                            <h4 className={`font-semibold text-base mb-2 text-center ${
+                              isDark ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {cert.course_name || cert.certificate_type || 'Certificat'}
+                            </h4>
+                            <p className={`text-sm mb-4 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {new Date(cert.issue_date || cert.created_at).toLocaleDateString('fr-FR', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </p>
+
+                            {/* Buttons */}
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                style={{ backgroundColor: primaryColor }}
+                                onClick={() => handleDownloadCertificate(cert.id)}
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Télécharger PDF
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => handleShareCertificate(cert.id)}
+                              >
+                                <Mail className="w-4 h-4 mr-2" />
+                                Partager
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
