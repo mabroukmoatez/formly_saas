@@ -25,7 +25,7 @@ import { StudentFormModal } from '../../components/Students/StudentFormModal';
 import { StudentDetailsModal } from '../../components/Students/StudentDetailsModal';
 import { useStudentsExportWithSelection } from '../../hooks/useStudentsExport';
 import { companiesService } from '../../services/Companies';
-import { courseCreationService } from '../../services/courseCreation';
+import { courseCreation } from '../../services/courseCreation';
 
 export const Apprenants = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -118,7 +118,7 @@ const {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const response = await courseCreationService.getCourses();
+        const response = await courseCreation.getCourses();
         if (response.success && response.data?.courses) {
           const courseNames = response.data.courses.data?.map((course: any) => course.title) || [];
           setFormations(courseNames);
