@@ -934,6 +934,7 @@ export default {
       uploadSuccess: 'Document téléchargé',
       deleteSuccess: 'Document supprimé',
       deleteConfirm: 'Supprimer ce document ?',
+      deleteMessage: 'Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.',
       downloadError: 'Impossible de télécharger le document',
       uploadDocumentError: 'Impossible de télécharger',
       deleteError: 'Impossible de supprimer',

@@ -1252,6 +1252,7 @@ export default {
       uploadSuccess: 'Document uploaded',
       deleteSuccess: 'Document deleted',
       deleteConfirm: 'Delete this document?',
+      deleteMessage: 'Are you sure you want to delete this document? This action is irreversible.',
       downloadError: 'Unable to download document',
       uploadDocumentError: 'Unable to upload',
       deleteError: 'Unable to delete',
