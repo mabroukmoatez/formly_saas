@@ -54,6 +54,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false);
 
   const documentInputRef = useRef<HTMLInputElement>(null);
 
@@ -218,6 +219,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
     const studentId = student.uuid || student.id?.toString();
     if (!studentId) return;
 
+    setIsDeletingDocument(true);
     try {
       await studentsService.deleteDocument(studentId, documentToDelete);
       setDocuments(prev => prev.filter(d => d.id !== documentToDelete));
@@ -227,6 +229,8 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       loadStudentDetails();
     } catch (error) {
       showError(t('students.error'), t('students.documents.deleteError'));
+    } finally {
+      setIsDeletingDocument(false);
       setShowDeleteConfirm(false);
       setDocumentToDelete(null);
     }
@@ -408,7 +412,7 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="overflow-y-auto max-h-[calc(90vh-220px)] px-8 py-6">
+        <div className="overflow-y-auto max-h-[calc(90vh-220px)] px-8 py-6 pb-8">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
@@ -1179,14 +1183,23 @@ export const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                     setDocumentToDelete(null);
                   }}
                   className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
+                  disabled={isDeletingDocument}
                 >
                   {t('common.cancel') || 'Annuler'}
                 </Button>
                 <Button
                   onClick={confirmDeleteDocument}
                   className="bg-red-500 hover:bg-red-600 text-white"
+                  disabled={isDeletingDocument}
                 >
-                  {t('common.delete') || 'Supprimer'}
+                  {isDeletingDocument ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      {t('common.deleting') || 'Suppression...'}
+                    </>
+                  ) : (
+                    t('common.delete') || 'Supprimer'
+                  )}
                 </Button>
               </div>
             </div>

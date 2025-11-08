@@ -13,6 +13,7 @@ export default {
     save: 'Save',
     edit: 'Edit',
     delete: 'Delete',
+    deleting: 'Deleting...',
     view: 'View',
     back: 'Back',
     next: 'Next',

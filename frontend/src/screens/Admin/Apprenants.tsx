@@ -59,6 +59,8 @@ export const Apprenants = (): JSX.Element => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [applyingFilters, setApplyingFilters] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Hook pour la gestion de l'export et de la sélection
   const studentIds = useMemo(() => 
@@ -111,7 +113,6 @@ const {
           setCompanies(companyList);
         }
       } catch (error) {
-        console.error('Error fetching companies:', error);
         setCompanies([]);
       }
     };
@@ -130,7 +131,6 @@ const {
           setFormations(courseList);
         }
       } catch (error) {
-        console.error('Error fetching courses:', error);
         setFormations([]);
       }
     };
@@ -184,8 +184,13 @@ const {
     }
   };
 
-  const applyFilters = () => {
-    fetchStudents();
+  const applyFilters = async () => {
+    setApplyingFilters(true);
+    try {
+      await fetchStudents();
+    } finally {
+      setApplyingFilters(false);
+    }
   };
 
   const resetFilters = () => {
@@ -198,25 +203,6 @@ const {
   const handleCreateStudent = () => {
     setSelectedStudent(null);
     setIsFormModalOpen(true);
-  };
-
-  const handleEditStudent = async (student: Student) => {
-    try {
-      const studentId = student.uuid || student.id?.toString();
-      if (!studentId) {
-        showError('Erreur', 'ID de l\'apprenant manquant');
-        return;
-      }
-      
-      const response = await studentsService.getStudentById(studentId);
-      if (response.success && response.data) {
-        setSelectedStudent(response.data.student);
-        setIsFormModalOpen(true);
-      }
-    } catch (err: any) {
-      console.error('Error loading student for edit:', err);
-      showError('Erreur', 'Impossible de charger les données de l\'apprenant');
-    }
   };
 
   const handleViewStudent = (student: Student) => {
@@ -243,20 +229,23 @@ const {
     }
   };
 
-  const handleDeleteMultiple = async () => {
+  const handleDeleteMultiple = () => {
     if (selectedCount === 0) return;
-    
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedCount} apprenant(s) ?`)) {
-      return;
-    }
-    
+    setShowBulkDeleteModal(true);
+  };
+
+  const confirmBulkDelete = async () => {
+    setDeleting(true);
     try {
       await studentsService.deleteMultipleStudents(selectedIds);
       success('Succès', `${selectedCount} apprenant(s) supprimé(s) avec succès`);
       clearSelection();
+      setShowBulkDeleteModal(false);
       fetchStudents();
     } catch (err: any) {
       showError('Erreur', err.message || 'Impossible de supprimer les apprenants');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -495,8 +484,16 @@ const {
                   onClick={applyFilters}
                   style={{ backgroundColor: primaryColor }}
                   className="text-white px-6"
+                  disabled={applyingFilters}
                 >
-                  Appliquer les filtres
+                  {applyingFilters ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Chargement...
+                    </>
+                  ) : (
+                    'Appliquer les filtres'
+                  )}
                 </Button>
               </div>
             </div>
@@ -794,6 +791,18 @@ const {
         message={t('students.deleteConfirmMessage')}
         confirmText={t('students.confirmDelete')}
         cancelText={t('students.cancelDelete')}
+        type="danger"
+        isLoading={deleting}
+      />
+
+      <ConfirmationModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => setShowBulkDeleteModal(false)}
+        onConfirm={confirmBulkDelete}
+        title="Confirmer la suppression multiple"
+        message={`Êtes-vous sûr de vouloir supprimer ${selectedCount} apprenant(s) ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
         type="danger"
         isLoading={deleting}
       />
