@@ -802,6 +802,13 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                           >
                             <Download className="w-5 h-5" style={{ color: primaryColor }} />
                           </button>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="p-2 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-500" />
+                          </button>
                         </div>
                       </div>
                     ))}
