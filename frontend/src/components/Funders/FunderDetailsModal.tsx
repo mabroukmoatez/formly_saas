@@ -244,7 +244,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
     }
   };
 
-  if (!isOpen || !funder) return null;
+  if (!isOpen) return null;
 
   const filteredDocuments = documentTypeFilter
     ? documents.filter(doc => doc.file_type === documentTypeFilter)
@@ -273,10 +273,10 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
               <Wallet className="w-8 h-8" style={{ color: primaryColor }} />
               <div>
                 <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {funder.name}
+                  {funder?.name || 'Chargement...'}
                 </h2>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {getFunderTypeLabel(funder.type)}
+                  {funder ? getFunderTypeLabel(funder.type) : ''}
                 </p>
               </div>
             </div>
@@ -341,8 +341,11 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
           {/* Content */}
           <div className="p-6 max-h-[60vh] overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-gray-500">Chargement...</div>
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-12 h-12 mb-4 animate-spin" style={{ color: primaryColor }} />
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Chargement des données...
+                </p>
               </div>
             ) : activeTab === 'information' ? (
               <div className="space-y-4">
