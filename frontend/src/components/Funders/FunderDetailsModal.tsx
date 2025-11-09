@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Wallet, Users, FileText, Edit2, Download, Upload, Trash2, Search, File, Eye, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
 import { fundersService } from '../../services/Funders';
@@ -19,6 +20,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
   onClose,
 }) => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const { success, error: showError } = useToast();
 
@@ -160,12 +162,12 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
 
       const response = await fundersService.updateFunder(uuid, payload);
       if (response.success) {
-        success('Succès', 'Financeur mis à jour avec succès');
+        success(t('common.success'), t('funders.updateSuccess'));
         setIsEditing(false);
         fetchFunderDetails();
       }
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors de la mise à jour');
+      showError(t('common.error'), error.message || t('funders.updateError'));
     }
   };
 
@@ -185,11 +187,11 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
         document_type: documentTypeFilter || 'general',
       });
       if (response.success) {
-        success('Succès', 'Document ajouté avec succès');
+        success(t('common.success'), t('funders.documents.uploadSuccess'));
         fetchDocuments();
       }
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de l\'upload du document');
+      showError(t('common.error'), t('funders.documents.uploadError'));
     } finally {
       setUploadingDocument(false);
       e.target.value = '';
@@ -208,7 +210,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors du téléchargement');
+      showError(t('common.error'), t('funders.documents.downloadError'));
     }
   };
 
@@ -223,12 +225,12 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
     setIsDeletingDocument(true);
     try {
       await fundersService.deleteFunderDocument(uuid, documentToDelete);
-      success('Succès', 'Document supprimé avec succès');
+      success(t('common.success'), t('funders.documents.deleteSuccess'));
       fetchDocuments();
       setShowDeleteConfirm(false);
       setDocumentToDelete(null);
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de la suppression');
+      showError(t('common.error'), t('funders.documents.deleteError'));
     } finally {
       setIsDeletingDocument(false);
     }
@@ -240,7 +242,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de l\'ouverture du document');
+      showError(t('common.error'), t('funders.documents.viewError'));
     }
   };
 
@@ -273,7 +275,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
               <Wallet className="w-8 h-8" style={{ color: primaryColor }} />
               <div>
                 <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {funder?.name || 'Chargement...'}
+                  {funder?.name || t('funders.loading')}
                 </h2>
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {funder ? getFunderTypeLabel(funder.type) : ''}
@@ -300,7 +302,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
-                <span>Informations</span>
+                <span>{t('funders.tabs.information')}</span>
               </div>
             </button>
 
@@ -314,7 +316,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
             >
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                <span>Formations financées</span>
+                <span>{t('funders.tabs.trainings')}</span>
               </div>
             </button>
 
@@ -328,7 +330,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
             >
               <div className="flex items-center gap-2">
                 <File className="w-5 h-5" />
-                <span>Documents</span>
+                <span>{t('funders.tabs.documents')}</span>
                 {documents.length > 0 && (
                   <span className="px-2 py-0.5 text-xs bg-blue-500 text-white rounded-full">
                     {documents.length}
@@ -344,7 +346,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 mb-4 animate-spin" style={{ color: primaryColor }} />
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Chargement des données...
+                  {t('funders.loadingData')}
                 </p>
               </div>
             ) : activeTab === 'information' ? (
@@ -359,14 +361,14 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                           isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
                         }`}
                       >
-                        Annuler
+                        {t('funders.cancel')}
                       </button>
                       <button
                         onClick={handleSaveFunder}
                         className="px-4 py-2 rounded-lg text-white"
                         style={{ backgroundColor: primaryColor }}
                       >
-                        Enregistrer
+                        {t('funders.save')}
                       </button>
                     </div>
                   ) : (
@@ -376,7 +378,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                       style={{ backgroundColor: primaryColor }}
                     >
                       <Edit2 className="w-4 h-4" />
-                      Modifier
+                      {t('funders.edit')}
                     </button>
                   )}
                 </div>
@@ -676,7 +678,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                 {/* Documents Tab Header */}
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Documents du financeur
+                    {t('funders.documents.title')}
                   </h3>
                 </div>
 
@@ -697,17 +699,17 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                     <>
                       <Loader2 className={`w-12 h-12 mx-auto mb-3 animate-spin`} style={{ color: primaryColor }} />
                       <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Téléchargement en cours...
+                        {t('funders.documents.uploading')}
                       </p>
                     </>
                   ) : (
                     <>
                       <Upload className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
                       <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Glissez-déposez vos fichiers ici ou <span style={{ color: primaryColor }}>cliquez pour parcourir</span>
+                        {t('funders.documents.uploadPrompt')} <span style={{ color: primaryColor }}>{t('funders.documents.clickToBrowse')}</span>
                       </p>
                       <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                        PDF, DOC, DOCX, JPG, PNG (max. 10MB)
+                        {t('funders.documents.uploadInfo')}
                       </p>
                     </>
                   )}
@@ -724,7 +726,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                 {/* Document Type Filter */}
                 <div className="flex items-center gap-3">
                   <label className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Type de document:
+                    {t('funders.documents.typeFilter')}
                   </label>
                   <select
                     value={documentTypeFilter}
@@ -733,20 +735,20 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                       isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
                     }`}
                   >
-                    <option value="">Tous les types</option>
-                    <option value="contract">Contrat</option>
-                    <option value="convention">Convention</option>
-                    <option value="invoice">Facture</option>
-                    <option value="quote">Devis</option>
-                    <option value="general">Général</option>
-                    <option value="other">Autre</option>
+                    <option value="">{t('funders.documents.allTypes')}</option>
+                    <option value="contract">{t('funders.documents.typeContract')}</option>
+                    <option value="convention">{t('funders.documents.typeConvention')}</option>
+                    <option value="invoice">{t('funders.documents.typeInvoice')}</option>
+                    <option value="quote">{t('funders.documents.typeQuote')}</option>
+                    <option value="general">{t('funders.documents.typeGeneral')}</option>
+                    <option value="other">{t('funders.documents.typeOther')}</option>
                   </select>
                 </div>
 
                 {/* Documents Count */}
                 <div className="flex items-center justify-between mb-3">
                   <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Documents
+                    {t('funders.tabs.documents')}
                   </span>
                   <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                     {filteredDocuments.length}
@@ -756,7 +758,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                 {/* Documents Grid */}
                 {filteredDocuments.length === 0 ? (
                   <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Aucun document
+                    {t('funders.documents.noDocuments')}
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -792,7 +794,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                             className={`p-2 rounded-lg transition-colors ${
                               isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                             }`}
-                            title="Voir le document"
+                            title={t('funders.documents.view')}
                           >
                             <Eye className="w-5 h-5" style={{ color: primaryColor }} />
                           </button>
@@ -801,14 +803,14 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                             className={`p-2 rounded-lg transition-colors ${
                               isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                             }`}
-                            title="Télécharger"
+                            title={t('funders.documents.download')}
                           >
                             <Download className="w-5 h-5" style={{ color: primaryColor }} />
                           </button>
                           <button
                             onClick={() => handleDeleteDocument(doc.id)}
                             className="p-2 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Supprimer"
+                            title={t('funders.documents.delete')}
                           >
                             <Trash2 className="w-5 h-5 text-red-500" />
                           </button>
@@ -840,10 +842,10 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
           >
             <div className="p-6">
               <h3 className={`text-xl font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Confirmer la suppression
+                {t('funders.documents.deleteConfirm')}
               </h3>
               <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.
+                {t('funders.documents.deleteMessage')}
               </p>
               <div className="flex gap-3 justify-end">
                 <button
@@ -858,7 +860,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                   }`}
                   disabled={isDeletingDocument}
                 >
-                  Annuler
+                  {t('funders.cancel')}
                 </button>
                 <button
                   onClick={confirmDeleteDocument}
@@ -868,10 +870,10 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                   {isDeletingDocument ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Suppression...
+                      {t('common.deleting')}
                     </>
                   ) : (
-                    'Supprimer'
+                    t('funders.delete')
                   )}
                 </button>
               </div>
