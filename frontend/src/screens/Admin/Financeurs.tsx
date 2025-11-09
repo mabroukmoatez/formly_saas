@@ -25,14 +25,14 @@ interface Funder {
   opco_name?: string;
 }
 
-const getFunderTypeLabel = (type: string) => {
+const getFunderTypeLabel = (type: string, t: any) => {
   switch (type) {
     case 'individual':
-      return 'Apprenant';
+      return t('funders.typeIndividual');
     case 'company':
-      return 'Entreprise';
+      return t('funders.typeCompany');
     case 'external':
-      return 'Externe (OPCO)';
+      return t('funders.typeExternal');
     default:
       return type;
   }
@@ -97,7 +97,7 @@ export const Financeurs: React.FC = () => {
         setTotalPages(response.data.funders?.last_page || 1);
       }
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors du chargement des financeurs');
+      showError(t('common.error'), error.message || t('funders.createError'));
     } finally {
       setLoading(false);
     }
@@ -136,12 +136,12 @@ export const Financeurs: React.FC = () => {
     setDeleting(true);
     try {
       await fundersService.deleteFunder(funderToDelete);
-      success('Succès', 'Financeur supprimé avec succès');
+      success(t('common.success'), t('funders.deleteSuccess'));
       setShowDeleteModal(false);
       setFunderToDelete(null);
       fetchFunders();
     } catch (error: any) {
-      showError('Erreur', error.message || 'Impossible de supprimer le financeur');
+      showError(t('common.error'), error.message || t('funders.deleteError'));
     } finally {
       setDeleting(false);
     }
@@ -155,12 +155,12 @@ export const Financeurs: React.FC = () => {
       for (const uuid of selectedFunders) {
         await fundersService.deleteFunder(uuid);
       }
-      success('Succès', `${selectedFunders.length} financeur(s) supprimé(s)`);
+      success(t('common.success'), `${selectedFunders.length} ${t('funders.deleteSuccess')}`);
       setShowBulkDeleteModal(false);
       setSelectedFunders([]);
       fetchFunders();
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors de la suppression');
+      showError(t('common.error'), error.message || t('funders.deleteError'));
     } finally {
       setDeleting(false);
     }
@@ -189,9 +189,9 @@ export const Financeurs: React.FC = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      success('Succès', 'Export réussi');
+      success(t('common.success'), t('common.export'));
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de l\'export');
+      showError(t('common.error'), t('common.error'));
     }
   };
 
@@ -210,7 +210,7 @@ export const Financeurs: React.FC = () => {
         <div className="flex items-center gap-3">
           <Wallet className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Financeurs
+            {t('funders.title')}
           </h1>
         </div>
         <button
@@ -219,24 +219,24 @@ export const Financeurs: React.FC = () => {
           style={{ backgroundColor: primaryColor }}
         >
           <Plus className="w-5 h-5" />
-          Nouveau Financeur
+          {t('funders.add')}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Financeurs</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('funders.stats.total')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{total}</div>
         </div>
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Financeurs Actifs</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('funders.stats.active')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {funders.filter(f => f.is_active).length}
           </div>
         </div>
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sélectionnés</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('funders.stats.selected')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {selectedFunders.length}
           </div>
@@ -252,7 +252,7 @@ export const Financeurs: React.FC = () => {
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               <input
                 type="text"
-                placeholder="Rechercher un financeur..."
+                placeholder={t('funders.search')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
@@ -275,7 +275,7 @@ export const Financeurs: React.FC = () => {
             }`}
           >
             <Filter className="w-5 h-5" />
-            Filtres
+            {t('funders.filters')}
             {(selectedType || dateFrom || dateTo) && (
               <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-blue-500 text-white">
                 {[selectedType, dateFrom, dateTo].filter(Boolean).length}
@@ -314,7 +314,7 @@ export const Financeurs: React.FC = () => {
               className="px-4 py-2 rounded-lg bg-red-600 text-white flex items-center gap-2 hover:bg-red-700"
             >
               <Trash2 className="w-5 h-5" />
-              Supprimer ({selectedFunders.length})
+              {t('funders.delete')} ({selectedFunders.length})
             </button>
           )}
         </div>
@@ -325,7 +325,7 @@ export const Financeurs: React.FC = () => {
             {/* Type Filter */}
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Type de financeur
+                {t('funders.typeFilter')}
               </label>
               <select
                 value={selectedType}
@@ -336,17 +336,17 @@ export const Financeurs: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
               >
-                <option value="">Tous les types</option>
-                <option value="individual">Apprenant</option>
-                <option value="company">Entreprise</option>
-                <option value="external">Externe (OPCO)</option>
+                <option value="">{t('funders.allTypes')}</option>
+                <option value="individual">{t('funders.typeIndividual')}</option>
+                <option value="company">{t('funders.typeCompany')}</option>
+                <option value="external">{t('funders.typeExternal')}</option>
               </select>
             </div>
 
             {/* Date Range */}
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Date d'ajout - De
+                {t('funders.registrationDate')} - {t('funders.from')}
               </label>
               <input
                 type="date"
@@ -361,7 +361,7 @@ export const Financeurs: React.FC = () => {
             </div>
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Date d'ajout - À
+                {t('funders.registrationDate')} - {t('funders.to')}
               </label>
               <input
                 type="date"
@@ -387,7 +387,7 @@ export const Financeurs: React.FC = () => {
                   }`}
                 >
                   <X className="w-5 h-5" />
-                  Effacer les filtres
+                  {t('funders.resetFilters')}
                 </button>
               </div>
             )}
@@ -415,7 +415,7 @@ export const Financeurs: React.FC = () => {
                   }`}
                   onClick={() => handleSort('name')}
                 >
-                  Nom du financeur {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('funders.name')} {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
                   className={`px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-opacity-80 ${
@@ -423,13 +423,13 @@ export const Financeurs: React.FC = () => {
                   }`}
                   onClick={() => handleSort('type')}
                 >
-                  Type {sortBy === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('funders.type')} {sortBy === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Contact
+                  {t('funders.contactFullName')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Budget
+                  {t('funders.maxFundingAmount')}
                 </th>
                 <th
                   className={`px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-opacity-80 ${
@@ -437,16 +437,16 @@ export const Financeurs: React.FC = () => {
                   }`}
                   onClick={() => handleSort('created_at')}
                 >
-                  Date d'ajout {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('funders.registrationDate')} {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Formations
+                  {t('funders.tabs.trainings')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Financement
+                  {t('funders.trainings.fundedAmount')}
                 </th>
                 <th className={`px-4 py-3 text-center text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Actions
+                  {t('funders.actions')}
                 </th>
               </tr>
             </thead>
@@ -454,13 +454,13 @@ export const Financeurs: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    Chargement...
+                    {t('funders.loading')}
                   </td>
                 </tr>
               ) : funders.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    Aucun financeur trouvé
+                    {t('funders.noFunders')}
                   </td>
                 </tr>
               ) : (
@@ -492,7 +492,7 @@ export const Financeurs: React.FC = () => {
                         funder.type === 'company' ? 'bg-green-100 text-green-700' :
                         'bg-purple-100 text-purple-700'
                       }`}>
-                        {getFunderTypeLabel(funder.type)}
+                        {getFunderTypeLabel(funder.type, t)}
                       </span>
                     </td>
                     <td className={`px-4 py-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -559,7 +559,7 @@ export const Financeurs: React.FC = () => {
             isDark ? 'border-gray-700' : 'border-gray-200'
           }`}>
             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Page {page} sur {totalPages} ({total} financeurs)
+              {t('common.page')} {page} {t('common.of')} {totalPages} ({total} {t('funders.title')})
             </div>
             <div className="flex gap-2">
               <button
@@ -573,7 +573,7 @@ export const Financeurs: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Précédent
+                {t('common.previous')}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
@@ -586,7 +586,7 @@ export const Financeurs: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Suivant
+                {t('common.next')}
               </button>
             </div>
           </div>
@@ -624,10 +624,10 @@ export const Financeurs: React.FC = () => {
           setFunderToDelete(null);
         }}
         onConfirm={handleDeleteFunder}
-        title="Confirmer la suppression"
-        message="Êtes-vous sûr de vouloir supprimer ce financeur ?"
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={t('funders.deleteConfirmTitle')}
+        message={t('funders.deleteConfirmMessage')}
+        confirmText={t('funders.delete')}
+        cancelText={t('funders.cancel')}
         type="danger"
         isLoading={deleting}
       />
@@ -636,10 +636,10 @@ export const Financeurs: React.FC = () => {
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleDeleteSelected}
-        title="Confirmer la suppression"
-        message={`Êtes-vous sûr de vouloir supprimer ${selectedFunders.length} financeur(s) ?`}
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={t('funders.bulkDeleteConfirmTitle')}
+        message={t('funders.bulkDeleteConfirmMessage').replace('{count}', selectedFunders.length.toString())}
+        confirmText={t('funders.delete')}
+        cancelText={t('funders.cancel')}
         type="danger"
         isLoading={deleting}
       />
