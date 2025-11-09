@@ -104,30 +104,24 @@ export const fundersService = {
     uuid: string,
     file: File,
     metadata?: {
-      file_type?: 'contract' | 'convention' | 'invoice' | 'quote' | 'other';
+      title?: string;
+      document_type?: string;
       description?: string;
-      document_date?: string;
-      reference_number?: string;
     }
   ): Promise<ApiResponse<FunderDocument>> => {
     const formData = new FormData();
-    formData.append('document', file);
+    formData.append('file', file); // Backend expects 'file', not 'document'
 
     if (metadata) {
-      if (metadata.file_type) formData.append('file_type', metadata.file_type);
+      if (metadata.title) formData.append('title', metadata.title);
+      if (metadata.document_type) formData.append('document_type', metadata.document_type);
       if (metadata.description) formData.append('description', metadata.description);
-      if (metadata.document_date) formData.append('document_date', metadata.document_date);
-      if (metadata.reference_number) formData.append('reference_number', metadata.reference_number);
     }
 
+    // DO NOT set Content-Type header for FormData - browser will set it automatically with boundary
     return await api.post<ApiResponse<FunderDocument>>(
       `/api/organization/funders/${uuid}/documents`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
+      formData
     );
   },
 

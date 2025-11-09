@@ -93,16 +93,20 @@ export interface FunderListParams {
 
 export interface FunderDocument {
   id: number;
+  uuid: string;
   funder_id: number;
-  file_type: 'contract' | 'convention' | 'invoice' | 'quote' | 'other';
+  title: string;
+  file_name: string;
   file_path: string;
-  original_filename: string;
   file_size?: number;
+  mime_type?: string;
+  document_type?: string; // 'contract', 'invoice', 'agreement', 'general', etc.
   description?: string;
-  document_date?: string;
-  reference_number?: string;
+  uploaded_by?: number;
+  is_public?: boolean;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface FunderStudent {
