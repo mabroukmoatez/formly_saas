@@ -140,7 +140,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
         });
       }
     } catch (error: any) {
-      showError('Erreur', 'Impossible de charger les données du financeur');
+      showError(t('common.error'), t('funders.form.loadError'));
     }
   };
 
@@ -148,19 +148,19 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Le nom du financeur est obligatoire';
+      newErrors.name = t('funders.form.validation.nameRequired');
     }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
+      newErrors.email = t('funders.form.validation.emailInvalid');
     }
     if (formData.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
-      newErrors.contact_email = 'Email invalide';
+      newErrors.contact_email = t('funders.form.validation.emailInvalid');
     }
     if (formData.siret && formData.siret.length !== 14) {
-      newErrors.siret = 'Le SIRET doit contenir 14 chiffres';
+      newErrors.siret = t('funders.form.validation.siretInvalid');
     }
     if (formData.siren && formData.siren.length !== 9) {
-      newErrors.siren = 'Le SIREN doit contenir 9 chiffres';
+      newErrors.siren = t('funders.form.validation.sirenInvalid');
     }
 
     setErrors(newErrors);
@@ -185,13 +185,13 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
         : await fundersService.createFunder(payload);
 
       if (response.success) {
-        success('Succès', response.message || `Financeur ${funderUuid ? 'modifié' : 'créé'} avec succès`);
+        success(t('common.success'), response.message || t(funderUuid ? 'funders.form.updateSuccess' : 'funders.form.createSuccess'));
         onSuccess?.();
         onClose();
       }
     } catch (error: any) {
-      showError('Erreur', error.message || `Erreur lors de ${funderUuid ? 'la modification' : 'la création'}`);
-    } finally {
+      showError(t('common.error'), error.message || t(funderUuid ? 'funders.form.updateError' : 'funders.form.createError'));
+    } finally{
       setIsSubmitting(false);
     }
   };
@@ -219,7 +219,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-4 border-b">
             <h2 className="text-xl font-bold text-gray-900">
-              {funderUuid ? 'Modifier le financeur' : 'Nouveau Financeur'}
+              {funderUuid ? t('funders.form.editTitle') : t('funders.form.createTitle')}
             </h2>
             <button
               onClick={onClose}
@@ -233,7 +233,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
           <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
             {/* Type de financeur */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Type de financeur</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('funders.form.funderType')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
                   <input
@@ -245,8 +245,8 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                     className="w-4 h-4"
                   />
                   <div className="ml-3">
-                    <div className="font-medium text-gray-900">Apprenant</div>
-                    <div className="text-sm text-gray-500">Auto-financement</div>
+                    <div className="font-medium text-gray-900">{t('funders.form.typeIndividual')}</div>
+                    <div className="text-sm text-gray-500">{t('funders.form.typeIndividualDesc')}</div>
                   </div>
                 </label>
 
@@ -260,8 +260,8 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                     className="w-4 h-4"
                   />
                   <div className="ml-3">
-                    <div className="font-medium text-gray-900">Entreprise</div>
-                    <div className="text-sm text-gray-500">Finance ses salariés</div>
+                    <div className="font-medium text-gray-900">{t('funders.form.typeCompany')}</div>
+                    <div className="text-sm text-gray-500">{t('funders.form.typeCompanyDesc')}</div>
                   </div>
                 </label>
 
@@ -275,8 +275,8 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                     className="w-4 h-4"
                   />
                   <div className="ml-3">
-                    <div className="font-medium text-gray-900">Externe</div>
-                    <div className="text-sm text-gray-500">OPCO, France Travail</div>
+                    <div className="font-medium text-gray-900">{t('funders.form.typeExternal')}</div>
+                    <div className="text-sm text-gray-500">{t('funders.form.typeExternalDesc')}</div>
                   </div>
                 </label>
               </div>
@@ -284,11 +284,11 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
             {/* Informations générales */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('funders.form.generalInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom du financeur <span className="text-red-500">*</span>
+                    {t('funders.form.name')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -303,7 +303,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Raison sociale
+                    {t('funders.form.legalName')}
                   </label>
                   <input
                     type="text"
@@ -316,20 +316,20 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 {formData.type === 'external' && (
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom OPCO
+                      {t('funders.form.opcoName')}
                     </label>
                     <input
                       type="text"
                       value={formData.opco_name}
                       onChange={(e) => handleChange('opco_name', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="Ex: OPCO Atlas, OPCO EP, etc."
+                      placeholder={t('funders.form.opcoPlaceholder')}
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIRET</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.siret')}</label>
                   <input
                     type="text"
                     maxLength={14}
@@ -344,7 +344,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIREN</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.siren')}</label>
                   <input
                     type="text"
                     maxLength={9}
@@ -362,7 +362,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Numéro d'accord
+                        {t('funders.form.agreementNumber')}
                       </label>
                       <input
                         type="text"
@@ -374,7 +374,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Budget maximum (€)
+                        {t('funders.form.maxFundingAmount')}
                       </label>
                       <input
                         type="number"
@@ -392,10 +392,10 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
             {/* Coordonnées */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Coordonnées</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('funders.form.coordinates')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.email')}</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -408,7 +408,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.phone')}</label>
                   <input
                     type="tel"
                     value={formData.phone}
@@ -418,7 +418,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Site web</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.website')}</label>
                   <input
                     type="url"
                     value={formData.website}
@@ -429,7 +429,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.address')}</label>
                   <input
                     type="text"
                     value={formData.address}
@@ -439,7 +439,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.postalCode')}</label>
                   <input
                     type="text"
                     value={formData.postal_code}
@@ -449,7 +449,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.city')}</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -462,10 +462,10 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
             {/* Personne de contact */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Personne de contact</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('funders.form.contactPerson')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.firstName')}</label>
                   <input
                     type="text"
                     value={formData.contact_first_name}
@@ -475,7 +475,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.lastName')}</label>
                   <input
                     type="text"
                     value={formData.contact_last_name}
@@ -485,7 +485,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fonction</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.position')}</label>
                   <input
                     type="text"
                     value={formData.contact_position}
@@ -495,7 +495,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.email')}</label>
                   <input
                     type="email"
                     value={formData.contact_email}
@@ -508,7 +508,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.phone')}</label>
                   <input
                     type="tel"
                     value={formData.contact_phone}
@@ -521,13 +521,13 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes internes</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('funders.form.notesLabel')}</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => handleChange('notes', e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Notes internes sur le financeur..."
+                placeholder={t('funders.form.notesPlaceholder')}
               />
             </div>
 
@@ -541,7 +541,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 className="w-4 h-4 rounded"
               />
               <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                Financeur actif
+                {t('funders.form.activeStatus')}
               </label>
             </div>
 
@@ -552,7 +552,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                Annuler
+                {t('funders.form.cancel')}
               </button>
               <button
                 type="submit"
@@ -560,7 +560,7 @@ export const FunderFormModal: React.FC<FunderFormModalProps> = ({
                 className="px-4 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: primaryColor }}
               >
-                {isSubmitting ? 'Enregistrement...' : funderUuid ? 'Modifier' : 'Créer'}
+                {isSubmitting ? t('funders.form.saving') : funderUuid ? t('funders.form.update') : t('funders.form.create')}
               </button>
             </div>
           </form>
