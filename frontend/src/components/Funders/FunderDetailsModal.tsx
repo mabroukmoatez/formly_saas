@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, Users, FileText, Edit2, Download, Upload, Trash2, Search, File } from 'lucide-react';
+import { X, Wallet, Users, FileText, Edit2, Download, Upload, Trash2, Search, File } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
@@ -246,7 +246,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
           {/* Header */}
           <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8" style={{ color: primaryColor }} />
+              <Wallet className="w-8 h-8" style={{ color: primaryColor }} />
               <div>
                 <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {funder.name}
@@ -265,7 +265,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
           </div>
 
           {/* Tabs */}
-          <div className={`flex gap-4 px-6 pt-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className={`flex justify-center gap-4 px-6 pt-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <button
               onClick={() => setActiveTab('information')}
               className={`pb-3 px-2 border-b-2 transition-colors ${
@@ -323,7 +323,7 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
             ) : activeTab === 'information' ? (
               <div className="space-y-4">
                 {/* Information Tab Content */}
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-center mb-4">
                   {isEditing ? (
                     <div className="flex gap-2">
                       <button
