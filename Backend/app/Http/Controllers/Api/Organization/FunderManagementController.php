@@ -290,14 +290,13 @@ class FunderManagementController extends Controller
             $path = $file->storeAs('funders/' . $uuid, $filename, 'public');
 
             $document = $funder->documents()->create([
-                'documentable_type' => Funder::class,
-                'documentable_id' => $funder->id,
                 'title' => $request->title ?? $file->getClientOriginalName(),
                 'document_type' => $request->document_type ?? 'general',
                 'file_path' => $path,
                 'file_name' => $filename,
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
+                'uploaded_by' => auth()->id(),
             ]);
 
             return $this->success($document, 'Document uploaded successfully');

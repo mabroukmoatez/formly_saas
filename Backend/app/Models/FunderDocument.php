@@ -7,14 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class Document extends Model
+class FunderDocument extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'funders_documents';
+
     protected $fillable = [
         'uuid',
-        'documentable_type',
-        'documentable_id',
+        'funder_id',
         'title',
         'file_name',
         'file_path',
@@ -44,11 +45,11 @@ class Document extends Model
     }
 
     /**
-     * Get the parent documentable model (Funder, Company, etc.).
+     * Get the funder that owns the document
      */
-    public function documentable()
+    public function funder()
     {
-        return $this->morphTo();
+        return $this->belongsTo(Funder::class);
     }
 
     /**
