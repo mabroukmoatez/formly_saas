@@ -89,7 +89,7 @@ export const Entreprises: React.FC = () => {
         setIndustries(uniqueIndustries as string[]);
       }
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors du chargement des entreprises');
+      showError(t('common.error'), error.message || t('companies.createError'));
     } finally {
       setLoading(false);
     }
@@ -128,12 +128,12 @@ export const Entreprises: React.FC = () => {
     setDeleting(true);
     try {
       await companiesService.deleteCompany(companyToDelete);
-      success('Succès', 'Entreprise supprimée avec succès');
+      success(t('common.success'), t('companies.deleteSuccess'));
       setShowDeleteModal(false);
       setCompanyToDelete(null);
       fetchCompanies();
     } catch (error: any) {
-      showError('Erreur', error.message || 'Impossible de supprimer l\'entreprise');
+      showError(t('common.error'), error.message || t('companies.deleteError'));
     } finally {
       setDeleting(false);
     }
@@ -147,12 +147,12 @@ export const Entreprises: React.FC = () => {
       for (const uuid of selectedCompanies) {
         await companiesService.deleteCompany(uuid);
       }
-      success('Succès', `${selectedCompanies.length} entreprise(s) supprimée(s)`);
+      success(t('common.success'), `${selectedCompanies.length} ${t('companies.deleteSuccess')}`);
       setShowBulkDeleteModal(false);
       setSelectedCompanies([]);
       fetchCompanies();
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors de la suppression');
+      showError(t('common.error'), error.message || t('companies.deleteError'));
     } finally {
       setDeleting(false);
     }
@@ -181,9 +181,9 @@ export const Entreprises: React.FC = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      success('Succès', 'Export réussi');
+      success(t('common.success'), t('common.exportSuccess'));
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de l\'export');
+      showError(t('common.error'), t('common.exportError'));
     }
   };
 
@@ -202,7 +202,7 @@ export const Entreprises: React.FC = () => {
         <div className="flex items-center gap-3">
           <Building2 className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Entreprises
+            {t('companies.title')}
           </h1>
         </div>
         <button
@@ -211,24 +211,24 @@ export const Entreprises: React.FC = () => {
           style={{ backgroundColor: primaryColor }}
         >
           <Plus className="w-5 h-5" />
-          Nouvelle Entreprise
+          {t('companies.add')}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Total Entreprises</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('companies.stats.total')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{total}</div>
         </div>
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Entreprises Actives</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('companies.stats.active')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {companies.filter(c => c.is_active).length}
           </div>
         </div>
         <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-800' : 'bg-white'} shadow`}>
-          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sélectionnées</div>
+          <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('companies.stats.selected')}</div>
           <div className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {selectedCompanies.length}
           </div>
@@ -244,7 +244,7 @@ export const Entreprises: React.FC = () => {
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               <input
                 type="text"
-                placeholder="Rechercher une entreprise..."
+                placeholder={t('companies.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`w-full pl-10 pr-4 py-2 rounded-lg border ${
@@ -267,7 +267,7 @@ export const Entreprises: React.FC = () => {
             }`}
           >
             <Filter className="w-5 h-5" />
-            Filtres
+            {t('companies.filters')}
             {(selectedIndustry || dateFrom || dateTo) && (
               <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-blue-500 text-white">
                 {[selectedIndustry, dateFrom, dateTo].filter(Boolean).length}
@@ -306,7 +306,7 @@ export const Entreprises: React.FC = () => {
               className="px-4 py-2 rounded-lg bg-red-600 text-white flex items-center gap-2 hover:bg-red-700"
             >
               <Trash2 className="w-5 h-5" />
-              Supprimer ({selectedCompanies.length})
+              {t('companies.delete')} ({selectedCompanies.length})
             </button>
           )}
         </div>
@@ -317,7 +317,7 @@ export const Entreprises: React.FC = () => {
             {/* Industry Filter */}
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Secteur
+                {t('companies.industry')}
               </label>
               <select
                 value={selectedIndustry}
@@ -328,7 +328,7 @@ export const Entreprises: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-900'
                 }`}
               >
-                <option value="">Tous les secteurs</option>
+                <option value="">{t('companies.allIndustries')}</option>
                 {industries.map(industry => (
                   <option key={industry} value={industry}>{industry}</option>
                 ))}
@@ -338,7 +338,7 @@ export const Entreprises: React.FC = () => {
             {/* Date Range */}
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Date d'ajout - De
+                {t('companies.dateFrom')}
               </label>
               <input
                 type="date"
@@ -353,7 +353,7 @@ export const Entreprises: React.FC = () => {
             </div>
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Date d'ajout - À
+                {t('companies.dateTo')}
               </label>
               <input
                 type="date"
@@ -379,7 +379,7 @@ export const Entreprises: React.FC = () => {
                   }`}
                 >
                   <X className="w-5 h-5" />
-                  Effacer les filtres
+                  {t('companies.clearFilters')}
                 </button>
               </div>
             )}
@@ -407,7 +407,7 @@ export const Entreprises: React.FC = () => {
                   }`}
                   onClick={() => handleSort('name')}
                 >
-                  Nom de l'entreprise {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('companies.name')} {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th
                   className={`px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-opacity-80 ${
@@ -415,10 +415,10 @@ export const Entreprises: React.FC = () => {
                   }`}
                   onClick={() => handleSort('industry')}
                 >
-                  Secteur {sortBy === 'industry' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('companies.industry')} {sortBy === 'industry' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Contact
+                  {t('companies.contact')}
                 </th>
                 <th
                   className={`px-4 py-3 text-left text-sm font-medium cursor-pointer hover:bg-opacity-80 ${
@@ -426,16 +426,16 @@ export const Entreprises: React.FC = () => {
                   }`}
                   onClick={() => handleSort('created_at')}
                 >
-                  Date d'ajout {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  {t('companies.dateAdded')} {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Formations
+                  {t('companies.trainings')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Apprenants
+                  {t('companies.students')}
                 </th>
                 <th className={`px-4 py-3 text-center text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Actions
+                  {t('companies.actions')}
                 </th>
               </tr>
             </thead>
@@ -443,13 +443,13 @@ export const Entreprises: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                    Chargement...
+                    {t('common.loading')}
                   </td>
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                    Aucune entreprise trouvée
+                    {t('companies.noCompanies')}
                   </td>
                 </tr>
               ) : (
@@ -497,7 +497,7 @@ export const Entreprises: React.FC = () => {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleViewCompany(company)}
-                          title="Voir les détails"
+                          title={t('companies.viewDetails')}
                           className="hover:opacity-80 transition-opacity"
                         >
                           <Eye className="w-4 h-4" style={{ color: primaryColor }} />
@@ -507,7 +507,7 @@ export const Entreprises: React.FC = () => {
                             setCompanyToDelete(company.uuid);
                             setShowDeleteModal(true);
                           }}
-                          title="Supprimer"
+                          title={t('companies.delete')}
                           className="hover:opacity-80 transition-opacity"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
@@ -527,7 +527,7 @@ export const Entreprises: React.FC = () => {
             isDark ? 'border-gray-700' : 'border-gray-200'
           }`}>
             <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Page {page} sur {totalPages} ({total} entreprises)
+              {t('common.page')} {page} {t('common.of')} {totalPages} ({total} {t('companies.companiesCount')})
             </div>
             <div className="flex gap-2">
               <button
@@ -541,7 +541,7 @@ export const Entreprises: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Précédent
+                {t('common.previous')}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
@@ -554,7 +554,7 @@ export const Entreprises: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Suivant
+                {t('common.next')}
               </button>
             </div>
           </div>
@@ -592,10 +592,10 @@ export const Entreprises: React.FC = () => {
           setCompanyToDelete(null);
         }}
         onConfirm={handleDeleteCompany}
-        title="Confirmer la suppression"
-        message="Êtes-vous sûr de vouloir supprimer cette entreprise ?"
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={t('companies.deleteConfirmTitle')}
+        message={t('companies.deleteConfirmMessage')}
+        confirmText={t('companies.delete')}
+        cancelText={t('companies.cancel')}
         type="danger"
         isLoading={deleting}
       />
@@ -604,10 +604,10 @@ export const Entreprises: React.FC = () => {
         isOpen={showBulkDeleteModal}
         onClose={() => setShowBulkDeleteModal(false)}
         onConfirm={handleDeleteSelected}
-        title="Confirmer la suppression"
-        message={`Êtes-vous sûr de vouloir supprimer ${selectedCompanies.length} entreprise(s) ?`}
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={t('companies.deleteConfirmTitle')}
+        message={`${t('companies.deleteConfirmMessageMultiple')} ${selectedCompanies.length} ${t('companies.companiesCount')} ?`}
+        confirmText={t('companies.delete')}
+        cancelText={t('companies.cancel')}
         type="danger"
         isLoading={deleting}
       />

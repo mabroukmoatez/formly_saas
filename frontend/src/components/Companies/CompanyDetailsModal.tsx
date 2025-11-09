@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Building2, Users, FileText, ClipboardList, GraduationCap, Edit2, Download, Upload, Trash2, Search, File } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
 import { companiesService } from '../../services/Companies';
@@ -19,6 +20,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
   onClose,
 }) => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const { success, error: showError } = useToast();
 
@@ -102,10 +104,10 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
           notes: companyData.notes || '',
         });
       } else {
-        showError('Erreur', 'Impossible de charger les détails de l\'entreprise');
+        showError(t('common.error'), t('companies.details.loadError'));
       }
     } catch (error: any) {
-      showError('Erreur', error.message || 'Impossible de charger les détails de l\'entreprise');
+      showError(t('common.error'), error.message || t('companies.details.loadError'));
     } finally {
       setLoading(false);
     }
@@ -167,12 +169,12 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
       const response = await companiesService.updateCompany(uuid, payload);
       if (response.success) {
-        success('Succès', 'Entreprise mise à jour avec succès');
+        success(t('common.success'), t('companies.details.updateSuccess'));
         setIsEditing(false);
         fetchCompanyDetails();
       }
     } catch (error: any) {
-      showError('Erreur', error.message || 'Erreur lors de la mise à jour');
+      showError(t('common.error'), error.message || t('companies.details.updateError'));
     }
   };
 
@@ -191,11 +193,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
         file_type: documentTypeFilter as any || 'other',
       });
       if (response.success) {
-        success('Succès', 'Document ajouté avec succès');
+        success(t('common.success'), t('companies.documents.uploadSuccess'));
         fetchDocuments();
       }
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de l\'upload du document');
+      showError(t('common.error'), t('companies.documents.uploadError'));
     } finally {
       setUploadingDocument(false);
       e.target.value = '';
@@ -214,32 +216,32 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      showError('Erreur', 'Impossible de télécharger le document');
+      showError(t('common.error'), t('companies.documents.downloadError'));
     }
   };
 
   const handleDocumentDelete = async (documentId: number) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce document ?')) return;
+    if (!window.confirm(t('companies.documents.deleteConfirm'))) return;
 
     try {
       const response = await companiesService.deleteCompanyDocument(uuid, documentId);
       if (response.success) {
-        success('Succès', 'Document supprimé');
+        success(t('common.success'), t('companies.documents.deleteSuccess'));
         fetchDocuments();
       }
     } catch (error: any) {
-      showError('Erreur', 'Erreur lors de la suppression');
+      showError(t('common.error'), t('companies.documents.deleteError'));
     }
   };
 
   if (!isOpen) return null;
 
   const tabs = [
-    { id: 'information', label: 'Information', icon: Building2 },
-    { id: 'formations', label: 'Formations Associées', icon: GraduationCap },
-    { id: 'documents', label: 'Documents', icon: FileText },
-    { id: 'questionnaire', label: 'Questionnaire', icon: ClipboardList },
-    { id: 'apprenants', label: 'Apprenants', icon: Users },
+    { id: 'information', label: t('companies.tabs.information'), icon: Building2 },
+    { id: 'formations', label: t('companies.tabs.trainings'), icon: GraduationCap },
+    { id: 'documents', label: t('companies.tabs.documents'), icon: FileText },
+    { id: 'questionnaire', label: t('companies.tabs.questionnaire'), icon: ClipboardList },
+    { id: 'apprenants', label: t('companies.tabs.students'), icon: Users },
   ];
 
   // Filter documents
@@ -297,7 +299,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Building2 className="w-6 h-6 text-gray-600" />
                   <h2 className="text-2xl font-semibold text-[#1E293B]">
-                    {loading ? 'Chargement...' : (company?.name || 'Sans nom')}
+                    {loading ? t('common.loading') : (company?.name || t('companies.details.noName'))}
                   </h2>
                 </div>
               </div>
@@ -337,14 +339,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
           <div className="px-8 pb-8 max-h-[60vh] overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-gray-500">Chargement...</div>
+                <div className="text-gray-500">{t('common.loading')}</div>
               </div>
             ) : activeTab === 'information' ? (
               <div className="space-y-4">
                 {/* Information Tab Content */}
                 <div>
                   <label className="block text-sm text-[#64748B] mb-2">
-                    Nom De L'entreprise
+                    {t('companies.form.name')}
                   </label>
                   <input
                     type="text"
@@ -358,7 +360,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div>
                   <label className="block text-sm text-[#64748B] mb-2">
-                    Secteur d'activité
+                    {t('companies.form.industry')}
                   </label>
                   <input
                     type="text"
@@ -371,7 +373,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm text-[#64748B] mb-2">SIRET</label>
+                  <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.siret')}</label>
                   <input
                     type="text"
                     value={formData.siret}
@@ -384,7 +386,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">N° TVA</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.vat')}</label>
                     <input
                       type="text"
                       value={formData.tva}
@@ -395,14 +397,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Type D'entreprise</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.type')}</label>
                     <select
                       value={formData.type}
                       onChange={(e) => handleChange('type', e.target.value)}
                       disabled={!isEditing}
                       className="w-full h-14 px-5 border-[1.5px] border-[#E2E8F0] rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 disabled:bg-gray-50"
                     >
-                      <option value="">Sélectionner</option>
+                      <option value="">{t('companies.form.selectType')}</option>
                       <option value="SARL">SARL</option>
                       <option value="SAS">SAS</option>
                       <option value="SA">SA</option>
@@ -416,7 +418,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm text-[#64748B] mb-2">Adresse</label>
+                  <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.address')}</label>
                   <input
                     type="text"
                     value={formData.address}
@@ -429,7 +431,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Code Postal</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.postalCode')}</label>
                     <input
                       type="text"
                       value={formData.postal_code}
@@ -440,7 +442,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">VILLE</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.city')}</label>
                     <input
                       type="text"
                       value={formData.city}
@@ -454,11 +456,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="border-t border-dashed border-[#E2E8F0] my-4"></div>
 
-                <h3 className="text-base font-semibold text-[#1E293B] mb-4">Personne de contact</h3>
+                <h3 className="text-base font-semibold text-[#1E293B] mb-4">{t('companies.form.contactPerson')}</h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Prénom</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.firstName')}</label>
                     <input
                       type="text"
                       value={formData.contact_first_name}
@@ -469,7 +471,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Nom</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.lastName')}</label>
                     <input
                       type="text"
                       value={formData.contact_last_name}
@@ -483,7 +485,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Fonction</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.position')}</label>
                     <input
                       type="text"
                       value={formData.contact_position}
@@ -494,7 +496,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Email</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.email')}</label>
                     <input
                       type="email"
                       value={formData.contact_email}
@@ -508,7 +510,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Téléphone</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.phone')}</label>
                     <input
                       type="tel"
                       value={formData.contact_phone}
@@ -522,11 +524,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
 
                 <div className="border-t border-dashed border-[#E2E8F0] my-4"></div>
 
-                <h3 className="text-base font-semibold text-[#1E293B] mb-4">Coordonnées entreprise</h3>
+                <h3 className="text-base font-semibold text-[#1E293B] mb-4">{t('companies.form.companyCoordinates')}</h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Email</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.email')}</label>
                     <input
                       type="email"
                       value={formData.email}
@@ -537,7 +539,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-[#64748B] mb-2">Téléphone</label>
+                    <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.phone')}</label>
                     <input
                       type="tel"
                       value={formData.phone}
@@ -550,7 +552,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm text-[#64748B] mb-2">Notes Internes</label>
+                  <label className="block text-sm text-[#64748B] mb-2">{t('companies.form.notes')}</label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => handleChange('notes', e.target.value)}
@@ -569,14 +571,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                       style={{ backgroundColor: primaryColor }}
                     >
                       <Edit2 className="w-5 h-5" />
-                      Modifier l'Entreprise
+                      {t('companies.form.updateButton')}
                     </button>
                   </div>
                 )}
               </div>
             ) : activeTab === 'formations' ? (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Formations Associées</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('companies.tabs.trainings')}</h3>
                 {trainings?.courses && trainings.courses.length > 0 ? (
                   <div className="space-y-3">
                     {trainings.courses.map((course: any) => (
@@ -584,11 +586,11 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h4 className="font-semibold text-gray-900">{course.name}</h4>
-                            <p className="text-sm text-gray-500 mt-1">{course.description || 'Pas de description'}</p>
+                            <p className="text-sm text-gray-500 mt-1">{course.description || t('companies.trainings.noDescription')}</p>
                             <div className="flex items-center gap-4 mt-2">
                               <span className="text-sm text-gray-600">
                                 <Users className="w-4 h-4 inline mr-1" />
-                                {course.students_count || 0} étudiant(s)
+                                {course.students_count || 0} {t('companies.trainings.studentsCount')}
                               </span>
                             </div>
                           </div>
@@ -598,30 +600,30 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    Aucune formation associée
+                    {t('companies.trainings.noTrainings')}
                   </div>
                 )}
               </div>
             ) : activeTab === 'documents' ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{t('companies.tabs.documents')}</h3>
                   <div className="flex items-center gap-3">
                     <select
                       value={documentTypeFilter}
                       onChange={(e) => setDocumentTypeFilter(e.target.value)}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                     >
-                      <option value="">Tous les types</option>
-                      <option value="contract">Contrat</option>
-                      <option value="convention">Convention</option>
-                      <option value="invoice">Facture</option>
-                      <option value="quote">Devis</option>
-                      <option value="other">Autre</option>
+                      <option value="">{t('companies.documents.allTypes')}</option>
+                      <option value="contract">{t('companies.documents.typeContract')}</option>
+                      <option value="convention">{t('companies.documents.typeConvention')}</option>
+                      <option value="invoice">{t('companies.documents.typeInvoice')}</option>
+                      <option value="quote">{t('companies.documents.typeQuote')}</option>
+                      <option value="other">{t('companies.documents.typeOther')}</option>
                     </select>
                     <label className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors">
                       <Upload className="w-4 h-4" />
-                      {uploadingDocument ? 'Upload...' : 'Ajouter'}
+                      {uploadingDocument ? t('companies.documents.uploading') : t('companies.documents.add')}
                       <input
                         type="file"
                         onChange={handleDocumentUpload}
@@ -641,7 +643,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">{doc.original_filename || doc.name}</p>
                             <div className="flex items-center gap-3 text-sm text-gray-500">
-                              <span className="capitalize">{doc.file_type || 'autre'}</span>
+                              <span className="capitalize">{doc.file_type || t('companies.documents.typeOther')}</span>
                               {doc.file_size && <span>{(doc.file_size / 1024 / 1024).toFixed(2)} MB</span>}
                               {doc.created_at && <span>{new Date(doc.created_at).toLocaleDateString('fr-FR')}</span>}
                             </div>
@@ -651,14 +653,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                           <button
                             onClick={() => handleDocumentDownload(doc.id, doc.original_filename || doc.name)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Télécharger"
+                            title={t('companies.documents.download')}
                           >
                             <Download className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDocumentDelete(doc.id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
+                            title={t('companies.documents.delete')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -668,30 +670,30 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    Aucun document
+                    {t('companies.documents.noDocuments')}
                   </div>
                 )}
               </div>
             ) : activeTab === 'questionnaire' ? (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Questionnaires de Satisfaction</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('companies.tabs.questionnaire')}</h3>
                 <div className="text-center py-12 text-gray-500">
                   <ClipboardList className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                  <p>Fonctionnalité des questionnaires à venir</p>
-                  <p className="text-sm mt-2">Les questionnaires de satisfaction seront disponibles prochainement</p>
+                  <p>{t('companies.questionnaire.comingSoon')}</p>
+                  <p className="text-sm mt-2">{t('companies.questionnaire.description')}</p>
                 </div>
               </div>
             ) : activeTab === 'apprenants' ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Apprenants</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">{t('companies.tabs.students')}</h3>
                   <div className="relative">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       value={studentSearchTerm}
                       onChange={(e) => setStudentSearchTerm(e.target.value)}
-                      placeholder="Rechercher un apprenant..."
+                      placeholder={t('companies.students.searchPlaceholder')}
                       className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64"
                     />
                   </div>
@@ -703,14 +705,14 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                       <div key={student.id} className="p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{student.full_name || 'Sans nom'}</h4>
-                            <p className="text-sm text-gray-500 mt-1">{student.email || 'Pas d\'email'}</p>
+                            <h4 className="font-semibold text-gray-900">{student.full_name || t('companies.students.noName')}</h4>
+                            <p className="text-sm text-gray-500 mt-1">{student.email || t('companies.students.noEmail')}</p>
                             {student.phone && (
                               <p className="text-sm text-gray-500">{student.phone}</p>
                             )}
                             {student.courses && student.courses.length > 0 && (
                               <div className="mt-2">
-                                <p className="text-xs font-medium text-gray-600">Formations:</p>
+                                <p className="text-xs font-medium text-gray-600">{t('companies.students.trainingsLabel')}</p>
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {student.courses.map((course: any, idx: number) => (
                                     <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
@@ -727,7 +729,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-700'
                             }`}>
-                              {student.status === 1 || student.status === 'active' ? 'Actif' : 'Inactif'}
+                              {student.status === 1 || student.status === 'active' ? t('companies.students.statusActive') : t('companies.students.statusInactive')}
                             </span>
                           </div>
                         </div>
@@ -736,7 +738,7 @@ export const CompanyDetailsModal: React.FC<CompanyDetailsModalProps> = ({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    {studentSearchTerm ? 'Aucun apprenant trouvé' : 'Aucun apprenant'}
+                    {studentSearchTerm ? t('companies.students.noStudentsFound') : t('companies.students.noStudents')}
                   </div>
                 )}
               </div>

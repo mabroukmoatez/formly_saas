@@ -160,7 +160,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         });
       }
     } catch (error: any) {
-      showError('Erreur', 'Impossible de charger les données de l\'entreprise');
+      showError(t('common.error'), t('companies.form.loadError'));
     }
   };
 
@@ -168,19 +168,19 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Le nom de l\'entreprise est obligatoire';
+      newErrors.name = t('companies.form.validation.nameRequired');
     }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
+      newErrors.email = t('companies.form.validation.emailInvalid');
     }
     if (formData.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_email)) {
-      newErrors.contact_email = 'Email invalide';
+      newErrors.contact_email = t('companies.form.validation.emailInvalid');
     }
     if (formData.siret && formData.siret.length !== 14) {
-      newErrors.siret = 'Le SIRET doit contenir 14 chiffres';
+      newErrors.siret = t('companies.form.validation.siretInvalid');
     }
     if (formData.siren && formData.siren.length !== 9) {
-      newErrors.siren = 'Le SIREN doit contenir 9 chiffres';
+      newErrors.siren = t('companies.form.validation.sirenInvalid');
     }
 
     setErrors(newErrors);
@@ -206,12 +206,12 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
         : await companiesService.createCompany(payload);
 
       if (response.success) {
-        success('Succès', response.message || `Entreprise ${companyUuid ? 'modifiée' : 'créée'} avec succès`);
+        success(t('common.success'), response.message || t(companyUuid ? 'companies.form.updateSuccess' : 'companies.form.createSuccess'));
         onSuccess?.();
         onClose();
       }
     } catch (error: any) {
-      showError('Erreur', error.message || `Erreur lors de ${companyUuid ? 'la modification' : 'la création'}`);
+      showError(t('common.error'), error.message || t(companyUuid ? 'companies.form.updateError' : 'companies.form.createError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -240,7 +240,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
           {/* Header */}
           <div className="flex justify-between items-center px-6 py-4 border-b">
             <h2 className="text-xl font-bold text-gray-900">
-              {companyUuid ? 'Modifier l\'entreprise' : 'Nouvelle Entreprise'}
+              {companyUuid ? t('companies.form.editTitle') : t('companies.form.createTitle')}
             </h2>
             <button
               onClick={onClose}
@@ -254,11 +254,11 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
           <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
             {/* Informations générales */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('companies.form.generalInfo')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nom de l'entreprise <span className="text-red-500">*</span>
+                    {t('companies.form.name')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -273,7 +273,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Raison sociale
+                    {t('companies.form.legalName')}
                   </label>
                   <input
                     type="text"
@@ -284,7 +284,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIRET</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.siret')}</label>
                   <input
                     type="text"
                     maxLength={14}
@@ -299,7 +299,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">SIREN</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.siren')}</label>
                   <input
                     type="text"
                     maxLength={9}
@@ -314,7 +314,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Secteur d'activité</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.industry')}</label>
                   <input
                     type="text"
                     value={formData.industry}
@@ -324,13 +324,13 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Forme juridique</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.legalForm')}</label>
                   <select
                     value={formData.legal_form}
                     onChange={(e) => handleChange('legal_form', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   >
-                    <option value="">Sélectionner</option>
+                    <option value="">{t('companies.form.selectType')}</option>
                     <option value="SARL">SARL</option>
                     <option value="SAS">SAS</option>
                     <option value="SA">SA</option>
@@ -346,10 +346,10 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 
             {/* Coordonnées */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Coordonnées</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('companies.form.coordinates')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.email')}</label>
                   <input
                     type="email"
                     value={formData.email}
@@ -362,7 +362,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.phone')}</label>
                   <input
                     type="tel"
                     value={formData.phone}
@@ -372,7 +372,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.address')}</label>
                   <input
                     type="text"
                     value={formData.address}
@@ -382,7 +382,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Code postal</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.postalCode')}</label>
                   <input
                     type="text"
                     value={formData.postal_code}
@@ -392,7 +392,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.city')}</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -405,10 +405,10 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 
             {/* Contact */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Personne de contact</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('companies.form.contactPerson')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.firstName')}</label>
                   <input
                     type="text"
                     value={formData.contact_first_name}
@@ -418,7 +418,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.lastName')}</label>
                   <input
                     type="text"
                     value={formData.contact_last_name}
@@ -428,7 +428,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fonction</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.position')}</label>
                   <input
                     type="text"
                     value={formData.contact_position}
@@ -438,7 +438,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.email')}</label>
                   <input
                     type="email"
                     value={formData.contact_email}
@@ -451,7 +451,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.phone')}</label>
                   <input
                     type="tel"
                     value={formData.contact_phone}
@@ -464,13 +464,13 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note interne</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('companies.form.notesLabel')}</label>
               <textarea
                 value={formData.notes}
                 onChange={(e) => handleChange('notes', e.target.value)}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Notes internes sur l'entreprise..."
+                placeholder={t('companies.form.notesPlaceholder')}
               />
             </div>
 
@@ -484,7 +484,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 className="w-4 h-4 rounded"
               />
               <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-                Entreprise active
+                {t('companies.form.activeStatus')}
               </label>
             </div>
 
@@ -495,7 +495,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                Annuler
+                {t('companies.form.cancel')}
               </button>
               <button
                 type="submit"
@@ -503,7 +503,7 @@ export const CompanyFormModal: React.FC<CompanyFormModalProps> = ({
                 className="px-4 py-2 text-white rounded-md hover:opacity-90 disabled:opacity-50"
                 style={{ backgroundColor: primaryColor }}
               >
-                {isSubmitting ? 'Enregistrement...' : companyUuid ? 'Modifier' : 'Créer'}
+                {isSubmitting ? t('companies.form.saving') : companyUuid ? t('companies.form.update') : t('companies.form.create')}
               </button>
             </div>
           </form>
