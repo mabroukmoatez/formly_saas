@@ -429,10 +429,10 @@ export const Entreprises: React.FC = () => {
                   {t('companies.dateAdded')} {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t('companies.trainings')}
+                  {t('companies.tabs.trainings')}
                 </th>
                 <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t('companies.students')}
+                  {t('companies.tabs.students')}
                 </th>
                 <th className={`px-4 py-3 text-center text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {t('companies.actions')}
