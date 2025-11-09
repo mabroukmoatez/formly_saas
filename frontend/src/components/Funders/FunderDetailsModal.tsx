@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Wallet, Users, FileText, Edit2, Download, Upload, Trash2, Search, File } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Wallet, Users, FileText, Edit2, Download, Upload, Trash2, Search, File, Eye, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
@@ -34,6 +34,11 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
   // Filters
   const [documentTypeFilter, setDocumentTypeFilter] = useState('');
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<number | null>(null);
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false);
+
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   // Form data for editing
   const [formData, setFormData] = useState({
@@ -176,7 +181,8 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
 
     try {
       const response = await fundersService.uploadFunderDocument(uuid, file, {
-        file_type: documentTypeFilter as any || 'other',
+        title: file.name,
+        document_type: documentTypeFilter || 'general',
       });
       if (response.success) {
         success('Succès', 'Document ajouté avec succès');
@@ -206,17 +212,35 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
     }
   };
 
-  const handleDeleteDocument = async (documentId: number) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
-      return;
-    }
+  const handleDeleteDocument = (documentId: number) => {
+    setDocumentToDelete(documentId);
+    setShowDeleteConfirm(true);
+  };
 
+  const confirmDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    setIsDeletingDocument(true);
     try {
-      await fundersService.deleteFunderDocument(uuid, documentId);
+      await fundersService.deleteFunderDocument(uuid, documentToDelete);
       success('Succès', 'Document supprimé avec succès');
       fetchDocuments();
+      setShowDeleteConfirm(false);
+      setDocumentToDelete(null);
     } catch (error: any) {
       showError('Erreur', 'Erreur lors de la suppression');
+    } finally {
+      setIsDeletingDocument(false);
+    }
+  };
+
+  const handleViewDocument = async (doc: any) => {
+    try {
+      const blob = await fundersService.downloadFunderDocument(uuid, doc.id);
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error: any) {
+      showError('Erreur', 'Erreur lors de l\'ouverture du document');
     }
   };
 
@@ -645,77 +669,145 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
                 )}
               </div>
             ) : activeTab === 'documents' ? (
-              <div>
-                {/* Documents Tab */}
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Documents
+              <div className="space-y-4">
+                {/* Documents Tab Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Documents du financeur
                   </h3>
-                  <div className="flex gap-2">
-                    <select
-                      value={documentTypeFilter}
-                      onChange={(e) => setDocumentTypeFilter(e.target.value)}
-                      className={`px-3 py-2 rounded-lg border ${
-                        isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                      }`}
-                    >
-                      <option value="">Tous les types</option>
-                      <option value="contract">Contrat</option>
-                      <option value="convention">Convention</option>
-                      <option value="invoice">Facture</option>
-                      <option value="quote">Devis</option>
-                      <option value="other">Autre</option>
-                    </select>
-                    <label className="px-4 py-2 rounded-lg text-white cursor-pointer flex items-center gap-2"
-                      style={{ backgroundColor: primaryColor }}>
-                      <Upload className="w-4 h-4" />
-                      Ajouter
-                      <input
-                        type="file"
-                        onChange={handleDocumentUpload}
-                        className="hidden"
-                        disabled={uploadingDocument}
-                      />
-                    </label>
-                  </div>
                 </div>
 
+                {/* Upload Area */}
+                <div
+                  onClick={() => !uploadingDocument && documentInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors relative ${
+                    uploadingDocument
+                      ? 'cursor-wait opacity-60'
+                      : 'cursor-pointer'
+                  } ${
+                    isDark
+                      ? 'border-gray-700 hover:border-gray-600 bg-gray-800'
+                      : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                  }`}
+                >
+                  {uploadingDocument ? (
+                    <>
+                      <Loader2 className={`w-12 h-12 mx-auto mb-3 animate-spin`} style={{ color: primaryColor }} />
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Téléchargement en cours...
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Glissez-déposez vos fichiers ici ou <span style={{ color: primaryColor }}>cliquez pour parcourir</span>
+                      </p>
+                      <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                        PDF, DOC, DOCX, JPG, PNG (max. 10MB)
+                      </p>
+                    </>
+                  )}
+                  <input
+                    ref={documentInputRef}
+                    type="file"
+                    onChange={handleDocumentUpload}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    disabled={uploadingDocument}
+                  />
+                </div>
+
+                {/* Document Type Filter */}
+                <div className="flex items-center gap-3">
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Type de document:
+                  </label>
+                  <select
+                    value={documentTypeFilter}
+                    onChange={(e) => setDocumentTypeFilter(e.target.value)}
+                    className={`px-3 py-2 rounded-lg border ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    <option value="">Tous les types</option>
+                    <option value="contract">Contrat</option>
+                    <option value="convention">Convention</option>
+                    <option value="invoice">Facture</option>
+                    <option value="quote">Devis</option>
+                    <option value="general">Général</option>
+                    <option value="other">Autre</option>
+                  </select>
+                </div>
+
+                {/* Documents Count */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Documents
+                  </span>
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {filteredDocuments.length}
+                  </span>
+                </div>
+
+                {/* Documents Grid */}
                 {filteredDocuments.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">Aucun document</p>
+                  <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Aucun document
+                  </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredDocuments.map((doc: any) => (
                       <div
                         key={doc.id}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
-                          isDark ? 'bg-gray-700' : 'bg-gray-50'
-                        }`}
+                        className={`flex items-center gap-4 p-4 rounded-xl border ${
+                          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                        } hover:shadow-md transition-shadow`}
                       >
-                        <div className="flex items-center gap-3">
-                          <File className="w-5 h-5 text-gray-500" />
-                          <div>
-                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {doc.original_filename}
-                            </p>
-                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {doc.file_type} • {new Date(doc.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
+                        {/* Icon on Left with Organization Color */}
+                        <div
+                          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: `${primaryColor}20` }}
+                        >
+                          <FileText className="w-6 h-6" style={{ color: primaryColor }} />
                         </div>
-                        <div className="flex gap-2">
+
+                        {/* Document Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {doc.title || doc.file_name || doc.original_filename}
+                          </p>
+                          <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {doc.document_type || doc.file_type || 'Document'} • {doc.formatted_file_size || doc.file_size || '0MB'}
+                          </p>
+                        </div>
+
+                        {/* Action Icons on Right */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
-                            onClick={() => handleDownloadDocument(doc.id, doc.original_filename)}
-                            className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
+                            onClick={() => handleViewDocument(doc)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            }`}
+                            title="Voir le document"
+                          >
+                            <Eye className="w-5 h-5" style={{ color: primaryColor }} />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDocument(doc.id, doc.file_name || doc.original_filename)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                            }`}
                             title="Télécharger"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className="w-5 h-5" style={{ color: primaryColor }} />
                           </button>
                           <button
                             onClick={() => handleDeleteDocument(doc.id)}
-                            className="p-2 rounded-lg hover:bg-red-100 text-red-600"
+                            className="p-2 rounded-lg hover:bg-red-50 transition-colors"
                             title="Supprimer"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-5 h-5 text-red-500" />
                           </button>
                         </div>
                       </div>
@@ -727,6 +819,63 @@ export const FunderDetailsModal: React.FC<FunderDetailsModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[99999]"
+          onClick={() => {
+            setShowDeleteConfirm(false);
+            setDocumentToDelete(null);
+          }}
+        >
+          <div
+            className={`relative w-full max-w-md mx-4 rounded-2xl shadow-2xl ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <h3 className={`text-xl font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Confirmer la suppression
+              </h3>
+              <p className={`mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Êtes-vous sûr de vouloir supprimer ce document ? Cette action est irréversible.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDocumentToDelete(null);
+                  }}
+                  className={`px-4 py-2 rounded-lg border ${
+                    isDark
+                      ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
+                  disabled={isDeletingDocument}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteDocument}
+                  className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white flex items-center gap-2"
+                  disabled={isDeletingDocument}
+                >
+                  {isDeletingDocument ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Suppression...
+                    </>
+                  ) : (
+                    'Supprimer'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
