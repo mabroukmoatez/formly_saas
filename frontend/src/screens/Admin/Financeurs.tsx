@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Download, Trash2, Filter, X, DollarSign, Eye } from 'lucide-react';
+import { Search, Plus, Download, Trash2, Filter, X, Wallet, Eye } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -208,7 +208,7 @@ export const Financeurs: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <DollarSign className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+          <Wallet className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Financeurs
           </h1>

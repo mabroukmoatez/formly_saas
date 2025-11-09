@@ -84,7 +84,7 @@ class Funder extends Model
 
     public function documents()
     {
-        return $this->morphMany(Document::class, 'documentable');
+        return $this->hasMany(FunderDocument::class);
     }
 
     // Scopes
