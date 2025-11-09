@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\Organization;
 
 use App\Http\Controllers\Controller;
 use App\Models\Funder;
+use App\Models\FunderDocument;
 use App\Traits\ApiStatusTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class FunderManagementController extends Controller
@@ -302,6 +304,82 @@ class FunderManagementController extends Controller
             return $this->success($document, 'Document uploaded successfully');
         } catch (\Exception $e) {
             return $this->failed([], 'Failed to upload document: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Télécharger un document d'un financeur
+     * GET /api/organization/funders/{uuid}/documents/{documentId}/download
+     */
+    public function downloadDocument($uuid, $documentId)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        // Find the funder and verify it belongs to the organization
+        $funder = Funder::where('uuid', $uuid)
+            ->where('organization_id', $organization_id)
+            ->first();
+
+        if (!$funder) {
+            return $this->failed([], 'Funder not found', 404);
+        }
+
+        // Find the document and verify it belongs to this funder
+        $document = FunderDocument::where('id', $documentId)
+            ->where('funder_id', $funder->id)
+            ->first();
+
+        if (!$document) {
+            return $this->failed([], 'Document not found', 404);
+        }
+
+        // Check if file exists
+        if (!Storage::disk('public')->exists($document->file_path)) {
+            return $this->failed([], 'File not found on server', 404);
+        }
+
+        // Return the file for download
+        return Storage::disk('public')->download($document->file_path, $document->file_name);
+    }
+
+    /**
+     * Supprimer un document d'un financeur
+     * DELETE /api/organization/funders/{uuid}/documents/{documentId}
+     */
+    public function deleteDocument($uuid, $documentId)
+    {
+        $organization_id = $this->getOrganizationId();
+
+        // Find the funder and verify it belongs to the organization
+        $funder = Funder::where('uuid', $uuid)
+            ->where('organization_id', $organization_id)
+            ->first();
+
+        if (!$funder) {
+            return $this->failed([], 'Funder not found', 404);
+        }
+
+        // Find the document and verify it belongs to this funder
+        $document = FunderDocument::where('id', $documentId)
+            ->where('funder_id', $funder->id)
+            ->first();
+
+        if (!$document) {
+            return $this->failed([], 'Document not found', 404);
+        }
+
+        try {
+            // Delete the physical file
+            if (Storage::disk('public')->exists($document->file_path)) {
+                Storage::disk('public')->delete($document->file_path);
+            }
+
+            // Delete the database record
+            $document->delete();
+
+            return $this->success([], 'Document deleted successfully');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Failed to delete document: ' . $e->getMessage(), 500);
         }
     }
 
