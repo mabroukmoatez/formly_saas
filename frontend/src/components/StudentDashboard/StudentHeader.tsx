@@ -25,10 +25,10 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
     >
       {/* Outward curved corner - bottom-left */}
       <div
-        className="absolute bottom-0 left-0 w-5 h-5"
+        className="absolute -bottom-5 left-0 w-5 h-5"
         style={{
-          backgroundColor: '#f3f4f6',
-          borderTopRightRadius: '20px'
+          backgroundColor: '#19294a',
+          borderBottomLeftRadius: '20px'
         }}
       />
 
