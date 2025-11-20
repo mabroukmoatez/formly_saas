@@ -2683,6 +2683,7 @@ export default {
       myCourses: 'Mes Cours',
       noCoursesYet: 'Aucun cours inscrit pour le moment',
       exploreCatalogue: 'Explorez le catalogue pour commencer votre apprentissage',
+      progress: 'Progression',
     },
   },
 

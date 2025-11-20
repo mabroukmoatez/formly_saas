@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { studentDashboardService, StudentStatistics, CourseProgress } from '../../services/studentDashboard';
 import {
   BarChart3,
   BookOpen,
   Clock,
   TrendingUp,
+  Loader2,
 } from 'lucide-react';
 
 export const StudentDashboardScreen: React.FC = () => {
@@ -14,33 +16,70 @@ export const StudentDashboardScreen: React.FC = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  // Sample data - replace with actual API calls
+  const [statistics, setStatistics] = useState<StudentStatistics>({
+    active_courses: 0,
+    completed_courses: 0,
+    hours_learned: 0,
+    average_score: 0,
+  });
+  const [recentCourses, setRecentCourses] = useState<CourseProgress[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch statistics
+        const statsResponse = await studentDashboardService.getStatistics();
+        if (statsResponse.success) {
+          setStatistics(statsResponse.data);
+        }
+
+        // Fetch recent courses
+        const coursesResponse = await studentDashboardService.getRecentCourses({ per_page: 6 });
+        if (coursesResponse.success) {
+          setRecentCourses(coursesResponse.data.enrollments);
+        }
+      } catch (err: any) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   const stats = [
     {
       id: 1,
       label: t('student.dashboard.activeCourses') || 'Cours actifs',
-      value: '0',
+      value: statistics.active_courses.toString(),
       icon: BookOpen,
       color: 'blue',
     },
     {
       id: 2,
       label: t('student.dashboard.hoursLearned') || 'Heures d\'apprentissage',
-      value: '0h',
+      value: `${statistics.hours_learned}h`,
       icon: Clock,
       color: 'green',
     },
     {
       id: 3,
       label: t('student.dashboard.completedCourses') || 'Cours terminés',
-      value: '0',
+      value: statistics.completed_courses.toString(),
       icon: TrendingUp,
       color: 'purple',
     },
     {
       id: 4,
       label: t('student.dashboard.averageScore') || 'Score moyen',
-      value: '0%',
+      value: `${statistics.average_score}%`,
       icon: BarChart3,
       color: 'orange',
     },
@@ -55,6 +94,28 @@ export const StudentDashboardScreen: React.FC = () => {
     };
     return colors[color as keyof typeof colors] || colors.blue;
   };
+
+  if (loading) {
+    return (
+      <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-center h-64">
+          <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className={`rounded-lg p-6 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
+            <p className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -111,15 +172,52 @@ export const StudentDashboardScreen: React.FC = () => {
           <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             {t('student.dashboard.myCourses') || 'Mes Cours'}
           </h2>
-          <div className="text-center py-12">
-            <BookOpen className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-            <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {t('student.dashboard.noCoursesYet') || 'Aucun cours inscrit pour le moment'}
-            </p>
-            <p className={`text-sm mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-              {t('student.dashboard.exploreCatalogue') || 'Explorez le catalogue pour commencer votre apprentissage'}
-            </p>
-          </div>
+          {recentCourses.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {recentCourses.map((enrollment) => (
+                <div
+                  key={enrollment.id}
+                  className={`rounded-lg border p-4 transition-all duration-200 hover:shadow-md ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 hover:border-gray-500'
+                      : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {enrollment.course.image && (
+                    <img
+                      src={enrollment.course.image}
+                      alt={enrollment.course.title}
+                      className="w-full h-32 object-cover rounded-md mb-3"
+                    />
+                  )}
+                  <h3 className={`font-semibold text-sm mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {enrollment.course.title}
+                  </h3>
+                  <div className="mb-2">
+                    <div className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {t('student.dashboard.progress') || 'Progression'}: {enrollment.progress}%
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${enrollment.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <BookOpen className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+              <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {t('student.dashboard.noCoursesYet') || 'Aucun cours inscrit pour le moment'}
+              </p>
+              <p className={`text-sm mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                {t('student.dashboard.exploreCatalogue') || 'Explorez le catalogue pour commencer votre apprentissage'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

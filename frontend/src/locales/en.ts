@@ -2524,6 +2524,7 @@ export default {
       myCourses: 'My Courses',
       noCoursesYet: 'No courses enrolled yet',
       exploreCatalogue: 'Explore the catalog to start your learning journey',
+      progress: 'Progress',
     },
   },
 };
