@@ -31,7 +31,10 @@ class StudentController extends Controller
     public function index()
     {
         $data['title'] = 'All Student';
-        $data['students'] = $this->studentModel->getOrderById('DESC', 25);
+        // Get students with user relationship loaded
+        $data['students'] = Student::with('user')
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         return view('admin.student.list', $data);
     }
     

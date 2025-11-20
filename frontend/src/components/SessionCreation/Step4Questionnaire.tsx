@@ -52,7 +52,7 @@ export const Step4Questionnaire: React.FC = () => {
   const { organization } = useOrganization();
   const { formData } = useSessionCreation();
   const { error: showError, success: showSuccess } = useToast();
-  const { navigateToRoute, buildRoute } = useSubdomainNavigation();
+  const { navigateToRoute, buildRoute, subdomain } = useSubdomainNavigation();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
@@ -329,7 +329,12 @@ export const Step4Questionnaire: React.FC = () => {
           </Button>
           {!showTemplatesView && (
             <Button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                const url = subdomain
+                  ? `/${subdomain}/questionnaire-creation?sessionUuid=${formData.sessionUuid}`
+                  : `/questionnaire-creation?sessionUuid=${formData.sessionUuid}`;
+                window.open(url, '_blank');
+              }}
               style={{ backgroundColor: primaryColor }}
               className="gap-2"
             >
@@ -482,7 +487,13 @@ export const Step4Questionnaire: React.FC = () => {
                 Commencez par ajouter un questionnaire d'évaluation
               </p>
               <Button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  // Navigate to questionnaire creation page with session UUID
+                  const url = subdomain
+                    ? `/${subdomain}/questionnaire-creation?sessionUuid=${formData.sessionUuid}`
+                    : `/questionnaire-creation?sessionUuid=${formData.sessionUuid}`;
+                  window.open(url, '_blank');
+                }}
                 style={{ backgroundColor: primaryColor }}
                 className="gap-2"
               >

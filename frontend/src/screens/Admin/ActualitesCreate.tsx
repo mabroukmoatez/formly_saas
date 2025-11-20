@@ -425,7 +425,7 @@ export const ActualitesCreate = (): JSX.Element => {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-[#f9f9f9]'}`}>
+    <div className={`${isDark ? 'bg-gray-900' : 'bg-[#f9f9f9]'}`}>
       {/* Header */}
       <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} border-b px-8 py-6`}>
         <div className="flex items-center justify-between">

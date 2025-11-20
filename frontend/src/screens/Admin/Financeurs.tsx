@@ -4,6 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../../components/ui/toast';
+import { Button } from '../../components/ui/button';
 import { fundersService } from '../../services/Funders';
 import { FunderDetailsModal } from '../../components/Funders/FunderDetailsModal';
 import { FunderFormModal } from '../../components/Funders/FunderFormModal';
@@ -204,23 +205,36 @@ export const Financeurs: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Wallet className={`w-8 h-8 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-          <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {t('funders.title')}
-          </h1>
+        <div className="flex items-center gap-4">
+          <div 
+            className="w-12 h-12 rounded-[12px] flex items-center justify-center"
+            style={{ backgroundColor: `${primaryColor}15` }}
+          >
+            <Wallet className="w-6 h-6" style={{ color: primaryColor }} />
+          </div>
+          <div>
+            <h1 
+              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+              style={{ fontFamily: 'Poppins, Helvetica' }}
+            >
+              {t('funders.title')}
+            </h1>
+            <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
+              Gérez vos financeurs et partenaires de financement
+            </p>
+          </div>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2 rounded-lg text-white flex items-center gap-2 hover:opacity-90 transition-opacity"
           style={{ backgroundColor: primaryColor }}
+          className="text-white hover:opacity-90 gap-2 px-4 py-2 rounded-[10px]"
         >
           <Plus className="w-5 h-5" />
           {t('funders.add')}
-        </button>
+        </Button>
       </div>
 
       {/* Stats Cards */}

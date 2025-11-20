@@ -25,7 +25,10 @@ class CertificateController extends Controller
         $data['title'] = ' Certificates';
         $data['navCertificateActiveClass'] = "mm-active";
         $data['subNavAllCertificateActiveClass'] = "mm-active";
-        $data['certificates'] = Certificate::paginate(25);
+        // Load certificates with organization relationship
+        $data['certificates'] = Certificate::with('organization')
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         return view('admin.certificate.index')->with($data);
     }
 

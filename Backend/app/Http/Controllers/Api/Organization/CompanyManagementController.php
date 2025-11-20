@@ -70,36 +70,6 @@ class CompanyManagementController extends Controller
         return $this->success($companies);
     }
 
-    public function list(Request $request)
-    {
-        $organization_id = $this->getOrganizationId();
-        
-        $query = Company::where('organization_id', $organization_id)
-            ->where('is_active', true)
-            ->select('id', 'uuid', 'name', 'city', 'logo_url');
-
-        // Recherche en temps réel
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where('name', 'LIKE', "%{$search}%");
-        }
-
-        $companies = $query->orderBy('name', 'asc')
-            ->limit(100)
-            ->get()
-            ->map(function($company) {
-                return [
-                    'id' => $company->id,
-                    'uuid' => $company->uuid,
-                    'name' => $company->name,
-                    'city' => $company->city,
-                    'logo_url' => $company->logo_url,
-                ];
-            });
-
-        return $this->success($companies);
-    }
-
     /**
      * Détails d'une entreprise (pop-up)
      * GET /api/organization/companies/{uuid}

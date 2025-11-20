@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\LoginTemplate;
 use App\Traits\ApiStatusTrait;
 use App\Traits\ImageSaveTrait;
 use Illuminate\Http\Request;
@@ -52,6 +53,7 @@ class OrganizationWhitelabelController extends Controller
                 'organization_favicon_url' => $organization->favicon_url,
                 'login_background_image' => $organization->login_background_image,
                 'login_background_image_url' => $organization->login_background_image_url,
+                'login_template' => $organization->login_template ?? 'minimal-1',
                 'subscription_plan' => $organization->subscription_plan,
                 'max_users' => $organization->max_users,
                 'max_courses' => $organization->max_courses,
@@ -65,7 +67,18 @@ class OrganizationWhitelabelController extends Controller
                     'can_create_users' => $organization->canCreateUsers(),
                     'can_create_courses' => $organization->canCreateCourses(),
                     'can_create_certificates' => $organization->canCreateCertificates(),
-                ]
+                ],
+                // Email configuration
+                'email_sender' => $organization->email_sender,
+                'email_bcc' => $organization->email_bcc,
+                'email_config_type' => $organization->email_config_type ?? 'api_key',
+                'email_api_provider' => $organization->email_api_provider,
+                'email_api_key' => $organization->email_api_key ? '***encrypted***' : null,
+                'email_smtp_host' => $organization->email_smtp_host,
+                'email_smtp_port' => $organization->email_smtp_port,
+                'email_smtp_username' => $organization->email_smtp_username,
+                'email_smtp_password' => $organization->email_smtp_password ? '***encrypted***' : null,
+                'email_smtp_encryption' => $organization->email_smtp_encryption,
             ];
 
             return $this->success($whitelabelData, 'Whitelabel settings retrieved successfully');
@@ -105,6 +118,7 @@ class OrganizationWhitelabelController extends Controller
                 'custom_css' => 'nullable|string',
                 'custom_domain' => 'nullable|string|max:255|unique:organizations,custom_domain,' . $organization->id,
                 'whitelabel_enabled' => 'nullable|boolean',
+                'login_template' => 'nullable|string|max:255',
                 'subscription_plan' => 'nullable|string|in:basic,professional,enterprise',
                 'max_users' => 'nullable|integer|min:1',
                 'max_courses' => 'nullable|integer|min:1',
@@ -126,25 +140,37 @@ class OrganizationWhitelabelController extends Controller
                 'custom_css',
                 'custom_domain',
                 'whitelabel_enabled',
+                'login_template',
                 'subscription_plan',
                 'max_users',
                 'max_courses',
                 'max_certificates'
             ]);
 
+            // Validate login_template exists if provided
+            if (isset($updateData['login_template'])) {
+                $templateExists = \App\Models\LoginTemplate::where('template_id', $updateData['login_template'])
+                    ->where('is_active', true)
+                    ->exists();
+                
+                if (!$templateExists) {
+                    return $this->failed([], 'Invalid login template. Template does not exist or is not active.');
+                }
+            }
+
             // Handle file uploads
             if ($request->hasFile('organization_logo')) {
-                $logoPath = $this->saveImage('organization_logo', 'uploads/organization/logos/', 300, 300);
+                $logoPath = $this->saveImage('organization/logos', $request->file('organization_logo'), 300, 300);
                 $updateData['organization_logo'] = $logoPath;
             }
 
             if ($request->hasFile('organization_favicon')) {
-                $faviconPath = $this->saveImage('organization_favicon', 'uploads/organization/favicons/', 32, 32);
+                $faviconPath = $this->saveImage('organization/favicons', $request->file('organization_favicon'), 32, 32);
                 $updateData['organization_favicon'] = $faviconPath;
             }
 
             if ($request->hasFile('login_background_image')) {
-                $bgPath = $this->saveImage('login_background_image', 'uploads/organization/backgrounds/', 1920, 1080);
+                $bgPath = $this->saveImage('organization/backgrounds', $request->file('login_background_image'), 1920, 1080);
                 $updateData['login_background_image'] = $bgPath;
             }
 
@@ -253,7 +279,7 @@ class OrganizationWhitelabelController extends Controller
             }
 
             // Upload new logo
-            $logoPath = $this->saveImage('logo', 'uploads/organization/logos/', 300, 300);
+            $logoPath = $this->saveImage('organization/logos', $request->file('logo'), 300, 300);
             $organization->update(['organization_logo' => $logoPath]);
 
             return $this->success([
@@ -300,7 +326,7 @@ class OrganizationWhitelabelController extends Controller
             }
 
             // Upload new favicon
-            $faviconPath = $this->saveImage('favicon', 'uploads/organization/favicons/', 32, 32);
+            $faviconPath = $this->saveImage('organization/favicons', $request->file('favicon'), 32, 32);
             $organization->update(['organization_favicon' => $faviconPath]);
 
             return $this->success([
@@ -327,8 +353,16 @@ class OrganizationWhitelabelController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'background' => 'required|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'background' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                'login_banner' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', // Support both field names
             ]);
+
+            // Support both 'background' and 'login_banner' field names
+            $fileField = $request->hasFile('login_banner') ? 'login_banner' : 'background';
+            
+            if (!$request->hasFile($fileField)) {
+                return $this->failed([], 'No file provided. Please provide either "background" or "login_banner" field.');
+            }
 
             if ($validator->fails()) {
                 return $this->failed($validator->errors(), 'Validation failed');
@@ -347,13 +381,16 @@ class OrganizationWhitelabelController extends Controller
             }
 
             // Upload new background
-            $bgPath = $this->saveImage('background', 'uploads/organization/backgrounds/', 1920, 1080);
+            $bgPath = $this->saveImage('organization/backgrounds', $request->file($fileField), 1920, 1080);
             $organization->update(['login_background_image' => $bgPath]);
 
+            // Generate URL correctly using asset() helper
+            $bgUrl = asset($bgPath);
+            
             return $this->success([
                 'organization_id' => $organization->id,
                 'background_path' => $bgPath,
-                'background_url' => $organization->login_background_image_url
+                'background_url' => $bgUrl
             ], 'Background image uploaded successfully');
 
         } catch (\Exception $e) {
@@ -851,6 +888,90 @@ class OrganizationWhitelabelController extends Controller
                 'http_response' => 'warning',
                 'response_time' => $responseTime
             ];
+        }
+    }
+
+    /**
+     * Get available login templates
+     * GET /api/organization/white-label/login-templates
+     */
+    public function getLoginTemplates()
+    {
+        try {
+            $templates = LoginTemplate::active()
+                ->orderBy('name')
+                ->get()
+                ->map(function ($template) {
+                    return [
+                        'id' => $template->id,
+                        'name' => $template->name,
+                        'description' => $template->description,
+                        'type' => $template->type,
+                        'preview_url' => $template->preview_path 
+                            ? asset('storage' . $template->preview_path) 
+                            : null,
+                        'preview_path' => $template->preview_path,
+                    ];
+                });
+
+            return $this->success([
+                'templates' => $templates
+            ], 'Login templates retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->failed([], 'Failed to retrieve login templates: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get login settings (public endpoint for login page)
+     * GET /api/organization/login-settings
+     */
+    public function getLoginSettings(Request $request)
+    {
+        try {
+            $subdomain = $request->query('subdomain');
+            
+            $organization = null;
+            if ($subdomain) {
+                $organization = Organization::where('custom_domain', $subdomain)
+                    ->orWhere('slug', $subdomain)
+                    ->where('whitelabel_enabled', 1)
+                    ->where('status', 1)
+                    ->first();
+            }
+
+            if (!$organization) {
+                // Return default values
+                return $this->success([
+                    'organization_name' => 'Formly',
+                    'organization_tagline' => 'An LMS solution for your school',
+                    'organization_logo_url' => asset('assets/logos/login-logo.svg'),
+                    'login_template' => 'minimal-1',
+                    'login_banner_url' => asset('assets/images/login-background.png'),
+                    'primary_color' => '#007aff',
+                    'secondary_color' => '#6a90b9',
+                    'accent_color' => '#28a745'
+                ], 'Default login settings');
+            }
+
+            return $this->success([
+                'organization_name' => $organization->organization_name,
+                'organization_tagline' => $organization->organization_tagline ?? 'An LMS solution for your school',
+                'organization_logo_url' => $organization->organization_logo 
+                    ? asset($organization->organization_logo)
+                    : asset('assets/logos/login-logo.svg'),
+                'login_template' => $organization->login_template ?? 'minimal-1',
+                'login_banner_url' => $organization->login_background_image 
+                    ? asset($organization->login_background_image)
+                    : asset('assets/images/login-background.png'),
+                'primary_color' => $organization->primary_color ?? '#007aff',
+                'secondary_color' => $organization->secondary_color ?? '#6a90b9',
+                'accent_color' => $organization->accent_color ?? '#28a745'
+            ], 'Login settings retrieved successfully');
+
+        } catch (\Exception $e) {
+            return $this->failed([], 'Failed to retrieve login settings: ' . $e->getMessage());
         }
     }
 }

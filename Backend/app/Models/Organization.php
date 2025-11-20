@@ -39,6 +39,7 @@ class Organization extends Model
         'organization_logo',
         'organization_favicon',
         'login_background_image',
+        'login_template',
         'primary_color',
         'secondary_color',
         'accent_color',
@@ -87,6 +88,17 @@ class Organization extends Model
         'ape_code',
         'capital',
         'legal_form',
+        // Email configuration fields
+        'email_sender',
+        'email_bcc',
+        'email_api_key',
+        'email_config_type',
+        'email_api_provider',
+        'email_smtp_host',
+        'email_smtp_port',
+        'email_smtp_username',
+        'email_smtp_password',
+        'email_smtp_encryption',
     ];
 
     public function user()
@@ -189,8 +201,8 @@ class Organization extends Model
             if (substr($logoPath, 0, 8) !== 'uploads/') {
                 $logoPath = 'uploads/' . ltrim($logoPath, '/');
             }
-            // Use url() instead of asset() for better compatibility
-            return url($logoPath);
+            // Use asset() helper which handles URLs correctly
+            return asset($logoPath);
         }
         return null; // Return null instead of default logo
     }
@@ -211,6 +223,7 @@ class Organization extends Model
             if (substr($bgPath, 0, 8) !== 'uploads/') {
                 $bgPath = 'uploads/' . ltrim($bgPath, '/');
             }
+            // Use asset() helper which handles URLs correctly
             return asset($bgPath);
         }
         return null; // No default background image
@@ -299,6 +312,64 @@ class Organization extends Model
         });
     }
 
+    // Super Admin Relations
+    public function superAdminInstance()
+    {
+        return $this->belongsTo(\App\Models\SuperAdmin\Instance::class, 'super_admin_instance_id');
+    }
 
+    public function superAdminPlan()
+    {
+        return $this->belongsTo(\App\Models\SuperAdmin\Plan::class, 'super_admin_plan_id');
+    }
+
+    public function superAdminSubscription()
+    {
+        return $this->belongsTo(\App\Models\SuperAdmin\Subscription::class, 'super_admin_subscription_id');
+    }
+
+    /**
+     * Alias for superAdminSubscription for backward compatibility
+     */
+    public function subscription()
+    {
+        return $this->superAdminSubscription();
+    }
+
+    public function paymentGateways()
+    {
+        return $this->hasMany(\App\Models\SuperAdmin\OrganizationPaymentGateway::class);
+    }
+
+    public function smtpSettings()
+    {
+        return $this->hasMany(\App\Models\SuperAdmin\OrganizationSmtpSetting::class);
+    }
+
+    // White Label Relationships
+    public function promotionalBanners()
+    {
+        return $this->hasMany(PromotionalBanner::class);
+    }
+
+    public function libraryTemplates()
+    {
+        return $this->hasMany(LibraryTemplate::class);
+    }
+
+    // Note: subscription() method already exists above (line 321-324)
+    // Using organizationSubscription() as alias for white label subscription
+    public function organizationSubscription()
+    {
+        return $this->hasOne(OrganizationSubscription::class);
+    }
+
+    public function activePromotionalBanners()
+    {
+        return $this->hasMany(PromotionalBanner::class)
+            ->where('status', 'active')
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now());
+    }
 
 }

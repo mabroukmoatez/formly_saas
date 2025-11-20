@@ -314,4 +314,51 @@ class User extends Authenticatable
     {
         return auth()->user()->zoom_settings?->account_id;
     }
+
+    /**
+     * Super Admin Roles relationship
+     */
+    public function superAdminRoles()
+    {
+        return $this->belongsToMany(
+            \App\Models\SuperAdmin\Role::class,
+            'super_admin_user_roles',
+            'user_id',
+            'role_id'
+        )
+        ->withPivot('assigned_by', 'assigned_at', 'expires_at', 'is_active', 'revoked_at')
+        ->withTimestamps();
+    }
+
+    /**
+     * Check if user has Super Admin access
+     */
+    public function isSuperAdmin()
+    {
+        return $this->superAdminRoles()
+            ->wherePivot('is_active', true)
+            ->where(function($query) {
+                $query->whereNull('super_admin_user_roles.expires_at')
+                      ->orWhere('super_admin_user_roles.expires_at', '>', now());
+            })
+            ->exists();
+    }
+
+    /**
+     * Check if user has a specific Super Admin permission
+     */
+    public function hasSuperAdminPermission($permissionSlug)
+    {
+        return $this->superAdminRoles()
+            ->wherePivot('is_active', true)
+            ->where(function($query) {
+                $query->whereNull('super_admin_user_roles.expires_at')
+                      ->orWhere('super_admin_user_roles.expires_at', '>', now());
+            })
+            ->whereHas('permissions', function($query) use ($permissionSlug) {
+                $query->where('slug', $permissionSlug)
+                      ->where('is_active', true);
+            })
+            ->exists() || $this->isSuperAdmin();
+    }
 }

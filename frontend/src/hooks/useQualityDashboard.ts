@@ -23,17 +23,29 @@ export const useQualityDashboard = (skip = false) => {
       
       const response = await getDashboardStats();
       
-      // The backend wraps the response in { success, data }
-      // But getDashboardStats already returns response.data
-      // So we check if it has the expected structure
+      console.log('✅ useQualityDashboard response:', response);
+      
+      // Handle API response structure
+      // Backend returns: { success: true, data: { overview: {...}, indicators: {...}, ... } }
       if (response && typeof response === 'object') {
-        setData(response as DashboardStats);
+        if (response.success === true && response.data) {
+          // Structure: { success: true, data: { overview: {...}, ... } }
+          setData(response.data as DashboardStats);
+        } else if ('overview' in response || 'indicators' in response) {
+          // Direct DashboardStats object: { overview: {...}, indicators: {...}, ... }
+          setData(response as DashboardStats);
+        } else {
+          console.error('❌ Invalid dashboard format:', response);
+          setError('Format de données invalide');
+        }
       } else {
+        console.error('❌ Invalid response format:', response);
         setError('Format de données invalide');
       }
     } catch (err: any) {
       console.error('Failed to fetch dashboard data:', err);
       setError(
+        err.response?.data?.error?.message ||
         err.details?.error?.message || 
         err.message || 
         'Une erreur s\'est produite lors du chargement du tableau de bord'

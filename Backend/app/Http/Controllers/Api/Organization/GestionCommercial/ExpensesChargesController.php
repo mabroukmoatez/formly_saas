@@ -50,8 +50,8 @@ class ExpensesChargesController extends Controller
         $baseQuery = Expense::where('organization_id', $organization_id);
 
         $total_all = (clone $baseQuery)->sum('amount');
-        $total_rh = (clone $baseQuery)->where('category', 'Dépense RH')->sum('amount');
-        $total_env = (clone $baseQuery)->where('category', '!=', 'Dépense RH')->sum('amount');
+        $total_rh = (clone $baseQuery)->where('category', 'Moyens Humains')->sum('amount');
+        $total_env = (clone $baseQuery)->where('category', 'Moyens Environnementaux')->sum('amount');
 
         return $this->success([
             'total' => (float) $total_all,
@@ -69,11 +69,35 @@ class ExpensesChargesController extends Controller
 
         // Support flexible field names
         $label = $request->label ?? $request->description ?? $request->expense_type ?? 'Expense';
-        $category = $request->category ?? 'Other';
+        $category = $request->category;
         $amount = $request->amount ?? 0;
         
         // Support date fields
-        $expense_date = $request->payment_date ?? $request->expense_date ?? now()->format('Y-m-d');
+        $expense_date = $request->payment_date ?? $request->expense_date ?? $request->date ?? now()->format('Y-m-d');
+
+        // Build validation rules
+        $rules = [
+            'category' => 'required|in:Moyens Humains,Moyens Environnementaux',
+            'label' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0.01',
+            'course_id' => 'nullable|exists:courses,id',
+            'documents' => 'nullable|array',
+            'documents.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'vendor' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'date' => 'nullable|date',
+            'expense_date' => 'nullable|date',
+            'payment_date' => 'nullable|date',
+        ];
+
+        // Conditional validation: role and contract_type are required for "Moyens Humains"
+        if ($category === 'Moyens Humains') {
+            $rules['role'] = 'required|string|max:255';
+            $rules['contract_type'] = 'required|string|max:255';
+        } else {
+            $rules['role'] = 'nullable|string|max:255';
+            $rules['contract_type'] = 'nullable|string|max:255';
+        }
 
         // Validate with normalized data
         $validator = Validator::make([
@@ -83,23 +107,34 @@ class ExpensesChargesController extends Controller
             'course_id' => $request->course_id,
             'role' => $request->role,
             'contract_type' => $request->contract_type,
-            'documents' => $request->documents,
+            'documents' => $request->hasFile('documents') ? $request->file('documents') : null,
             'vendor' => $request->vendor,
             'notes' => $request->notes,
-        ], [
-            'category' => 'required|string|max:255',
-            'label' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
-            'course_id' => 'nullable|exists:courses,id',
-            'role' => 'nullable|string|max:255',
-            'contract_type' => 'nullable|string|max:255',
-            'documents' => 'nullable|array',
-            'documents.*' => 'file|mimes:pdf,jpg,png,doc,docx,xlsx|max:10240',
-            'vendor' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
+            'date' => $request->date,
+            'expense_date' => $request->expense_date,
+            'payment_date' => $request->payment_date,
+        ], $rules, [
+            'category.required' => 'La catégorie est requise',
+            'category.in' => 'La catégorie doit être "Moyens Humains" ou "Moyens Environnementaux"',
+            'label.required' => 'Le libellé est requis',
+            'amount.required' => 'Le montant est requis',
+            'amount.min' => 'Le montant doit être supérieur à 0',
+            'role.required' => 'Le champ "Poste / Rôle" est requis pour la catégorie "Moyens Humains"',
+            'contract_type.required' => 'Le champ "Type De Contrat" est requis pour la catégorie "Moyens Humains"',
+            'course_id.exists' => 'La formation sélectionnée n\'existe pas',
+            'documents.*.file' => 'Les documents doivent être des fichiers valides',
+            'documents.*.mimes' => 'Les documents doivent être de type PDF, JPG, JPEG ou PNG',
+            'documents.*.max' => 'Chaque document ne doit pas dépasser 10MB',
         ]);
 
-        if ($validator->fails()) return $this->failed([], 'Validation failed: ' . $validator->errors()->first());
+        if ($validator->fails()) {
+            $response = [
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors()
+            ];
+            return response()->json($response, 422);
+        }
 
         DB::beginTransaction();
         try {
@@ -109,55 +144,82 @@ class ExpensesChargesController extends Controller
                 'label' => $label,
                 'amount' => $amount,
                 'course_id' => $request->course_id,
-                'role' => $request->role,
-                'contract_type' => $request->contract_type,
+                'role' => $category === 'Moyens Humains' ? $request->role : null,
+                'contract_type' => $category === 'Moyens Humains' ? $request->contract_type : null,
+                'expense_date' => $expense_date,
+                'notes' => $request->notes,
+                'vendor' => $request->vendor,
             ]);
             
-            // Store vendor and notes in a notes/document if available
-            $notesData = [];
-            if ($request->vendor) {
-                $notesData[] = "Vendor: " . $request->vendor;
-            }
-            if ($request->notes) {
-                $notesData[] = $request->notes;
-            }
-            
-            // If we need to store notes and vendor separately, we could add them to a JSON field
-            // For now, we'll skip storing those as they don't exist in the model
-            
+            // Handle multi-upload of documents
             if ($request->hasFile('documents')) {
                 foreach ($request->file('documents') as $file) {
-                    $path = $file->store('expense_documents', 'public');
+                    // Store in charges/{expense_id}/ directory structure
+                    $path = $file->store("charges/{$expense->id}", 'public');
                     $expense->documents()->create([
                         'file_path' => $path,
-                        'original_name' => $file->getClientOriginalName()
+                        'original_name' => $file->getClientOriginalName(),
+                        'file_size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType()
                     ]);
                 }
             }
             
             DB::commit();
             
-            $response = $expense->toArray();
-            if ($request->vendor) {
-                $response['vendor'] = $request->vendor;
-            }
-            if ($request->notes) {
-                $response['notes'] = $request->notes;
-            }
+            // Load relationships for response
+            $expense->load('documents', 'course');
+            
+            // Format response according to specification
+            $response = [
+                'charge' => [
+                    'id' => $expense->id,
+                    'organization_id' => $expense->organization_id,
+                    'label' => $expense->label,
+                    'amount' => (string) number_format($expense->amount, 2, '.', ''),
+                    'category' => $expense->category,
+                    'role' => $expense->role,
+                    'contract_type' => $expense->contract_type,
+                    'course_id' => $expense->course_id,
+                    'date' => $expense->expense_date ? $expense->expense_date->format('Y-m-d') : null,
+                    'expense_date' => $expense->expense_date ? $expense->expense_date->format('Y-m-d') : null,
+                    'created_at' => $expense->created_at->toIso8601String(),
+                    'updated_at' => $expense->updated_at->toIso8601String(),
+                    'documents' => $expense->documents->map(function ($doc) {
+                        return [
+                            'id' => $doc->id,
+                            'charge_id' => $doc->expense_id,
+                            'file_path' => $doc->file_path,
+                            'original_name' => $doc->original_name,
+                            'file_size' => $doc->file_size,
+                            'mime_type' => $doc->mime_type,
+                            'created_at' => $doc->created_at->toIso8601String(),
+                        ];
+                    })->toArray(),
+                    'course' => $expense->course ? [
+                        'id' => $expense->course->id,
+                        'title' => $expense->course->title,
+                    ] : null,
+                ]
+            ];
             
             // Broadcast event
             event(new \App\Events\OrganizationEvent(
                 'expense.created',
                 'New Expense Created',
-                'Expense ' . $expense->label . ' has been created',
+                'Dépense créée avec succès',
                 $response,
                 $organization_id
             ));
             
-            return $this->success($response, 'Expense created successfully.');
+            return response()->json([
+                'success' => true,
+                'message' => 'Dépense créée avec succès',
+                'data' => $response
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->failed([], 'Failed to create expense: ' . $e->getMessage(), 500);
+            return $this->error([], 'Failed to create expense: ' . $e->getMessage(), 500);
         }
     }
 
@@ -179,23 +241,71 @@ class ExpensesChargesController extends Controller
             return $this->failed([], 'Expense not found.');
         }
         
-        $validator = Validator::make($request->all(), [
-            'category' => 'required|string|max:255',
-            'label' => 'required|string|max:255',
-            'amount' => 'required|numeric|min:0',
+        // Build validation rules
+        $rules = [
+            'category' => 'sometimes|required|in:Moyens Humains,Moyens Environnementaux',
+            'label' => 'sometimes|required|string|max:255',
+            'amount' => 'sometimes|required|numeric|min:0.01',
             'course_id' => 'nullable|exists:courses,id',
-            'role' => 'required_if:category,Dépense RH|nullable|string|max:255',
-            'contract_type' => 'required_if:category,Dépense RH|nullable|string|max:255',
-            'documents_to_add.*' => 'sometimes|file|mimes:pdf,jpg,png,doc,docx,xlsx|max:10240',
+            'documents_to_add.*' => 'sometimes|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'documents_to_delete' => 'sometimes|array',
             'documents_to_delete.*' => 'integer|exists:expense_documents,id',
+            'expense_date' => 'nullable|date',
+            'payment_date' => 'nullable|date',
+            'date' => 'nullable|date',
+            'notes' => 'nullable|string',
+            'vendor' => 'nullable|string|max:255',
+        ];
+
+        // Conditional validation: role and contract_type are required for "Moyens Humains"
+        $category = $request->category ?? $expense->category;
+        if ($category === 'Moyens Humains') {
+            $rules['role'] = 'sometimes|required|string|max:255';
+            $rules['contract_type'] = 'sometimes|required|string|max:255';
+        } else {
+            $rules['role'] = 'nullable|string|max:255';
+            $rules['contract_type'] = 'nullable|string|max:255';
+        }
+
+        $validator = Validator::make($request->all(), $rules, [
+            'category.required' => 'La catégorie est requise',
+            'category.in' => 'La catégorie doit être "Moyens Humains" ou "Moyens Environnementaux"',
+            'label.required' => 'Le libellé est requis',
+            'amount.required' => 'Le montant est requis',
+            'amount.min' => 'Le montant doit être supérieur à 0',
+            'role.required' => 'Le champ "Poste / Rôle" est requis pour la catégorie "Moyens Humains"',
+            'contract_type.required' => 'Le champ "Type De Contrat" est requis pour la catégorie "Moyens Humains"',
+            'course_id.exists' => 'La formation sélectionnée n\'existe pas',
+            'documents_to_add.*.file' => 'Les documents doivent être des fichiers valides',
+            'documents_to_add.*.mimes' => 'Les documents doivent être de type PDF, JPG, JPEG ou PNG',
+            'documents_to_add.*.max' => 'Chaque document ne doit pas dépasser 10MB',
         ]);
 
-        if ($validator->fails()) return $this->failed([], $validator->errors()->first());
+        if ($validator->fails()) {
+            $response = [
+                'success' => false,
+                'message' => 'Erreur de validation',
+                'errors' => $validator->errors()
+            ];
+            return response()->json($response, 422);
+        }
 
         DB::beginTransaction();
         try {
-            $expense->update($request->except(['documents_to_add', 'documents_to_delete', 'documents']));
+            $updateData = $request->except(['documents_to_add', 'documents_to_delete', 'documents']);
+            
+            // Handle date fields
+            if ($request->has('expense_date') || $request->has('payment_date') || $request->has('date')) {
+                $updateData['expense_date'] = $request->expense_date ?? $request->payment_date ?? $request->date ?? $expense->expense_date;
+            }
+            
+            // Ensure role and contract_type are null for "Moyens Environnementaux"
+            if (isset($updateData['category']) && $updateData['category'] === 'Moyens Environnementaux') {
+                $updateData['role'] = null;
+                $updateData['contract_type'] = null;
+            }
+            
+            $expense->update($updateData);
             
             if ($request->filled('documents_to_delete')) {
                 $docsToDelete = ExpenseDocument::where('expense_id', $expense->id)->whereIn('id', $request->documents_to_delete)->get();
@@ -207,19 +317,22 @@ class ExpensesChargesController extends Controller
             
             if ($request->hasFile('documents_to_add')) {
                 foreach ($request->file('documents_to_add') as $file) {
-                    $path = $file->store('expense_documents', 'public');
+                    // Store in charges/{expense_id}/ directory structure
+                    $path = $file->store("charges/{$expense->id}", 'public');
                     $expense->documents()->create([
                         'file_path' => $path,
-                        'original_name' => $file->getClientOriginalName()
+                        'original_name' => $file->getClientOriginalName(),
+                        'file_size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType()
                     ]);
                 }
             }
             
             DB::commit();
-            return $this->success($expense->fresh()->load('documents', 'course'), 'Expense updated successfully.');
+            return $this->success($expense->fresh()->load('documents', 'course'), 'Dépense mise à jour avec succès.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->failed([], 'Failed to update expense: ' . $e->getMessage(), 500);
+            return $this->error([], 'Failed to update expense: ' . $e->getMessage(), 500);
         }
     }
 
@@ -315,7 +428,9 @@ class ExpensesChargesController extends Controller
                 $path = $file->store('expense_documents', 'public');
                 $document = $expense->documents()->create([
                     'file_path' => $path,
-                    'original_name' => $file->getClientOriginalName()
+                    'original_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType()
                 ]);
                 $uploaded[] = $document;
             }
@@ -332,7 +447,7 @@ class ExpensesChargesController extends Controller
             return $this->success($response, 'Expense created with documents successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->failed([], 'Failed to create expense: ' . $e->getMessage(), 500);
+            return $this->error([], 'Failed to create expense: ' . $e->getMessage(), 500);
         }
     }
 
@@ -370,7 +485,9 @@ class ExpensesChargesController extends Controller
                 $path = $file->store('expense_documents', 'public');
                 $document = $expense->documents()->create([
                     'file_path' => $path,
-                    'original_name' => $file->getClientOriginalName()
+                    'original_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType()
                 ]);
                 $uploaded[] = $document;
             }

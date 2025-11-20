@@ -40,7 +40,10 @@ class InstructorController extends Controller
         } // end permission checking
 
         $data['title'] = 'All Instructors';
-        $data['instructors'] = $this->instructorModel->getOrderById('DESC', 25);
+        // Get instructors with user relationship loaded
+        $data['instructors'] = Instructor::with('user')
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         return view('admin.instructor.index', $data);
     }
 

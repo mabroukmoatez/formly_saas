@@ -92,9 +92,89 @@ class ApiService {
         responseData = await response.text();
       }
       
+      // Log successful GET responses for debugging
+      if (config.method === 'GET' && response.ok && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        if (url.includes('documents') || url.includes('questionnaires')) {
+          console.log('📥 [apiService] GET response:', url, responseData);
+        }
+      }
+      
+      // IMPORTANT: In Quality Management module, 201 Created is ALWAYS considered success
+      // Handle 201 Created responses first (before checking response.ok)
+      if (response.status === 201) {
+        // For 201 Created responses, ensure we wrap them properly if they're not already
+        if (responseData && !responseData.success) {
+          return {
+            success: true,
+            message: responseData.message || 'Created successfully',
+            data: responseData.data || responseData
+          } as T;
+        }
+        // If responseData already has success: true, return it as is
+        return responseData as T;
+      }
+      
+      // Check for permission errors even when response is ok but success: false
+      if (response.ok && responseData && typeof responseData === 'object' && 'success' in responseData && responseData.success === false) {
+        const errorBody = responseData as any;
+        const message = errorBody?.message || '';
+        
+        // Check if this is a permission error based on the message
+        const isPermissionError = typeof message === 'string' && (
+          message.toLowerCase().includes('do not have permission') ||
+          message.toLowerCase().includes('n\'avez pas la permission') ||
+          message.toLowerCase().includes('permission denied') ||
+          message.toLowerCase().includes('permission refusée') ||
+          message.toLowerCase().includes('insufficient permissions') ||
+          message.toLowerCase().includes('permissions insuffisantes') ||
+          message.toLowerCase().includes('unauthorized') ||
+          message.toLowerCase().includes('non autorisé') ||
+          message.toLowerCase().includes('access denied') ||
+          message.toLowerCase().includes('accès refusé')
+        );
+
+        // If it's a permission error, show the modal
+        if (isPermissionError) {
+          // Dynamically import to avoid circular dependencies
+          import('../utils/permissionErrorHandler').then(({ showPermissionError }) => {
+            showPermissionError(message);
+          }).catch(() => {
+            // Fallback if import fails
+            console.warn('Permission error:', message);
+          });
+        }
+      }
+      
       if (!response.ok) {
         // Use already parsed responseData as errorBody
         const errorBody = responseData || {};
+
+        // Handle 409 Conflict for quality initialization endpoints (already initialized)
+        if (response.status === 409 && (url.includes('/api/quality/initialize') || url.includes('/api/quality/initialize/status'))) {
+          const errorCode = errorBody?.error?.code || errorBody?.code || 'ALREADY_INITIALIZED';
+          
+          // For status check, return success with initialized: true
+          if (url.includes('/api/quality/initialize/status')) {
+            return {
+              success: true,
+              data: {
+                initialized: true,
+                indicators: { count: 32, expected: 32 },
+                categories: { count: 5, expected: 5 }
+              }
+            } as T;
+          }
+          
+          // For initialize endpoint, return error response (will be handled by hook)
+          return {
+            success: false,
+            error: {
+              code: errorCode,
+              message: errorBody?.error?.message || errorBody?.message || 'Le système qualité est déjà initialisé'
+            },
+            data: null
+          } as T;
+        }
 
         // Build a human-friendly message, especially for validation errors (422)
         let validationMessage = '';
@@ -116,9 +196,36 @@ class ApiService {
           || (validationMessage ? `Validation échouée: ${validationMessage}` : '')
           || `HTTP error! status: ${response.status}`;
 
-        const err = new Error(message) as Error & { status?: number; details?: any };
+        // Check if this is a permission error (403 Forbidden or message contains permission keywords)
+        const isPermissionError = response.status === 403 || 
+          (typeof message === 'string' && (
+            message.toLowerCase().includes('do not have permission') ||
+            message.toLowerCase().includes('n\'avez pas la permission') ||
+            message.toLowerCase().includes('permission denied') ||
+            message.toLowerCase().includes('permission refusée') ||
+            message.toLowerCase().includes('insufficient permissions') ||
+            message.toLowerCase().includes('permissions insuffisantes') ||
+            message.toLowerCase().includes('unauthorized') ||
+            message.toLowerCase().includes('non autorisé') ||
+            message.toLowerCase().includes('access denied') ||
+            message.toLowerCase().includes('accès refusé')
+          ));
+
+        // If it's a permission error, show the modal
+        if (isPermissionError) {
+          // Dynamically import to avoid circular dependencies
+          import('../utils/permissionErrorHandler').then(({ showPermissionError }) => {
+            showPermissionError(message);
+          }).catch(() => {
+            // Fallback if import fails
+            console.warn('Permission error:', message);
+          });
+        }
+
+        const err = new Error(message) as Error & { status?: number; details?: any; isPermissionError?: boolean };
         err.status = response.status;
         err.details = errorBody;
+        err.isPermissionError = isPermissionError;
 
         // Log rich context for debugging in dev tools
         console.error('API request failed:', {
@@ -127,19 +234,10 @@ class ApiService {
           method: config.method || 'GET',
           message,
           details: errorBody,
+          isPermissionError,
         });
 
         throw err;
-      }
-      
-      // responseData is already parsed above
-      // For 201 Created responses, ensure we wrap them properly if they're not already
-      if (response.status === 201 && responseData && !responseData.success) {
-        return {
-          success: true,
-          message: responseData.message || 'Created successfully',
-          data: responseData.data || responseData
-        } as T;
       }
       
       return responseData as T;
@@ -189,13 +287,33 @@ class ApiService {
    * Login user
    */
   async login(email: string, password: string, organizationSubdomain: string): Promise<AuthResponse> {
+    const requestBody: any = {
+      email,
+      password,
+    };
+    
+    // Only include organization_subdomain if it's provided and not empty
+    // Super admin login doesn't require organization_subdomain
+    if (organizationSubdomain && organizationSubdomain.trim() !== '') {
+      requestBody.organization_subdomain = organizationSubdomain.trim();
+    }
+    
+    return await this.request<AuthResponse>(CONFIG.API.LOGIN, {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  /**
+   * Login super admin (without organization requirement)
+   */
+  async superAdminLogin(email: string, password: string): Promise<AuthResponse> {
     const requestBody = {
       email,
       password,
-      organization_subdomain: organizationSubdomain,
     };
     
-    return await this.request<AuthResponse>(CONFIG.API.LOGIN, {
+    return await this.request<AuthResponse>(CONFIG.API.SUPERADMIN_LOGIN, {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
@@ -218,6 +336,35 @@ class ApiService {
     localStorage.removeItem(CONFIG.STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(CONFIG.STORAGE_KEYS.REFRESH_TOKEN);
     localStorage.removeItem(CONFIG.STORAGE_KEYS.USER_DATA);
+  }
+
+  /**
+   * Verify invitation token
+   */
+  async verifyInvitationToken(token: string): Promise<{ success: boolean; message: string; data: any }> {
+    return await this.request<{ success: boolean; message: string; data: any }>(
+      `/api/auth/verify-invitation/${token}`,
+      {
+        method: 'GET',
+      }
+    );
+  }
+
+  /**
+   * Setup password (for invited users)
+   */
+  async setupPassword(data: {
+    token: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<{ success: boolean; message: string; data: any }> {
+    return await this.request<{ success: boolean; message: string; data: any }>(
+      '/api/auth/setup-password',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    );
   }
 
   /**
@@ -556,6 +703,84 @@ class ApiService {
     );
   }
 
+  // Email Templates
+  async getEmailTemplates(params?: { page?: number; per_page?: number; search?: string }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.per_page) queryParams.append('per_page', String(params.per_page));
+    if (params?.search) queryParams.append('search', params.search);
+    queryParams.append('type', 'email');
+    const qs = queryParams.toString();
+    return this.get(`/api/organization/white-label/library/templates?${qs}`);
+  }
+
+  async getEmailTemplate(templateId: number): Promise<{ success: boolean; data: any; message: string }> {
+    return this.get(`/api/organization/white-label/library/templates/${templateId}`);
+  }
+
+  async createEmailTemplate(data: any): Promise<{ success: boolean; data: any; message: string }> {
+    return this.post('/api/organization/white-label/library/templates', data);
+  }
+
+  async updateEmailTemplate(templateId: number, data: any): Promise<{ success: boolean; data: any; message: string }> {
+    return this.put(`/api/organization/white-label/library/templates/${templateId}`, data);
+  }
+
+  async deleteEmailTemplate(templateId: number): Promise<{ success: boolean; message: string }> {
+    return this.delete(`/api/organization/white-label/library/templates/${templateId}`);
+  }
+
+  async sendEmailFromTemplate(templateId: number, data: { to: string; to_name?: string; variables: Record<string, string> }): Promise<{ success: boolean; data: any; message: string }> {
+    return this.post(`/api/organization/white-label/library/templates/${templateId}/send`, data);
+  }
+
+  // Promotional Banners
+  async getBanners(params?: { page?: number; per_page?: number; status?: string }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.per_page) queryParams.append('per_page', String(params.per_page));
+    if (params?.status) queryParams.append('status', params.status);
+    const qs = queryParams.toString();
+    return this.get(`/api/organization/white-label/banners${qs ? `?${qs}` : ''}`);
+  }
+
+  async getActiveBanners(): Promise<{ success: boolean; data: any; message: string }> {
+    return this.get('/api/organization/white-label/banners/active');
+  }
+
+  async getBanner(bannerId: number): Promise<{ success: boolean; data: any; message: string }> {
+    return this.get(`/api/organization/white-label/banners/${bannerId}`);
+  }
+
+  async createBanner(data: FormData): Promise<{ success: boolean; data: any; message: string }> {
+    return this.post('/api/organization/white-label/banners', data);
+  }
+
+  async updateBanner(bannerId: number, data: FormData): Promise<{ success: boolean; data: any; message: string }> {
+    return this.put(`/api/organization/white-label/banners/${bannerId}`, data);
+  }
+
+  async deleteBanner(bannerId: number): Promise<{ success: boolean; message: string }> {
+    return this.delete(`/api/organization/white-label/banners/${bannerId}`);
+  }
+
+  async toggleBannerStatus(bannerId: number): Promise<{ success: boolean; data: any; message: string }> {
+    return this.patch(`/api/organization/white-label/banners/${bannerId}/toggle-status`);
+  }
+
+  // Subscription Plans
+  async getCurrentPlan(): Promise<{ success: boolean; data: any; message: string }> {
+    return this.get('/api/organization/subscription/current-plan');
+  }
+
+  async getAvailablePlans(): Promise<{ success: boolean; data: any; message: string }> {
+    return this.get('/api/organization/subscription/available-plans');
+  }
+
+  async upgradePlan(data: { plan_id: number; billing_period: 'monthly' | 'yearly' }): Promise<{ success: boolean; data: { checkout_url?: string }; message: string }> {
+    return this.post('/api/organization/subscription/upgrade', data);
+  }
+
   /**
    * Test custom domain connectivity
    */
@@ -605,11 +830,12 @@ class ApiService {
 
   /**
    * Create new user
+   * Note: password is optional - if not provided, backend will send email invitation
    */
   async createUser(userData: {
     name: string;
     email: string;
-    password: string;
+    password?: string; // Optional - if not provided, backend sends email invitation
     role_id: number;
     organization_id: number;
     status: number;
@@ -1088,6 +1314,104 @@ class ApiService {
 
   async getUploadLimits(): Promise<{ success: boolean; data: any; message: string }> {
     return this.get<{ success: boolean; data: any; message: string }>('/api/organization/files/limits');
+  }
+
+  // ==================== BPF Commercial Data APIs ====================
+  
+  /**
+   * Get commercial financements for BPF
+   * @param params Query parameters (year, from, to)
+   */
+  async getCommercialFinancements(params?: {
+    year?: number;
+    from?: string; // YYYY-MM-DD
+    to?: string; // YYYY-MM-DD
+  }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    
+    const endpoint = `/api/commercial/financements${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.get<{ success: boolean; data: any; message: string }>(endpoint);
+  }
+
+  /**
+   * Get commercial formateurs for BPF
+   * @param params Query parameters (year, from, to)
+   */
+  async getCommercialFormateurs(params?: {
+    year?: number;
+    from?: string; // YYYY-MM-DD
+    to?: string; // YYYY-MM-DD
+  }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    
+    const endpoint = `/api/commercial/formateurs${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.get<{ success: boolean; data: any; message: string }>(endpoint);
+  }
+
+  /**
+   * Get commercial courses for BPF with statistics
+   * @param params Query parameters (year, from, to, status)
+   */
+  async getCommercialCourses(params?: {
+    year?: number;
+    from?: string; // YYYY-MM-DD
+    to?: string; // YYYY-MM-DD
+    status?: string;
+  }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const endpoint = `/api/commercial/courses${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.get<{ success: boolean; data: any; message: string }>(endpoint);
+  }
+
+  /**
+   * Get commercial sessions for BPF with statistics
+   * @param params Query parameters (year, from, to, course_uuid)
+   */
+  async getCommercialSessions(params?: {
+    year?: number;
+    from?: string; // YYYY-MM-DD
+    to?: string; // YYYY-MM-DD
+    course_uuid?: string;
+  }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    if (params?.course_uuid) queryParams.append('course_uuid', params.course_uuid);
+    
+    const endpoint = `/api/commercial/sessions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.get<{ success: boolean; data: any; message: string }>(endpoint);
+  }
+
+  /**
+   * Get commercial learners statistics for BPF
+   * @param params Query parameters (session_id, year, from, to)
+   */
+  async getCommercialLearners(params?: {
+    session_id?: number;
+    year?: number;
+    from?: string; // YYYY-MM-DD
+    to?: string; // YYYY-MM-DD
+  }): Promise<{ success: boolean; data: any; message: string }> {
+    const queryParams = new URLSearchParams();
+    if (params?.session_id) queryParams.append('session_id', params.session_id.toString());
+    if (params?.year) queryParams.append('year', params.year.toString());
+    if (params?.from) queryParams.append('from', params.from);
+    if (params?.to) queryParams.append('to', params.to);
+    
+    const endpoint = `/api/commercial/learners${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.get<{ success: boolean; data: any; message: string }>(endpoint);
   }
 }
 

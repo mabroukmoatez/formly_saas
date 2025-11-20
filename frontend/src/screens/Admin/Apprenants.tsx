@@ -278,7 +278,7 @@ const {
   const hasActiveFilters = selectedFormation || selectedCompany || dateFrom || dateTo;
 
   return (
-    <div className={`min-h-screen p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className={`p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">

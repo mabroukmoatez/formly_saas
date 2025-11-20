@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Separator } from '../ui/separator';
@@ -7,6 +7,20 @@ import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQualityTaskCategories } from '../../hooks/useQualityTaskCategories';
+import { usePermissions } from '../../hooks/usePermissions';
+import { QUALITY_SIDEBAR_PERMISSIONS, shouldShowMenuItem } from '../../utils/permissionMappings';
+import { CreateTaskCategoryModal } from './CreateTaskCategoryModal';
+import { RenameTaskCategoryModal } from './RenameTaskCategoryModal';
+import { deleteTaskCategory, QualityTaskCategory } from '../../services/qualityManagement';
+import { useToast } from '../ui/toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
+import { MoreVertical, Trash2, Edit } from 'lucide-react';
 import { 
   Menu, 
   X, 
@@ -19,8 +33,18 @@ import {
   UserCheck,
   UserCog,
   Users,
-  Briefcase
+  Briefcase,
+  Newspaper,
+  CheckCircle2
 } from 'lucide-react';
+
+// Composant personnalisé pour l'icône BPF (document avec graphique)
+const FileBarChartIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={`relative ${className}`}>
+    <FileText className="w-4 h-4" />
+    <BarChart3 className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5" />
+  </div>
+);
 
 interface QualitySidebarProps {
   className?: string;
@@ -40,8 +64,14 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { success, error: showError } = useToast();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { categories, loading: categoriesLoading, refetch: refetchCategories } = useQualityTaskCategories();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<QualityTaskCategory | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Function to get role icon dynamically
   const getRoleIcon = () => {
@@ -113,44 +143,96 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
     return organization?.organization_name || 'Formly';
   };
 
-  const sidebarMenuItems = [
-    { 
-      id: 1, 
-      label: "Accueil", 
-      icon: Home,
-      path: "/quality",
-      active: location.pathname.endsWith('/quality')
-    },
-    { 
-      id: 2, 
-      label: "Indicateurs", 
-      icon: BarChart3,
-      path: "/quality/indicateurs",
-      active: location.pathname.includes('/quality/indicateurs')
-    },
-    { 
-      id: 3, 
-      label: "Documents", 
-      icon: FileText,
-      path: "/quality/documents",
-      active: location.pathname.includes('/quality/documents')
-    },
-    { 
-      id: 4, 
-      label: "Bilan pédagogique et financier (BPF)", 
-      icon: Award,
-      path: "/quality/bpf",
-      active: location.pathname.includes('/quality/bpf')
-    },
-  ];
+  const { hasPermission, hasAnyPermission, hasAllPermissions, isOrganizationAdmin } = usePermissions();
 
-  const actionCategories = [
-    { id: 1, label: "Veille", color: "bg-[#3f5ea9]", hasMenu: true },
-    { id: 2, label: "Amélioration Continue", color: "bg-[#3f5ea9]", hasMenu: true },
-    { id: 3, label: "Plan développement de compétences", color: "bg-[#3f5ea9]", hasMenu: true },
-    { id: 4, label: "Questions Handicap", color: "", hasMenu: true },
-    { id: 5, label: "Gestion Des Disfonctionnements", color: "bg-[#3f5ea9]", hasMenu: true },
-  ];
+  const sidebarMenuItems = useMemo(() => {
+    const allMenuItems = [
+      { 
+        id: 1, 
+        idKey: "quality",
+        label: "Accueil", 
+        icon: Home,
+        path: "/quality",
+        active: location.pathname.endsWith('/quality')
+      },
+      { 
+        id: 2, 
+        idKey: "indicateurs",
+        label: "Indicateurs", 
+        icon: CheckCircle2, // Coche dans un cercle selon documentation ligne 50
+        path: "/quality/indicateurs",
+        active: location.pathname.includes('/quality/indicateurs')
+      },
+      { 
+        id: 3, 
+        idKey: "documents",
+        label: "Documents", 
+        icon: FileText,
+        path: "/quality/documents",
+        active: location.pathname.includes('/quality/documents')
+      },
+      { 
+        id: 4, 
+        idKey: "articles",
+        label: "Articles", 
+        icon: Newspaper,
+        path: "/quality/articles",
+        active: location.pathname.includes('/quality/articles')
+      },
+      { 
+        id: 5, 
+        idKey: "bpf",
+        label: "Bilan pédagogique et financier (BPF)", 
+        icon: FileBarChartIcon, // Document avec graphique selon documentation ligne 77
+        path: "/quality/bpf",
+        active: location.pathname.includes('/quality/bpf')
+      },
+    ];
+
+    // Filtrer les éléments selon les permissions
+    return allMenuItems.filter(item =>
+      shouldShowMenuItem(
+        item.idKey,
+        QUALITY_SIDEBAR_PERMISSIONS,
+        hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
+        isOrganizationAdmin
+      )
+    );
+  }, [location.pathname, hasPermission, hasAnyPermission, hasAllPermissions, isOrganizationAdmin]);
+
+  const handleRenameCategory = (category: QualityTaskCategory) => {
+    setSelectedCategory(category);
+    setShowRenameModal(true);
+  };
+
+  const handleDeleteCategory = async (category: QualityTaskCategory) => {
+    if (!window.confirm(`Voulez-vous vraiment supprimer la famille "${category.name}" ?`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await deleteTaskCategory(category.id);
+      if (response.success) {
+        success('Famille supprimée avec succès');
+        refetchCategories();
+      } else {
+        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+      }
+    } catch (err: any) {
+      console.error('Error deleting category:', err);
+      showError('Erreur', err.message || 'Une erreur est survenue lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Filter categories based on search term
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <>
@@ -195,7 +277,8 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-[#ff7700] focus-visible:ring-offset-2 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
+                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
+                style={{ '--focus-ring-color': organization?.primary_color || '#007aff' } as React.CSSProperties}
                 onClick={() => setIsCollapsed(!isCollapsed)}
               >
                 <Menu className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
@@ -205,7 +288,8 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-[#ff7700] focus-visible:ring-offset-2 transition-colors ml-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
+                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors ml-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
+                style={{ '--focus-ring-color': organization?.primary_color || '#007aff' } as React.CSSProperties}
                 onClick={() => setIsCollapsed(!isCollapsed)}
               >
                 <X className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
@@ -219,28 +303,47 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
               <Button
                 key={item.id}
                 variant="ghost"
-                className={`flex min-h-[52px] w-full items-center ${isCollapsed ? 'justify-center px-2' : 'justify-start gap-[18px] px-[18px]'} py-2.5 rounded-lg border-l-4 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-[#ff7700] focus-visible:ring-offset-2 ${
+                className={`flex min-h-[52px] w-full items-center ${isCollapsed ? 'justify-center px-2' : 'justify-start gap-[18px] px-[18px]'} py-2.5 rounded-lg border-l-4 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 ${
                   item.active
                     ? isDark 
-                      ? "bg-orange-900/40 border-l-[#ff7700] shadow-sm" 
-                      : "bg-[#ffe5ca] border-l-[#ff7700] shadow-sm"
+                      ? "bg-orange-900/40 shadow-sm" 
+                      : item.id === 1 
+                        ? "bg-[#FFE5CC] shadow-sm"
+                      : "bg-[#ffe5ca] shadow-sm"
                     : isDark
-                      ? "border-l-transparent bg-gray-700 shadow-[0px_4px_20px_5px_#09294c12] hover:bg-orange-900/20 hover:border-l-[#ff7700]"
-                      : "border-l-transparent bg-white shadow-[0px_4px_20px_5px_#09294c12] hover:bg-[#ffe5ca]/50 hover:border-l-[#ff7700]"
+                      ? "border-l-transparent bg-gray-700 shadow-[0px_4px_20px_5px_#09294c12] hover:bg-orange-900/20"
+                      : "border-l-transparent bg-white shadow-[0px_4px_20px_5px_#09294c12] hover:bg-[#ffe5ca]/50"
                 }`}
+                style={{
+                  ...(item.active ? { 
+                    borderLeftColor: organization?.primary_color || '#007aff',
+                    ...(item.id === 1 && !isDark ? { backgroundColor: '#FFE5CC' } : {}),
+                  } : {}),
+                  '--focus-ring-color': organization?.primary_color || '#007aff',
+                } as React.CSSProperties}
                 onClick={() => navigateToRoute(item.path)}
               >
                 <div className={`inline-flex items-center ${isCollapsed ? 'gap-0' : 'gap-[18px]'}`}>
-                  <div className={`p-1 rounded-md ${item.active ? 'bg-[#ff7700]' : isDark ? 'bg-gray-600' : 'bg-[#f5f5f5]'}`}>
+                  <div 
+                    className={`p-1 rounded-md ${item.active ? '' : isDark ? 'bg-gray-600' : 'bg-[#f5f5f5]'}`}
+                    style={item.active ? { backgroundColor: organization?.primary_color || '#007aff' } : undefined}
+                  >
+                    {item.id === 5 ? (
+                      // BPF icon - composant personnalisé
+                      <FileBarChartIcon className={`w-4 h-4 ${item.active ? 'text-white' : isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
+                    ) : (
+                      // Autres icônes standard
                     <item.icon className={`w-4 h-4 ${item.active ? 'text-white' : isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
+                    )}
                   </div>
                   {!isCollapsed && (
                     <span
                       className={`[font-family:'Urbanist',Helvetica] text-base tracking-[0] leading-tight transition-colors whitespace-normal break-words ${
                         item.active
-                          ? isDark ? "font-bold text-[#ff9500]" : "font-bold text-[#ff7700]"
+                          ? isDark ? "font-bold" : "font-bold"
                           : isDark ? "font-semibold text-gray-300" : "font-semibold text-[#6a90b9]"
                       }`}
+                      style={item.active ? { color: organization?.primary_color || '#007aff' } : undefined}
                     >
                       {item.label}
                     </span>
@@ -257,8 +360,14 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
 
               <div className="flex flex-col gap-2.5">
                 {/* Actions & Tasks Button */}
-                <button className={`flex items-center gap-[18px] px-[18px] py-2.5 rounded-[7px] shadow-[0px_4px_20px_5px_#09294c12] transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-[#ffe5ca]/50'}`}>
-                  <div className="w-[19.35px] h-[19.35px] bg-[#ff7700] rounded-sm" />
+                <button 
+                  onClick={() => navigateToRoute('/quality/actions')}
+                  className={`flex items-center gap-[18px] px-[18px] py-2.5 rounded-[7px] shadow-[0px_4px_20px_5px_#09294c12] transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-[#ffe5ca]/50'} ${location.pathname.includes('/quality/actions') ? (isDark ? 'bg-gray-600' : 'bg-[#ffe5ca]') : ''}`}
+                >
+                  <div 
+                    className="w-[19.35px] h-[19.35px] rounded-sm"
+                    style={{ backgroundColor: organization?.primary_color || '#007aff' }}
+                  />
                   <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
                     Les Actions & Taches
                   </span>
@@ -266,7 +375,13 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
 
                 {/* Search Box */}
                 <div className={`flex items-center gap-[7.22px] px-[7px] py-[7.94px] rounded-[5.78px] border-[0.72px] ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#cdc1b7]'}`}>
-                  <svg className={`w-[18.71px] ${isDark ? 'text-[#ff9500]' : 'text-[#ff7700]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg 
+                    className="w-[18.71px]" 
+                    style={{ color: organization?.primary_color || '#007aff' }}
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                   <input
@@ -282,46 +397,81 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
 
                 {/* Action Categories */}
                 <div className="flex flex-col gap-2.5 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#dadfe8]">
-                  {actionCategories.map((category) => (
+                  {categoriesLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff7700]"></div>
+                    </div>
+                  ) : filteredCategories.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
+                        {searchTerm ? 'Aucune famille trouvée' : 'Aucune famille'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredCategories.map((category) => (
                     <div
                       key={category.id}
-                      className={`flex items-center justify-between px-3 py-0 rounded-[10px] transition-colors cursor-pointer ${isDark ? 'hover:bg-gray-600/50' : 'hover:bg-white/50'}`}
+                        className={`flex items-center justify-between px-3 py-2 rounded-[10px] transition-colors ${isDark ? 'hover:bg-gray-600/50' : 'hover:bg-white/50'}`}
                     >
-                      <div className="flex items-center gap-4">
-                        {category.color ? (
-                          <div className={`w-2 h-2 ${category.color} rounded-sm`} />
-                        ) : (
-                          <div className={`w-2 h-2 ${isDark ? 'bg-gray-500' : 'bg-gray-300'} rounded-full`} />
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div 
+                            className="w-2 h-2 rounded-sm flex-shrink-0" 
+                            style={{ backgroundColor: category.color || '#3f5ea9' }}
+                          />
+                          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] truncate ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
+                            {category.name}
+                          </span>
+                          {category.tasks_count !== undefined && (
+                            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} ml-auto`}>
+                              {category.tasks_count}
+                            </span>
+                          )}
+                        </div>
+                        {!category.is_system && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                className={`p-1 rounded hover:bg-gray-200 ${isDark ? 'hover:bg-gray-600' : ''}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreVertical className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className={isDark ? 'bg-gray-700 border-gray-600' : ''}>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRenameCategory(category);
+                                }}
+                                className={isDark ? 'text-gray-200 hover:bg-gray-600' : ''}
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Renommer
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteCategory(category);
+                                }}
+                                className={`text-red-500 ${isDark ? 'hover:bg-gray-600' : 'hover:bg-red-50'}`}
+                                disabled={deleting}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
-                        <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
-                          {category.label}
-                        </span>
                       </div>
-                      {category.hasMenu && (
-                        <svg className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} fill="currentColor" viewBox="0 0 16 16">
-                          <circle cx="2" cy="8" r="1.5" />
-                          <circle cx="8" cy="8" r="1.5" />
-                          <circle cx="14" cy="8" r="1.5" />
-                        </svg>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
-                {/* Add Text Button */}
-                <button className={`flex items-center justify-center gap-[7.22px] px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed border-[#ff7700] transition-colors ${isDark ? 'hover:bg-orange-900/20' : 'hover:bg-[#ffe5ca]/30'}`}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-2 h-2 bg-[#3f5ea9]" />
-                    <div className={`flex items-center gap-2.5 px-2 py-0 rounded-[3px] border-[0.5px] border-[#ff9500] ${isDark ? 'bg-orange-900/20' : 'bg-[#ffe5ca29]'}`}>
-                      <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
-                        Text
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
                 {/* Add Family Button */}
-                <button className={`flex items-center justify-center gap-[7.22px] px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed border-[#ff7700] transition-colors ${isDark ? 'bg-orange-900/40 hover:bg-orange-900/60' : 'bg-[#ffe5ca] hover:bg-[#ffd9b3]'}`}>
+                <button 
+                  onClick={() => setShowCreateModal(true)}
+                  className={`flex items-center justify-center gap-[7.22px] px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed border-[#ff7700] transition-colors ${isDark ? 'bg-orange-900/40 hover:bg-orange-900/60' : 'bg-[#ffe5ca] hover:bg-[#ffd9b3]'}`}
+                >
                   <svg className="w-[11.05px] h-[11.05px] text-[#ff7700]" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
                   </svg>
@@ -360,6 +510,29 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
           src="/assets/images/sidebar-bg-bottom.png"
         />
       </aside>
+
+      {/* Modals */}
+      <CreateTaskCategoryModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          refetchCategories();
+          setShowCreateModal(false);
+        }}
+      />
+      <RenameTaskCategoryModal
+        isOpen={showRenameModal}
+        onClose={() => {
+          setShowRenameModal(false);
+          setSelectedCategory(null);
+        }}
+        category={selectedCategory}
+        onSuccess={() => {
+          refetchCategories();
+          setShowRenameModal(false);
+          setSelectedCategory(null);
+        }}
+      />
     </>
   );
 };

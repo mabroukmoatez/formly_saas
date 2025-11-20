@@ -29,7 +29,9 @@ export const useConversations = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getConversations({ type });
+      // Charger toutes les conversations avec un per_page élevé pour être sûr d'avoir toutes
+      const data = await getConversations({ type, per_page: 100 });
+      console.log(`📥 Loaded ${data.conversations?.length || 0} conversations from API`);
       setConversations(data.conversations || []);
       setStats(data.stats || { total_conversations: 0, individual_count: 0, group_count: 0, total_unread: 0 });
     } catch (err: any) {

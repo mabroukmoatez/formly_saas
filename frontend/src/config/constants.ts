@@ -5,12 +5,13 @@
 
 export const CONFIG = {
   // Base URL for all API calls and asset URLs
-  BASE_URL: 'http://localhost:8000/',
+  BASE_URL: 'http://localhost/form.fr',
   
   // API Endpoints
   API: {
     ORGANIZATION_BY_SUBDOMAIN: '/api/organization/by-subdomain',
     LOGIN: '/api/auth/login',
+    SUPERADMIN_LOGIN: '/api/superadmin/auth/login',
     LOGOUT: '/api/auth/logout',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
     RESET_PASSWORD: '/api/auth/reset-password',
@@ -148,6 +149,8 @@ export interface Organization {
   organization_favicon_url?: string;
   login_background_image?: string;
   login_background_image_url?: string;
+  login_banner_url?: string;
+  login_template?: string;
   whitelabel_enabled: boolean;
   subscription_plan: string;
   max_users: number;

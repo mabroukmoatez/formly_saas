@@ -1,8 +1,8 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { Card, CardContent } from '../../components/ui/card';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
@@ -11,21 +11,15 @@ import { useToast } from '../../components/ui/toast';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { 
-  Upload,
-  Calendar,
-  User,
-  Eye,
-  Heart,
-  Edit,
-  Trash2,
   Plus,
   Search,
-  Filter,
   Grid,
   List,
   MoreVertical,
-  Star,
-  StarOff,
+  ChevronDown,
+  ArrowUpDown,
+  User,
+  Calendar,
   Newspaper
 } from 'lucide-react';
 import { NewsCard } from '../../components/NewsCard';
@@ -71,19 +65,21 @@ export const Actualites = (): JSX.Element => {
   const { t } = useLanguage();
 
   // Organization colors
-  const primaryColor = organization?.primary_color || '#007aff';
+  const primaryColor = organization?.primary_color || '#3b82f6';
   const secondaryColor = organization?.secondary_color || '#6a90b9';
   const accentColor = organization?.accent_color || '#ff7700';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedAuthor, setSelectedAuthor] = useState('');
+  const [showAuthorDropdown, setShowAuthorDropdown] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newsToDelete, setNewsToDelete] = useState<NewsItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const authorDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -111,34 +107,6 @@ export const Actualites = (): JSX.Element => {
     }
   };
 
-  const handlePublishNews = async (news: NewsItem, status: 'draft' | 'published' | 'archived') => {
-    try {
-      const result = await publishNews(news.id, status);
-      if (result) {
-        success('Succès', `Actualité ${status === 'published' ? 'publiée' : status === 'draft' ? 'dépubliée' : 'archivée'} avec succès`);
-        refetch();
-      } else {
-        showError('Erreur', 'Impossible de modifier le statut');
-      }
-    } catch (error) {
-      showError('Erreur', 'Une erreur est survenue');
-    }
-  };
-
-  const handleFeatureNews = async (news: NewsItem, featured: boolean) => {
-    try {
-      const result = await featureNews(news.id, featured);
-      if (result) {
-        success('Succès', `Actualité ${featured ? 'mise en avant' : 'retirée de la mise en avant'} avec succès`);
-        refetch();
-      } else {
-        showError('Erreur', 'Impossible de modifier la mise en avant');
-      }
-    } catch (error) {
-      showError('Erreur', 'Une erreur est survenue');
-    }
-  };
-
   const handleViewNews = (newsId: string) => {
     navigateToRoute(`/actualites/${newsId}`);
   };
@@ -155,35 +123,121 @@ export const Actualites = (): JSX.Element => {
     }
   };
 
+  // Fermer le dropdown auteur quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (authorDropdownRef.current && !authorDropdownRef.current.contains(event.target as Node)) {
+        setShowAuthorDropdown(false);
+      }
+    };
+
+    if (showAuthorDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showAuthorDropdown]);
+
+  const handleSelectAuthor = (authorId: string) => {
+    setSelectedAuthor(authorId === selectedAuthor ? '' : authorId);
+    setShowAuthorDropdown(false);
+  };
+
+  const getSelectedAuthorName = () => {
+    if (!selectedAuthor) return 'Ajouté Par';
+    const author = authors.find(a => a.id.toString() === selectedAuthor);
+    return author ? author.name : 'Ajouté Par';
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
       year: 'numeric'
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'published': return 'bg-green-500';
-      case 'draft': return 'bg-yellow-500';
-      case 'archived': return 'bg-gray-500';
-      default: return 'bg-gray-500';
+      case 'published':
+        return {
+          text: 'À venir',
+          bg: 'bg-blue-100 dark:bg-blue-900/30',
+          textColor: 'text-blue-800 dark:text-blue-200',
+          border: 'border-blue-300 dark:border-blue-700'
+        };
+      case 'draft':
+        return {
+          text: 'Brouillon',
+          bg: 'bg-gray-100 dark:bg-gray-800',
+          textColor: 'text-gray-700 dark:text-gray-300',
+          border: 'border-gray-300 dark:border-gray-600'
+        };
+      case 'archived':
+        return {
+          text: 'Passée',
+          bg: 'bg-green-100 dark:bg-green-900/30',
+          textColor: 'text-green-800 dark:text-green-200',
+          border: 'border-green-300 dark:border-green-700'
+        };
+      default:
+        return {
+          text: status,
+          bg: 'bg-gray-100 dark:bg-gray-800',
+          textColor: 'text-gray-700 dark:text-gray-300',
+          border: 'border-gray-300 dark:border-gray-600'
+        };
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'published': return 'Publié';
-      case 'draft': return 'Brouillon';
-      case 'archived': return 'Archivé';
-      default: return status;
+  // Obtenir la liste unique des auteurs (hook doit être avant le return conditionnel)
+  const authors = useMemo(() => {
+    const authorMap = new Map();
+    news.forEach(item => {
+      if (!authorMap.has(item.author.id)) {
+        authorMap.set(item.author.id, item.author);
+      }
+    });
+    return Array.from(authorMap.values());
+  }, [news]);
+
+  // Filtrer les actualités (hook doit être avant le return conditionnel)
+  const filteredNews = useMemo(() => {
+    let filtered = news;
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.title.toLowerCase().includes(searchLower) ||
+        item.short_description.toLowerCase().includes(searchLower) ||
+        item.category.toLowerCase().includes(searchLower)
+      );
     }
-  };
+
+    if (selectedStatus) {
+      filtered = filtered.filter(item => item.status === selectedStatus);
+    }
+
+    if (selectedAuthor) {
+      filtered = filtered.filter(item => item.author.id.toString() === selectedAuthor);
+    }
+
+    // Trier par date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [news, searchTerm, selectedStatus, selectedAuthor, sortOrder]);
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-[#f9f9f9]'}`}>
+      <div className={`flex items-center justify-center py-20 ${isDark ? 'bg-gray-900' : 'bg-[#fafbfc]'}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: primaryColor }}></div>
           <p className={`${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Chargement des actualités...</p>
@@ -193,13 +247,14 @@ export const Actualites = (): JSX.Element => {
   }
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-[#f9f9f9]'}`}>
-      {/* Header */}
-      <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} border-b px-[27px] py-8`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <div className={`${isDark ? 'bg-gray-900' : 'bg-[#fafbfc]'}`}>
+      {/* Container principal avec max-width */}
+      <div className="max-w-[1600px] mx-auto px-6 lg:px-8 py-8">
+        {/* En-tête de Page */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-8">
             <div 
-              className="w-12 h-12 rounded-[12px] flex items-center justify-center"
+              className="w-12 h-12 rounded-[12px] flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: `${primaryColor}15` }}
             >
               <Newspaper className="w-6 h-6" style={{ color: primaryColor }} />
@@ -218,157 +273,235 @@ export const Actualites = (): JSX.Element => {
               </p>
             </div>
           </div>
-          
-          <Button 
-            className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#ecf1fd] hover:bg-[#d9e4fb]'} shadow-md hover:shadow-lg transition-all`}
-            style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
-            onClick={() => navigateToRoute('/actualites/create')}
+
+          {/* Barre de Recherche et Actions */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            {/* Barre de Recherche */}
+            <div className="relative flex-1 min-w-[400px] max-w-[460px]">
+              <div 
+                className={`relative flex items-center rounded-[16px] h-[52px] px-[14px] border transition-colors ${
+                  isDark 
+                    ? 'bg-gray-800 border-gray-700' 
+                    : 'bg-[#e8f4f8] border-transparent'
+                }`}
+                style={!isDark ? { backgroundColor: '#e8f4f8' } : undefined}
+              >
+                <Search 
+                  className={`w-5 h-5 mr-3 flex-shrink-0 ${
+                    isDark ? 'text-gray-400' : 'text-[#64748b]'
+                  }`}
+                />
+                <Input
+                  placeholder="Titre, Mot-Clé"
+                  value={searchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className={`flex-1 border-0 bg-transparent p-0 h-auto text-[15px] font-normal placeholder:text-[#64748b] focus-visible:ring-0 focus-visible:ring-offset-0 ${
+                    isDark 
+                      ? 'text-white placeholder:text-gray-500' 
+                      : 'text-[#1e293b]'
+                  }`}
+                  style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}
+                />
+              </div>
+            </div>
+
+            {/* Groupe de Filtres et Bouton */}
+            <div className="flex items-center gap-3">
+              {/* Filtre Date De Création */}
+              <button
+                onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                className={`inline-flex items-center gap-2 px-4 py-3 rounded-[12px] h-[52px] border transition-colors ${
+                  isDark
+                    ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white'
+                    : 'bg-white border-[#e2e8f0] hover:bg-gray-50 text-[#64748b]'
+                }`}
+                style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="text-[15px] font-medium">Date De Création</span>
+                <ArrowUpDown className={`w-4 h-4 ${sortOrder === 'asc' ? 'rotate-180' : ''} transition-transform`} />
+              </button>
+
+              {/* Filtre Ajouté Par */}
+              <div className="relative" ref={authorDropdownRef}>
+                <button
+                  onClick={() => setShowAuthorDropdown(!showAuthorDropdown)}
+                  className={`inline-flex items-center gap-2 px-4 py-3 rounded-[12px] h-[52px] border transition-colors ${
+                    isDark
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white'
+                      : 'bg-white border-[#e2e8f0] hover:bg-gray-50 text-[#64748b]'
+                  } ${selectedAuthor ? (isDark ? 'border-blue-500' : 'border-blue-500 bg-blue-50') : ''}`}
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    ...(selectedAuthor && !isDark ? { backgroundColor: '#eff6ff', borderColor: '#3b82f6', color: '#3b82f6' } : {})
+                  }}
+                >
+                  <User className="w-5 h-5" />
+                  <span className="text-[15px] font-medium">{getSelectedAuthorName()}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showAuthorDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showAuthorDropdown && (
+                  <div 
+                    className={`absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-[100] max-h-64 overflow-y-auto ${
+                      isDark 
+                        ? 'bg-gray-800 border border-gray-700' 
+                        : 'bg-white border border-gray-200'
+                    }`}
+                    style={{ 
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                    }}
+                  >
+                    <button
+                      onClick={() => handleSelectAuthor('')}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        !selectedAuthor
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>Tous les auteurs</span>
+                    </button>
+                    {authors.map((author) => (
+                      <button
+                        key={author.id}
+                        onClick={() => handleSelectAuthor(author.id.toString())}
+                        className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                          selectedAuthor === author.id.toString()
+                            ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                            : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                        }`}
+                      >
+                        <Avatar className="w-6 h-6">
+                          {author.avatar_url ? (
+                            <AvatarImage 
+                              src={author.avatar_url} 
+                              alt={author.name}
+                              className="object-cover"
+                            />
+                          ) : null}
+                          <AvatarFallback 
+                            className="text-white text-xs font-semibold"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            {author.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'A'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span>{author.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle Vue Grid/List */}
+              <div className={`inline-flex items-center rounded-[12px] border p-1 h-[52px] ${
+                isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e8f0]'
+              }`}>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-[6px] transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  style={viewMode === 'grid' ? { backgroundColor: isDark ? undefined : '#eff6ff' } : undefined}
+                >
+                  <Grid 
+                    className={`w-5 h-5 ${
+                      viewMode === 'grid' 
+                        ? 'text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-400 dark:text-gray-500'
+                    }`}
+                    style={viewMode === 'grid' ? { color: primaryColor } : undefined}
+                  />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-[6px] transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  style={viewMode === 'list' ? { backgroundColor: isDark ? undefined : '#eff6ff' } : undefined}
+                >
+                  <List 
+                    className={`w-5 h-5 ${
+                      viewMode === 'list' 
+                        ? 'text-blue-600 dark:text-blue-400' 
+                        : 'text-gray-400 dark:text-gray-500'
+                    }`}
+                    style={viewMode === 'list' ? { color: primaryColor } : undefined}
+                  />
+                </button>
+              </div>
+
+              {/* Bouton Nouvelle Actualités */}
+              <Button
+                onClick={() => navigateToRoute('/actualites/create')}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-[12px] h-[52px] border-2 transition-all ${
+                  isDark
+                    ? 'bg-white border-white hover:bg-gray-100 text-gray-900'
+                    : 'bg-white border-[#3b82f6] hover:bg-[#eff6ff] text-[#3b82f6]'
+                }`}
+                style={{ 
+                  borderColor: primaryColor,
+                  color: primaryColor,
+                  fontFamily: 'Inter, -apple-system, sans-serif'
+                }}
+              >
+                <Plus className="w-5 h-5" />
+                <span className="text-[15px] font-semibold">Nouvelle Actualités</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Grille de Cards */}
+        {filteredNews.length > 0 ? (
+          <div 
+            className={`${
+              viewMode === 'grid' 
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8' 
+                : 'flex flex-col gap-4'
+            }`}
           >
-            <Plus className="w-4 h-4" style={{ color: primaryColor }} />
-            <span className="font-medium text-[17px]" style={{ color: primaryColor }}>
-              Nouvelle actualité
-            </span>
-          </Button>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-            <Input
-              placeholder="Rechercher une actualité..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-              className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-        <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-              className="h-9 w-9 p-0"
-            >
-              {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid className="w-4 h-4" />}
-        </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} rounded-[18px]`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Total
-                  </p>
-                  <p className={`[font-family:'Poppins',Helvetica] font-semibold text-[20px] ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {meta.total_news}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}20` }}>
-                  <Eye className="w-5 h-5" style={{ color: primaryColor }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} rounded-[18px]`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Publiées
-                  </p>
-                  <p className={`[font-family:'Poppins',Helvetica] font-semibold text-[20px] ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {meta.published_news}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accentColor}20` }}>
-                  <Star className="w-5 h-5" style={{ color: accentColor }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} rounded-[18px]`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Brouillons
-                  </p>
-                  <p className={`[font-family:'Poppins',Helvetica] font-semibold text-[20px] ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {meta.draft_news}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${secondaryColor}20` }}>
-                  <Edit className="w-5 h-5" style={{ color: secondaryColor }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#d2d2e7]'} rounded-[18px]`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                    En avant
-                  </p>
-                  <p className={`[font-family:'Poppins',Helvetica] font-semibold text-[20px] ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {meta.featured_news}
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${accentColor}20` }}>
-                  <Star className="w-5 h-5" style={{ color: accentColor }} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* News Grid/List */}
-        <div className={`${viewMode === 'grid' ? 'grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'gap-3 grid-cols-1'}`}>
-            {news.map((newsItem) => (
-            <NewsCard
-              key={newsItem.id}
-              news={newsItem}
-              isDark={isDark}
-              viewMode={viewMode}
-              onEdit={handleEditNews}
-              onDelete={handleDeleteNewsClick}
-              onView={handleViewNews}
-            />
+            {filteredNews.map((newsItem) => (
+              <NewsCard
+                key={newsItem.id}
+                news={newsItem}
+                isDark={isDark}
+                viewMode={viewMode}
+                primaryColor={primaryColor}
+                onEdit={handleEditNews}
+                onDelete={handleDeleteNewsClick}
+                onView={handleViewNews}
+              />
             ))}
           </div>
-
-        {/* Empty State */}
-        {news.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: `${primaryColor}20` }}>
-              <Eye className="w-12 h-12" style={{ color: primaryColor }} />
+        ) : (
+          <div className="text-center py-16">
+            <div className={`w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center ${
+              isDark ? 'bg-gray-800' : 'bg-gray-100'
+            }`}>
+              <Newspaper className={`w-10 h-10 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
             </div>
-            <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Aucune actualité
+            <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Aucune actualité trouvée
             </h3>
-            <p className={`[font-family:'Poppins',Helvetica] font-normal text-[14px] mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              Commencez par créer votre première actualité
+            <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              {searchTerm ? 'Aucun résultat pour votre recherche' : 'Commencez par créer votre première actualité'}
             </p>
-            <Button 
-              className="h-auto rounded-[13px] px-4 py-3 gap-2 hover:opacity-90"
-              style={{ backgroundColor: primaryColor }}
-              onClick={() => navigateToRoute('/actualites/create')}
-            >
-              <Plus className="w-5 h-5 text-white" />
-              <span className="[font-family:'Poppins',Helvetica] font-medium text-white text-[16px]">
+            {!searchTerm && (
+              <Button
+                onClick={() => navigateToRoute('/actualites/create')}
+                className="gap-2 h-auto py-2.5 px-6 rounded-lg font-medium"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Plus className="w-4 h-4" />
                 Créer une actualité
-              </span>
-            </Button>
+              </Button>
+            )}
           </div>
         )}
       </div>

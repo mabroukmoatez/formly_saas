@@ -4,6 +4,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
+import { extractDocumentData } from '../../services/ocrService';
+import { mapExtractedDataToForm } from '../../utils/dataMapper';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, FileUp } from 'lucide-react';
 
 interface QuoteImportModalProps {
@@ -33,9 +35,11 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
 
   const handleFileSelection = useCallback((file: File) => {
     // Validate file type
-    const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
-      showError('Erreur', 'Format de fichier non supporté. Utilisez PDF, PNG ou JPEG.');
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'image/png', 'image/jpeg', 'image/jpg'];
+    const fileName = file.name.toLowerCase();
+    const isValidType = validTypes.includes(file.type) || fileName.endsWith('.pdf') || fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    if (!isValidType) {
+      showError('Erreur', 'Format de fichier non supporté. Utilisez PDF, Excel (.xlsx, .xls), PNG ou JPEG.');
       return;
     }
 
@@ -84,43 +88,51 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
     setStatus('uploading');
     setProgress(0);
 
-    // Simulate upload progress
+    // Simulate processing progress
     const uploadInterval = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 10, 90));
+      setProgress((prev) => {
+        if (prev < 50) return prev + 10;
+        if (prev < 90) return prev + 5;
+        return prev;
+      });
     }, 200);
 
     try {
-      const formData = new FormData();
-      formData.append('document', selectedFile);
-      if (organization?.id) {
-        formData.append('organization_id', organization.id);
-      }
-
-      // Real API call
       setStatus('processing');
-      const response = await commercialService.importQuoteOCR(formData);
+      
+      // Use frontend OCR service
+      const extractedInfo = await extractDocumentData(selectedFile, true);
       
       clearInterval(uploadInterval);
       setProgress(100);
 
-      if (response.success && response.data) {
-        const extractedInfo = response.data.extracted_data;
-        const confidenceScores = response.data.confidence_scores;
-        const apiWarnings = response.data.warnings || [];
-
-        setExtractedData(extractedInfo);
-        setWarnings(apiWarnings);
-        setStatus('success');
-        showSuccess('Document traité avec succès ! Vérifiez les données extraites.');
-      } else {
-        throw new Error('Réponse invalide du serveur');
+      // Map extracted data to form format
+      const mappedData = mapExtractedDataToForm(extractedInfo, true);
+      
+      // Generate warnings for missing data
+      const warnings: string[] = [];
+      if (!mappedData.quote_number) {
+        warnings.push('Numéro de devis non détecté');
+      }
+      if (!mappedData.client_name) {
+        warnings.push('Nom du client non détecté');
+      }
+      if (!mappedData.quote_date) {
+        warnings.push('Date de devis non détectée');
+      }
+      if (!mappedData.items || mappedData.items.length === 0) {
+        warnings.push('Aucun article détecté');
       }
 
+      setExtractedData(mappedData);
+      setWarnings(warnings);
+      setStatus('success');
+      showSuccess('Document traité avec succès ! Vérifiez les données extraites.');
     } catch (error: any) {
       clearInterval(uploadInterval);
       setStatus('error');
       console.error('OCR Error:', error);
-      showError('Erreur', error.response?.data?.message || error.message || 'Impossible de traiter le document');
+      showError('Erreur', error.message || 'Impossible de traiter le document');
     }
   };
 
@@ -163,7 +175,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 type="file"
                 id="file-upload"
                 className="hidden"
-                accept=".pdf,.png,.jpg,.jpeg"
+                accept=".pdf,.xlsx,.xls,.png,.jpg,.jpeg"
                 onChange={handleFileInputChange}
               />
               
@@ -195,7 +207,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 </div>
 
                 <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                  PDF, PNG, JPEG - Max 10MB
+                  PDF, Excel (.xlsx, .xls), PNG, JPEG - Max 10MB
                 </p>
               </div>
             </div>
@@ -316,42 +328,40 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 <div>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>N° Devis</p>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {extractedData?.quote_number}
+                    {extractedData?.quote_number || '-'}
                   </p>
                 </div>
                 <div>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Client</p>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {extractedData?.client?.name}
+                    {extractedData?.client_name || '-'}
                   </p>
                 </div>
                 <div>
                   <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Date</p>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {new Date(extractedData?.quote_date).toLocaleDateString('fr-FR')}
+                    {extractedData?.quote_date ? new Date(extractedData.quote_date).toLocaleDateString('fr-FR') : '-'}
                   </p>
                 </div>
                 <div>
-                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Montant TTC</p>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Email</p>
                   <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                      extractedData?.total_ttc || 0
-                    )}
+                    {extractedData?.client_email || '-'}
                   </p>
                 </div>
               </div>
 
               <div className="pt-2 border-t border-gray-300 dark:border-gray-600">
                 <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mb-2`}>
-                  Articles ({extractedData?.items?.length})
+                  Articles ({extractedData?.items?.length || 0})
                 </p>
                 <ul className="space-y-1">
                   {extractedData?.items?.slice(0, 3).map((item: any, index: number) => (
                     <li key={index} className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      • {item.description} - {item.quantity} × {item.unit_price}€
+                      • {item.designation} - {item.quantity} × {item.unit_price.toFixed(2)}€ (TVA {item.tax_rate}%)
                     </li>
                   ))}
-                  {extractedData?.items?.length > 3 && (
+                  {extractedData?.items && extractedData.items.length > 3 && (
                     <li className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       ... et {extractedData.items.length - 3} autre(s)
                     </li>

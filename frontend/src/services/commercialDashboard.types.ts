@@ -5,33 +5,33 @@
 
 export interface DashboardKPIs {
   revenue: {
-    current: number;
-    previous: number;
+    current: number | string;
+    previous: number | string;
     comparison: number;
   };
   quotes: {
-    current: number;
-    previous: number;
+    current: number | string;
+    previous: number | string;
     comparison: number;
   };
   invoices: {
-    current: number;
-    previous: number;
+    current: number | string;
+    previous: number | string;
     comparison: number;
   };
   overdue: {
-    current: number;
+    current: number | string;
   };
   expenses: {
-    current: number;
-    previous: number;
+    current: number | string;
+    previous: number | string;
     comparison: number;
   };
 }
 
 export interface ChartDataPoint {
   month: string;
-  value: number;
+  value: number | string;
 }
 
 export interface Charts {

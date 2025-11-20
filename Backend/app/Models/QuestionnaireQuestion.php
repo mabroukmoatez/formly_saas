@@ -23,7 +23,10 @@ class QuestionnaireQuestion extends Model
         'question_type',
         'validation_rules',
         'is_required',
-        'conditional_logic'
+        'conditional_logic',
+        'table_columns',
+        'table_rows',
+        'content'
     ];
 
     protected $casts = [
@@ -32,7 +35,9 @@ class QuestionnaireQuestion extends Model
         'order_index' => 'integer',
         'validation_rules' => 'array',
         'is_required' => 'boolean',
-        'conditional_logic' => 'array'
+        'conditional_logic' => 'array',
+        'table_columns' => 'array',
+        'table_rows' => 'array'
     ];
 
     protected static function booted()

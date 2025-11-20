@@ -1,4 +1,11 @@
 export { QualitySidebar } from './QualitySidebar';
+export { QualityHeader } from './QualityHeader';
 export { QualityLayout } from './QualityLayout';
-export { CommercialHeader as QualityHeader } from '../CommercialDashboard';
-
+export { AddDocumentModal } from './AddDocumentModal';
+export { AddEvidenceModal } from './AddEvidenceModal';
+export { AddAuditModal } from './AddAuditModal';
+export { CreateTaskCategoryModal } from './CreateTaskCategoryModal';
+export { RenameTaskCategoryModal } from './RenameTaskCategoryModal';
+export { AddTaskModal } from './AddTaskModal';
+export { IndicatorSettingsModal } from './IndicatorSettingsModal';
+export { BPFForm } from './BPFForm';

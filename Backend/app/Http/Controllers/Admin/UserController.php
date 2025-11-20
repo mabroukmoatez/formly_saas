@@ -25,7 +25,12 @@ class UserController extends Controller
         } // end permission checking
 
         $data['title'] = __('All Users');
-        $data['users'] = User::whereRole(1)->withTrashed()->paginate(25);
+        // Get all admin users (role = 1) with their roles from Spatie
+        $data['users'] = User::where('role', USER_ROLE_ADMIN)
+            ->with('roles')
+            ->withTrashed()
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         $data['navUserParentActiveClass'] = 'mm-active';
         $data['navUserParentShowClass'] = 'mm-show';
         $data['subNavUserActiveClass'] = 'mm-active';

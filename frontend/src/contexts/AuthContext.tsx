@@ -13,6 +13,7 @@ interface AuthContextType {
   resetPassword: (token: string, password: string) => Promise<void>;
   refreshToken: () => Promise<void>;
   clearError: () => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -185,6 +186,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     resetPassword,
     refreshToken,
     clearError,
+    setUser,
   };
 
   return (

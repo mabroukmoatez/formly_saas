@@ -37,7 +37,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, clas
   }, [handleChatToggle]);
 
   return (
-    <div className={`w-full h-screen flex transition-colors ${isDark ? 'bg-gray-900' : 'bg-gray-50'} ${className}`}>
+    <div className={`w-full h-full flex transition-colors ${isDark ? 'bg-gray-900' : 'bg-gray-50'} ${className}`}>
       <CommercialSidebar isMobileOpen={isMobileMenuOpen} onMobileMenuClose={() => setIsMobileMenuOpen(false)} />
       
       <div className="flex flex-col flex-1 overflow-hidden" style={{ height: '100%' }}>

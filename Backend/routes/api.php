@@ -168,6 +168,10 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [OrganizationAuthController::class, 'login']);
     Route::post('register', [OrganizationAuthController::class, 'register']);
     
+    // Public invitation routes
+    Route::get('verify-invitation/{token}', [OrganizationAuthController::class, 'verifyInvitation']);
+    Route::post('setup-password', [OrganizationAuthController::class, 'setupPassword']);
+    
     Route::middleware(['auth:api', 'organization.api'])->group(function () {
         Route::get('profile', [OrganizationAuthController::class, 'profile']);
         Route::post('logout', [OrganizationAuthController::class, 'logout']);
@@ -180,24 +184,176 @@ Route::prefix('auth')->group(function () {
 Route::get('/organization/by-subdomain/{subdomain}', [OrganizationController::class, 'getBySubdomain']);
 Route::options('/organization/by-subdomain/{subdomain}', [OrganizationController::class, 'handleOptions']);
 
-// Organization Whitelabel API Routes
-Route::middleware(['auth:api', 'organization.api'])->prefix('organization/whitelabel')->group(function () {
-    Route::get('/', [OrganizationWhitelabelController::class, 'getWhitelabelSettings']);
-    Route::put('/', [OrganizationWhitelabelController::class, 'updateWhitelabelSettings']);
-    Route::post('/reset', [OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
-    Route::get('/preview', [OrganizationWhitelabelController::class, 'getPreviewData']);
-    Route::post('/test-domain', [OrganizationWhitelabelController::class, 'testDomain']);
+// Organization Registration (Public)
+Route::get('/organizations/check-subdomain/{subdomain}', [OrganizationController::class, 'checkSubdomainAvailability']);
+Route::post('/organizations/register', [OrganizationController::class, 'register']);
+
+// Public Login Settings (for login page)
+Route::get('/organization/login-settings', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getLoginSettings']);
+
+// Organization Whitelabel API Routes (with hyphen)
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/white-label')->group(function () {
+    // Basic whitelabel settings
+    Route::get('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getWhitelabelSettings']);
+    Route::put('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'updateWhitelabelSettings']);
+    Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
+    Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
+    Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
     
     // File upload routes
-    Route::post('/upload-logo', [OrganizationWhitelabelController::class, 'uploadLogo']);
-    Route::post('/upload-favicon', [OrganizationWhitelabelController::class, 'uploadFavicon']);
-    Route::post('/upload-background', [OrganizationWhitelabelController::class, 'uploadBackground']);
+    Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
+    Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
+    Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
+    Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']); // Alias for upload-background
     
     // File deletion routes
-    Route::delete('/logo', [OrganizationWhitelabelController::class, 'deleteLogo']);
-    Route::delete('/favicon', [OrganizationWhitelabelController::class, 'deleteFavicon']);
-    Route::delete('/background', [OrganizationWhitelabelController::class, 'deleteBackground']);
+    Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
+    Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
+    Route::delete('/background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteBackground']);
+
+    // Library Templates (Documents, Questionnaires, Emails)
+    Route::prefix('library/templates')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'destroy']);
+        Route::post('/{id}/send', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'sendEmail']);
+    });
+
+    // Promotional Banners
+    Route::prefix('banners')->group(function () {
+        Route::get('/active', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'active']);
+        Route::get('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'destroy']);
+        Route::patch('/{id}/toggle-status', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'toggleStatus']);
+    });
+
+    // Email Configuration
+    Route::prefix('email')->group(function () {
+        Route::get('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'getEmailSettings']);
+        Route::put('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'updateEmailSettings']);
+        Route::post('/test', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'testEmail']);
+    });
 });
+
+// Organization Whitelabel API Routes (without hyphen - alias for compatibility)
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/whitelabel')->group(function () {
+    // Basic whitelabel settings
+    Route::get('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getWhitelabelSettings']);
+    Route::put('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'updateWhitelabelSettings']);
+    Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
+    Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
+    Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
+    
+    // File upload routes
+    Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
+    Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
+    Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
+    Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
+    
+    // File deletion routes
+    Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
+    Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
+    Route::delete('/background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteBackground']);
+
+    // Library Templates (Documents, Questionnaires, Emails)
+    Route::prefix('library/templates')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'destroy']);
+        Route::post('/{id}/send', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'sendEmail']);
+    });
+
+    // Promotional Banners
+    Route::prefix('banners')->group(function () {
+        Route::get('/active', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'active']);
+        Route::get('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'destroy']);
+        Route::patch('/{id}/toggle-status', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'toggleStatus']);
+    });
+
+    // Email Configuration
+    Route::prefix('email')->group(function () {
+        Route::get('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'getEmailSettings']);
+        Route::put('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'updateEmailSettings']);
+        Route::post('/test', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'testEmail']);
+    });
+
+    // Login Templates
+    Route::get('/login-templates', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getLoginTemplates']);
+});
+
+// Organization Whitelabel API Routes (without hyphen - alias for compatibility)
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/whitelabel')->group(function () {
+    // Basic whitelabel settings
+    Route::get('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getWhitelabelSettings']);
+    Route::put('/', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'updateWhitelabelSettings']);
+    Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
+    Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
+    Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
+    
+    // File upload routes
+    Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
+    Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
+    Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
+    Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
+    
+    // File deletion routes
+    Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
+    Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
+    Route::delete('/background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteBackground']);
+
+    // Library Templates (Documents, Questionnaires, Emails)
+    Route::prefix('library/templates')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'destroy']);
+        Route::post('/{id}/send', [\App\Http\Controllers\Api\Organization\WhiteLabelLibraryController::class, 'sendEmail']);
+    });
+
+    // Promotional Banners
+    Route::prefix('banners')->group(function () {
+        Route::get('/active', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'active']);
+        Route::get('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'show']);
+        Route::put('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'update']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'destroy']);
+        Route::patch('/{id}/toggle-status', [\App\Http\Controllers\Api\Organization\PromotionalBannerController::class, 'toggleStatus']);
+    });
+
+    // Email Configuration
+    Route::prefix('email')->group(function () {
+        Route::get('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'getEmailSettings']);
+        Route::put('/settings', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'updateEmailSettings']);
+        Route::post('/test', [\App\Http\Controllers\Api\Organization\WhiteLabelEmailController::class, 'testEmail']);
+    });
+
+    // Login Templates
+    Route::get('/login-templates', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getLoginTemplates']);
+});
+
+// Subscription Management Routes
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/subscription')->group(function () {
+    Route::get('/current-plan', [\App\Http\Controllers\Api\Organization\SubscriptionController::class, 'currentPlan']);
+    Route::get('/available-plans', [\App\Http\Controllers\Api\Organization\SubscriptionController::class, 'availablePlans']);
+    Route::post('/upgrade', [\App\Http\Controllers\Api\Organization\SubscriptionController::class, 'upgrade']);
+    Route::post('/cancel', [\App\Http\Controllers\Api\Organization\SubscriptionController::class, 'cancel']);
+});
+
+// Stripe Webhook (no auth required)
+Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\Webhooks\StripeWebhookController::class, 'handle']);
 
 // Organization Subdomain and Custom Domain API Routes
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->group(function () {
@@ -1006,6 +1162,7 @@ Route::middleware('auth:api')->group(function () {
     // General user profile endpoints
     Route::get('user/profile', [UserProfileController::class, 'profile']);
     Route::put('user/update-profile', [UserProfileController::class, 'updateProfile']);
+    Route::post('user/update-profile', [UserProfileController::class, 'updateProfile']); // Alias for PUT (compatibility)
     Route::post('user/upload-avatar', [UserProfileController::class, 'uploadAvatar']);
     Route::post('user/change-password', [UserProfileController::class, 'changePassword']);
     
@@ -1299,6 +1456,7 @@ Route::middleware('auth:api')->group(function () {
         Route::patch('/{id}/toggle-status', [UserManagementApiController::class, 'toggleStatus']);
         Route::post('/bulk-action', [UserManagementApiController::class, 'bulkAction']);
         Route::get('/export/csv', [UserManagementApiController::class, 'exportCsv']);
+        Route::post('/{id}/resend-invitation', [UserManagementApiController::class, 'resendInvitation']);
     });
 
     // Organization Role Management API Routes
@@ -1910,54 +2068,54 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/studen
     // Liste et création
     Route::get('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'store']);
-    
+
     Route::get('/export', [\App\Http\Controllers\Api\Organization\StudentController::class, 'export']);
     Route::post('/export-selected', [\App\Http\Controllers\Api\Organization\StudentController::class, 'exportSelected']);
     Route::get('/export/stats', [\App\Http\Controllers\Api\Organization\StudentController::class, 'exportStats']);
     Route::post('/export/queue', [\App\Http\Controllers\Api\Organization\StudentController::class, 'exportQueue']);
-    
+
     Route::post('/bulk-delete', [\App\Http\Controllers\Api\Organization\StudentController::class, 'bulkDelete']);
-    
+
     Route::prefix('/{uuid}')->group(function () {
         // CRUD basique
         Route::get('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'show']);
         Route::put('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'update']);
         Route::post('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'update']);
         Route::delete('/', [\App\Http\Controllers\Api\Organization\StudentController::class, 'destroy']);
-        
+
         // Avatar
         Route::post('/avatar', [\App\Http\Controllers\Api\Organization\StudentController::class, 'uploadAvatar']);
-        
+
         // Sessions et cours
         Route::get('/sessions', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getSessions']);
         Route::get('/courses', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getCourses']);
-        
+
         // Documents
         Route::get('/documents', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getDocuments']);
         Route::post('/documents', [\App\Http\Controllers\Api\Organization\StudentController::class, 'uploadDocument']);
         Route::delete('/documents/{documentId}', [\App\Http\Controllers\Api\Organization\StudentController::class, 'deleteDocument']);
-        
+
         // Émargement
         Route::get('/attendance', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getAttendance']);
         Route::get('/attendance/{attendanceId}/download', [\App\Http\Controllers\Api\Organization\StudentController::class, 'downloadAttendanceSheet']);
         Route::get('/attendance/download-all', [\App\Http\Controllers\Api\Organization\StudentController::class, 'downloadAllAttendanceSheets']);
-        
+
         // Évaluations
         Route::get('/evaluations', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getEvaluations']);
-        
+
         // Certificats
         Route::get('/certificates', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getCertificates']);
         Route::post('/certificates', [\App\Http\Controllers\Api\Organization\StudentController::class, 'uploadCertificate']);
         Route::get('/certificates/{certificateId}/download', [\App\Http\Controllers\Api\Organization\StudentController::class, 'downloadCertificate']);
         Route::post('/certificates/{certificateId}/share', [\App\Http\Controllers\Api\Organization\StudentController::class, 'shareCertificate']);
-        
+
         // Logs de connexion
         Route::get('/connection-logs', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getConnectionLogs']);
         Route::get('/connection-logs/export', [\App\Http\Controllers\Api\Organization\StudentController::class, 'exportConnectionLogs']);
-        
+
         // Statistiques
         Route::get('/stats', [\App\Http\Controllers\Api\Organization\StudentController::class, 'getStats']);
-        
+
         // Actions supplémentaires
         Route::post('/reset-password', [\App\Http\Controllers\Api\Organization\StudentController::class, 'resetPassword']);
         Route::post('/send-welcome-email', [\App\Http\Controllers\Api\Organization\StudentController::class, 'sendWelcomeEmail']);
@@ -2022,7 +2180,6 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/funder
     Route::get('/{uuid}/documents/{documentId}/download', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'downloadDocument']);
     Route::delete('/{uuid}/documents/{documentId}', [\App\Http\Controllers\Api\Organization\FunderManagementController::class, 'deleteDocument']);
 });
-
 // Media serving routes with security
 Route::get('/media/{path}', [\App\Http\Controllers\Api\MediaController::class, 'serve'])
     ->where('path', '.*')
@@ -2035,4 +2192,7 @@ Route::get('/media/signed/{path}', [\App\Http\Controllers\Api\MediaController::c
 
 // Include organization routes
 require __DIR__.'/organization.php';
+
+// Include Super Admin routes
+require __DIR__.'/superadmin.php';
 

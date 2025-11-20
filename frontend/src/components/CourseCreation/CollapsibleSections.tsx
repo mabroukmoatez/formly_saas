@@ -63,7 +63,7 @@ interface CollapsibleSectionsProps {
   onUpdateMethods: (content: string) => void;
   onUpdatePriceHT: (value: number) => void;
   onUpdateVATPercentage: (value: number) => void;
-  onAddAdditionalFee: () => void;
+  onAddAdditionalFee: (initialData?: { name: string; amount: number; description: string }) => void;
   onUpdateAdditionalFee: (id: string, field: string, value: any) => void;
   onRemoveAdditionalFee: (id: string) => void;
   onUpdateSpecifics: (content: string) => void;

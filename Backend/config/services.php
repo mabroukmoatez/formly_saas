@@ -53,4 +53,10 @@ return [
         'consumer_key' => env('INSEE_CONSUMER_KEY'),
         'consumer_secret' => env('INSEE_CONSUMER_SECRET'),
     ],
+
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
 ];

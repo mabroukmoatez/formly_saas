@@ -10,6 +10,8 @@ export interface ChatUser {
   email: string;
   role: string;
   avatar?: string;
+  image?: string;
+  image_url?: string;
   is_online: boolean;
   last_seen?: string;
 }
@@ -183,10 +185,19 @@ export const createConversation = async (data: {
   participant_ids?: number[];
   initial_message?: string;
 }): Promise<Conversation> => {
-  const response = await apiService.post<{ success: boolean; data: { conversation: Conversation } }>(
+  console.log('📤 Creating conversation with data:', JSON.stringify(data, null, 2));
+  const response = await apiService.post<{ success: boolean; data: { conversation: Conversation }; message?: string }>(
     '/api/organization/conversations',
     data
   );
+  console.log('📥 API response:', {
+    success: response.success,
+    message: response.message,
+    conversation_id: response.data?.conversation?.id,
+    conversation_uuid: response.data?.conversation?.uuid,
+    participant_id: response.data?.conversation?.participant?.id,
+    participant_name: response.data?.conversation?.participant?.name
+  });
   return response.data.conversation;
 };
 

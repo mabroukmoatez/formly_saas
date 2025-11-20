@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { studentsService } from '../../services/students';
-import { StudentCourse } from '../../services/students.types';
+import { studentsService } from '../../services/Students';
+import { StudentCourse } from '../../services/Students.types';
 import { useToast } from '../../components/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Button } from '../../components/ui/button';

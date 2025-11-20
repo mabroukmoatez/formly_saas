@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Download, Search, Plus, Send, Save, Loader2, Edit, Trash2, Receipt, Calendar } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -33,6 +33,7 @@ export const QuoteCreationContent: React.FC = () => {
   const { organization, subdomain } = useOrganization();
   const { success, error: showError } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -59,7 +60,7 @@ export const QuoteCreationContent: React.FC = () => {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Load company details
+  // Load company details and prefill data from OCR
   useEffect(() => {
     const loadCompanyDetails = async () => {
       try {
@@ -72,7 +73,41 @@ export const QuoteCreationContent: React.FC = () => {
       }
     };
     loadCompanyDetails();
-  }, []);
+
+    // Prefill form with OCR data if available
+    const prefillData = (location.state as any)?.prefillData;
+    if (prefillData) {
+      if (prefillData.quote_number) {
+        setQuoteNumber(prefillData.quote_number);
+      }
+      if (prefillData.valid_until) {
+        setValidUntil(prefillData.valid_until);
+      }
+      if (prefillData.client_name || prefillData.client_email || prefillData.client_address || prefillData.client_phone) {
+        setClientInfo({
+          name: prefillData.client_name || '',
+          email: prefillData.client_email || '',
+          address: prefillData.client_address || '',
+          phone: prefillData.client_phone || '',
+        });
+      }
+      if (prefillData.items && prefillData.items.length > 0) {
+        const mappedItems: QuoteItem[] = prefillData.items.map((item: any, index: number) => ({
+          id: `item-${Date.now()}-${index}`,
+          reference: item.reference || '',
+          designation: item.designation || item.description || '',
+          quantity: item.quantity || 1,
+          unit_price: item.unit_price || 0,
+          tax_rate: item.tax_rate || 20,
+          total: item.total || (item.unit_price || 0) * (item.quantity || 1),
+        }));
+        setItems(mappedItems);
+      }
+      if (prefillData.payment_conditions) {
+        setPaymentTerms(prefillData.payment_conditions);
+      }
+    }
+  }, [location.state]);
 
   const calculateTotals = () => {
     const totalHT = items.reduce((sum, item) => sum + item.total, 0);

@@ -65,10 +65,10 @@ export const GestionUtilisateurs = (): JSX.Element => {
   const [userFormData, setUserFormData] = useState({
     name: '',
     email: '',
-    password: '',
     role_id: '',
     phone: '',
-    address: ''
+    address: '',
+    password: '' // Only used for edit modal (optional)
   });
 
   // Get organization colors
@@ -154,20 +154,26 @@ export const GestionUtilisateurs = (): JSX.Element => {
         return;
       }
 
+      if (!userFormData.name || !userFormData.email || !userFormData.role_id) {
+        showError('Erreur', 'Veuillez remplir tous les champs requis');
+        return;
+      }
+
+      // Create user without password - backend will send email invitation
       const response = await apiService.createUser({
         name: userFormData.name,
         email: userFormData.email,
-        password: userFormData.password,
         role_id: parseInt(userFormData.role_id),
-        phone: userFormData.phone,
-        address: userFormData.address,
-        organization_id: organization.id,  // ← AJOUT CRITIQUE
+        phone: userFormData.phone || undefined,
+        address: userFormData.address || undefined,
+        organization_id: organization.id, // Always assign organization
         status: 1
       });
+      
       if (response.success) {
-        success('Succès', 'Utilisateur créé avec succès');
+        success('Succès', 'Utilisateur créé avec succès. Un email d\'invitation a été envoyé pour définir son mot de passe.');
         setShowCreateUserModal(false);
-        setUserFormData({ name: '', email: '', password: '', role_id: '', phone: '', address: '' });
+        setUserFormData({ name: '', email: '', role_id: '', phone: '', address: '', password: '' });
         fetchUsers();
       }
     } catch (error: any) {
@@ -180,10 +186,10 @@ export const GestionUtilisateurs = (): JSX.Element => {
     setUserFormData({
       name: user.name,
       email: user.email,
-      password: '',
       role_id: user.organization_roles?.[0]?.id?.toString() || '',
       phone: user.phone_number || '',
-      address: user.address || ''
+      address: user.address || '',
+      password: '' // Empty for edit - only set if admin wants to change password
     });
     setShowEditUserModal(true);
   };
@@ -752,35 +758,36 @@ export const GestionUtilisateurs = (): JSX.Element => {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className={`[font-family:'Poppins',Helvetica] font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    Mot de passe *
-                  </Label>
-                  <Input
-                    type="password"
-                    value={userFormData.password}
-                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
-                    className={`rounded-[10px] h-11 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}
-                    placeholder="••••••••"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className={`[font-family:'Poppins',Helvetica] font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    Rôle *
-                  </Label>
-                  <Select value={userFormData.role_id} onValueChange={(value) => setUserFormData({ ...userFormData, role_id: value })}>
-                    <SelectTrigger className={`rounded-[10px] h-11 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}>
-                      <SelectValue placeholder="Sélectionner..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id.toString()}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label className={`[font-family:'Poppins',Helvetica] font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                  Rôle *
+                </Label>
+                <Select value={userFormData.role_id} onValueChange={(value) => setUserFormData({ ...userFormData, role_id: value })}>
+                  <SelectTrigger className={`rounded-[10px] h-11 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}>
+                    <SelectValue placeholder="Sélectionner..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map(role => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Info message about password */}
+              <div className={`p-3 rounded-[10px] ${isDark ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+                <div className="flex items-start gap-2">
+                  <Mail className={`w-5 h-5 mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                  <div>
+                    <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                      Invitation par email
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                      Un email sera envoyé à l'utilisateur avec un lien pour créer son mot de passe et se connecter.
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -63,7 +64,8 @@ export const Step3DocumentsNew: React.FC = () => {
   const { organization } = useOrganization();
   const { formData } = useCourseCreation();
   const { error: showError, success: showSuccess } = useToast();
-  const { navigateToRoute, buildRoute } = useSubdomainNavigation();
+  const { navigateToRoute, buildRoute, subdomain } = useSubdomainNavigation();
+  const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [documents, setDocuments] = useState<CourseDocument[]>([]);
@@ -342,7 +344,12 @@ export const Step3DocumentsNew: React.FC = () => {
           </Button>
           {!showTemplatesView && (
             <Button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                const url = subdomain 
+                  ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}`
+                  : `/document-creation?courseUuid=${formData.courseUuid}`;
+                window.open(url, '_blank');
+              }}
               style={{ backgroundColor: primaryColor }}
               className="gap-2"
             >
@@ -536,7 +543,13 @@ export const Step3DocumentsNew: React.FC = () => {
                   : `Aucun document pour l'audience "${getAudienceLabel(selectedAudience)}"`}
               </p>
               <Button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  // Navigate to document creation page with course UUID
+                  const url = subdomain
+                    ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}`
+                    : `/document-creation?courseUuid=${formData.courseUuid}`;
+                  window.open(url, '_blank');
+                }}
                 style={{ backgroundColor: primaryColor }}
                 className="gap-2"
               >

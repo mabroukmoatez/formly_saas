@@ -23,6 +23,10 @@ class QualityDocument extends Model
         'status',
         'created_by',
         'organization_id',
+        'course_id',
+        'session_id',
+        'learner_id',
+        'course_folder_id',
     ];
 
     protected $casts = [

@@ -41,7 +41,18 @@ class CourseController extends Controller
             return $this->error([], 'Unauthorize access', 403);
         } // end permission checking
 
-        $data['courses'] = $this->model->getOrderById('DESC', 25);
+        // Load courses with all necessary relationships
+        $data['courses'] = Course::with([
+            'instructor.user',
+            'category',
+            'subcategory',
+            'organization',
+            'user',
+            'language',
+            'difficultyLevel',
+        ])
+        ->orderBy('id', 'DESC')
+        ->paginate(25);
         return $this->success($data);
     }
 

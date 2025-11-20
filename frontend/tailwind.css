@@ -1,5 +1,12 @@
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html, body {
+    overflow-x: hidden;
+  }
+}
 
 @layer components {
   .all-\[unset\] {
@@ -189,6 +196,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Article Content Styles */
+.article-content h1,
+.article-content h2,
+.article-content h3,
+.article-content h4 {
+  font-family: 'Poppins', Helvetica, sans-serif;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.article-content h1 { 
+  font-size: 2rem; 
+  color: #19294a;
+}
+
+.article-content h2 { 
+  font-size: 1.5rem; 
+  color: #19294a;
+}
+
+.article-content h3 { 
+  font-size: 1.25rem; 
+  color: #19294a;
+}
+
+.article-content h4 { 
+  font-size: 1.1rem; 
+  color: #19294a;
+}
+
+.article-content p {
+  margin-bottom: 1rem;
+  line-height: 1.75;
+  color: #455a85;
+}
+
+.article-content ul,
+.article-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  color: #455a85;
+}
+
+.article-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.75;
+}
+
+.article-content strong {
+  font-weight: 600;
+  color: #19294a;
+}
+
+.article-content a {
+  color: #007aff;
+  text-decoration: underline;
+}
+
+.article-content a:hover {
+  color: #0066cc;
+}
+
+/* Dark mode styles */
+.dark .article-content h1,
+.dark .article-content h2,
+.dark .article-content h3,
+.dark .article-content h4 {
+  color: #e5e7eb;
+}
+
+.dark .article-content p,
+.dark .article-content ul,
+.dark .article-content ol,
+.dark .article-content li {
+  color: #d1d5db;
+}
+
+.dark .article-content strong {
+  color: #e5e7eb;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -262,23 +351,40 @@
     @apply border-border;
   }
 
+  html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    zoom: 0.95; /* Reduce zoom by 20% (80% of original size) */
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     margin: 0;
     padding: 0;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
-  }
-
-  html {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
   }
 
   #app {
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
+  }
+  
+  /* Allow scrolling on public routes (landing, signup, login) */
+  body.public-route {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+  
+  #app.public-route {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100vh;
   }
 }

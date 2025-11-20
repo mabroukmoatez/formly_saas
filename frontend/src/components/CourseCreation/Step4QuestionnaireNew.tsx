@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -52,7 +53,8 @@ export const Step4QuestionnaireNew: React.FC = () => {
   const { organization } = useOrganization();
   const { formData } = useCourseCreation();
   const { error: showError, success: showSuccess } = useToast();
-  const { navigateToRoute, buildRoute } = useSubdomainNavigation();
+  const { navigateToRoute, buildRoute, subdomain } = useSubdomainNavigation();
+  const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
@@ -312,7 +314,12 @@ export const Step4QuestionnaireNew: React.FC = () => {
           </Button>
           {!showTemplatesView && (
             <Button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                const url = subdomain 
+                  ? `/${subdomain}/questionnaire-creation?courseUuid=${formData.courseUuid}`
+                  : `/questionnaire-creation?courseUuid=${formData.courseUuid}`;
+                window.open(url, '_blank');
+              }}
               style={{ backgroundColor: primaryColor }}
               className="gap-2"
             >
@@ -465,7 +472,12 @@ export const Step4QuestionnaireNew: React.FC = () => {
                 Commencez par ajouter un questionnaire d'évaluation
               </p>
               <Button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  const url = subdomain 
+                    ? `/${subdomain}/questionnaire-creation?courseUuid=${formData.courseUuid}`
+                    : `/questionnaire-creation?courseUuid=${formData.courseUuid}`;
+                  window.open(url, '_blank');
+                }}
                 style={{ backgroundColor: primaryColor }}
                 className="gap-2"
               >

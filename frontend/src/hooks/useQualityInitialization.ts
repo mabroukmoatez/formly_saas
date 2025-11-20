@@ -20,33 +20,49 @@ export const useQualityInitialization = () => {
       const response: any = await checkQualityInitialization();
       
       console.log('✅ Initialization check response:', response);
+      
+      // Check if response is null or undefined
+      if (!response) {
+        console.error('❌ Response is null or undefined');
+        setError('Réponse invalide du serveur');
+        setLoading(false);
+        return;
+      }
+      
       console.log('✅ Response type:', typeof response);
-      console.log('✅ Response keys:', Object.keys(response));
+      console.log('✅ Response keys:', Object.keys(response || {}));
+      
+      // PRIORITY: Check for ALREADY_INITIALIZED first (even if success is false)
+      if (response && (response.error?.code === 'ALREADY_INITIALIZED' || response.code === 'ALREADY_INITIALIZED')) {
+        console.log('✅ System already initialized (ALREADY_INITIALIZED detected), setting to true');
+        setInitialized(true);
+        setError(null);
+        return;
+      }
       
       // Handle different response formats
       // Format 1: {success: true, data: {initialized: true}}
-      if (response.success && response.data && typeof response.data.initialized === 'boolean') {
+      if (response && response.success && response.data && typeof response.data.initialized === 'boolean') {
         setInitialized(response.data.initialized);
         setError(null);
       } 
       // Format 2: {initialized: true}
-      else if (typeof response.initialized === 'boolean') {
+      else if (response && typeof response.initialized === 'boolean') {
         console.log('✅ Direct initialized property found:', response.initialized);
         setInitialized(response.initialized);
         setError(null);
       }
       // Format 3: {success: true, initialized: true}
-      else if (response.success && typeof response.initialized === 'boolean') {
+      else if (response && response.success && typeof response.initialized === 'boolean') {
         console.log('✅ Success with initialized property:', response.initialized);
         setInitialized(response.initialized);
         setError(null);
       }
-      // Handle error response with ALREADY_INITIALIZED code
-      else if (response.error?.code === 'ALREADY_INITIALIZED' || response.code === 'ALREADY_INITIALIZED') {
-        console.log('✅ System already initialized, setting to true');
-        setInitialized(true);
-        setError(null);
-      } 
+      // Handle error response (but not ALREADY_INITIALIZED, already handled above)
+      else if (response && response.error) {
+        console.error('❌ Error in response:', response.error);
+        setError(response.error.message || 'Échec de la vérification de l\'état d\'initialisation');
+      }
       // Other errors
       else {
         console.error('❌ Unexpected response format:', response);
@@ -84,6 +100,14 @@ export const useQualityInitialization = () => {
       
       const response: any = await initializeQualitySystem();
       
+      // Check if response is null or undefined
+      if (!response) {
+        console.error('❌ Response is null or undefined');
+        setError('Réponse invalide du serveur');
+        return false;
+      }
+      
+      // Handle response from api.ts that returns success: false for 409
       if (response.success) {
         setInitialized(true);
         return true;
@@ -91,11 +115,12 @@ export const useQualityInitialization = () => {
         // Check if error is because it's already initialized
         const errorCode = response.error?.code;
         if (errorCode === 'ALREADY_INITIALIZED') {
+          console.log('✅ System already initialized (from response), setting to true');
           setInitialized(true);
           setError(null);
           return true;
         } else {
-          setError('Échec de l\'initialisation du système qualité');
+          setError(response.error?.message || 'Échec de l\'initialisation du système qualité');
           return false;
         }
       }
@@ -103,14 +128,20 @@ export const useQualityInitialization = () => {
       console.error('Failed to initialize:', err);
       
       // Check if the error is because it's already initialized
-      const errorCode = err.details?.error?.code;
-      if (errorCode === 'ALREADY_INITIALIZED') {
+      const errorCode = err.details?.error?.code || 
+                       err.error?.code || 
+                       err.code ||
+                       (err.status === 409 ? 'ALREADY_INITIALIZED' : null);
+      
+      if (errorCode === 'ALREADY_INITIALIZED' || err.status === 409) {
+        console.log('✅ System already initialized (409 Conflict), setting to true');
         setInitialized(true);
         setError(null);
         return true;
       } else {
         setError(
           err.details?.error?.message || 
+          err.error?.message ||
           err.message || 
           'Impossible d\'initialiser le système qualité'
         );

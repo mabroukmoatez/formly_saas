@@ -215,7 +215,7 @@ export const CourseView: React.FC<CourseViewProps> = ({
   const { organization } = useOrganization();
   const { t } = useLanguage();
   const { success, error } = useToast();
-  const { navigateToRoute } = useSubdomainNavigation();
+  const { navigateToRoute, subdomain } = useSubdomainNavigation();
 
   // Organization colors
   const primaryColor = organization?.primary_color || '#007aff';
@@ -1715,7 +1715,12 @@ export const CourseView: React.FC<CourseViewProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowDocumentModal(true)}
+                            onClick={() => {
+                              const url = subdomain
+                                ? `/${subdomain}/document-creation?courseUuid=${courseUuid}`
+                                : `/document-creation?courseUuid=${courseUuid}`;
+                              window.open(url, '_blank');
+                            }}
                             style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
                             className="h-auto px-3 py-2 text-xs"
                           >
@@ -1859,7 +1864,12 @@ export const CourseView: React.FC<CourseViewProps> = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setShowQuestionnaireModal(true)}
+                            onClick={() => {
+                              const url = subdomain
+                                ? `/${subdomain}/questionnaire-creation?courseUuid=${courseUuid}`
+                                : `/questionnaire-creation?courseUuid=${courseUuid}`;
+                              window.open(url, '_blank');
+                            }}
                             style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
                             className="h-auto px-3 py-2 text-xs"
                           >

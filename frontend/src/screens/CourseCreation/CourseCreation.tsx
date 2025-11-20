@@ -421,12 +421,12 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     updateFormField('vat_percentage', value);
   };
 
-  const handleAddAdditionalFee = () => {
-    console.log('Adding new additional fee...');
+  const handleAddAdditionalFee = (initialData?: { name: string; amount: number; description: string }) => {
+    console.log('Adding new additional fee...', initialData);
     createAdditionalFee({
-      name: 'Nouvelle taxe',
-      amount: 0,
-      description: '',
+      name: initialData?.name || 'Nouvelle taxe',
+      amount: initialData?.amount || 0,
+      description: initialData?.description || '',
       order_index: additionalFees.length + 1
     });
   };

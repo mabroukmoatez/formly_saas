@@ -22,7 +22,10 @@ class CertificateController extends Controller
             return $this->error([], 'Unauthorize access', 403);
         } // end permission checking
         
-        $data['certificates'] = Certificate::paginate(25);
+        // Load certificates with organization relationship
+        $data['certificates'] = Certificate::with('organization')
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         return $this->success($data);
     }
 

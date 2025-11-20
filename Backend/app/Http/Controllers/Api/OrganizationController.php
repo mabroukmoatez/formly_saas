@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Traits\ApiStatusTrait;
+use App\Mail\OrganizationWelcomeMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Mail;
 
 class OrganizationController extends Controller
 {
@@ -51,6 +53,8 @@ class OrganizationController extends Controller
                     'organization_favicon_url' => $organization->organization_favicon ? $this->generateFileUrl($organization->organization_favicon) : null,
                     'login_background_image' => $organization->login_background_image,
                     'login_background_image_url' => $organization->login_background_image ? $this->generateFileUrl($organization->login_background_image) : null,
+                    'login_template' => $organization->login_template ?? 'minimal-1',
+                    'login_banner_url' => $organization->login_background_image ? $this->generateFileUrl($organization->login_background_image) : null,
                     'footer_text' => $organization->footer_text,
                     'custom_css' => $organization->custom_css,
                     'whitelabel_enabled' => $organization->whitelabel_enabled,
@@ -353,5 +357,233 @@ class OrganizationController extends Controller
         $fileName = time() . '_' . $file->getClientOriginalName();
         $file->move(public_path('uploads/' . $folder), $fileName);
         return 'uploads/' . $folder . '/' . $fileName;
+    }
+
+    /**
+     * Check subdomain availability (Public endpoint)
+     * GET /api/organizations/check-subdomain/{subdomain}
+     */
+    public function checkSubdomainAvailability($subdomain)
+    {
+        try {
+            // Validate subdomain format
+            if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$/', $subdomain)) {
+                return $this->failed([], 'Subdomain must contain only letters, numbers, and hyphens, and cannot start or end with a hyphen.');
+            }
+
+            // Reserved subdomains
+            $reservedSubdomains = [
+                'www', 'admin', 'api', 'mail', 'ftp', 'blog', 'shop', 'store',
+                'support', 'help', 'docs', 'app', 'mobile', 'test', 'dev',
+                'staging', 'demo', 'example', 'localhost', 'local', 'superadmin',
+                'super-admin', 'formly', 'root', 'system', 'server', 'cdn'
+            ];
+
+            if (in_array(strtolower($subdomain), $reservedSubdomains)) {
+                return $this->failed([], 'This subdomain is reserved and cannot be used');
+            }
+
+            // Check if subdomain is already taken
+            $existingOrg = Organization::where('slug', $subdomain)
+                ->orWhere('custom_domain', $subdomain)
+                ->first();
+
+            if ($existingOrg) {
+                return $this->failed([], 'Subdomain is already taken by another organization');
+            }
+
+            return $this->success([
+                'subdomain' => $subdomain,
+                'available' => true,
+                'message' => 'Subdomain is available',
+                'preview_url' => 'https://' . $subdomain . '.formly.fr',
+            ], 'Subdomain is available');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Error checking subdomain: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Register a new organization (Public endpoint)
+     * POST /api/organizations/register
+     */
+    public function register(Request $request)
+    {
+        try {
+            $validator = \Validator::make($request->all(), [
+                // User Information (for organization owner)
+                'first_name' => 'required|string|max:255',
+                'last_name' => 'required|string|max:255',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|string|min:6|confirmed',
+                'password_confirmation' => 'required|string|min:6',
+                'phone' => 'nullable|string|max:20',
+                
+                // Organization Information
+                'organization_name' => 'required|string|max:255',
+                'company_name' => 'nullable|string|max:255',
+                'subdomain' => 'required|string|max:255|regex:/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$/',
+                'website' => 'nullable|url|max:255',
+                
+                // Address
+                'address' => 'nullable|string|max:500',
+                'city' => 'nullable|string|max:100',
+                'zip_code' => 'nullable|string|max:10',
+                'country' => 'nullable|string|max:100',
+                
+                // Legal Information
+                'siret' => 'nullable|string|max:14',
+                'siren' => 'nullable|string|max:9',
+                'vat_number' => 'nullable|string|max:50',
+                
+                // Branding (optional)
+                'primary_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+                'secondary_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+                'accent_color' => 'nullable|string|regex:/^#[0-9A-Fa-f]{6}$/',
+                
+                // Files (optional)
+                'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:5120',
+            ]);
+
+            if ($validator->fails()) {
+                return $this->failed($validator->errors(), 'Validation failed');
+            }
+
+            // Check subdomain availability
+            $subdomain = $request->subdomain;
+            $reservedSubdomains = [
+                'www', 'admin', 'api', 'mail', 'ftp', 'blog', 'shop', 'store',
+                'support', 'help', 'docs', 'app', 'mobile', 'test', 'dev',
+                'staging', 'demo', 'example', 'localhost', 'local', 'superadmin',
+                'super-admin', 'formly', 'root', 'system', 'server', 'cdn'
+            ];
+
+            if (in_array(strtolower($subdomain), $reservedSubdomains)) {
+                return $this->failed([], 'This subdomain is reserved and cannot be used');
+            }
+
+            $existingOrg = Organization::where('slug', $subdomain)
+                ->orWhere('custom_domain', $subdomain)
+                ->first();
+
+            if ($existingOrg) {
+                return $this->failed([], 'Subdomain is already taken by another organization');
+            }
+
+            // Check if email is already used for organization
+            $existingOrgEmail = Organization::where('email', $request->email)->first();
+            if ($existingOrgEmail) {
+                return $this->failed([], 'Email is already registered for another organization');
+            }
+
+            \DB::beginTransaction();
+
+            try {
+                // Create user (organization owner)
+                $user = \App\Models\User::create([
+                    'name' => $request->first_name . ' ' . $request->last_name,
+                    'email' => $request->email,
+                    'password' => \Hash::make($request->password),
+                    'role' => USER_ROLE_ORGANIZATION,
+                    'mobile_number' => $request->phone,
+                ]);
+
+                // Handle logo upload
+                $logoPath = null;
+                if ($request->hasFile('logo')) {
+                    $logoFile = $request->file('logo');
+                    $logoFilename = 'org_' . time() . '_logo.' . $logoFile->getClientOriginalExtension();
+                    $logoDirectory = 'uploads/organizations/logos';
+                    
+                    if (!file_exists(public_path($logoDirectory))) {
+                        mkdir(public_path($logoDirectory), 0755, true);
+                    }
+
+                    if (class_exists(\Intervention\Image\Facades\Image::class)) {
+                        $logoImage = \Intervention\Image\Facades\Image::make($logoFile);
+                        $logoImage->resize(300, 300, function ($constraint) {
+                            $constraint->aspectRatio();
+                            $constraint->upsize();
+                        });
+                        $logoPath = $logoDirectory . '/' . $logoFilename;
+                        $logoImage->save(public_path($logoPath));
+                    } else {
+                        $logoFile->move(public_path($logoDirectory), $logoFilename);
+                        $logoPath = $logoDirectory . '/' . $logoFilename;
+                    }
+                }
+
+                // Create organization
+                $organization = Organization::create([
+                    'user_id' => $user->id,
+                    'organization_name' => $request->organization_name,
+                    'company_name' => $request->company_name ?? $request->organization_name,
+                    'email' => $request->email,
+                    'phone' => $request->phone,
+                    'website' => $request->website,
+                    'address' => $request->address,
+                    'city' => $request->city,
+                    'zip_code' => $request->zip_code,
+                    'country' => $request->country,
+                    'siret' => $request->siret,
+                    'siren' => $request->siren,
+                    'vat_number' => $request->vat_number,
+                    'slug' => $subdomain,
+                    'custom_domain' => $subdomain,
+                    'primary_color' => $request->primary_color ?? '#007bff',
+                    'secondary_color' => $request->secondary_color ?? '#6c757d',
+                    'accent_color' => $request->accent_color ?? '#28a745',
+                    'organization_logo' => $logoPath,
+                    'whitelabel_enabled' => true,
+                    'status' => 1, // STATUS_APPROVED - pending admin approval
+                    'subscription_plan' => 'basic',
+                    'max_users' => 10,
+                    'max_courses' => 50,
+                    'max_certificates' => 20,
+                ]);
+
+                // Update user with organization_id
+                $user->update(['organization_id' => $organization->id]);
+
+                \DB::commit();
+
+                // Generate token for immediate login
+                $token = $user->createToken('Organization-Registration-' . \Str::random(32))->plainTextToken;
+
+                // Send welcome email
+                try {
+                    $subdomainUrl = 'https://' . $organization->slug . '.formly.fr';
+                    Mail::to($user->email)->send(new OrganizationWelcomeMail($organization, $user, $subdomainUrl));
+                } catch (\Exception $e) {
+                    // Log error but don't fail registration
+                    \Log::error('Failed to send welcome email: ' . $e->getMessage());
+                }
+
+                return $this->success([
+                    'token' => $token,
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                    ],
+                    'organization' => [
+                        'id' => $organization->id,
+                        'organization_name' => $organization->organization_name,
+                        'slug' => $organization->slug,
+                        'subdomain' => $organization->slug,
+                        'subdomain_url' => 'https://' . $organization->slug . '.formly.fr',
+                        'logo_url' => $organization->organization_logo ? asset($organization->organization_logo) : null,
+                        'status' => $organization->status,
+                    ],
+                ], 'Organization registered successfully');
+
+            } catch (\Exception $e) {
+                \DB::rollBack();
+                throw $e;
+            }
+        } catch (\Exception $e) {
+            return $this->failed([], 'Registration failed: ' . $e->getMessage());
+        }
     }
 }

@@ -39,6 +39,25 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       return urlSubdomain;
     }
     
+    // Check if we're on a public route without subdomain - don't use stored subdomain
+    const currentPath = window.location.pathname;
+    const pathParts = currentPath.split('/').filter(part => part);
+    const publicRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'setup-password'];
+    const superAdminRoutes = ['superadmin'];
+    // Check if it's a public route (either first segment or last segment for subdomain routes)
+    const isPublicRoute = pathParts.length > 0 && (
+      publicRoutes.includes(pathParts[0]) || 
+      superAdminRoutes.includes(pathParts[0]) ||
+      (pathParts.length === 2 && publicRoutes.includes(pathParts[1])) ||
+      currentPath.includes('/setup-password')
+    );
+    
+    // If we're on a public route without subdomain in URL, don't use stored subdomain
+    if (isPublicRoute && pathParts.length === 1) {
+      // ('🚫 Public route without subdomain, not using stored subdomain');
+      return null;
+    }
+    
     // Then try to get from localStorage
     const storedSubdomain = OrganizationUrlManager.getStoredSubdomain();
     // ('💾 Stored subdomain:', storedSubdomain);
@@ -111,6 +130,31 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
    */
   useEffect(() => {
     const initializeOrganization = async () => {
+      // Check if we're on a public route first
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split('/').filter(part => part);
+      const publicRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'setup-password'];
+      const superAdminRoutes = ['superadmin'];
+      // Check if it's a public route (either first segment or last segment for subdomain routes)
+      const isPublicRoute = pathParts.length > 0 && (
+        publicRoutes.includes(pathParts[0]) || 
+        superAdminRoutes.includes(pathParts[0]) ||
+        (pathParts.length === 2 && publicRoutes.includes(pathParts[1])) ||
+        currentPath.includes('/setup-password')
+      );
+      const isPublicRouteWithoutSubdomain = isPublicRoute && pathParts.length === 1;
+      
+      // If we're on a public route without subdomain, don't load organization
+      if (isPublicRouteWithoutSubdomain) {
+        setLoading(false);
+        setSubdomain(null);
+        setOrganization(null);
+        return;
+      }
+      
+      // For public routes with subdomain (e.g., /edufirma/setup-password), allow loading organization
+      // but don't force URL changes
+      
       const detectedSubdomain = extractSubdomain();
       setSubdomain(detectedSubdomain);
       
@@ -126,27 +170,33 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
           }
         }
         
-        // Ensure URL includes the organization subdomain
-        OrganizationUrlManager.ensureOrganizationInUrl(detectedSubdomain);
+        // Only ensure URL includes subdomain if we're not on a public route
+        if (!isPublicRoute) {
+          // Ensure URL includes the organization subdomain
+          OrganizationUrlManager.ensureOrganizationInUrl(detectedSubdomain);
+        }
         
         // Fetch fresh data from API
         await fetchOrganization(detectedSubdomain);
       } else {
         // No subdomain detected, try to load organization from auth context
-        const storedOrg = localStorage.getItem('organization_data');
-        if (storedOrg) {
-          try {
-            const parsedOrg = JSON.parse(storedOrg);
-            setOrganization(parsedOrg);
+        // But only if we're not on a public route
+        if (!isPublicRoute) {
+          const storedOrg = localStorage.getItem('organization_data');
+          if (storedOrg) {
+            try {
+              const parsedOrg = JSON.parse(storedOrg);
+              setOrganization(parsedOrg);
+              setLoading(false);
+            } catch (err) {
+              // ('Failed to parse stored organization data');
+              setLoading(false);
+            }
+          } else {
             setLoading(false);
-          } catch (err) {
-            // ('Failed to parse stored organization data');
-            setLoading(false);
-            setError('No organization subdomain detected. Please access via /edufirma/login or add ?subdomain=edufirma');
           }
         } else {
           setLoading(false);
-          setError('No organization subdomain detected. Please access via /edufirma/login or add ?subdomain=edufirma');
         }
       }
     };
@@ -158,15 +208,53 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
    * Listen for URL changes to detect subdomain changes
    */
   useEffect(() => {
+    let isProcessing = false; // Prevent infinite loops
+    
     const handleUrlChange = () => {
-      const newSubdomain = extractSubdomain();
-      if (newSubdomain !== subdomain) {
-        setSubdomain(newSubdomain);
-        if (newSubdomain) {
-          // Store the new subdomain in localStorage
-          OrganizationUrlManager.setStoredSubdomain(newSubdomain);
-          fetchOrganization(newSubdomain);
+      // Prevent infinite loops
+      if (isProcessing) {
+        return;
+      }
+      
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split('/').filter(part => part);
+      const publicRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'setup-password'];
+      const superAdminRoutes = ['superadmin'];
+      // Check if it's a public route (either first segment or last segment for subdomain routes)
+      const isPublicRoute = pathParts.length > 0 && (
+        publicRoutes.includes(pathParts[0]) || 
+        superAdminRoutes.includes(pathParts[0]) ||
+        (pathParts.length === 2 && publicRoutes.includes(pathParts[1])) ||
+        currentPath.includes('/setup-password')
+      );
+      const isPublicRouteWithoutSubdomain = isPublicRoute && pathParts.length === 1;
+      
+      // CRITICAL: Don't process URL changes for public routes (with or without subdomain)
+      // This prevents any redirection when on /login, /forgot-password, /setup-password, etc.
+      if (isPublicRoute) {
+        return;
+      }
+      
+      isProcessing = true;
+      
+      try {
+        const newSubdomain = extractSubdomain();
+        if (newSubdomain !== subdomain) {
+          setSubdomain(newSubdomain);
+          if (newSubdomain) {
+            // Store the new subdomain in localStorage
+            OrganizationUrlManager.setStoredSubdomain(newSubdomain);
+            
+            // Only ensure URL includes subdomain if we're not on a public route
+            if (!isPublicRoute) {
+              OrganizationUrlManager.ensureOrganizationInUrl(newSubdomain);
+            }
+            
+            fetchOrganization(newSubdomain);
+          }
         }
+      } finally {
+        isProcessing = false;
       }
     };
 

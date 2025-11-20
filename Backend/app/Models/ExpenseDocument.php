@@ -12,7 +12,9 @@ class ExpenseDocument extends Model
     protected $fillable = [
         'expense_id',
         'file_path',
-        'original_name'
+        'original_name',
+        'file_size',
+        'mime_type'
     ];
 
     protected $casts = [

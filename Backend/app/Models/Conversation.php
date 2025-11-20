@@ -93,6 +93,17 @@ class Conversation extends Model
     // Methods
     public function addParticipant($userId, $role = 'member')
     {
+        // Vérifier si le participant existe déjà
+        if ($this->participants()->where('user_id', $userId)->exists()) {
+            // Mettre à jour le rôle si nécessaire
+            $this->participants()->updateExistingPivot($userId, [
+                'role' => $role,
+                'updated_at' => now()
+            ]);
+            return;
+        }
+
+        // Ajouter le participant s'il n'existe pas
         $this->participants()->attach($userId, [
             'role' => $role,
             'joined_at' => now(),

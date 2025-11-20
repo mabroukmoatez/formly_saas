@@ -9,6 +9,7 @@ use App\Models\Organization;
 use App\Models\OrganizationRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -425,6 +426,154 @@ class OrganizationAuthController extends Controller
             return $this->success($response, 'Permissions retrieved successfully');
         } catch (\Exception $e) {
             return $this->failed([], 'Failed to retrieve permissions: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Verify Invitation Token
+     * GET /api/auth/verify-invitation/{token}
+     */
+    public function verifyInvitation($token)
+    {
+        try {
+            if (empty($token)) {
+                return $this->failed([], 'Token is required');
+            }
+
+            // Find token record
+            $tokenRecords = DB::table('password_resets')
+                ->where('type', 'password_setup')
+                ->where('expires_at', '>', now())
+                ->whereNull('used_at')
+                ->get();
+
+            $tokenRecord = null;
+            foreach ($tokenRecords as $record) {
+                if (Hash::check($token, $record->token)) {
+                    $tokenRecord = $record;
+                    break;
+                }
+            }
+
+            if (!$tokenRecord) {
+                return $this->failed([], 'Token invalide ou expiré', 400);
+            }
+
+            // Find user
+            $user = User::where('email', $tokenRecord->email)->first();
+            if (!$user) {
+                return $this->failed([], 'Utilisateur non trouvé', 404);
+            }
+
+            // Load organization
+            $organization = $user->organizationBelongsTo;
+            if (!$organization) {
+                return $this->failed([], 'Organisation non trouvée', 404);
+            }
+
+            $response = [
+                'email' => $user->email,
+                'name' => $user->name,
+                'organization' => [
+                    'id' => $organization->id,
+                    'name' => $organization->organization_name,
+                ],
+                'expires_at' => $tokenRecord->expires_at,
+            ];
+
+            return $this->success($response, 'Token valide');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la vérification du token: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Setup Password
+     * POST /api/auth/setup-password
+     */
+    public function setupPassword(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'token' => 'required|string',
+                'password' => 'required|string|min:8|confirmed',
+            ], [
+                'token.required' => 'Le token est requis',
+                'password.required' => 'Le mot de passe est requis',
+                'password.min' => 'Le mot de passe doit contenir au moins 8 caractères',
+                'password.confirmed' => 'La confirmation du mot de passe ne correspond pas',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de validation',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Find token record
+            $tokenRecords = DB::table('password_resets')
+                ->where('type', 'password_setup')
+                ->where('expires_at', '>', now())
+                ->whereNull('used_at')
+                ->get();
+
+            $tokenRecord = null;
+            foreach ($tokenRecords as $record) {
+                if (Hash::check($request->token, $record->token)) {
+                    $tokenRecord = $record;
+                    break;
+                }
+            }
+
+            if (!$tokenRecord) {
+                return $this->failed([], 'Token invalide ou expiré', 400);
+            }
+
+            // Find user
+            $user = User::where('email', $tokenRecord->email)->first();
+            if (!$user) {
+                return $this->failed([], 'Utilisateur non trouvé', 404);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Set password
+                $user->password = Hash::make($request->password);
+                $user->email_verified_at = now();
+                $user->save();
+
+                // Mark token as used
+                DB::table('password_resets')
+                    ->where('email', $tokenRecord->email)
+                    ->where('type', 'password_setup')
+                    ->whereNull('used_at')
+                    ->update(['used_at' => now()]);
+
+                // Delete other unused tokens for this user
+                DB::table('password_resets')
+                    ->where('email', $user->email)
+                    ->where('type', 'password_setup')
+                    ->whereNull('used_at')
+                    ->delete();
+
+                DB::commit();
+
+                return $this->success([
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name
+                    ]
+                ], 'Mot de passe défini avec succès. Vous pouvez maintenant vous connecter.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la définition du mot de passe: ' . $e->getMessage());
         }
     }
 

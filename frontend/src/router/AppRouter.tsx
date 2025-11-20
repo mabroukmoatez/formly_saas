@@ -4,12 +4,55 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { LoadingScreen } from '../components/LoadingScreen';
 import { LogoutHandler } from '../components/LogoutHandler';
+import { ScrollManager } from '../components/ScrollManager';
+
+// Import SuperAdmin components
+import { SuperAdminLayout, SuperAdminDashboard } from '../components/SuperAdminDashboard';
+import { 
+  SuperAdminOrganizations, 
+  SuperAdminPlans, 
+  SuperAdminSubscriptions, 
+  SuperAdminInstances, 
+  SuperAdminCoupons, 
+  SuperAdminAuditLogs, 
+  SuperAdminRoles,
+  SuperAdminSystemSettings,
+  SuperAdminUsers,
+  SuperAdminStudents,
+  SuperAdminInstructors,
+  SuperAdminCourses,
+  SuperAdminCertificates,
+  SuperAdminCategories,
+  SuperAdminTags,
+  SuperAdminCourseLanguages,
+  SuperAdminDifficultyLevels,
+  SuperAdminPayouts,
+  SuperAdminPromotions,
+  SuperAdminBlogs,
+  SuperAdminEmailTemplates,
+  SuperAdminNotifications,
+  SuperAdminAnalytics,
+  SuperAdminReports,
+  SuperAdminSupportTickets,
+  SuperAdminFeatures,
+  SuperAdminLocalization,
+  SuperAdminMaintenance,
+  SuperAdminQualityArticles,
+  SuperAdminNews,
+  SuperAdminMarginSimulator,
+  SuperAdminAwsCosts,
+  SuperAdminIntegrations
+} from '../screens/SuperAdmin';
 
 // Import screens
 import { LogIn } from '../screens/LogIn';
 import { ForgotPassword } from '../screens/ForgotPassword';
+import { SetupPassword } from '../screens/SetupPassword/SetupPassword';
+import { Landing } from '../screens/Landing/Landing';
+import { OrganizationSignup } from '../screens/Signup/OrganizationSignup';
 import { GestionComercial } from '../screens/GestionComercial';
-import { WhiteLabelNew } from '../screens/WhiteLabel';
+import { WhiteLabelNew, WhiteLabelIdentity, WhiteLabelLibrary, WhiteLabelIdentifiers, WhiteLabelPlansPage } from '../screens/WhiteLabel';
+import { EmailTemplateCreationPage } from '../pages/EmailTemplateCreationPage';
 import { Statistiques } from '../screens/Statistiques';
 import { Sessions } from '../screens/Sessions';
 import { GestionDesQuizz } from '../screens/GestionDesQuizz';
@@ -28,8 +71,15 @@ import { SessionViewPage } from '../pages/SessionViewPage';
 import { SessionEditPage } from '../pages/SessionEditPage';
 import { QualityPage } from '../pages/QualityPage';
 import { IndicateursPage } from '../pages/IndicateursPage';
+import { IndicatorDetailPage } from '../pages/IndicatorDetailPage';
+import { IndicatorSettingsPage } from '../pages/IndicatorSettingsPage';
+import { IndicatorTrainingPage } from '../pages/IndicatorTrainingPage';
 import { DocumentsPage } from '../pages/DocumentsPage';
+import { ArticlesPage } from '../pages/ArticlesPage';
+import { ArticleDetailPage } from '../pages/ArticleDetailPage';
 import { BPFPage } from '../pages/BPFPage';
+import { BPFFormPage } from '../pages/BPFFormPage';
+import { ActionsAndTasksPage } from '../pages/ActionsAndTasksPage';
 import GestionOrganismePage from '../pages/GestionOrganismePage';
 import MessageriePage from '../pages/MessageriePage';
 import ActualitesPage from '../pages/ActualitesPage';
@@ -50,6 +100,8 @@ import { SettingsPage } from '../pages/SettingsPage';
 import SupportTicketsPage from '../pages/SupportTicketsPage';
 import MesFacturesPage from '../pages/MesFacturesPage';
 import InvoiceCreationPage from '../pages/InvoiceCreationPage';
+import { DocumentCreationPage } from '../pages/DocumentCreationPage';
+import { QuestionnaireCreationPage } from '../pages/QuestionnaireCreationPage';
 import InvoiceViewPage from '../pages/InvoiceViewPage';
 import MesDevisPage from '../pages/MesDevisPage';
 import { QuoteCreationPage } from '../pages/QuoteCreationPage';
@@ -100,10 +152,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   if (!loading && !orgLoading && !isAuthenticated) {
     // ('❌ Not authenticated, saving current path and redirecting to login');
     // ('📍 Current path to save:', location.pathname);
-    // Only save the path if it's not a public route or login page
-    if (!location.pathname.includes('/login') && !location.pathname.includes('/forgot-password')) {
+    
+    // Check if this is a public route - don't redirect if it is
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    const lastSegment = pathSegments[pathSegments.length - 1];
+    const isPublicRoute = 
+      location.pathname.includes('/login') || 
+      location.pathname.includes('/forgot-password') ||
+      location.pathname.includes('/setup-password') ||
+      (pathSegments.length === 2 && (lastSegment === 'login' || lastSegment === 'forgot-password' || lastSegment === 'setup-password')) ||
+      (pathSegments.length === 1 && (pathSegments[0] === 'login' || pathSegments[0] === 'forgot-password' || pathSegments[0] === 'setup-password'));
+    
+    // Only save the path if it's not a public route
+    if (!isPublicRoute) {
       sessionStorage.setItem('redirectAfterLogin', location.pathname);
     }
+    
+    // Don't redirect if we're on a public route - let PublicRoute handle it
+    if (isPublicRoute) {
+      return <>{children}</>;
+    }
+    
     // Redirect to organization-specific login if we have organization data
     if (organization?.custom_domain) {
       return <Navigate to={`/${organization.custom_domain}/login`} state={{ from: location.pathname }} replace />;
@@ -159,7 +228,9 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
     // Only redirect to dashboard if we're on a public route like /login or /forgot-password
     // Don't redirect if we're already on a valid protected route
     const isPublicRoute = location.pathname === '/login' || location.pathname === '/forgot-password' || 
+                          location.pathname.startsWith('/setup-password') ||
                           location.pathname.endsWith('/login') || location.pathname.endsWith('/forgot-password') ||
+                          location.pathname.endsWith('/setup-password') ||
                           location.pathname === '/';
     
     if (isPublicRoute) {
@@ -167,7 +238,7 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
       // ('🏠 No saved path, redirecting to dashboard...');
       // Check if we're on a subdomain route
       const pathSegments = location.pathname.split('/').filter(Boolean);
-      const isSubdomainRoute = pathSegments.length > 1 && pathSegments[0] !== 'white-label';
+      const isSubdomainRoute = pathSegments.length > 1 && pathSegments[0] !== 'white-label' && pathSegments[0] !== 'superadmin';
       
       // ('📍 Path segments:', pathSegments, 'IsSubdomain:', isSubdomainRoute);
       
@@ -188,6 +259,38 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
     }
   }
 
+  // If user is NOT authenticated, allow public routes
+  // Check if this is a public route (with or without subdomain)
+  const pathSegments = location.pathname.split('/').filter(Boolean);
+  const lastSegment = pathSegments[pathSegments.length - 1];
+  
+  // Public routes without subdomain
+  const isPublicRouteNoSubdomain = 
+    pathSegments.length === 1 && 
+    (pathSegments[0] === 'login' || 
+     pathSegments[0] === 'forgot-password' || 
+     pathSegments[0] === 'reset-password' || 
+     pathSegments[0] === 'setup-password' ||
+     pathSegments[0] === 'signup');
+  
+  // Public routes with subdomain (e.g., /edufirma/login, /edufirma/setup-password)
+  const isPublicRouteWithSubdomain = 
+    pathSegments.length === 2 && 
+    (lastSegment === 'login' || 
+     lastSegment === 'forgot-password' || 
+     lastSegment === 'setup-password');
+  
+  // Routes starting with /setup-password (catch-all for setup-password)
+  const isSetupPasswordRoute = location.pathname.includes('/setup-password');
+  
+  const isOnPublicRoute = isPublicRouteNoSubdomain || isPublicRouteWithSubdomain || isSetupPasswordRoute;
+  const isOnSuperAdminRoute = pathSegments.length > 0 && pathSegments[0] === 'superadmin';
+  
+  // Always allow public routes and superadmin routes when not authenticated
+  if (isOnPublicRoute || isOnSuperAdminRoute) {
+    return <>{children}</>;
+  }
+
   return <>{children}</>;
 };
 
@@ -196,6 +299,8 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
  * Handles organization-specific routing
  */
 const OrganizationRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Use organization hook - it will throw if not in provider, which is expected
+  // The component should only be rendered inside OrganizationProvider
   const { organization, loading, error } = useOrganization();
 
   if (loading) {
@@ -248,9 +353,26 @@ const UnauthorizedPage: React.FC = () => {
 export const AppRouter: React.FC = () => {
   return (
     <Router>
+      <ScrollManager />
       <LogoutHandler />
       <Routes>
         {/* Public Routes */}
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <OrganizationSignup />
+            </PublicRoute>
+          }
+        />
         <Route
           path="/login"
           element={
@@ -264,6 +386,14 @@ export const AppRouter: React.FC = () => {
           element={
             <PublicRoute>
               <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/setup-password"
+          element={
+            <PublicRoute>
+              <SetupPassword />
             </PublicRoute>
           }
         />
@@ -282,6 +412,14 @@ export const AppRouter: React.FC = () => {
           element={
             <PublicRoute>
               <ForgotPassword />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/setup-password"
+          element={
+            <PublicRoute>
+              <SetupPassword />
             </PublicRoute>
           }
         />
@@ -513,6 +651,36 @@ export const AppRouter: React.FC = () => {
             <OrganizationRoute>
               <ProtectedRoute>
                 <CourseCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/document-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <DocumentCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/questionnaire-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <QuestionnaireCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/email-template-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <EmailTemplateCreationPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }
@@ -912,6 +1080,88 @@ export const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/:subdomain/white-label/identite"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <WhiteLabelIdentity />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/white-label/identite"
+          element={
+            <ProtectedRoute>
+              <WhiteLabelIdentity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/white-label/bibliotheque"
+          element={
+            <ProtectedRoute>
+              <WhiteLabelLibrary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/white-label/identifiants"
+          element={
+            <ProtectedRoute>
+              <WhiteLabelIdentifiers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/white-label/formules"
+          element={
+            <ProtectedRoute>
+              <WhiteLabelPlansPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/white-label/identite"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <WhiteLabelIdentity />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/white-label/bibliotheque"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <WhiteLabelLibrary />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/white-label/identifiants"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <WhiteLabelIdentifiers />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/white-label/formules"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <WhiteLabelPlansPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
           path="/:subdomain/user-management"
           element={
             <OrganizationRoute>
@@ -1027,6 +1277,36 @@ export const AppRouter: React.FC = () => {
             <OrganizationRoute>
               <ProtectedRoute>
                 <CourseCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/document-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <DocumentCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/questionnaire-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <QuestionnaireCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/email-template-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <EmailTemplateCreationPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }
@@ -1162,6 +1442,36 @@ export const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/:subdomain/quality/indicateurs/:id/formation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <IndicatorTrainingPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/indicateurs/:id"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <IndicatorDetailPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/indicateurs/parametres"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <IndicatorSettingsPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
           path="/:subdomain/quality/documents"
           element={
             <OrganizationRoute>
@@ -1172,11 +1482,61 @@ export const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/:subdomain/quality/articles/:id"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <ArticleDetailPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/articles"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <ArticlesPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
           path="/:subdomain/quality/bpf"
           element={
             <OrganizationRoute>
               <ProtectedRoute>
                 <BPFPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/bpf/create"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <BPFFormPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/bpf/:id/edit"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <BPFFormPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/quality/actions"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <ActionsAndTasksPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }
@@ -1311,6 +1671,375 @@ export const AppRouter: React.FC = () => {
                 <RapportsStatistiquesPage />
               </ProtectedRoute>
             </OrganizationRoute>
+          }
+        />
+
+        {/* SuperAdmin Routes - No subdomain required */}
+        <Route
+          path="/superadmin/dashboard"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminDashboard />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/organizations"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminOrganizations />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/plans"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminPlans />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/subscriptions"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminSubscriptions />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/instances"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminInstances />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/coupons"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminCoupons />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/audit-logs"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminAuditLogs />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/roles"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminRoles />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* System Settings */}
+        <Route
+          path="/superadmin/settings"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminSystemSettings />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/features"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminFeatures />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/localization"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminLocalization />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/maintenance"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminMaintenance />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* User Management */}
+        <Route
+          path="/superadmin/users"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminUsers />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/students"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminStudents />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/instructors"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminInstructors />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Courses & Learning */}
+        <Route
+          path="/superadmin/courses"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminCourses />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/certificates"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminCertificates />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Content Management */}
+        <Route
+          path="/superadmin/categories"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminCategories />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/tags"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminTags />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/course-languages"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminCourseLanguages />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/difficulty-levels"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminDifficultyLevels />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Payments & Promotions */}
+        <Route
+          path="/superadmin/payouts"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminPayouts />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/promotions"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminPromotions />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Communications */}
+        <Route
+          path="/superadmin/blogs"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminBlogs />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/email-templates"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminEmailTemplates />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/notifications"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminNotifications />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Reports & Analytics */}
+        <Route
+          path="/superadmin/analytics"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminAnalytics />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/reports"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminReports />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Support */}
+        <Route
+          path="/superadmin/tickets"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminSupportTickets />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Additional Features */}
+        <Route
+          path="/superadmin/quality-articles"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminQualityArticles />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/news"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminNews />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/margin-simulator"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminMarginSimulator />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/aws-costs"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminAwsCosts />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/superadmin/integrations"
+          element={
+            <ProtectedRoute>
+              <SuperAdminLayout>
+                <SuperAdminIntegrations />
+              </SuperAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/superadmin"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/superadmin/dashboard" replace />
+            </ProtectedRoute>
           }
         />
 

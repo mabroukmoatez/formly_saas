@@ -23,6 +23,8 @@ use App\Http\Middleware\OrganizationBrandingMiddleware;
 use App\Http\Middleware\FileUploadMiddleware;
 use App\Http\Middleware\Student;
 use App\Http\Middleware\VersionUpdate;
+use App\Http\Middleware\SuperAdminAuth;
+use App\Http\Middleware\CheckPermission;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
 class Kernel extends HttpKernel
@@ -106,5 +108,7 @@ class Kernel extends HttpKernel
         'organization.subdomain' => OrganizationSubdomainMiddleware::class,
         'organization.branding' => OrganizationBrandingMiddleware::class,
         'file.upload' => FileUploadMiddleware::class,
+        'superadmin.auth' => SuperAdminAuth::class,
+        'permission' => CheckPermission::class,
     ];
 }

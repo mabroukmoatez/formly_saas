@@ -109,15 +109,30 @@ class CourseQuestionnaireApiController extends Controller
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'category' => 'nullable|in:apprenant,formateur,entreprise',
-                'type' => 'nullable|in:quiz,survey,evaluation',
-                'questions' => 'nullable|array',
-                'questions.*.type' => 'nullable|in:multiple_choice,true_false,text,rating',
-                'questions.*.question' => 'required|string',
+                'questionnaire_type' => 'nullable|string',
+                'questions' => 'required|array|min:1',
+                'questions.*.order' => 'required|integer',
+                'questions.*.type' => 'required|in:single_choice,multiple_choice,short_text,long_text,dropdown,table,recommendation,pedagogy',
+                'questions.*.question' => 'nullable|string', // Can be empty for pedagogy type
+                'questions.*.required' => 'nullable|boolean',
                 'questions.*.options' => 'nullable|array',
-                'questions.*.correct_answer' => 'nullable',
-                'questions.*.required' => 'nullable|boolean'
+                'questions.*.table_columns' => 'nullable|array',
+                'questions.*.table_rows' => 'nullable|array',
+                'questions.*.content' => 'nullable|string'
             ]);
+            
+            // Custom validation: question is required except for pedagogy type
+            $validator->after(function ($validator) use ($request) {
+                $questions = $request->get('questions', []);
+                foreach ($questions as $index => $question) {
+                    $type = $question['type'] ?? '';
+                    $questionText = $question['question'] ?? '';
+                    
+                    if ($type !== 'pedagogy' && empty(trim($questionText))) {
+                        $validator->errors()->add("questions.{$index}.question", "Le texte de la question est requis pour le type '{$type}'");
+                    }
+                }
+            });
 
             if ($validator->fails()) {
                 Log::error('Questionnaire validation failed', [
@@ -132,29 +147,31 @@ class CourseQuestionnaireApiController extends Controller
                 ], 422);
             }
 
+            // Validate questions structure
+            $questions = $request->questions ?? [];
+            try {
+                $this->validateQuestions($questions);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Question validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
             // Create questionnaire
             $questionnaire = CourseQuestionnaire::create([
                 'course_uuid' => $course->uuid,
                 'title' => $request->title,
                 'description' => $request->description,
+                'questionnaire_type' => $request->questionnaire_type ?? 'custom',
                 'category' => $request->category ?? 'apprenant',
-                'type' => $request->type ?? 'quiz'
+                'type' => $request->type ?? 'survey'
             ]);
 
-            // Create questions if provided
-            if ($request->has('questions') && is_array($request->questions)) {
-                foreach ($request->questions as $index => $questionData) {
-                    if (!empty($questionData['question'])) {
-                        $questionnaire->questions()->create([
-                            'type' => $questionData['type'] ?? 'text',
-                            'question' => $questionData['question'],
-                            'options' => $questionData['options'] ?? null,
-                            'correct_answer' => $questionData['correct_answer'] ?? null,
-                            'required' => $questionData['required'] ?? false,
-                            'order_index' => $index
-                        ]);
-                    }
-                }
+            // Create questions
+            foreach ($questions as $questionData) {
+                $this->createQuestion($questionnaire, $questionData);
             }
 
             $questionnaire->load('questions');
@@ -240,38 +257,41 @@ class CourseQuestionnaireApiController extends Controller
                 ], 404);
             }
 
-            // Normalize questions data to handle different frontend formats
+            // Get questions from request
             $questions = $request->get('questions', []);
-            $normalizedQuestions = [];
-            
-            foreach ($questions as $question) {
-                $normalizedQuestions[] = [
-                    'type' => $question['type'] ?? $question['question_type'] ?? 'text',
-                    'question' => $question['question'] ?? $question['question_text'] ?? $question['text'] ?? '',
-                    'options' => $question['options'] ?? $question['choices'] ?? [],
-                    'correct_answer' => $question['correct_answer'] ?? null,
-                    'required' => $question['required'] ?? $question['is_required'] ?? false,
-                    'order_index' => $question['order_index'] ?? $question['order'] ?? 0
-                ];
-            }
 
             // Validation
             $validator = Validator::make([
                 'title' => $request->get('title'),
                 'description' => $request->get('description'),
-                'category' => $request->get('category'),
-                'questions' => $normalizedQuestions
+                'questionnaire_type' => $request->get('questionnaire_type'),
+                'questions' => $questions
             ], [
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'category' => 'required|in:apprenant,formateur,entreprise',
+                'questionnaire_type' => 'nullable|string',
                 'questions' => 'required|array|min:1',
-                'questions.*.type' => 'required|in:multiple_choice,true_false,text,rating,single_choice,textarea,radio,checkbox,select,date,file',
-                'questions.*.question' => 'required|string',
+                'questions.*.order' => 'required|integer',
+                'questions.*.type' => 'required|in:single_choice,multiple_choice,short_text,long_text,dropdown,table,recommendation,pedagogy',
+                'questions.*.question' => 'nullable|string', // Can be empty for pedagogy type
+                'questions.*.required' => 'nullable|boolean',
                 'questions.*.options' => 'nullable|array',
-                'questions.*.correct_answer' => 'nullable',
-                'questions.*.required' => 'boolean'
+                'questions.*.table_columns' => 'nullable|array',
+                'questions.*.table_rows' => 'nullable|array',
+                'questions.*.content' => 'nullable|string'
             ]);
+            
+            // Custom validation: question is required except for pedagogy type
+            $validator->after(function ($validator) use ($questions) {
+                foreach ($questions as $index => $question) {
+                    $type = $question['type'] ?? '';
+                    $questionText = $question['question'] ?? '';
+                    
+                    if ($type !== 'pedagogy' && empty(trim($questionText))) {
+                        $validator->errors()->add("questions.{$index}.question", "Le texte de la question est requis pour le type '{$type}'");
+                    }
+                }
+            });
 
             if ($validator->fails()) {
                 return response()->json([
@@ -281,26 +301,31 @@ class CourseQuestionnaireApiController extends Controller
                 ], 422);
             }
 
+            // Validate questions structure
+            try {
+                $this->validateQuestions($questions);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Question validation failed',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
             // Update questionnaire
             $questionnaire->update([
                 'title' => $request->get('title'),
                 'description' => $request->get('description'),
-                'category' => $request->get('category')
+                'questionnaire_type' => $request->get('questionnaire_type', 'custom'),
+                'category' => $request->get('category', $questionnaire->category)
             ]);
 
             // Delete existing questions
             $questionnaire->questions()->delete();
 
-            // Create new questions using normalized data
-            foreach ($normalizedQuestions as $index => $questionData) {
-                $questionnaire->questions()->create([
-                    'type' => $questionData['type'],
-                    'question' => $questionData['question'],
-                    'options' => $questionData['options'],
-                    'correct_answer' => $questionData['correct_answer'],
-                    'required' => $questionData['required'],
-                    'order_index' => $questionData['order_index'] ?? $index
-                ]);
+            // Create new questions
+            foreach ($questions as $questionData) {
+                $this->createQuestion($questionnaire, $questionData);
             }
 
             $questionnaire->load('questions');
@@ -843,5 +868,147 @@ class CourseQuestionnaireApiController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Validate questions structure according to new format
+     */
+    private function validateQuestions(array $questions)
+    {
+        $orderNumbers = [];
+        
+        foreach ($questions as $index => $questionData) {
+            $order = $questionData['order'] ?? ($index + 1);
+            
+            // Check for duplicate orders
+            if (in_array($order, $orderNumbers)) {
+                throw new \Illuminate\Validation\ValidationException(
+                    Validator::make([], []),
+                    ['questions' => ["L'ordre {$order} est dupliqué dans les questions"]]
+                );
+            }
+            $orderNumbers[] = $order;
+            
+            $type = $questionData['type'] ?? '';
+            
+            // Validate options for question types that require them
+            if (in_array($type, ['single_choice', 'multiple_choice', 'dropdown', 'recommendation'])) {
+                if (!isset($questionData['options']) || !is_array($questionData['options'])) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Les options sont requises pour le type de question '{$type}'"]]
+                    );
+                }
+                if (count($questionData['options']) < 2) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Au moins 2 options sont requises pour le type '{$type}'"]]
+                    );
+                }
+                if (count($questionData['options']) > 20) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Maximum 20 options autorisées pour le type '{$type}'"]]
+                    );
+                }
+            }
+            
+            // Validate table structure
+            if ($type === 'table') {
+                if (!isset($questionData['table_columns']) || !is_array($questionData['table_columns'])) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Les colonnes sont requises pour les questions de type 'table'"]]
+                    );
+                }
+                if (count($questionData['table_columns']) < 1) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Au moins 1 colonne est requise pour les tableaux"]]
+                    );
+                }
+                if (count($questionData['table_columns']) > 10) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Maximum 10 colonnes autorisées pour les tableaux"]]
+                    );
+                }
+                
+                if (!isset($questionData['table_rows']) || !is_array($questionData['table_rows'])) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Les lignes sont requises pour les questions de type 'table'"]]
+                    );
+                }
+                if (count($questionData['table_rows']) > 50) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Maximum 50 lignes autorisées pour les tableaux"]]
+                    );
+                }
+                
+                // Validate that each row has the correct number of cells
+                $columnCount = count($questionData['table_columns']);
+                foreach ($questionData['table_rows'] as $rowIndex => $row) {
+                    if (!is_array($row) || count($row) !== $columnCount) {
+                        throw new \Illuminate\Validation\ValidationException(
+                            Validator::make([], []),
+                            ['questions' => ["La ligne " . ($rowIndex + 1) . " doit avoir {$columnCount} cellules (nombre de colonnes)"]]
+                        );
+                    }
+                }
+            }
+            
+            // Validate pedagogy content
+            if ($type === 'pedagogy') {
+                if (!isset($questionData['content']) || empty(trim($questionData['content']))) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        Validator::make([], []),
+                        ['questions' => ["Le contenu est requis pour les sections pédagogiques"]]
+                    );
+                }
+                // Sanitize HTML content (allow safe HTML tags)
+                $questionData['content'] = strip_tags($questionData['content'], '<p><strong><em><u><ul><ol><li><h1><h2><h3><h4><h5><h6><br><a><div><span>');
+            }
+            
+            // Allow empty question for pedagogy type
+            if ($type === 'pedagogy' && empty(trim($questionData['question'] ?? ''))) {
+                $questionData['question'] = ''; // Allow empty question for pedagogy
+            }
+        }
+    }
+
+    /**
+     * Create a question for a questionnaire
+     */
+    private function createQuestion(CourseQuestionnaire $questionnaire, array $questionData)
+    {
+        $order = $questionData['order'] ?? 1;
+        $type = $questionData['type'];
+        
+        $questionAttributes = [
+            'type' => $type,
+            'question' => $questionData['question'] ?? '',
+            'required' => $questionData['required'] ?? false,
+            'order_index' => $order
+        ];
+        
+        // Add options for question types that need them
+        if (in_array($type, ['single_choice', 'multiple_choice', 'dropdown', 'recommendation'])) {
+            $questionAttributes['options'] = $questionData['options'] ?? [];
+        }
+        
+        // Add table structure for table type
+        if ($type === 'table') {
+            $questionAttributes['table_columns'] = $questionData['table_columns'] ?? [];
+            $questionAttributes['table_rows'] = $questionData['table_rows'] ?? [];
+        }
+        
+        // Add content for pedagogy type
+        if ($type === 'pedagogy') {
+            $questionAttributes['content'] = $questionData['content'] ?? '';
+        }
+        
+        return $questionnaire->questions()->create($questionAttributes);
     }
 }

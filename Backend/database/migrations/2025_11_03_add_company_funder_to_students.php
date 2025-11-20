@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::table('students', function (Blueprint $table) {
             // Association avec entreprise et financeur
-            // Check if column doesn't exist
             if (!Schema::hasColumn('students', 'company_id')) {
                 $table->foreignId('company_id')->nullable()->after('organization_id')->constrained('companies')->onDelete('set null');
             }
@@ -22,16 +21,32 @@ return new class extends Migration
             }
             
             // Informations professionnelles
-            $table->string('job_title')->nullable()->after('about_me');
-            $table->string('employee_number')->nullable()->after('job_title');
+            if (!Schema::hasColumn('students', 'job_title')) {
+                $table->string('job_title')->nullable()->after('about_me');
+            }
+            if (!Schema::hasColumn('students', 'employee_number')) {
+                $table->string('employee_number')->nullable()->after('job_title');
+            }
             
             // Documents administratifs
-            $table->boolean('has_disability')->default(false)->after('status');
-            $table->string('disability_type')->nullable()->after('has_disability');
-            $table->date('birth_date')->nullable()->after('gender');
-            $table->string('birth_place')->nullable()->after('birth_date');
-            $table->string('nationality')->default('Française')->after('birth_place');
-            $table->string('social_security_number')->nullable()->after('nationality');
+            if (!Schema::hasColumn('students', 'has_disability')) {
+                $table->boolean('has_disability')->default(false)->after('status');
+            }
+            if (!Schema::hasColumn('students', 'disability_type')) {
+                $table->string('disability_type')->nullable()->after('has_disability');
+            }
+            if (!Schema::hasColumn('students', 'birth_date')) {
+                $table->date('birth_date')->nullable()->after('gender');
+            }
+            if (!Schema::hasColumn('students', 'birth_place')) {
+                $table->string('birth_place')->nullable()->after('birth_date');
+            }
+            if (!Schema::hasColumn('students', 'nationality')) {
+                $table->string('nationality')->default('Française')->after('birth_place');
+            }
+            if (!Schema::hasColumn('students', 'social_security_number')) {
+                $table->string('social_security_number')->nullable()->after('nationality');
+            }
         });
     }
 

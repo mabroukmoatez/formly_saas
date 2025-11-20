@@ -6,6 +6,8 @@ import { useOrganization } from '../contexts/OrganizationContext';
  * Updates the browser window title based on organization name
  */
 export const DocumentTitleManager: React.FC = () => {
+  // Use organization hook - it will throw if not in provider, which is expected
+  // The component should only be rendered inside OrganizationProvider
   const { organization } = useOrganization();
 
   useEffect(() => {

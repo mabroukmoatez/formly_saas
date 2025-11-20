@@ -207,6 +207,11 @@ class ConversationController extends Controller
                     ]);
                 }
 
+                // Vérifier que l'utilisateur ne s'ajoute pas lui-même
+                if ($userId == $request->participant_id) {
+                    return $this->failed([], 'Vous ne pouvez pas créer une conversation avec vous-même.');
+                }
+
                 // Créer conversation individuelle
                 $conversation = Conversation::create([
                     'type' => 'individual',
@@ -214,6 +219,7 @@ class ConversationController extends Controller
                     'organization_id' => $organizationId
                 ]);
 
+                // Ajouter les participants (la méthode addParticipant vérifie maintenant les doublons)
                 $conversation->addParticipant($userId, 'admin');
                 $conversation->addParticipant($request->participant_id, 'member');
 

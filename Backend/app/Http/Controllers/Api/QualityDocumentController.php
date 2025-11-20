@@ -37,8 +37,12 @@ class QualityDocumentController extends Controller
                 });
             }
 
-            if ($request->has('search')) {
-                $query->where('name', 'like', '%' . $request->search . '%');
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
             }
 
             // Pagination
@@ -59,7 +63,8 @@ class QualityDocumentController extends Controller
                     'fileType' => $doc->file_type,
                     'size' => $doc->size,
                     'sizeBytes' => $doc->size_bytes,
-                    'url' => $doc->url,
+                    'url' => url($doc->url),
+                    'file_url' => url($doc->url),
                     'indicatorIds' => $doc->indicator_ids,
                     'indicators' => $doc->indicators->map(function ($ind) {
                         return [
@@ -209,6 +214,9 @@ class QualityDocumentController extends Controller
 
     /**
      * Upload document.
+     * Supports two modes:
+     * 1. Upload a new file
+     * 2. Reference an existing document from organization library
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
@@ -216,13 +224,54 @@ class QualityDocumentController extends Controller
     public function upload(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg',
+            $organizationId = $this->getOrganizationId($request);
+            
+            // Base validation rules
+            $rules = [
                 'name' => 'required|string|max:255',
                 'type' => 'required|in:procedure,model,evidence',
                 'indicatorIds' => 'required|string',
                 'description' => 'nullable|string',
-            ]);
+                'courseId' => 'required_if:type,model|nullable|string|exists:courses,uuid',
+                'sessionId' => 'nullable|string|exists:sessions,uuid',
+                'learnerId' => 'nullable|string|exists:users,uuid',
+            ];
+
+            // File or documentUuid validation (mutually exclusive)
+            if ($request->hasFile('file') && $request->has('documentUuid')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'INVALID_INPUT',
+                        'message' => 'Validation failed',
+                        'details' => [
+                            'file_or_document' => ['Only one of \'file\' or \'documentUuid\' should be provided, not both']
+                        ],
+                    ],
+                ], 400);
+            }
+
+            if (!$request->hasFile('file') && !$request->has('documentUuid')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => [
+                        'code' => 'INVALID_INPUT',
+                        'message' => 'Validation failed',
+                        'details' => [
+                            'file_or_document' => ['Either \'file\' or \'documentUuid\' must be provided']
+                        ],
+                    ],
+                ], 400);
+            }
+
+            // Add conditional validation rules
+            if ($request->hasFile('file')) {
+                $rules['file'] = 'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg';
+            } else {
+                $rules['documentUuid'] = 'required|string|exists:course_documents,uuid';
+            }
+
+            $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -235,38 +284,121 @@ class QualityDocumentController extends Controller
                 ], 400);
             }
 
-            $file = $request->file('file');
+            // Parse indicator IDs
             $indicatorIds = json_decode($request->indicatorIds, true);
             
-            if (!is_array($indicatorIds)) {
+            if (!is_array($indicatorIds) || empty($indicatorIds)) {
                 return response()->json([
                     'success' => false,
                     'error' => [
                         'code' => 'INVALID_INPUT',
-                        'message' => 'indicatorIds must be a valid JSON array',
+                        'message' => 'At least one indicator must be provided',
                     ],
                 ], 400);
             }
 
-            $organizationId = $this->getOrganizationId($request);
+            // Handle document from library
+            if ($request->has('documentUuid')) {
+                // Find the document in organization's library
+                $sourceDocument = \App\Models\CourseDocument::where('uuid', $request->documentUuid)
+                    ->whereHas('course', function($q) use ($organizationId) {
+                        $q->where('organization_id', $organizationId);
+                    })
+                    ->first();
 
-            // Store file
-            $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('quality/documents', $filename, 'public');
-            $url = Storage::url($path);
+                if (!$sourceDocument) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => [
+                            'code' => 'DOCUMENT_NOT_FOUND',
+                            'message' => 'Le document spécifié n\'existe pas ou n\'appartient pas à votre organisation',
+                            'details' => [
+                                'documentUuid' => ['Document not found or access denied']
+                            ],
+                        ],
+                    ], 404);
+                }
 
-            $sizeBytes = $file->getSize();
-            $size = QualityDocument::formatFileSize($sizeBytes);
+                // Check if it's a questionnaire (not allowed)
+                if ($sourceDocument->is_questionnaire || $sourceDocument->questionnaire_type) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => [
+                            'code' => 'INVALID_DOCUMENT_TYPE',
+                            'message' => 'Les questionnaires ne peuvent pas être utilisés comme documents qualité',
+                            'details' => [
+                                'documentUuid' => ['Questionnaires cannot be used as quality documents']
+                            ],
+                        ],
+                    ], 400);
+                }
 
+                // Use the file from the existing document
+                // Extract file path from URL if it's a full URL
+                $fileUrl = $sourceDocument->file_url;
+                if (str_starts_with($fileUrl, 'http')) {
+                    // Extract path from URL
+                    $parsedUrl = parse_url($fileUrl);
+                    $filePath = ltrim($parsedUrl['path'] ?? '', '/');
+                    // Remove 'storage/' prefix if present
+                    $filePath = str_replace('storage/', '', $filePath);
+                } else {
+                    $filePath = $fileUrl;
+                }
+                
+                $fileName = $sourceDocument->file_name ?? $sourceDocument->name;
+                $fileType = pathinfo($fileUrl, PATHINFO_EXTENSION) ?: 'unknown';
+                $fileSize = $sourceDocument->file_size ?? 0;
+                $size = QualityDocument::formatFileSize($fileSize);
+                $url = $fileUrl;
+            } else {
+                // Upload new file
+                $file = $request->file('file');
+                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('quality/documents', $filename, 'public');
+                $url = Storage::url($path);
+
+                $fileSize = $file->getSize();
+                $size = QualityDocument::formatFileSize($fileSize);
+                $fileName = $file->getClientOriginalName();
+                $fileType = $file->getClientOriginalExtension();
+                $filePath = $path;
+            }
+
+            // Get course ID if courseId UUID is provided
+            $courseId = null;
+            if ($request->has('courseId')) {
+                $course = \App\Models\Course::where('uuid', $request->courseId)->first();
+                $courseId = $course ? $course->id : null;
+            }
+
+            // Get session ID if sessionId UUID is provided
+            $sessionId = null;
+            if ($request->has('sessionId')) {
+                $session = \App\Models\Session::where('uuid', $request->sessionId)->first();
+                $sessionId = $session ? $session->id : null;
+            }
+
+            // Get learner ID if learnerId UUID is provided
+            $learnerId = null;
+            if ($request->has('learnerId')) {
+                $learner = \App\Models\User::where('uuid', $request->learnerId)->first();
+                $learnerId = $learner ? $learner->id : null;
+            }
+
+            // Create quality document
             $document = QualityDocument::create([
                 'name' => $request->name,
                 'type' => $request->type,
-                'file_type' => $file->getClientOriginalExtension(),
-                'file_path' => $path,
+                'file_type' => $fileType,
+                'file_path' => $filePath,
                 'url' => $url,
-                'size_bytes' => $sizeBytes,
+                'size_bytes' => $fileSize,
                 'size' => $size,
                 'description' => $request->description,
+                'course_id' => $courseId,
+                'session_id' => $sessionId,
+                'learner_id' => $learnerId,
                 'created_by' => $request->user()->id,
                 'organization_id' => $organizationId,
             ]);
@@ -274,23 +406,29 @@ class QualityDocumentController extends Controller
             // Attach indicators
             $document->indicators()->attach($indicatorIds);
 
+            // Load relationships for response
+            $document->load(['creator', 'indicators']);
+
             return response()->json([
                 'success' => true,
+                'message' => 'Document qualité ajouté avec succès',
                 'data' => [
                     'id' => $document->id,
+                    'uuid' => $document->id, // For compatibility
                     'name' => $document->name,
                     'type' => $document->type,
-                    'fileType' => $document->file_type,
-                    'size' => $document->size,
-                    'sizeBytes' => $document->size_bytes,
-                    'url' => url($document->url),
-                    'indicatorIds' => $indicatorIds,
                     'description' => $document->description,
-                    'createdAt' => $document->created_at->toIso8601String(),
-                    'createdBy' => [
-                        'id' => $request->user()->id,
-                        'name' => $request->user()->name,
-                    ],
+                    'file_url' => url($document->url),
+                    'file_type' => $document->file_type,
+                    'size' => $document->size,
+                    'indicator_ids' => $indicatorIds,
+                    'created_at' => $document->created_at->toIso8601String(),
+                    'updated_at' => $document->updated_at->toIso8601String(),
+                    'created_by' => $document->creator ? [
+                        'id' => $document->creator->id,
+                        'name' => $document->creator->name,
+                        'email' => $document->creator->email,
+                    ] : null,
                 ],
             ], 201);
         } catch (\Exception $e) {
@@ -516,7 +654,19 @@ class QualityDocumentController extends Controller
      */
     private function getOrganizationId(Request $request)
     {
-        return $request->user()->organization_id ?? null;
+        $user = $request->user();
+        if (!$user) {
+            return null;
+        }
+        
+        // Try organization_id first (for organization owners)
+        if ($user->organization_id) {
+            return $user->organization_id;
+        }
+        
+        // Try organizationBelongsTo relationship (for users belonging to an organization)
+        $organization = $user->organizationBelongsTo;
+        return $organization ? $organization->id : null;
     }
 }
 

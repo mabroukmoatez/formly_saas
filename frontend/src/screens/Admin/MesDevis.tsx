@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -12,7 +12,20 @@ import { Quote } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
 import { QuoteImportModal } from '../../components/CommercialDashboard/QuoteImportModal';
 import { ConfirmationModal as ConfirmationModalComponent } from '../../components/ui/confirmation-modal';
-import { Plus, Search, Download, Eye, Edit, Trash2, FileText, FileUp, ArrowRight } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  FileText, 
+  FileUp, 
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  ArrowUpDown,
+  FileSpreadsheet,
+  Check
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -21,6 +34,9 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+
+type SortField = 'quote_number' | 'issue_date' | 'client_name' | 'total_ht' | 'total_tva' | 'total_ttc' | 'status' | 'type';
+type SortDirection = 'asc' | 'desc';
 
 export const MesDevis = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -41,10 +57,30 @@ export const MesDevis = (): JSX.Element => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('issue_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [allExpanded, setAllExpanded] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSortDropdown]);
 
   useEffect(() => {
     fetchQuotes();
-  }, [page, selectedStatus]);
+  }, [page, selectedStatus, searchTerm]);
 
   const confirmDeleteQuote = async () => {
     if (!quoteToDelete) return;
@@ -52,7 +88,6 @@ export const MesDevis = (): JSX.Element => {
     setDeleting(true);
     try {
       if (quoteToDelete === 'bulk') {
-        // Delete multiple quotes
         const deletePromises = Array.from(selectedQuotes).map(id =>
           commercialService.deleteQuote(id)
         );
@@ -60,7 +95,6 @@ export const MesDevis = (): JSX.Element => {
         success(`${selectedQuotes.size} devis supprimé(s) avec succès`);
         setSelectedQuotes(new Set());
       } else {
-        // Delete single quote
         await commercialService.deleteQuote(quoteToDelete);
         success('Devis supprimé avec succès');
       }
@@ -79,6 +113,16 @@ export const MesDevis = (): JSX.Element => {
     setQuoteToDelete(null);
   };
 
+  // Helper function to normalize values (convert strings to numbers)
+  const normalizeValue = (value: number | string | undefined): number => {
+    if (value === undefined || value === null) return 0;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return value;
+  };
+
   const fetchQuotes = async () => {
     try {
       setLoading(true);
@@ -89,7 +133,6 @@ export const MesDevis = (): JSX.Element => {
         status: selectedStatus || undefined,
       });
       if (response.success && response.data) {
-        // Handle nested quotes structure
         const quotesData = response.data.quotes?.data || response.data.data || [];
         setQuotes(quotesData);
         
@@ -126,28 +169,152 @@ export const MesDevis = (): JSX.Element => {
     setSelectedQuotes(newSelected);
   };
 
-  const getStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      accepted: 'bg-green-100 text-green-700',
-      sent: 'bg-blue-100 text-blue-700',
-      draft: 'bg-gray-100 text-gray-700',
-      rejected: 'bg-red-100 text-red-700',
-      expired: 'bg-orange-100 text-orange-700',
-      cancelled: 'bg-gray-100 text-gray-500',
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedQuotes = useMemo(() => {
+    const sorted = [...quotes];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'quote_number':
+          aValue = a.quote_number || '';
+          bValue = b.quote_number || '';
+          break;
+        case 'issue_date':
+          aValue = new Date(a.issue_date).getTime();
+          bValue = new Date(b.issue_date).getTime();
+          break;
+        case 'client_name':
+          aValue = a.client?.company_name || a.client?.first_name || a.client_name || '';
+          bValue = b.client?.company_name || b.client?.first_name || b.client_name || '';
+          break;
+        case 'total_ht':
+          aValue = normalizeValue(a.total_ht);
+          bValue = normalizeValue(b.total_ht);
+          break;
+        case 'total_tva':
+          aValue = normalizeValue(a.total_tva);
+          bValue = normalizeValue(b.total_tva);
+          break;
+        case 'total_ttc':
+          aValue = normalizeValue(a.total_ttc || a.total_amount);
+          bValue = normalizeValue(b.total_ttc || b.total_amount);
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'type':
+          aValue = a.client?.type || 'particulier';
+          bValue = b.client?.type || 'particulier';
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue, 'fr', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [quotes, sortField, sortDirection]);
+
+  const getStatusColor = (status: string): { bg: string; text: string } => {
+    // Using exact colors from specifications
+    const colors: Record<string, { bg: string; text: string }> = {
+      draft: { bg: '#E3F2FD', text: '#2196F3' }, // Créée - bleu clair
+      sent: { bg: '#E3F2FD', text: '#2196F3' }, // Envoyé - bleu clair
+      accepted: { bg: '#E8F5E9', text: '#4CAF50' }, // Signé ✓ - vert
+      rejected: { bg: 'bg-red-100', text: 'text-red-700' },
+      expired: { bg: 'bg-orange-100', text: 'text-orange-700' },
+      cancelled: { bg: 'bg-gray-100', text: 'text-gray-500' },
     };
     return colors[status] || colors.draft;
   };
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      accepted: 'Accepté',
+      draft: 'Créée',
       sent: 'Envoyé',
-      draft: 'Brouillon',
+      accepted: 'Signé ✓',
       rejected: 'Rejeté',
       expired: 'Expiré',
       cancelled: 'Annulé',
     };
     return labels[status] || status;
+  };
+
+  const getClientType = (quote: Quote): string => {
+    if (quote.client?.type) {
+      return quote.client.type === 'company' ? 'Entreprise' : 'Particulier';
+    }
+    return 'Particulier';
+  };
+
+  const formatCurrency = (value: number | string | undefined): string => {
+    const numValue = normalizeValue(value);
+    return new Intl.NumberFormat('fr-FR', { 
+      style: 'currency', 
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue);
+  };
+
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const csvData = sortedQuotes.map(quote => ({
+        'N°': quote.quote_number,
+        'Date': formatDate(quote.issue_date),
+        'Type': getClientType(quote),
+        'Client': quote.client?.company_name || 
+          `${quote.client?.first_name || ''} ${quote.client?.last_name || ''}`.trim() ||
+          quote.client_name || '',
+        'Montant HT': normalizeValue(quote.total_ht),
+        'Montant TVA': normalizeValue(quote.total_tva),
+        'Montant TTC': normalizeValue(quote.total_ttc || quote.total_amount),
+        'Statut': getStatusLabel(quote.status),
+      }));
+      
+      const csv = [
+        Object.keys(csvData[0]).join(','),
+        ...csvData.map(row => Object.values(row).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `devis_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      success('Devis exportés avec succès');
+    } catch (err) {
+      showError('Erreur', 'Impossible d\'exporter les devis');
+    }
   };
 
   const allSelected = selectedQuotes.size === quotes.length && quotes.length > 0;
@@ -222,235 +389,345 @@ export const MesDevis = (): JSX.Element => {
 
       {/* Filters and Table Card */}
       <div className={`flex flex-col gap-[18px] w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-6`}>
-        {/* Filters and Actions */}
+        {/* Top Action Bar */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-4 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-[#e8f0f7]'} rounded-[10px]`} style={{ width: '400px' }}>
-              <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
-              <Input
-                placeholder={t('dashboard.commercial.mes_devis.search_placeholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchQuotes()}
-                className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
-              />
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    // Export to CSV
-                    const csvData = quotes.map(quote => ({
-                      'N° Devis': quote.quote_number,
-                      'Client': quote.client ? (
-                        quote.client.company_name || 
-                        `${quote.client.first_name || ''} ${quote.client.last_name || ''}`.trim()
-                      ) : (quote.client_name || ''),
-                      'Montant TTC': parseFloat(quote.total_ttc || quote.total_amount || 0),
-                      'Statut': getStatusLabel(quote.status),
-                      'Valide jusqu\'au': quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('fr-FR') : '',
-                    }));
-                    
-                    const csv = [
-                      Object.keys(csvData[0]).join(','),
-                      ...csvData.map(row => Object.values(row).join(','))
-                    ].join('\n');
-                    
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `devis_${new Date().toISOString().split('T')[0]}.csv`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    success('Devis exportés avec succès');
-                  } catch (err) {
-                    showError('Erreur', 'Impossible d\'exporter les devis');
+          {/* Left: Search */}
+          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
+            <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
+            <Input
+              placeholder="Rechercher Par Client"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setTimeout(() => {
+                  if (e.target.value === searchTerm) {
+                    fetchQuotes();
                   }
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-[#6a90b9] bg-transparent hover:bg-[#f5f5f5]'}`}
-              >
-                <Download className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#698eac]'}`} />
-                <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#698eac]'} text-[13px]`}>
-                  {t('common.export')}
-                </span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (selectedQuotes.size === 0) return;
-                  setShowDeleteModal(true);
-                  setQuoteToDelete('bulk');
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-[#fe2f40] bg-transparent hover:bg-[#fff5f5]'}`}
-                disabled={selectedQuotes.size === 0}
-              >
-                <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-[#fe2f40]'}`} />
-                <span className={`font-medium ${isDark ? 'text-red-400' : 'text-[#fe2f40]'} text-[13px]`}>
-                  {t('common.delete')} ({selectedQuotes.size})
-                </span>
-              </Button>
-            </div>
+                }, 500);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && fetchQuotes()}
+              className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
+            />
           </div>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-          >
-            <option value="">{t('dashboard.commercial.mes_devis.all_status')}</option>
-            <option value="draft">{t('dashboard.commercial.mes_devis.status.draft')}</option>
-            <option value="sent">{t('dashboard.commercial.mes_devis.status.sent')}</option>
-            <option value="accepted">{t('dashboard.commercial.mes_devis.status.accepted')}</option>
-            <option value="rejected">{t('dashboard.commercial.mes_devis.status.rejected')}</option>
-            <option value="expired">{t('dashboard.commercial.mes_devis.status.expired')}</option>
-          </select>
+          {/* Right: Sort and Export */}
+          <div className="flex items-center gap-3">
+            {/* Sort Button */}
+            <div className="relative" ref={sortDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
+              >
+                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+                <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Trier
+                </span>
+                <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+              </Button>
+              {showSortDropdown && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-2">
+                    {(['quote_number', 'issue_date', 'client_name', 'total_ttc', 'status'] as SortField[]).map((field) => (
+                      <button
+                        key={field}
+                        onClick={() => {
+                          handleSort(field);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        {field === 'quote_number' && 'N°'}
+                        {field === 'issue_date' && 'Date'}
+                        {field === 'client_name' && 'Client'}
+                        {field === 'total_ttc' && 'Montant TTC'}
+                        {field === 'status' && 'Statut'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Export Excel Button */}
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+              style={{ 
+                borderColor: isDark ? undefined : primaryColor,
+                borderStyle: 'dashed',
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
+              <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                Export Excel
+              </span>
+            </Button>
+          </div>
         </div>
 
-        {quotes.length === 0 ? (
+        {/* Table */}
+        {sortedQuotes.length === 0 ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
-                  <TableHead className="w-[80px] px-[42px]">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                      className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                    />
+                  <TableHead className="w-[50px] px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAllExpanded(!allExpanded)}
+                        className={`p-1 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+                      >
+                        <Menu className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      </button>
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                      />
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Devis N°
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('quote_number')}
+                  >
+                    <div className="flex items-center gap-2">
+                      N°
+                      {sortField === 'quote_number' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Client
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('issue_date')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Date
+                      {sortField === 'issue_date' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Montant
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('type')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Type
+                      {sortField === 'type' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Statut
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('client_name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Client
+                      {sortField === 'client_name' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Valide jusqu'au
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_ht')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant HT
+                      {sortField === 'total_ht' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_tva')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant TVA
+                      {sortField === 'total_tva' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_ttc')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant TTC
+                      {sortField === 'total_ttc' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Statut
+                      {sortField === 'status' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {quotes.map((quote) => (
-                  <TableRow
-                    key={quote.id}
-                    className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-[#007aff14]'} ${selectedQuotes.has(quote.id) ? 'bg-[#007aff14]' : ''}`}
-                  >
-                    <TableCell className="px-[42px]">
-                      <Checkbox
-                        checked={selectedQuotes.has(quote.id)}
-                        onCheckedChange={(checked) => handleSelectQuote(quote.id, checked as boolean)}
-                        className={`w-5 h-5 rounded-md border ${selectedQuotes.has(quote.id) ? 'bg-[#007aff14] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                      />
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {quote.quote_number}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {quote.client ? (
-                        quote.client.company_name || 
-                        `${quote.client.first_name || ''} ${quote.client.last_name || ''}`.trim() ||
-                        'Client'
-                      ) : (quote.client_name || 'N/A')}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        parseFloat(quote.total_ttc || quote.total_amount || 0)
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getStatusColor(quote.status)}>
-                        {getStatusLabel(quote.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('fr-FR') : '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="inline-flex items-center justify-center gap-2.5">
-                        <button 
-                          onClick={() => {
-                            if (subdomain) {
-                              navigate(`/${subdomain}/quote-view/${quote.id}`);
-                            } else {
-                              navigate(`/quote-view/${quote.id}`);
-                            }
+                {sortedQuotes.map((quote) => {
+                  const statusColors = getStatusColor(quote.status);
+                  return (
+                    <TableRow
+                      key={String(quote.id)}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedQuotes.has(String(quote.id)) ? 'bg-blue-50' : ''}`}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <Checkbox
+                          checked={selectedQuotes.has(String(quote.id))}
+                          onCheckedChange={(checked) => handleSelectQuote(String(quote.id), checked as boolean)}
+                          className={`w-5 h-5 rounded-md border ${selectedQuotes.has(String(quote.id)) ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                        />
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {quote.quote_number}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : ''} text-[15px]`}>
+                        <span style={{ color: primaryColor }} className="cursor-pointer hover:underline">
+                          {formatDate(quote.issue_date)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {getClientType(quote)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {quote.client?.company_name || 
+                          `${quote.client?.first_name || ''} ${quote.client?.last_name || ''}`.trim() ||
+                          quote.client_name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(quote.total_ht)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(quote.total_tva)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(quote.total_ttc || quote.total_amount)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge 
+                          className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                          style={{ 
+                            backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
+                            color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
                           }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Voir les détails"
                         >
-                          <Eye className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (subdomain) {
-                              navigate(`/${subdomain}/quote-view/${quote.id}`);
-                            } else {
-                              navigate(`/quote-view/${quote.id}`);
-                            }
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            try {
-                              const response = await commercialService.convertQuoteToInvoice(String(quote.id));
-                              
-                              if (response.success) {
-                                success('Devis converti en facture avec succès');
-                                fetchQuotes();
+                          {quote.status === 'accepted' && <Check className="w-3 h-3" />}
+                          {getStatusLabel(quote.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => {
+                              if (subdomain) {
+                                navigate(`/${subdomain}/quote-view/${quote.id}`);
                               } else {
-                                showError('Erreur', 'Impossible de convertir le devis');
+                                navigate(`/quote-view/${quote.id}`);
                               }
-                            } catch (err: any) {
-                              showError('Erreur', err.message || 'Impossible de convertir en facture');
-                            }
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-green-50'}`}
-                          title="Convertir en Facture"
-                        >
-                          <ArrowRight className="w-4 h-4 text-green-500" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setQuoteToDelete(String(quote.id));
-                            setShowDeleteModal(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all hover:bg-red-50`}
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Modifier"
+                          >
+                            <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setQuoteToDelete(String(quote.id));
+                              setShowDeleteModal(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Supprimer"
+                          >
+                            <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 
             {/* Totals Summary */}
-            {quotes.length > 0 && (
+            {sortedQuotes.length > 0 && (
               <div className={`mt-6 ml-auto w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
@@ -458,8 +735,8 @@ export const MesDevis = (): JSX.Element => {
                       Total HT
                     </span>
                     <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        quotes.reduce((sum, quote) => sum + parseFloat(String(quote.total_ht || 0)), 0)
+                      {formatCurrency(
+                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
                       )}
                     </span>
                   </div>
@@ -468,8 +745,8 @@ export const MesDevis = (): JSX.Element => {
                       TVA
                     </span>
                     <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        quotes.reduce((sum, quote) => sum + parseFloat(String(quote.total_tva || 0)), 0)
+                      {formatCurrency(
+                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
                       )}
                     </span>
                   </div>
@@ -479,8 +756,8 @@ export const MesDevis = (): JSX.Element => {
                         Total TTC
                       </span>
                       <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                          quotes.reduce((sum, quote) => sum + parseFloat(String(quote.total_ttc || quote.total_amount || 0)), 0)
+                        {formatCurrency(
+                          sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
                         )}
                       </span>
                     </div>
@@ -491,6 +768,7 @@ export const MesDevis = (): JSX.Element => {
           </div>
         )}
 
+        {/* Pagination */}
         {pagination.total_pages > 0 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <Button
@@ -534,12 +812,11 @@ export const MesDevis = (): JSX.Element => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={(extractedData) => {
-          // Navigate to creation page with pre-filled data from OCR
-          // TODO: Pass extractedData as state when navigating
+          // Navigate to creation page with pre-filled data
           if (subdomain) {
-            navigate(`/${subdomain}/quote-creation`);
+            navigate(`/${subdomain}/quote-creation`, { state: { prefillData: extractedData } });
           } else {
-            navigate('/quote-creation');
+            navigate('/quote-creation', { state: { prefillData: extractedData } });
           }
         }}
       />

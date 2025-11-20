@@ -15,9 +15,6 @@ class Student extends Model
     protected $table = 'students';
     protected $fillable = [
         'user_id',
-        'organization_id',
-        'company_id',          // ✅ AJOUTER ICI
-        'funder_id',
         'country_id',
         'province_id',
         'state_id',
@@ -28,22 +25,11 @@ class Student extends Model
         'postal_code',
         'address',
         'about_me',
-        'job_title',
-        'employee_number',
         'gender',
-        'birth_date',
-        'birth_place',
-        'nationality',
-        'social_security_number',
         'status',
-        'has_disability',
-        'disability_type',
+        'organization_id',
     ];
 
-    // ========================================
-    // RELATIONS
-    // ========================================
-    
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -52,17 +38,6 @@ class Student extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class, 'organization_id');
-    }
-
-    // ✅ NOUVELLE RELATION COMPANY
-    public function company()
-    {
-        return $this->belongsTo(Company::class, 'company_id');
-    }
-
-    public function funder()
-    {
-        return $this->belongsTo(Funder::class, 'funder_id');
     }
 
     public function country()
@@ -80,58 +55,11 @@ class Student extends Model
         return $this->belongsTo(City::class, 'city_id');
     }
 
-    public function certificates()
-    {
-        return $this->hasMany(Student_certificate::class, 'user_id', 'user_id');
-    }
-
-    public function enrollments()
-    {
-        return $this->hasMany(Enrollment::class, 'user_id', 'user_id');
-    }
-
-    public function connectionLogs()
-    {
-        return $this->hasMany(UserConnectionLog::class, 'user_id', 'user_id');
-    }
-
-    public function administrativeFolder()
-    {
-        return $this->hasOne(DocumentFolder::class, 'user_id', 'user_id')
-            ->where('is_system', true)
-            ->where('name', 'like', 'Administratif%');
-    }
-
-    // ========================================
-    // ACCESSEURS
-    // ========================================
-    
     public function getNameAttribute()
     {
         return $this->first_name .' '. $this->last_name;
     }
-    
-    public function getFullNameAttribute()
-    {
-        return "{$this->first_name} {$this->last_name}";
-    }
 
-    public function getAvatarUrlAttribute()
-    {
-        return $this->user && $this->user->image 
-            ? asset('storage/' . $this->user->image)
-            : asset('images/default-avatar.png');
-    }
-
-    public function getRegistrationDateAttribute()
-    {
-        return $this->created_at;
-    }
-
-    // ========================================
-    // SCOPES
-    // ========================================
-    
     public function scopeApproved($query)
     {
         return $query->where('status', 1);
@@ -142,43 +70,7 @@ class Student extends Model
         return $query->where('status', 0);
     }
 
-    public function scopeActive($query)
-    {
-        return $query->where('status', 1);
-    }
 
-    public function scopeByOrganization($query, $organizationId)
-    {
-        return $query->where('organization_id', $organizationId);
-    }
-
-    public function scopeSearch($query, $search)
-    {
-        return $query->where(function ($q) use ($search) {
-            $q->where('first_name', 'like', "%{$search}%")
-              ->orWhere('last_name', 'like', "%{$search}%")
-              ->orWhere('phone_number', 'like', "%{$search}%")
-              ->orWhereHas('user', function ($userQuery) use ($search) {
-                  $userQuery->where('email', 'like', "%{$search}%");
-              });
-        });
-    }
-
-    public function scopeByDateRange($query, $dateFrom, $dateTo)
-    {
-        if ($dateFrom) {
-            $query->whereDate('created_at', '>=', $dateFrom);
-        }
-        if ($dateTo) {
-            $query->whereDate('created_at', '<=', $dateTo);
-        }
-        return $query;
-    }
-
-    // ========================================
-    // BOOT
-    // ========================================
-    
     protected static function boot()
     {
         parent::boot();
@@ -190,7 +82,7 @@ class Student extends Model
     // ========================================
     // MÉTHODES STATISTIQUES
     // ========================================
-    
+
     public function getTotalConnectionTime()
     {
         return $this->connectionLogs()
@@ -277,11 +169,11 @@ class Student extends Model
             ->map(function ($enrollment) {
                 $course = $enrollment->course;
                 if (!$course) return null;
-                
+
                 $courseSessionInstances = \DB::table('session_instances')
                     ->where('course_uuid', $course->uuid)
                     ->pluck('uuid');
-                
+
                 $totalSessions = $courseSessionInstances->count();
                 $completedSessions = SessionInstanceAttendance::where('user_id', $this->user_id)
                     ->whereIn('instance_uuid', $courseSessionInstances)
@@ -299,8 +191,8 @@ class Student extends Model
                     'duration' => $course->duration ?? 0,
                     'total_sessions' => $totalSessions,
                     'completed_sessions' => $completedSessions,
-                    'progress_percentage' => $totalSessions > 0 
-                        ? round(($completedSessions / $totalSessions) * 100, 2) 
+                    'progress_percentage' => $totalSessions > 0
+                        ? round(($completedSessions / $totalSessions) * 100, 2)
                         : 0,
                     'is_completed' => $enrollment->status == 1 && $completedSessions >= $totalSessions,
                 ];

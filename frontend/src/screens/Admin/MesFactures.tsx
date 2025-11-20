@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
@@ -9,12 +9,24 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
 import { Invoice } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
-import { InvoiceCreationModal } from '../../components/CommercialDashboard/InvoiceCreationModal';
 import { InvoiceViewModal } from '../../components/CommercialDashboard/InvoiceViewModal';
 import { InvoiceImportModal } from '../../components/CommercialDashboard/InvoiceImportModal';
 import { ConfirmationModal as ConfirmationModalComponent } from '../../components/ui/confirmation-modal';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Download, Eye, Edit, Trash2, Receipt, FileUp, Check } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  Download, 
+  Edit, 
+  Trash2, 
+  Receipt, 
+  FileUp, 
+  ChevronDown,
+  ChevronUp,
+  Menu,
+  ArrowUpDown,
+  FileSpreadsheet
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,6 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+
+type SortField = 'invoice_number' | 'issue_date' | 'client_name' | 'total_ht' | 'total_tva' | 'total_ttc' | 'status' | 'type';
+type SortDirection = 'asc' | 'desc';
 
 export const MesFactures = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -39,18 +54,36 @@ export const MesFactures = (): JSX.Element => {
   const [selectedStatus, setSelectedStatus] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('issue_date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [allExpanded, setAllExpanded] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSortDropdown]);
 
   useEffect(() => {
     fetchInvoices();
-  }, [page, selectedStatus]);
+  }, [page, selectedStatus, searchTerm]);
 
   const confirmDeleteInvoice = async () => {
     if (!invoiceToDelete) return;
@@ -58,7 +91,6 @@ export const MesFactures = (): JSX.Element => {
     setDeleting(true);
     try {
       if (invoiceToDelete === 'bulk') {
-        // Delete multiple invoices
         const deletePromises = Array.from(selectedInvoices).map(id =>
           commercialService.deleteInvoice(id)
         );
@@ -66,7 +98,6 @@ export const MesFactures = (): JSX.Element => {
         success(`${selectedInvoices.size} facture(s) supprimée(s) avec succès`);
         setSelectedInvoices(new Set());
       } else {
-        // Delete single invoice
         await commercialService.deleteInvoice(invoiceToDelete);
         success('Facture supprimée avec succès');
       }
@@ -95,7 +126,6 @@ export const MesFactures = (): JSX.Element => {
         status: selectedStatus || undefined,
       });
       if (response.success && response.data) {
-        // Handle nested invoices structure
         const responseData = response.data as any;
         const invoicesData = responseData.invoices?.data || responseData.data?.data || responseData.data || [];
         setInvoices(invoicesData);
@@ -133,26 +163,149 @@ export const MesFactures = (): JSX.Element => {
     setSelectedInvoices(newSelected);
   };
 
-  const getStatusColor = (status: string): string => {
-    const colors: Record<string, string> = {
-      paid: 'bg-green-100 text-green-700',
-      sent: 'bg-blue-100 text-blue-700',
-      draft: 'bg-gray-100 text-gray-700',
-      overdue: 'bg-red-100 text-red-700',
-      cancelled: 'bg-gray-100 text-gray-500',
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedInvoices = useMemo(() => {
+    const sorted = [...invoices];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'invoice_number':
+          aValue = a.invoice_number || '';
+          bValue = b.invoice_number || '';
+          break;
+        case 'issue_date':
+          aValue = new Date(a.issue_date).getTime();
+          bValue = new Date(b.issue_date).getTime();
+          break;
+        case 'client_name':
+          aValue = a.client?.company_name || a.client?.first_name || a.client_name || '';
+          bValue = b.client?.company_name || b.client?.first_name || b.client_name || '';
+          break;
+        case 'total_ht':
+          aValue = parseFloat(String(a.total_ht || 0));
+          bValue = parseFloat(String(b.total_ht || 0));
+          break;
+        case 'total_tva':
+          aValue = parseFloat(String(a.total_tva || 0));
+          bValue = parseFloat(String(b.total_tva || 0));
+          break;
+        case 'total_ttc':
+          aValue = parseFloat(String(a.total_ttc || a.total_amount || 0));
+          bValue = parseFloat(String(b.total_ttc || b.total_amount || 0));
+          break;
+        case 'status':
+          aValue = a.status;
+          bValue = b.status;
+          break;
+        case 'type':
+          aValue = a.client?.type || 'particulier';
+          bValue = b.client?.type || 'particulier';
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue, 'fr', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [invoices, sortField, sortDirection]);
+
+  const getStatusColor = (status: string): { bg: string; text: string } => {
+    const colors: Record<string, { bg: string; text: string }> = {
+      paid: { bg: 'bg-teal-100', text: 'text-teal-700' }, // Vert menthe/turquoise
+      sent: { bg: 'bg-blue-100', text: 'text-blue-700' },
+      draft: { bg: 'bg-gray-100', text: 'text-gray-700' },
+      overdue: { bg: 'bg-pink-100', text: 'text-pink-700' }, // Rose/rouge clair pour impayé
+      cancelled: { bg: 'bg-gray-100', text: 'text-gray-500' },
     };
     return colors[status] || colors.draft;
   };
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      paid: 'Payé',
-      sent: 'Envoyé',
+      paid: 'Payée',
+      sent: 'Envoyée',
       draft: 'Brouillon',
-      overdue: 'Impayé',
-      cancelled: 'Annulé',
+      overdue: 'Impayée',
+      cancelled: 'Annulée',
     };
     return labels[status] || status;
+  };
+
+  const getClientType = (invoice: Invoice): string => {
+    if (invoice.client?.type) {
+      return invoice.client.type === 'company' ? 'Entreprise' : 'Particulier';
+    }
+    return 'Particulier';
+  };
+
+  const formatCurrency = (value: number | string | undefined): string => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : (value || 0);
+    return new Intl.NumberFormat('fr-FR', { 
+      style: 'currency', 
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue);
+  };
+
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const csvData = invoices.map(inv => ({
+        'N°': inv.invoice_number,
+        'Date': formatDate(inv.issue_date),
+        'Type': getClientType(inv),
+        'Client': inv.client?.company_name || 
+          `${inv.client?.first_name || ''} ${inv.client?.last_name || ''}`.trim() ||
+          inv.client_name || '',
+        'Montant HT': parseFloat(String(inv.total_ht || 0)),
+        'Montant TVA': parseFloat(String(inv.total_tva || 0)),
+        'Montant TTC': parseFloat(String(inv.total_ttc || inv.total_amount || 0)),
+        'Statut': getStatusLabel(inv.status),
+      }));
+      
+      const csv = [
+        Object.keys(csvData[0]).join(','),
+        ...csvData.map(row => Object.values(row).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `factures_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      success('Factures exportées avec succès');
+    } catch (err) {
+      showError('Erreur', 'Impossible d\'exporter les factures');
+    }
   };
 
   const allSelected = selectedInvoices.size === invoices.length && invoices.length > 0;
@@ -227,241 +380,339 @@ export const MesFactures = (): JSX.Element => {
 
       {/* Filters and Table Card */}
       <div className={`flex flex-col gap-[18px] w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-6`}>
-        {/* Filters and Actions */}
+        {/* Top Action Bar */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-4 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-[#e8f0f7]'} rounded-[10px]`} style={{ width: '400px' }}>
-              <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
-              <Input
-                placeholder={t('dashboard.commercial.mes_factures.search_placeholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && fetchInvoices()}
-                className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
-              />
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    // Export to CSV
-                    const csvData = invoices.map(inv => ({
-                      'N° Facture': inv.invoice_number,
-                      'Client': inv.client ? (
-                        inv.client.company_name || 
-                        `${inv.client.first_name || ''} ${inv.client.last_name || ''}`.trim()
-                      ) : (inv.client_name || ''),
-                      'Montant TTC': parseFloat(String(inv.total_ttc || inv.total_amount || 0)),
-                      'Statut': getStatusLabel(inv.status),
-                      'Date d\'échéance': inv.due_date ? new Date(inv.due_date).toLocaleDateString('fr-FR') : '',
-                    }));
-                    
-                    const csv = [
-                      Object.keys(csvData[0]).join(','),
-                      ...csvData.map(row => Object.values(row).join(','))
-                    ].join('\n');
-                    
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `factures_${new Date().toISOString().split('T')[0]}.csv`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    success('Factures exportées avec succès');
-                  } catch (err) {
-                    showError('Erreur', 'Impossible d\'exporter les factures');
+          {/* Left: Search */}
+          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
+            <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
+            <Input
+              placeholder="Rechercher Par Client"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                // Debounce search
+                setTimeout(() => {
+                  if (e.target.value === searchTerm) {
+                    fetchInvoices();
                   }
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-[#6a90b9] bg-transparent hover:bg-[#f5f5f5]'}`}
-              >
-                <Download className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#698eac]'}`} />
-                <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#698eac]'} text-[13px]`}>
-                  {t('common.export')}
-                </span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (selectedInvoices.size === 0) return;
-                  setShowDeleteModal(true);
-                  setInvoiceToDelete('bulk');
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-[#fe2f40] bg-transparent hover:bg-[#fff5f5]'}`}
-                disabled={selectedInvoices.size === 0}
-              >
-                <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-[#fe2f40]'}`} />
-                <span className={`font-medium ${isDark ? 'text-red-400' : 'text-[#fe2f40]'} text-[13px]`}>
-                  {t('common.delete')} ({selectedInvoices.size})
-                </span>
-              </Button>
-            </div>
+                }, 500);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && fetchInvoices()}
+              className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
+            />
           </div>
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-          >
-            <option value="">{t('dashboard.commercial.mes_factures.all_status')}</option>
-            <option value="draft">{t('dashboard.commercial.mes_factures.status.draft')}</option>
-            <option value="sent">{t('dashboard.commercial.mes_factures.status.sent')}</option>
-            <option value="paid">{t('dashboard.commercial.mes_factures.status.paid')}</option>
-            <option value="overdue">{t('dashboard.commercial.mes_factures.status.overdue')}</option>
-          </select>
+          {/* Right: Sort and Export */}
+          <div className="flex items-center gap-3">
+            {/* Sort Button */}
+            <div className="relative" ref={sortDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
+              >
+                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+                <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Trier
+                </span>
+                <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+              </Button>
+              {showSortDropdown && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-2">
+                    {(['invoice_number', 'issue_date', 'client_name', 'total_ttc', 'status'] as SortField[]).map((field) => (
+                      <button
+                        key={field}
+                        onClick={() => {
+                          handleSort(field);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        {field === 'invoice_number' && 'N°'}
+                        {field === 'issue_date' && 'Date'}
+                        {field === 'client_name' && 'Client'}
+                        {field === 'total_ttc' && 'Montant TTC'}
+                        {field === 'status' && 'Statut'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Export Excel Button */}
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+              style={{ 
+                borderColor: isDark ? undefined : primaryColor,
+                borderStyle: 'dashed',
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
+              <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                Export Excel
+              </span>
+            </Button>
+          </div>
         </div>
 
         {/* Table */}
-        {invoices.length === 0 ? (
+        {sortedInvoices.length === 0 ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
-                  <TableHead className="w-[80px] px-[42px]">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                      className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                    />
+                  <TableHead className="w-[50px] px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAllExpanded(!allExpanded)}
+                        className={`p-1 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+                      >
+                        <Menu className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      </button>
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                      />
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Facture N°
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('invoice_number')}
+                  >
+                    <div className="flex items-center gap-2">
+                      N°
+                      {sortField === 'invoice_number' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Client
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('issue_date')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Date
+                      {sortField === 'issue_date' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Montant
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('type')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Type
+                      {sortField === 'type' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Statut
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('client_name')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Client
+                      {sortField === 'client_name' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Date d'échéance
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_ht')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant HT
+                      {sortField === 'total_ht' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_tva')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant TVA
+                      {sortField === 'total_tva' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('total_ttc')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Montant TTC
+                      {sortField === 'total_ttc' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      Statut
+                      {sortField === 'status' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow
-                    key={String(invoice.id)}
-                    className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-[#007aff14]'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-[#007aff14]' : ''}`}
-                  >
-                    <TableCell className="px-[42px]">
-                      <Checkbox
-                        checked={selectedInvoices.has(String(invoice.id))}
-                        onCheckedChange={(checked) => handleSelectInvoice(String(invoice.id), checked as boolean)}
-                        className={`w-5 h-5 rounded-md border ${selectedInvoices.has(String(invoice.id)) ? 'bg-[#007aff14] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                      />
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {invoice.invoice_number}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {invoice.client ? (
-                        invoice.client.company_name || 
-                        `${invoice.client.first_name || ''} ${invoice.client.last_name || ''}`.trim() ||
-                        'Client'
-                      ) : (invoice.client_name || 'N/A')}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        parseFloat(String(invoice.total_ttc || invoice.total_amount || 0))
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getStatusColor(invoice.status)}>
-                        {getStatusLabel(invoice.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('fr-FR') : '-'}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="inline-flex items-center justify-center gap-2.5">
-                        <button 
-                          onClick={() => {
-                            if (subdomain) {
-                              navigate(`/${subdomain}/invoice-view/${invoice.id}`);
-                            } else {
-                              navigate(`/invoice-view/${invoice.id}`);
-                            }
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Voir les détails"
-                        >
-                          <Eye className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (subdomain) {
-                              navigate(`/${subdomain}/invoice-view/${invoice.id}`);
-                            } else {
-                              navigate(`/invoice-view/${invoice.id}`);
-                            }
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            try {
-                              // Quick action: Mark as paid if draft/sent, or mark as sent if draft
-                              const newStatus = invoice.status === 'draft' ? 'sent' : invoice.status === 'sent' ? 'paid' : 'paid';
-                              const response = await commercialService.updateInvoice(String(invoice.id), { status: newStatus } as any);
-                              
-                              if (response.success) {
-                                const statusLabels: Record<string, string> = {
-                                  sent: 'Envoyé',
-                                  paid: 'Payé',
-                                };
-                                success(`Facture marquée comme "${statusLabels[newStatus]}"`);
-                                fetchInvoices();
+                {sortedInvoices.map((invoice) => {
+                  const statusColors = getStatusColor(invoice.status);
+                  return (
+                    <TableRow
+                      key={String(invoice.id)}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-blue-50' : ''}`}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <Checkbox
+                          checked={selectedInvoices.has(String(invoice.id))}
+                          onCheckedChange={(checked) => handleSelectInvoice(String(invoice.id), checked as boolean)}
+                          className={`w-5 h-5 rounded-md border ${selectedInvoices.has(String(invoice.id)) ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                        />
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {invoice.invoice_number}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : ''} text-[15px]`}>
+                        <span style={{ color: primaryColor }} className="cursor-pointer hover:underline">
+                          {formatDate(invoice.issue_date)}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {getClientType(invoice)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {invoice.client?.company_name || 
+                          `${invoice.client?.first_name || ''} ${invoice.client?.last_name || ''}`.trim() ||
+                          invoice.client_name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(invoice.total_ht)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(invoice.total_tva)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${isDark ? 'bg-gray-700' : 'bg-gray-100'} ${isDark ? 'text-gray-300' : 'text-gray-800'} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {formatCurrency(invoice.total_ttc || invoice.total_amount)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${statusColors.bg} ${statusColors.text} rounded-full px-3 py-1 font-medium text-sm`}>
+                          {getStatusLabel(invoice.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => {
+                              if (subdomain) {
+                                navigate(`/${subdomain}/invoice-view/${invoice.id}`);
                               } else {
-                                showError('Erreur', 'Impossible de changer le statut');
+                                navigate(`/invoice-view/${invoice.id}`);
                               }
-                            } catch (err: any) {
-                              showError('Erreur', err.message || 'Impossible de changer le statut');
-                            }
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-green-50'}`}
-                          title={invoice.status === 'draft' ? 'Marquer comme Envoyé' : 'Marquer comme Payé'}
-                        >
-                          <Check className="w-4 h-4 text-green-500" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setInvoiceToDelete(invoice.id);
-                            setShowDeleteModal(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all hover:bg-red-50`}
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Modifier"
+                          >
+                            <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setInvoiceToDelete(String(invoice.id));
+                              setShowDeleteModal(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Supprimer"
+                          >
+                            <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
 
             {/* Totals Summary */}
-            {invoices.length > 0 && (
+            {sortedInvoices.length > 0 && (
               <div className={`mt-6 ml-auto w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
@@ -469,8 +720,8 @@ export const MesFactures = (): JSX.Element => {
                       Total HT
                     </span>
                     <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        invoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_ht || 0)), 0)
+                      {formatCurrency(
+                        sortedInvoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_ht || 0)), 0)
                       )}
                     </span>
                   </div>
@@ -479,8 +730,8 @@ export const MesFactures = (): JSX.Element => {
                       TVA
                     </span>
                     <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        invoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_tva || 0)), 0)
+                      {formatCurrency(
+                        sortedInvoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_tva || 0)), 0)
                       )}
                     </span>
                   </div>
@@ -490,8 +741,8 @@ export const MesFactures = (): JSX.Element => {
                         Total TTC
                       </span>
                       <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                          invoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_ttc || inv.total_amount || 0)), 0)
+                        {formatCurrency(
+                          sortedInvoices.reduce((sum, inv) => sum + parseFloat(String(inv.total_ttc || inv.total_amount || 0)), 0)
                         )}
                       </span>
                     </div>
@@ -528,36 +779,6 @@ export const MesFactures = (): JSX.Element => {
         )}
       </div>
 
-      {/* Invoice Creation Modal */}
-      <InvoiceCreationModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedInvoice(null);
-        }}
-        onSave={() => {
-          setIsModalOpen(false);
-          setSelectedInvoice(null);
-          fetchInvoices();
-          success('Facture créée avec succès');
-        }}
-      />
-
-      {/* Invoice Edit Modal */}
-      <InvoiceCreationModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedInvoice(null);
-        }}
-        invoice={selectedInvoice}
-        onSave={() => {
-          setIsEditModalOpen(false);
-          setSelectedInvoice(null);
-          fetchInvoices();
-          success('Facture modifiée avec succès');
-        }}
-      />
 
       {/* Invoice View Modal */}
       <InvoiceViewModal
@@ -589,9 +810,12 @@ export const MesFactures = (): JSX.Element => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onSuccess={(extractedData) => {
-          // Open creation modal with pre-filled data from OCR
-          setSelectedInvoice(extractedData);
-          setIsModalOpen(true);
+          // Navigate to invoice creation page with pre-filled data
+          if (subdomain) {
+            navigate(`/${subdomain}/invoice-creation`, { state: { prefillData: extractedData } });
+          } else {
+            navigate('/invoice-creation', { state: { prefillData: extractedData } });
+          }
         }}
       />
     </div>

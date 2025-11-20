@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
@@ -9,7 +9,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useToast } from '../../components/ui/toast';
 import { pusherService } from '../../services/pusher';
 import { useConversations, useConversationMessages, useConversationFiles, useUserSearch } from '../../hooks/useChat';
-import { createConversation as createConversationAPI } from '../../services/chat';
+import { createConversation as createConversationAPI, getConversations } from '../../services/chat';
 import { 
   Loader2, 
   Search, 
@@ -135,12 +135,58 @@ export const Messagerie = (): JSX.Element => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const getAvatarUrl = (avatar?: string) => {
-    if (!avatar) return null;
-    // Si l'avatar est déjà une URL complète, la retourner
-    if (avatar.startsWith('http')) return avatar;
-    // Sinon, construire l'URL complète
-    return `${window.location.origin}${avatar}`;
+  const getAvatarUrl = (user?: ChatUser | { avatar?: string; image?: string; image_url?: string } | string) => {
+    // Si c'est une string, traiter comme avant
+    if (typeof user === 'string') {
+      if (!user || user.trim() === '') return null;
+      if (user.startsWith('http')) return user;
+      // Si c'est un chemin relatif, construire l'URL complète
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      if (user.startsWith('uploads/') || user.startsWith('/uploads/')) {
+        return `${baseUrl}/storage/${user.replace(/^\/+/, '')}`;
+      }
+      return `${baseUrl}${user.startsWith('/') ? user : '/' + user}`;
+    }
+    
+    // Si c'est un objet utilisateur, vérifier tous les champs possibles
+    if (user && typeof user === 'object') {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      
+      // Priorité 1: image_url (URL complète depuis l'API)
+      if (user.image_url && user.image_url.trim() !== '') {
+        if (user.image_url.startsWith('http')) return user.image_url;
+        // Si c'est un chemin relatif, construire l'URL
+        if (user.image_url.startsWith('uploads/') || user.image_url.startsWith('/uploads/')) {
+          return `${baseUrl}/storage/${user.image_url.replace(/^\/+/, '')}`;
+        }
+        return `${baseUrl}${user.image_url.startsWith('/') ? user.image_url : '/' + user.image_url}`;
+      }
+      
+      // Priorité 2: image (chemin relatif)
+      if (user.image && user.image.trim() !== '') {
+        if (user.image.startsWith('http')) return user.image;
+        // Normaliser les slashes
+        let imagePath = user.image.replace(/\\/g, '/').replace(/^\/+/, '');
+        // Si commence par uploads/, ajouter /storage/
+        if (imagePath.startsWith('uploads/')) {
+          return `${baseUrl}/storage/${imagePath}`;
+        }
+        return `${baseUrl}/${imagePath}`;
+      }
+      
+      // Priorité 3: avatar (ancien champ)
+      if (user.avatar && user.avatar.trim() !== '') {
+        if (user.avatar.startsWith('http')) return user.avatar;
+        // Normaliser les slashes
+        let avatarPath = user.avatar.replace(/\\/g, '/').replace(/^\/+/, '');
+        if (avatarPath.startsWith('uploads/')) {
+          return `${baseUrl}/storage/${avatarPath}`;
+        }
+        return `${baseUrl}/${avatarPath}`;
+      }
+    }
+    
+    return null;
   };
 
   const formatTime = (dateString: string) => {
@@ -235,16 +281,260 @@ export const Messagerie = (): JSX.Element => {
   const handleCreateConversation = async () => {
     if (selectedUsers.length === 0) return;
     
+    const selectedUserId = selectedUsers[0].id;
+    const selectedUserName = selectedUsers[0].name;
+    
+    // Fermer le modal immédiatement pour une meilleure UX
+    setShowNewDiscussionModal(false);
+    setSelectedUsers([]);
+    setUserSearchQuery('');
+    
     try {
-      const conversation = await createConversation(selectedUsers[0].id);
-      setSelectedConversation(conversation);
-      setShowNewDiscussionModal(false);
-      setSelectedUsers([]);
-      setUserSearchQuery('');
-      refreshConversations();
-      success('Conversation créée avec succès');
+      console.log(`🔵 Creating conversation with user ID: ${selectedUserId} (${selectedUserName})`);
+      
+      // Appeler l'API pour créer/obtenir la conversation
+      // NOTE: L'API peut retourner une mauvaise conversation, donc on l'ignore
+      await createConversation(selectedUserId);
+      
+      // TOUJOURS ignorer la réponse de l'API et chercher directement la bonne conversation
+      // L'API retourne parfois une mauvaise conversation (ex: marwen ayari au lieu de l'utilisateur choisi)
+      console.log(`🔄 Reloading conversations to find correct one...`);
+      
+      // Attendre un peu pour que le backend mette à jour les données
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Recharger les conversations depuis l'API
+      await refreshConversations();
+      
+      // Attendre encore un peu pour que le state soit mis à jour
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Recharger directement depuis l'API pour être sûr d'avoir les dernières données
+      const data = await getConversations({ type: 'all', per_page: 100 });
+      console.log(`📋 Loaded ${data.conversations.length} conversations`);
+      console.log(`🔍 Looking for conversation with participant_id: ${selectedUserId} (${selectedUserName})`);
+      
+      // Afficher toutes les conversations individuelles pour déboguer
+      const individualConversations = data.conversations.filter(c => c.type === 'individual');
+      console.log(`📊 Individual conversations found: ${individualConversations.length}`);
+      console.log(`📋 All individual conversations:`, individualConversations.map(c => ({
+        id: c.id,
+        uuid: c.uuid,
+        participant_id: c.participant?.id,
+        participant_name: c.participant?.name,
+        participant_email: c.participant?.email
+      })));
+      
+      // Chercher la conversation avec le bon utilisateur (par ID d'abord, puis par nom si nécessaire)
+      let correctConversation = data.conversations.find(
+        conv => {
+          const isIndividual = conv.type === 'individual';
+          const participantIdMatch = conv.participant?.id === selectedUserId;
+          const match = isIndividual && participantIdMatch;
+          
+          if (isIndividual) {
+            console.log(`🔎 Checking conversation ${conv.id}:`, {
+              participant_id: conv.participant?.id,
+              participant_name: conv.participant?.name,
+              matches_id: participantIdMatch,
+              looking_for_id: selectedUserId
+            });
+          }
+          
+          if (match) {
+            console.log(`✅ Found matching conversation by ID:`, {
+              id: conv.id,
+              uuid: conv.uuid,
+              participant_id: conv.participant?.id,
+              participant_name: conv.participant?.name
+            });
+          }
+          return match;
+        }
+      );
+      
+      // Si on ne trouve pas par ID, essayer par nom (au cas où l'ID serait incorrect)
+      if (!correctConversation) {
+        console.log(`⚠️ Not found by ID, trying by name: "${selectedUserName}"`);
+        const nameMatches = data.conversations.filter(
+          conv => conv.type === 'individual' && conv.participant?.name
+        );
+        console.log(`🔍 Available participant names:`, nameMatches.map(c => c.participant?.name));
+        
+        correctConversation = data.conversations.find(
+          conv => {
+            const isIndividual = conv.type === 'individual';
+            const participantName = conv.participant?.name?.toLowerCase() || '';
+            const searchName = selectedUserName.toLowerCase();
+            const match = isIndividual && participantName === searchName;
+            
+            if (isIndividual && participantName) {
+              console.log(`🔎 Checking by name - "${participantName}" vs "${searchName}":`, match);
+            }
+            
+            if (match) {
+              console.log(`✅ Found matching conversation by name:`, {
+                id: conv.id,
+                uuid: conv.uuid,
+                participant_id: conv.participant?.id,
+                participant_name: conv.participant?.name
+              });
+            }
+            return match;
+          }
+        );
+      }
+      
+      if (correctConversation) {
+        console.log(`✅ Selecting conversation with ${selectedUserName}`);
+        
+        // CORRECTION: Le backend retourne parfois le mauvais nom d'utilisateur
+        // On corrige le nom du participant avec celui de l'utilisateur sélectionné
+        if (correctConversation.participant && correctConversation.participant.id === selectedUserId) {
+          // Vérifier si le nom ne correspond pas
+          if (correctConversation.participant.name !== selectedUserName) {
+            console.warn(`⚠️ Name mismatch detected: API returned "${correctConversation.participant.name}" but expected "${selectedUserName}". Correcting...`);
+            // Créer une copie de la conversation avec le bon nom
+            correctConversation = {
+              ...correctConversation,
+              participant: {
+                ...correctConversation.participant,
+                name: selectedUserName
+              }
+            };
+          }
+        }
+        
+        setSelectedConversation(correctConversation);
+        success(`Conversation avec ${selectedUserName} ouverte`);
+      } else {
+        console.error(`❌ Could not find conversation with user ${selectedUserId} (${selectedUserName})`);
+        console.log(`📋 All conversations summary:`, {
+          total: data.conversations.length,
+          individual: data.conversations.filter(c => c.type === 'individual').length,
+          group: data.conversations.filter(c => c.type === 'group').length,
+          individual_details: data.conversations
+            .filter(c => c.type === 'individual')
+            .map(c => ({
+              id: c.id,
+              participant_id: c.participant?.id,
+              participant_name: c.participant?.name,
+              participant_email: c.participant?.email
+            }))
+        });
+        
+        // Essayer une dernière fois avec un délai plus long (peut-être que le backend met du temps à créer)
+        console.log(`🔄 Retrying after longer delay (2 seconds)...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const retryData = await getConversations({ type: 'all', per_page: 100 });
+        console.log(`🔄 Retry: Loaded ${retryData.conversations.length} conversations`);
+        
+        let retryConversation = retryData.conversations.find(
+          conv => {
+            const match = conv.type === 'individual' && conv.participant?.id === selectedUserId;
+            if (match) {
+              console.log(`✅ Found conversation on retry by ID`);
+            }
+            return match;
+          }
+        );
+        
+        // Si pas trouvé par ID, essayer par nom
+        if (!retryConversation) {
+          console.log(`⚠️ Retry: Not found by ID, trying by name`);
+          retryConversation = retryData.conversations.find(
+            conv => {
+              const match = conv.type === 'individual' && 
+                       conv.participant?.name?.toLowerCase() === selectedUserName.toLowerCase();
+              if (match) {
+                console.log(`✅ Found conversation on retry by name`);
+              }
+              return match;
+            }
+          );
+        }
+        
+        if (retryConversation) {
+          console.log(`✅ Found conversation on retry:`, {
+            id: retryConversation.id,
+            participant_id: retryConversation.participant?.id,
+            participant_name: retryConversation.participant?.name
+          });
+          
+          // CORRECTION: Corriger le nom si nécessaire
+          if (retryConversation.participant && retryConversation.participant.id === selectedUserId) {
+            if (retryConversation.participant.name !== selectedUserName) {
+              console.warn(`⚠️ Retry: Name mismatch detected. Correcting...`);
+              retryConversation = {
+                ...retryConversation,
+                participant: {
+                  ...retryConversation.participant,
+                  name: selectedUserName
+                }
+              };
+            }
+          }
+          
+          setSelectedConversation(retryConversation);
+          success(`Conversation avec ${selectedUserName} ouverte`);
+        } else {
+          console.error(`❌ Still not found after retry. Available conversations:`, retryData.conversations
+            .filter(c => c.type === 'individual')
+            .map(c => ({
+              id: c.id,
+              participant_id: c.participant?.id,
+              participant_name: c.participant?.name
+            })));
+          
+          // Si on ne trouve toujours pas, afficher un message et laisser l'utilisateur sélectionner manuellement
+          showError('Attention', `La conversation avec ${selectedUserName} n'a pas été trouvée automatiquement. Veuillez la sélectionner manuellement dans la liste des conversations.`);
+          // Recharger la liste pour que l'utilisateur puisse voir toutes les conversations
+          await refreshConversations();
+        }
+      }
     } catch (err: any) {
-      showError('Erreur', err.message || 'Erreur lors de la création de la conversation');
+      console.error('❌ Error creating conversation:', err);
+      
+      // En cas d'erreur, essayer de trouver une conversation existante avec cet utilisateur
+      console.log(`🔄 Trying to find existing conversation after error...`);
+      await refreshConversations();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const data = await getConversations({ type: 'all', per_page: 100 });
+      let existingConversation = data.conversations.find(
+        conv => conv.type === 'individual' && conv.participant?.id === selectedUserId
+      );
+      
+      // Si pas trouvé par ID, essayer par nom
+      if (!existingConversation) {
+        existingConversation = data.conversations.find(
+          conv => conv.type === 'individual' && 
+                 conv.participant?.name?.toLowerCase() === selectedUserName.toLowerCase()
+        );
+      }
+      
+      if (existingConversation) {
+        console.log(`✅ Found existing conversation after error`);
+        
+        // CORRECTION: Corriger le nom si nécessaire
+        if (existingConversation.participant && existingConversation.participant.id === selectedUserId) {
+          if (existingConversation.participant.name !== selectedUserName) {
+            console.warn(`⚠️ After error: Name mismatch detected. Correcting...`);
+            existingConversation = {
+              ...existingConversation,
+              participant: {
+                ...existingConversation.participant,
+                name: selectedUserName
+              }
+            };
+          }
+        }
+        
+        setSelectedConversation(existingConversation);
+        success(`Conversation avec ${selectedUserName} ouverte`);
+      } else {
+        showError('Erreur', err.message || `Erreur lors de la création de la conversation avec ${selectedUserName}. Veuillez réessayer ou sélectionner la conversation manuellement dans la liste.`);
+      }
     }
   };
 
@@ -273,17 +563,35 @@ export const Messagerie = (): JSX.Element => {
     }
   };
 
-  const filteredConversations = conversations.filter(conv => {
-    if (activeTab === 'messages' && conv.type !== 'individual') return false;
-    if (activeTab === 'groups' && conv.type !== 'group') return false;
+  // Filtrer et trier les conversations
+  const filteredConversations = useMemo(() => {
+    let filtered = conversations.filter(conv => {
+      // Filtrer par type selon l'onglet actif
+      if (activeTab === 'messages' && conv.type !== 'individual') return false;
+      if (activeTab === 'groups' && conv.type !== 'group') return false;
+      
+      // Filtrer par recherche
+      const searchLower = searchQuery.toLowerCase();
+      const participantName = conv.participant?.name || conv.group?.name || '';
+      const lastMessageContent = conv.last_message?.content || '';
+      
+      if (searchLower) {
+        return participantName.toLowerCase().includes(searchLower) ||
+               lastMessageContent.toLowerCase().includes(searchLower);
+      }
+      
+      return true;
+    });
     
-    const searchLower = searchQuery.toLowerCase();
-    const participantName = conv.participant?.name || conv.group?.name || '';
-    const lastMessageContent = conv.last_message?.content || '';
+    // Trier par date de dernière mise à jour (plus récent en premier)
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.last_message?.created_at || a.updated_at).getTime();
+      const dateB = new Date(b.last_message?.created_at || b.updated_at).getTime();
+      return dateB - dateA;
+    });
     
-    return participantName.toLowerCase().includes(searchLower) ||
-           lastMessageContent.toLowerCase().includes(searchLower);
-  });
+    return filtered;
+  }, [conversations, activeTab, searchQuery]);
 
   // Group messages by sender
   const groupedMessages: Array<{
@@ -320,7 +628,7 @@ export const Messagerie = (): JSX.Element => {
   }
 
   return (
-    <div className="px-[27px] py-8 h-full flex flex-col">
+    <div className="px-[27px] py-8 flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -343,6 +651,34 @@ export const Messagerie = (): JSX.Element => {
               {t('dashboard.sidebar.messagingPage.subtitle')}
             </p>
           </div>
+        </div>
+        
+        {/* Action Buttons in Header */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleNewDiscussion}
+            className={`gap-2 h-auto py-2.5 px-5 rounded-lg text-sm font-medium transition-colors ${
+              isDark
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-[#007aff] hover:bg-[#0066cc] text-white'
+            }`}
+            style={{ backgroundColor: primaryColor }}
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Nouvelle Discussion</span>
+          </Button>
+          <Button
+            onClick={handleNewGroup}
+            variant="outline"
+            className={`gap-2 h-auto py-2.5 px-5 rounded-lg text-sm font-medium transition-colors ${
+              isDark
+                ? 'border-gray-600 hover:bg-gray-700 text-white'
+                : 'border-[#007aff] text-[#007aff] hover:bg-[#007aff]/10'
+            }`}
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Nouveau Groupe</span>
+          </Button>
         </div>
       </div>
 
@@ -464,12 +800,30 @@ export const Messagerie = (): JSX.Element => {
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex flex-col gap-2 px-2">
+          {filteredConversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full py-8 px-4">
+              <MessageSquare className={`w-12 h-12 mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+              <p className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                {activeTab === 'messages' 
+                  ? 'Aucune conversation individuelle' 
+                  : activeTab === 'groups'
+                  ? 'Aucun groupe'
+                  : 'Aucune conversation'}
+              </p>
+              <p className={`text-xs text-center ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                {activeTab === 'messages'
+                  ? 'Cliquez sur "Nouvelle Discussion" pour commencer'
+                  : activeTab === 'groups'
+                  ? 'Cliquez sur "Nouveau Groupe" pour créer un groupe'
+                  : ''}
+              </p>
+            </div>
+          ) : (
+          <div className="flex flex-col gap-2 px-2 py-2">
             {filteredConversations.map((conversation) => {
               const participant = conversation.participant;
               const group = conversation.group;
               const displayName = participant?.name || group?.name || 'Unknown';
-              const displayAvatar = participant?.avatar || group?.avatar;
               const displayRole = participant?.role || 'Groupe';
               
               return (
@@ -482,18 +836,29 @@ export const Messagerie = (): JSX.Element => {
                       : isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
                   } relative`}
                 >
-                  <div className="relative">
+                  <div className="relative flex-shrink-0">
                     <Avatar className="w-12 h-12 rounded-xl">
-                      {getAvatarUrl(displayAvatar) ? (
-                        <AvatarImage 
-                          src={getAvatarUrl(displayAvatar)!} 
-                          alt={displayName}
-                          onError={(e) => {
-                            // En cas d'erreur de chargement, masquer l'image pour afficher les initiales
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : null}
+                      {(() => {
+                        const avatarUrl = getAvatarUrl(participant || group);
+                        if (avatarUrl) {
+                          return (
+                            <AvatarImage 
+                              src={avatarUrl} 
+                              alt={displayName}
+                              className="object-cover"
+                              onError={(e) => {
+                                // En cas d'erreur de chargement, masquer l'image pour afficher les initiales
+                                console.warn(`Failed to load avatar for ${displayName}:`, avatarUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                              onLoad={() => {
+                                console.log(`✅ Avatar loaded successfully for ${displayName}:`, avatarUrl);
+                              }}
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
                       <AvatarFallback 
                         className="rounded-xl text-white font-semibold"
                         style={{ backgroundColor: primaryColor }}
@@ -537,6 +902,7 @@ export const Messagerie = (): JSX.Element => {
               );
             })}
           </div>
+          )}
         </div>
       </aside>
 
@@ -546,16 +912,28 @@ export const Messagerie = (): JSX.Element => {
           <>
             {/* Chat Header */}
             <header className={`flex items-center gap-4 p-6 border-b flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <Avatar className="w-12 h-12 rounded-[10px]">
-                {getAvatarUrl(selectedConversation.participant?.avatar || selectedConversation.group?.avatar) ? (
-                  <AvatarImage 
-                    src={getAvatarUrl(selectedConversation.participant?.avatar || selectedConversation.group?.avatar)!} 
-                    alt={selectedConversation.participant?.name || selectedConversation.group?.name || 'U'}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                ) : null}
+              <Avatar className="w-12 h-12 rounded-[10px] flex-shrink-0">
+                {(() => {
+                  const avatarUrl = getAvatarUrl(selectedConversation.participant || selectedConversation.group);
+                  const displayName = selectedConversation.participant?.name || selectedConversation.group?.name || 'U';
+                  if (avatarUrl) {
+                    return (
+                      <AvatarImage 
+                        src={avatarUrl} 
+                        alt={displayName}
+                        className="object-cover"
+                        onError={(e) => {
+                          console.warn(`Failed to load avatar in header for ${displayName}:`, avatarUrl);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        onLoad={() => {
+                          console.log(`✅ Avatar loaded in header for ${displayName}:`, avatarUrl);
+                        }}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
                 <AvatarFallback 
                   className="rounded-[10px] text-white font-semibold"
                   style={{ backgroundColor: primaryColor }}
@@ -588,31 +966,6 @@ export const Messagerie = (): JSX.Element => {
                 )}
               </div>
 
-              <div className="ml-auto flex gap-2.5">
-                <Button 
-                  onClick={handleNewDiscussion}
-                  className={`gap-4 px-[19px] py-2.5 border rounded-[10px] h-auto [font-family:'Poppins',Helvetica] font-medium text-[17px] ${
-                    isDark 
-                      ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600'
-                      : 'bg-[#ffe5ca] text-[#ff7700] border-[#ff7700] hover:bg-[#ffe5ca]/90'
-                  }`}
-                >
-                  <PlusCircle className="w-[15px] h-[15px]" />
-                  Nouvelle Discussion
-                </Button>
-
-                <Button 
-                  onClick={handleNewGroup}
-                  className={`gap-4 px-[19px] py-2.5 border rounded-[10px] h-auto [font-family:'Poppins',Helvetica] font-medium text-[17px] ${
-                    isDark
-                      ? 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600'
-                      : 'bg-[#ecf1fd] text-[#007aff] border-[#007aff] hover:bg-[#ecf1fd]/90'
-                  }`}
-                >
-                  <PlusCircle className="w-[15px] h-[15px]" />
-                  Nouveau Groupe
-                </Button>
-              </div>
             </header>
 
             {/* Messages Area */}
@@ -627,9 +980,9 @@ export const Messagerie = (): JSX.Element => {
                   >
                     {messageGroup.type === 'received' && (
                       <Avatar className="w-10 h-10 rounded-[8.33px]">
-                        {getAvatarUrl(messageGroup.sender?.avatar) ? (
+                        {getAvatarUrl(messageGroup.sender) ? (
                           <AvatarImage 
-                            src={getAvatarUrl(messageGroup.sender?.avatar)!} 
+                            src={getAvatarUrl(messageGroup.sender)!} 
                             alt={messageGroup.sender?.name || 'U'}
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
@@ -824,11 +1177,21 @@ export const Messagerie = (): JSX.Element => {
             )}
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <MessageSquare className={`h-16 w-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
-              <p className={`[font-family:'Poppins',Helvetica] font-medium ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
-                Sélectionnez une conversation pour commencer
+          <div className="flex-1 flex flex-col items-center justify-center p-8">
+            <div className="text-center max-w-md">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 mx-auto ${
+                isDark ? 'bg-gray-800' : 'bg-gray-100'
+              }`}>
+                <MessageSquare className={`h-10 w-10 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
+              </div>
+              <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Aucune conversation sélectionnée
+              </h3>
+              <p className={`text-sm mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Sélectionnez une conversation dans la liste à gauche
+              </p>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                Ou utilisez les boutons en haut à droite pour créer une nouvelle discussion ou un groupe
               </p>
             </div>
           </div>
@@ -965,8 +1328,14 @@ export const Messagerie = (): JSX.Element => {
                     className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
                   >
                     <Avatar className="w-8 h-8">
-                      {getAvatarUrl(user.avatar) ? (
-                        <AvatarImage src={getAvatarUrl(user.avatar)!} />
+                      {getAvatarUrl(user) ? (
+                        <AvatarImage 
+                          src={getAvatarUrl(user)!} 
+                          alt={user.name}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
                       ) : null}
                       <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
                         {getInitials(user.name)}
@@ -1076,8 +1445,14 @@ export const Messagerie = (): JSX.Element => {
                     className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
                   >
                     <Avatar className="w-8 h-8">
-                      {getAvatarUrl(user.avatar) ? (
-                        <AvatarImage src={getAvatarUrl(user.avatar)!} />
+                      {getAvatarUrl(user) ? (
+                        <AvatarImage 
+                          src={getAvatarUrl(user)!} 
+                          alt={user.name}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
                       ) : null}
                       <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
                         {getInitials(user.name)}

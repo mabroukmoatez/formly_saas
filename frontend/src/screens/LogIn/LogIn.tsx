@@ -10,10 +10,12 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { LoginHeader } from '../../components/LoginHeader';
+import { apiService } from '../../services/api';
+import { fixImageUrl } from '../../lib/utils';
 
 export const LogIn = (): JSX.Element => {
-  const { login, loading, error, clearError } = useAuth();
-  const { organization } = useOrganization();
+  const { login, loading, error, clearError, setUser } = useAuth();
+  const { organization, refreshOrganization } = useOrganization();
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const navigate = useNavigate();
@@ -22,6 +24,41 @@ export const LogIn = (): JSX.Element => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginBannerUrl, setLoginBannerUrl] = useState<string | null>(null);
+  const [loginTemplate, setLoginTemplate] = useState<string>('minimal-1');
+  
+  // Load login settings from organization data
+  React.useEffect(() => {
+    if (!organization) return;
+    
+    // Priorité 1: login_banner_url depuis l'organisation
+    if (organization.login_banner_url) {
+      setLoginBannerUrl(organization.login_banner_url);
+      console.log('✅ Using login_banner_url from organization:', organization.login_banner_url);
+    } 
+    // Priorité 2: login_background_image_url (ancien champ pour compatibilité)
+    else if (organization.login_background_image_url) {
+      setLoginBannerUrl(organization.login_background_image_url);
+      console.log('✅ Using login_background_image_url from organization:', organization.login_background_image_url);
+    }
+    
+    // Charger le modèle de connexion
+    if (organization.login_template) {
+      setLoginTemplate(organization.login_template);
+      console.log('✅ Using login_template from organization:', organization.login_template);
+    }
+  }, [organization]);
+  
+  // Debug: Log organization data to see what we're getting
+  React.useEffect(() => {
+    if (organization) {
+      console.log('🔍 Organization data:', organization);
+      console.log('🔍 Login banner URL:', organization.login_banner_url);
+      console.log('🔍 Login template:', organization.login_template);
+      console.log('🔍 State loginBannerUrl:', loginBannerUrl);
+      console.log('🔍 State loginTemplate:', loginTemplate);
+    }
+  }, [organization, loginBannerUrl, loginTemplate]);
 
   /**
    * Handle form submission
@@ -35,9 +72,56 @@ export const LogIn = (): JSX.Element => {
 
     try {
       clearError();
-      await login(email.trim(), password.trim(), organization?.custom_domain || '');
+      const organizationSubdomain = organization?.custom_domain || '';
       
-      // Navigate to dashboard after successful login
+      // Try super admin login first if no organization subdomain
+      let authResponse: any;
+      let isSuperAdminLogin = false;
+      
+      if (!organizationSubdomain || organizationSubdomain.trim() === '') {
+        // Try super admin login first
+        try {
+          authResponse = await apiService.superAdminLogin(email.trim(), password.trim());
+          if (authResponse.success) {
+            isSuperAdminLogin = true;
+          }
+        } catch (superAdminErr: any) {
+          // If super admin login fails, try regular login
+          // This handles cases where user might be regular user without subdomain
+          console.log('Super admin login failed, trying regular login:', superAdminErr);
+        }
+      }
+      
+      // If super admin login didn't work, try regular login
+      if (!isSuperAdminLogin) {
+        authResponse = await apiService.login(email.trim(), password.trim(), organizationSubdomain);
+      }
+      
+      if (authResponse.success && authResponse.data?.user) {
+        // Store auth data using the hook
+        if (isSuperAdminLogin) {
+          // For super admin, we need to store auth data manually since login hook expects organizationSubdomain
+          apiService.storeAuthData(authResponse);
+          // Update auth context
+          setUser(authResponse.data.user);
+        } else {
+          await login(email.trim(), password.trim(), organizationSubdomain);
+        }
+        
+        // Check if user is super admin or if we used super admin login
+        const user = authResponse.data.user;
+        const isSuperAdmin = isSuperAdminLogin || 
+                             user?.role_name?.toLowerCase().includes('super admin') || 
+                             user?.role_name?.toLowerCase().includes('superadmin') ||
+                             user?.role_name?.toLowerCase() === 'super admin';
+        
+        if (isSuperAdmin) {
+          navigate('/superadmin/dashboard');
+          return;
+        }
+      }
+      
+      // Navigate to dashboard after successful login (for non-super-admin users)
       if (organization?.custom_domain) {
         navigate(`/${organization.custom_domain}/dashboard`);
       } else {
@@ -58,12 +142,38 @@ export const LogIn = (): JSX.Element => {
 
   /**
    * Get background image URL
+   * Utilise la bannière de connexion configurée dans White Label
    */
   const getBackgroundImageUrl = (): string => {
-    if (organization?.login_background_image_url) {
-      return organization.login_background_image_url;
+    // Priorité 1: State loginBannerUrl (chargé depuis White Label settings)
+    if (loginBannerUrl) {
+      const fixedUrl = fixImageUrl(loginBannerUrl);
+      console.log('✅ Using loginBannerUrl from state:', fixedUrl);
+      return fixedUrl;
     }
+    // Priorité 2: Bannière de connexion depuis l'organisation
+    if (organization?.login_banner_url) {
+      const fixedUrl = fixImageUrl(organization.login_banner_url);
+      console.log('✅ Using login_banner_url from organization:', fixedUrl);
+      return fixedUrl;
+    }
+    // Priorité 3: Ancien champ (pour compatibilité)
+    if (organization?.login_background_image_url) {
+      const fixedUrl = fixImageUrl(organization.login_background_image_url);
+      console.log('✅ Using login_background_image_url:', fixedUrl);
+      return fixedUrl;
+    }
+    // Fallback: Image par défaut
+    console.log('⚠️ Using default background image');
     return '/assets/images/login-background.png';
+  };
+
+  /**
+   * Get login template
+   * Retourne le modèle de connexion configuré ou 'minimal-1' par défaut
+   */
+  const getLoginTemplate = (): string => {
+    return loginTemplate || organization?.login_template || 'minimal-1';
   };
 
   /**
@@ -90,9 +200,12 @@ export const LogIn = (): JSX.Element => {
     return organization?.organization_tagline || 'An LMS solution for your school';
   };
 
+  // Use the state variable directly
+  const currentLoginTemplate = getLoginTemplate();
+
   return (
     <div
-      className={`w-full min-h-screen relative flex flex-col lg:flex-row ${
+      className={`w-full min-h-screen relative flex flex-col lg:flex-row login-template-${currentLoginTemplate} ${
         isDark ? 'bg-gray-900' : 'bg-[#09294c]'
       }`}
       style={{
@@ -109,6 +222,14 @@ export const LogIn = (): JSX.Element => {
           className="absolute top-0 left-0 w-full h-full object-cover"
           alt="Background"
           src={getBackgroundImageUrl()}
+          onError={(e) => {
+            console.error('❌ Error loading background image:', getBackgroundImageUrl());
+            const target = e.target as HTMLImageElement;
+            target.src = '/assets/images/login-background.png';
+          }}
+          onLoad={() => {
+            console.log('✅ Background image loaded successfully:', getBackgroundImageUrl());
+          }}
         />
 
         {/* Simple overlay for better text readability */}
@@ -130,6 +251,14 @@ export const LogIn = (): JSX.Element => {
           className="absolute top-0 left-0 w-full h-full object-cover"
           alt="Background"
           src={getBackgroundImageUrl()}
+          onError={(e) => {
+            console.error('❌ Error loading background image (mobile):', getBackgroundImageUrl());
+            const target = e.target as HTMLImageElement;
+            target.src = '/assets/images/login-background.png';
+          }}
+          onLoad={() => {
+            console.log('✅ Background image loaded successfully (mobile):', getBackgroundImageUrl());
+          }}
         />
 
         {/* Simple overlay for better text readability */}

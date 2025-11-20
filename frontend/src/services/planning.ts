@@ -42,7 +42,7 @@ export interface SessionInstance {
   uuid: string;
   title: string;
   description?: string;
-  instance_type: 'presentiel' | 'distanciel' | 'e-learning';
+  instance_type: 'presentiel' | 'distanciel' | 'hybride' | 'e-learning';
   start_date: string;
   end_date: string;
   start_time: string;
@@ -100,7 +100,7 @@ export interface CalendarItem {
   platform_type?: string;
   status?: string;
   duration_minutes?: number;
-  instance_type?: 'presentiel' | 'distanciel' | 'e-learning';
+  instance_type?: 'presentiel' | 'distanciel' | 'hybride' | 'e-learning';
   session?: {
     id: number;
     uuid: string;
@@ -119,9 +119,10 @@ export interface PlanningStats {
   total_sessions: number;
   total_instances: number;
   total_events: number;
-  instances_by_type: {
+    instances_by_type: {
     presentiel: number;
     distanciel: number;
+    hybride?: number;
     'e-learning': number;
   };
   instances_by_status: {
@@ -289,9 +290,10 @@ export const cancelSessionInstance = async (
  */
 export const getInstanceTypeColor = (type: string): string => {
   const colors: Record<string, string> = {
-    presentiel: '#10B981', // Green
-    distanciel: '#3B82F6', // Blue
-    'e-learning': '#8B5CF6', // Purple
+    presentiel: '#10B981', // Green - Présentiel
+    distanciel: '#8B5CF6', // Violet - Distanciel
+    hybride: '#F97316', // Orange - Hybride
+    'e-learning': '#EC4899', // Rose - E-Learning
   };
   return colors[type] || '#6B7280';
 };
@@ -331,7 +333,8 @@ export const getInstanceTypeLabel = (type: string): string => {
   const labels: Record<string, string> = {
     presentiel: 'Présentiel',
     distanciel: 'Distanciel',
-    'e-learning': 'E-learning',
+    hybride: 'Hybride',
+    'e-learning': 'E-Learning',
   };
   return labels[type] || type;
 };

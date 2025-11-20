@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AppRouter } from './router/AppRouter';
 import { DocumentTitleManager } from './components/DocumentTitleManager';
 import { ToastProvider } from './components/ui/toast';
+import { PermissionErrorProvider } from './contexts/PermissionErrorContext';
 import './i18n'; // Initialize i18n
 
 function App() {
@@ -15,8 +16,10 @@ function App() {
         <OrganizationProvider>
           <AuthProvider>
             <ToastProvider>
-              <DocumentTitleManager />
-              <AppRouter />
+              <PermissionErrorProvider>
+                <DocumentTitleManager />
+                <AppRouter />
+              </PermissionErrorProvider>
             </ToastProvider>
           </AuthProvider>
         </OrganizationProvider>

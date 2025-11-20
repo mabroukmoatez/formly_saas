@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CONFIG, Language } from '../config/constants';
 
@@ -19,6 +19,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   const { i18n, t } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState<Language>(CONFIG.DEFAULT_LANGUAGE);
   const [isLoading, setIsLoading] = useState(true);
+  const isInitialized = useRef(false);
 
   /**
    * Change language
@@ -46,6 +47,9 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
    * Initialize language context
    */
   useEffect(() => {
+    // Prevent multiple initializations
+    if (isInitialized.current) return;
+    
     const initializeLanguage = async () => {
       try {
         setIsLoading(true);
@@ -70,27 +74,36 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
         
         // Set document language attribute
         document.documentElement.lang = i18n.language;
+        isInitialized.current = true;
         
       } catch (error) {
         console.error('Error initializing language:', error);
         // Fallback to default language
         await i18n.changeLanguage(CONFIG.DEFAULT_LANGUAGE);
         setCurrentLanguage(CONFIG.DEFAULT_LANGUAGE);
+        isInitialized.current = true;
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeLanguage();
-  }, [i18n]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
 
   /**
    * Listen for language changes
    */
   useEffect(() => {
     const handleLanguageChange = (lng: string) => {
-      setCurrentLanguage(lng as Language);
-      document.documentElement.lang = lng;
+      setCurrentLanguage((prevLanguage) => {
+        // Only update if language actually changed
+        if (lng !== prevLanguage) {
+          document.documentElement.lang = lng;
+          return lng as Language;
+        }
+        return prevLanguage;
+      });
     };
 
     i18n.on('languageChanged', handleLanguageChange);
@@ -98,7 +111,8 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     return () => {
       i18n.off('languageChanged', handleLanguageChange);
     };
-  }, [i18n]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up listener once, use functional setState to avoid dependency
 
   const contextValue: LanguageContextType = {
     currentLanguage,

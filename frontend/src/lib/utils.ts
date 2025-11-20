@@ -13,25 +13,62 @@ export function cn(...inputs: ClassValue[]) {
 export function fixImageUrl(url: string | null | undefined): string {
   if (!url) return '';
   
+  // Replace escaped backslashes with forward slashes first
+  let cleanedUrl = url.replace(/\\/g, '/');
+  
   // If it's already a full URL with the correct base, return as is
-  if (url.startsWith(CONFIG.BASE_URL)) {
-    return url;
+  if (cleanedUrl.startsWith(CONFIG.BASE_URL)) {
+    return cleanedUrl;
   }
   
-  // If it's a full URL with wrong base, fix it
-  if (url.startsWith('http://localhost:8000')) {
-    return url.replace('http://localhost:8000', CONFIG.BASE_URL);
+  // Handle URLs that start with "localhost:8000" without protocol (from API response)
+  // Example: "localhost:8000\/uploads\/..." or "localhost:8000/uploads/..."
+  // These URLs should remain as localhost:8000 (backend server), just add protocol if missing
+  if (cleanedUrl.includes('localhost:8000') && !cleanedUrl.startsWith('http://localhost:8000') && !cleanedUrl.startsWith('https://localhost:8000')) {
+    // Add http:// if missing
+    if (!cleanedUrl.startsWith('http://') && !cleanedUrl.startsWith('https://')) {
+      return `http://${cleanedUrl}`;
+    }
+    return cleanedUrl;
   }
   
-  // If it's a relative path, make it absolute
-  if (url.startsWith('/uploads/')) {
-    return `${CONFIG.BASE_URL}${url}`;
+  // If it's already a full URL with http://localhost:8000, keep it as is (backend server)
+  if (cleanedUrl.startsWith('http://localhost:8000') || cleanedUrl.startsWith('https://localhost:8000')) {
+    return cleanedUrl;
+  }
+  
+  // Handle URLs that start with "localhost" (without port) without protocol
+  // Example: "localhost\/uploads\/..." or "localhost/uploads/..."
+  if (cleanedUrl.includes('localhost') && !cleanedUrl.startsWith('http://') && !cleanedUrl.startsWith('https://')) {
+    // Remove "localhost/" prefix and use CONFIG.BASE_URL instead
+    if (cleanedUrl.startsWith('localhost/')) {
+      cleanedUrl = cleanedUrl.replace('localhost/', '');
+      // Ensure it starts with / if it doesn't already
+      if (!cleanedUrl.startsWith('/')) {
+        cleanedUrl = `/${cleanedUrl}`;
+      }
+      return `${CONFIG.BASE_URL}${cleanedUrl}`;
+    }
+    // If it's just "localhost" without path, return BASE_URL
+    if (cleanedUrl === 'localhost') {
+      return CONFIG.BASE_URL;
+    }
+  }
+  
+  // If it's a relative path starting with /uploads or /storage, make it absolute
+  if (cleanedUrl.startsWith('/uploads/') || cleanedUrl.startsWith('/storage/')) {
+    return `${CONFIG.BASE_URL}${cleanedUrl}`;
+  }
+  
+  // If it's a relative path without leading slash (uploads/... or storage/...)
+  if (cleanedUrl.startsWith('uploads/') || cleanedUrl.startsWith('storage/') || cleanedUrl.startsWith('organization/')) {
+    return `${CONFIG.BASE_URL}/${cleanedUrl}`;
   }
   
   // If it's just a filename, assume it's in uploads
-  if (!url.startsWith('http') && !url.startsWith('/')) {
-    return `${CONFIG.BASE_URL}/uploads/${url}`;
+  if (!cleanedUrl.startsWith('http') && !cleanedUrl.startsWith('/')) {
+    return `${CONFIG.BASE_URL}/uploads/${cleanedUrl}`;
   }
   
-  return url;
+  return cleanedUrl;
 }

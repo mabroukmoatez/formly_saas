@@ -7,10 +7,12 @@ export interface QualityIndicator {
   title: string;
   description?: string;
   category?: string;
-  status: 'completed' | 'in-progress' | 'not-started';
+  status: 'completed' | 'in-progress' | 'not-started' | 'in_progress' | 'not_started';
   hasOverlay: boolean;
   overlayColor: string | null;
+  overlay_color?: string; // Alternative field name
   hasDocuments?: boolean;
+  isApplicable?: boolean;
   documentCounts?: {
     procedures: number;
     models: number;
@@ -96,19 +98,19 @@ export interface QualityBPF {
 
 export interface QualityArticle {
   id: number;
-  image: string;
-  category: string;
+  image: string | null;
+  category: string | null;
   date: string;
   title: string;
-  description?: string;
-  content?: string;
+  description?: string | null;
+  content?: string | null;
   featured: boolean;
-  url?: string;
+  url?: string | null;
   author?: {
-    id: string;
+    id: number;
     name: string;
-    avatar?: string;
-  };
+    avatar?: string | null;
+  } | null;
   createdAt: string;
 }
 
@@ -120,24 +122,55 @@ export interface QualityTask {
   status: 'todo' | 'in_progress' | 'done' | 'archived';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   dueDate?: string;
-  position: number;
-  category: {
+  due_date?: string; // Alternative field name from API
+  position?: number;
+  category?: {
     id: number;
     name: string;
     type: string;
     color: string;
   };
+  category_id?: number; // Alternative field name from API
   assignedUser?: {
     id: number;
     name: string;
   };
+  assigned_to?: number; // Alternative field name from API
+  assigned_members?: Array<{
+    id: number;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+    role?: string;
+  }>; // Multiple assigned members (Trello-style)
+  start_date?: string; // Start date for task period
+  end_date?: string; // End date for task period
+  comments?: Array<{
+    id?: number;
+    content: string;
+    author: {
+      id: number;
+      name: string;
+      avatar_url?: string;
+    };
+    created_at?: string;
+  }>; // Comments on task
   checklist?: Array<{
     text: string;
     completed: boolean;
   }>;
-  attachments?: string[];
-  createdAt: string;
+  attachments?: Array<{
+    id?: number;
+    name: string;
+    url: string;
+    size?: number;
+    type?: string;
+    uploaded_at?: string;
+  }>; // File attachments
+  createdAt?: string;
+  created_at?: string; // Alternative field name from API
   updatedAt?: string;
+  updated_at?: string; // Alternative field name from API
 }
 
 export interface QualityTaskCategory {
@@ -269,6 +302,24 @@ export interface DashboardStats {
   }>;
 }
 
+// ==================== HELPER FUNCTION ====================
+/**
+ * Helper function to preserve success wrapper for 201 Created responses
+ * In Quality Management, 201 is ALWAYS considered success
+ */
+const preserveSuccessWrapper = (response: any): any => {
+  // If response already has success wrapper, return as is
+  if (response && typeof response === 'object' && 'success' in response) {
+    return response;
+  }
+  // For 201 responses, wrap with success: true
+  return {
+    success: true,
+    data: response?.data || response,
+    message: response?.message || 'Opération réussie'
+  };
+};
+
 // ==================== INITIALIZATION APIs (CRITICAL - CALL FIRST!) ====================
 
 /**
@@ -277,14 +328,68 @@ export interface DashboardStats {
  */
 export const checkQualityInitialization = async (): Promise<{
   success: boolean;
-  data: {
+  data?: {
     initialized: boolean;
     indicators: { count: number; expected: number };
     categories: { count: number; expected: number };
   };
+  error?: {
+    code?: string;
+    message?: string;
+  };
 }> => {
-  const response = await api.get('/api/quality/initialize/status');
-  return response.data;
+  try {
+    const response = await api.get('/api/quality/initialize/status');
+    
+    // Check if response or response.data is null
+    if (!response) {
+      console.error('❌ API response is null for checkQualityInitialization');
+      return {
+        success: false,
+        error: {
+          code: 'NULL_RESPONSE',
+          message: 'Réponse invalide du serveur'
+        }
+      };
+    }
+    
+    if (!response.data) {
+      console.error('❌ API response.data is null for checkQualityInitialization');
+      return {
+        success: false,
+        error: {
+          code: 'NULL_RESPONSE_DATA',
+          message: 'Données de réponse invalides'
+        }
+      };
+    }
+    
+    return response.data;
+  } catch (err: any) {
+    console.error('❌ Error checking quality initialization:', err);
+    
+    // Check if error is ALREADY_INITIALIZED (system is initialized)
+    const errorCode = err.details?.error?.code || err.error?.code || err.code;
+    if (errorCode === 'ALREADY_INITIALIZED' || err.status === 409) {
+      // If already initialized, return success with initialized: true
+      return {
+        success: true,
+        data: {
+          initialized: true,
+          indicators: { count: 32, expected: 32 },
+          categories: { count: 5, expected: 5 }
+        }
+      };
+    }
+    
+    return {
+      success: false,
+      error: {
+        code: 'CHECK_ERROR',
+        message: err.details?.error?.message || err.message || 'Erreur lors de la vérification de l\'initialisation'
+      }
+    };
+  }
 };
 
 /**
@@ -294,14 +399,74 @@ export const checkQualityInitialization = async (): Promise<{
  */
 export const initializeQualitySystem = async (): Promise<{
   success: boolean;
-  data: {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  data?: {
     message: string;
     indicators: { created: number; total: number };
     categories: { created: number; total: number };
   };
 }> => {
-  const response = await api.post('/api/quality/initialize', {});
-  return response.data;
+  try {
+    const response = await api.post('/api/quality/initialize', {});
+    
+    // Check if response is null
+    if (!response) {
+      console.error('❌ API response is null');
+      return {
+        success: false,
+        error: {
+          code: 'NULL_RESPONSE',
+          message: 'Réponse invalide du serveur'
+        }
+      };
+    }
+    
+    // If api.ts already returned a structured response (e.g., for 409), return it directly
+    // This happens when api.ts handles 409 and returns { success: false, error: {...}, data: null }
+    if (response.success === false && response.error) {
+      console.log('✅ API returned structured error response:', response.error);
+      return response;
+    }
+    
+    // Check if response.data exists (for successful responses)
+    if (!response.data) {
+      console.error('❌ API response.data is null');
+      return {
+        success: false,
+        error: {
+          code: 'NULL_RESPONSE_DATA',
+          message: 'Données de réponse invalides'
+        }
+      };
+    }
+    
+    return response.data;
+  } catch (err: any) {
+    console.error('❌ Error initializing quality system:', err);
+    
+    // Handle 409 Conflict (already initialized)
+    if (err.status === 409 || err.details?.error?.code === 'ALREADY_INITIALIZED') {
+      return {
+        success: false,
+        error: {
+          code: 'ALREADY_INITIALIZED',
+          message: err.details?.error?.message || 'Le système qualité est déjà initialisé'
+        }
+      };
+    }
+    
+    // Return error response instead of throwing
+    return {
+      success: false,
+      error: {
+        code: 'INITIALIZATION_ERROR',
+        message: err.details?.error?.message || err.message || 'Erreur lors de l\'initialisation du système qualité'
+      }
+    };
+  }
 };
 
 // Quality System APIs
@@ -332,6 +497,7 @@ export const updateQualityIndicator = async (
     requirements?: string[];
     status?: string;
     notes?: string;
+    isApplicable?: boolean;
   }
 ) => {
   const response = await api.put(`/api/quality/indicators/${id}`, data);
@@ -361,12 +527,9 @@ export const getQualityDocuments = async (params?: {
 };
 
 export const uploadQualityDocument = async (formData: FormData) => {
-  const response = await api.post('/api/quality/documents/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-  return response.data;
+  // Don't set Content-Type header - browser will set it automatically with boundary for FormData
+  const response = await api.post('/api/quality/documents/upload', formData);
+  return preserveSuccessWrapper(response);
 };
 
 export const getQualityDocument = async (id: number) => {
@@ -421,7 +584,7 @@ export const createQualityAction = async (data: {
   tags?: string[];
 }) => {
   const response = await api.post('/api/quality/actions', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateQualityAction = async (id: number, data: any) => {
@@ -444,7 +607,7 @@ export const createActionCategory = async (data: {
   color: string;
 }) => {
   const response = await api.post('/api/quality/action-categories', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 // Audits APIs
@@ -465,7 +628,7 @@ export const createAudit = async (data: {
   notes?: string;
 }) => {
   const response = await api.post('/api/quality/audit', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateAudit = async (id: number, data: any) => {
@@ -486,7 +649,7 @@ export const completeAudit = async (
   }
 ) => {
   const response = await api.post(`/api/quality/audit/${id}/complete`, data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const getAuditHistory = async (params?: {
@@ -518,12 +681,17 @@ export const getQualityBPF = async (id: number) => {
   return response.data;
 };
 
+export const getBPFHistory = async (id: number) => {
+  const response = await api.get(`/api/quality/bpf/${id}/history`);
+  return response.data;
+};
+
 export const createQualityBPF = async (data: {
   year: number;
   data: any;
 }) => {
   const response = await api.post('/api/quality/bpf', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateQualityBPF = async (id: number, data: { data: any }) => {
@@ -540,7 +708,7 @@ export const submitQualityBPF = async (
   }
 ) => {
   const response = await api.post(`/api/quality/bpf/${id}/submit`, data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const getBPFArchives = async (params?: {
@@ -567,16 +735,21 @@ export const deleteQualityBPF = async (id: number) => {
 export const getQualityArticles = async (params?: {
   category?: string;
   featured?: boolean;
+  search?: string;
   page?: number;
   limit?: number;
 }) => {
   const response = await api.get('/api/quality/articles', { params });
-  return response.data;
+  // API returns { success: true, data: { articles: [...], pagination: {...} } }
+  // Return the full response so the hook can handle it properly
+  return response;
 };
 
 export const getQualityArticle = async (id: number) => {
   const response = await api.get(`/api/quality/articles/${id}`);
-  return response.data;
+  // API returns { success: true, data: {...} } or direct article object
+  // Return the full response so the component can handle it properly
+  return response;
 };
 
 export const createQualityArticle = async (data: {
@@ -589,7 +762,7 @@ export const createQualityArticle = async (data: {
   url?: string;
 }) => {
   const response = await api.post('/api/quality/articles', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateQualityArticle = async (id: number, data: any) => {
@@ -678,12 +851,16 @@ export const createQualityTask = async (data: {
   status?: 'todo' | 'in_progress' | 'done';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
-  assigned_to?: number;
+  start_date?: string; // Start date for task period
+  end_date?: string; // End date for task period
+  assigned_to?: number; // Single assignee (legacy)
+  assigned_member_ids?: number[]; // Multiple assignees (Trello-style)
   checklist?: Array<{ text: string; completed: boolean }>;
   notes?: string;
+  comments?: Array<{ content: string; author_id: number }>;
 }) => {
   const response = await api.post('/api/quality/tasks', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateQualityTask = async (id: number, data: any) => {
@@ -699,6 +876,24 @@ export const deleteQualityTask = async (id: number) => {
 export const updateTaskPositions = async (tasks: Array<{ id: number; position: number }>) => {
   const response = await api.post('/api/quality/tasks/positions', { tasks });
   return response.data;
+};
+
+export const uploadTaskAttachment = async (taskId: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  // Don't set Content-Type header - browser will set it automatically with boundary for FormData
+  const response = await api.post(`/api/quality/tasks/${taskId}/attachments`, formData);
+  return preserveSuccessWrapper(response);
+};
+
+export const deleteTaskAttachment = async (taskId: number, attachmentId: number) => {
+  const response = await api.delete(`/api/quality/tasks/${taskId}/attachments/${attachmentId}`);
+  return response.data;
+};
+
+export const addTaskComment = async (taskId: number, content: string) => {
+  const response = await api.post(`/api/quality/tasks/${taskId}/comments`, { content });
+  return preserveSuccessWrapper(response);
 };
 
 export const getTaskStatistics = async () => {
@@ -725,7 +920,7 @@ export const createTaskCategory = async (data: {
   type: 'custom';
 }) => {
   const response = await api.post('/api/quality/task-categories', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const updateTaskCategory = async (id: number, data: any) => {
@@ -735,7 +930,7 @@ export const updateTaskCategory = async (id: number, data: any) => {
 
 export const deleteTaskCategory = async (id: number) => {
   const response = await api.delete(`/api/quality/task-categories/${id}`);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const initializeTaskCategories = async () => {
@@ -787,7 +982,7 @@ export const createInvitation = async (data: {
   indicator_access: number[];
 }) => {
   const response = await api.post('/api/quality/invitations', data);
-  return response.data;
+  return preserveSuccessWrapper(response);
 };
 
 export const revokeInvitation = async (id: number) => {
@@ -805,6 +1000,24 @@ export const acceptInvitation = async (token: string, data: {
   password_confirmation: string;
 }) => {
   const response = await api.post(`/api/quality/invitations/${token}/accept`, data);
+  return response.data;
+};
+
+// ==================== SESSIONS & PARTICIPANTS APIs ====================
+
+export const getQualitySessions = async (params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+  courseUuid?: string;
+  course_uuid?: string;
+}) => {
+  const response = await api.get('/api/quality/sessions', { params });
+  return response.data;
+};
+
+export const getSessionParticipantsForQuality = async (sessionId: string | number) => {
+  const response = await api.get(`/api/quality/sessions/${sessionId}/participants`);
   return response.data;
 };
 

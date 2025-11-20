@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Badge } from '../../components/ui/badge';
 import { Checkbox } from '../../components/ui/checkbox';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -9,7 +8,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
 import { Article } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
-import { Plus, Search, Download, Eye, Edit, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, Menu, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import {
@@ -20,6 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+
+type SortField = 'reference' | 'designation' | 'category' | 'price_ht' | 'tva' | 'price_ttc' | 'updated_at';
+type SortDirection = 'asc' | 'desc';
 
 export const MesArticles = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -41,10 +43,40 @@ export const MesArticles = (): JSX.Element => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [sortField, setSortField] = useState<SortField>('updated_at');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [allExpanded, setAllExpanded] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
+      }
+    };
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSortDropdown]);
 
   useEffect(() => {
     fetchArticles();
-  }, [page, selectedCategory]);
+  }, [page, selectedCategory, searchTerm]);
+
+  // Helper function to normalize values
+  const normalizeValue = (value: number | string | undefined): number => {
+    if (value === undefined || value === null) return 0;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return value;
+  };
 
   const fetchArticles = async () => {
     try {
@@ -70,7 +102,7 @@ export const MesArticles = (): JSX.Element => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedArticles(new Set(articles.map(a => a.id)));
+      setSelectedArticles(new Set(articles.map(a => String(a.id))));
     } else {
       setSelectedArticles(new Set());
     }
@@ -86,13 +118,79 @@ export const MesArticles = (): JSX.Element => {
     setSelectedArticles(newSelected);
   };
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedArticles = useMemo(() => {
+    const sorted = [...articles];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'reference':
+          aValue = a.reference || '';
+          bValue = b.reference || '';
+          break;
+        case 'designation':
+          aValue = a.designation || a.name || '';
+          bValue = b.designation || b.name || '';
+          break;
+        case 'category':
+          aValue = a.category || '';
+          bValue = b.category || '';
+          break;
+        case 'price_ht':
+          aValue = normalizeValue(a.price_ht || a.unit_price);
+          bValue = normalizeValue(b.price_ht || b.unit_price);
+          break;
+        case 'tva':
+          aValue = normalizeValue(a.tva || a.tax_rate);
+          bValue = normalizeValue(b.tva || b.tax_rate);
+          break;
+        case 'price_ttc':
+          const aPriceHT = normalizeValue(a.price_ht || a.unit_price);
+          const aTVA = normalizeValue(a.tva || a.tax_rate);
+          aValue = aPriceHT * (1 + aTVA / 100);
+          const bPriceHT = normalizeValue(b.price_ht || b.unit_price);
+          const bTVA = normalizeValue(b.tva || b.tax_rate);
+          bValue = bPriceHT * (1 + bTVA / 100);
+          break;
+        case 'updated_at':
+          aValue = new Date(a.updated_at).getTime();
+          bValue = new Date(b.updated_at).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue, 'fr', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [articles, sortField, sortDirection]);
+
   const confirmDeleteArticle = async () => {
     if (!articleToDelete) return;
     
     setDeleting(true);
     try {
       if (articleToDelete === 'bulk') {
-        // Delete multiple articles
         const deletePromises = Array.from(selectedArticles).map(id =>
           commercialService.deleteArticle(id)
         );
@@ -100,7 +198,6 @@ export const MesArticles = (): JSX.Element => {
         success(`${selectedArticles.size} article(s) supprimé(s) avec succès`);
         setSelectedArticles(new Set());
       } else {
-        // Delete single article
         await commercialService.deleteArticle(articleToDelete);
         success('Article supprimé avec succès');
       }
@@ -117,6 +214,64 @@ export const MesArticles = (): JSX.Element => {
   const cancelDeleteArticle = () => {
     setShowDeleteModal(false);
     setArticleToDelete(null);
+  };
+
+  const formatCurrency = (value: number | string | undefined): string => {
+    const numValue = normalizeValue(value);
+    return new Intl.NumberFormat('fr-FR', { 
+      style: 'currency', 
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue);
+  };
+
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const calculateTTC = (priceHT: number | string | undefined, tva: number | string | undefined): number => {
+    const ht = normalizeValue(priceHT);
+    const tvaRate = normalizeValue(tva);
+    return ht * (1 + tvaRate / 100);
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const csvData = sortedArticles.map(article => {
+        const priceHT = normalizeValue(article.price_ht || article.unit_price);
+        const tva = normalizeValue(article.tva || article.tax_rate);
+        const priceTTC = calculateTTC(priceHT, tva);
+        return {
+          'Référence': article.reference || '',
+          'Désignation': article.designation || article.name || '',
+          'Catégorie': article.category || '',
+          'Montant HT': priceHT,
+          'Montant TVA': priceHT * (tva / 100),
+          'Montant TTC': priceTTC,
+          'Dernière MAJ': formatDate(article.updated_at),
+        };
+      });
+      
+      const csv = [
+        Object.keys(csvData[0]).join(','),
+        ...csvData.map(row => Object.values(row).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `articles_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      success('Articles exportés avec succès');
+    } catch (err) {
+      showError('Erreur', 'Impossible d\'exporter les articles');
+    }
   };
 
   const allSelected = selectedArticles.size === articles.length && articles.length > 0;
@@ -175,215 +330,351 @@ export const MesArticles = (): JSX.Element => {
 
       {/* Filters and Table Card */}
       <div className={`flex flex-col gap-[18px] w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-6`}>
-        {/* Filters and Actions */}
+        {/* Top Action Bar */}
         <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-4 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-[#e8f0f7]'} rounded-[10px]`} style={{ width: '400px' }}>
+          {/* Left: Search, Export and Delete */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
               <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
               <Input
-                placeholder={t('dashboard.commercial.mes_articles.search_placeholder')}
+                placeholder="Rechercher Un Article"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setTimeout(() => {
+                    if (e.target.value === searchTerm) {
+                      fetchArticles();
+                    }
+                  }, 500);
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && fetchArticles()}
                 className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
               />
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    // Export to CSV
-                    const csvData = articles.map(article => ({
-                      'Référence': article.reference || '',
-                      'Nom': article.designation || article.name || '',
-                      'Prix HT': parseFloat(String(article.price_ht || article.unit_price || 0)),
-                      'TVA': parseFloat(String(article.tva || article.tax_rate || 0)),
-                      'Catégorie': article.category || '',
-                    }));
-                    
-                    const csv = [
-                      Object.keys(csvData[0]).join(','),
-                      ...csvData.map(row => Object.values(row).join(','))
-                    ].join('\n');
-                    
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `articles_${new Date().toISOString().split('T')[0]}.csv`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    success('Articles exportés avec succès');
-                  } catch (err) {
-                    showError('Erreur', 'Impossible d\'exporter les articles');
-                  }
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-[#6a90b9] bg-transparent hover:bg-[#f5f5f5]'}`}
-              >
-                <Download className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#698eac]'}`} />
-                <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#698eac]'} text-[13px]`}>
-                  {t('common.export')}
-                </span>
-              </Button>
+            {/* Export Excel Button */}
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+              style={{ 
+                borderColor: isDark ? undefined : primaryColor,
+                borderStyle: 'dashed',
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
+              <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                Export Excel
+              </span>
+            </Button>
 
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (selectedArticles.size === 0) return;
-                  setShowDeleteModal(true);
-                  setArticleToDelete('bulk');
-                }}
-                className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-[#fe2f40] bg-transparent hover:bg-[#fff5f5]'}`}
-                disabled={selectedArticles.size === 0}
-              >
-                <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-[#fe2f40]'}`} />
-                <span className={`font-medium ${isDark ? 'text-red-400' : 'text-[#fe2f40]'} text-[13px]`}>
-                  {t('common.delete')} ({selectedArticles.size})
-                </span>
-              </Button>
-            </div>
+            {/* Delete Button */}
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedArticles.size === 0) return;
+                setShowDeleteModal(true);
+                setArticleToDelete('bulk');
+              }}
+              disabled={selectedArticles.size === 0}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'} ${selectedArticles.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ 
+                borderColor: selectedArticles.size > 0 ? '#ef4444' : undefined,
+                borderStyle: 'dashed',
+              }}
+            >
+              <Trash2 className={`w-4 h-4 ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+              <span className={`font-medium text-sm ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Supprimer {selectedArticles.size > 0 && `(${selectedArticles.size})`}
+              </span>
+            </Button>
           </div>
 
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-          >
-            <option value="">{t('dashboard.commercial.mes_articles.all_categories')}</option>
-            <option value="service">{t('dashboard.commercial.mes_articles.categories.service')}</option>
-            <option value="product">{t('dashboard.commercial.mes_articles.categories.product')}</option>
-          </select>
+          {/* Right: Sort */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={sortDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
+              >
+                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+                <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Trier
+                </span>
+                <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+              </Button>
+              {showSortDropdown && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-2">
+                    {(['reference', 'designation', 'category', 'price_ttc', 'updated_at'] as SortField[]).map((field) => (
+                      <button
+                        key={field}
+                        onClick={() => {
+                          handleSort(field);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        {field === 'reference' && 'Référence'}
+                        {field === 'designation' && 'Désignation'}
+                        {field === 'category' && 'Catégorie'}
+                        {field === 'price_ttc' && 'Montant TTC'}
+                        {field === 'updated_at' && 'Dernière MAJ'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {articles.length === 0 ? (
+        {/* Table */}
+        {sortedArticles.length === 0 ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
-                  <TableHead className="w-[80px] px-[42px]">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                      className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                    />
+                  <TableHead className="w-[50px] px-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setAllExpanded(!allExpanded)}
+                        className={`p-1 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+                      >
+                        <Menu className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                      </button>
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                      />
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Référence
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('reference')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Référence
+                      {sortField === 'reference' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Désignation
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('designation')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Désignation
+                      {sortField === 'designation' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Catégorie
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('category')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Catégorie
+                      {sortField === 'category' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Prix unitaire
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('price_ht')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Montant HT
+                      {sortField === 'price_ht' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Stock
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('tva')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Montant TVA
+                      {sortField === 'tva' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('price_ttc')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Montant TTC
+                      {sortField === 'price_ttc' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('updated_at')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Dernière MAJ
+                      {sortField === 'updated_at' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
+                  </TableHead>
+                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {articles.map((article) => (
-                  <TableRow
-                    key={article.id}
-                    className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-[#007aff14]'} ${selectedArticles.has(article.id) ? 'bg-[#007aff14]' : ''}`}
-                  >
-                    <TableCell className="px-[42px]">
-                      <Checkbox
-                        checked={selectedArticles.has(article.id)}
-                        onCheckedChange={(checked) => handleSelectArticle(article.id, checked as boolean)}
-                        className={`w-5 h-5 rounded-md border ${selectedArticles.has(article.id) ? 'bg-[#007aff14] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                      />
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {article.reference}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {article.name || article.designation}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {article.category || '-'}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-                        parseFloat(String(article.unit_price || article.price_ht || 0))
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={article.stock_quantity !== undefined && article.stock_quantity < (article.min_stock || 0) ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}>
-                        {article.stock_quantity !== undefined ? `${article.stock_quantity} ${article.unit || 'unités'}` : '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="inline-flex items-center justify-center gap-2.5">
-                        <button 
-                          onClick={() => {
-                            setSelectedArticle(article);
-                            setIsEditModalOpen(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Voir les détails"
-                        >
-                          <Eye className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setSelectedArticle(article);
-                            setIsEditModalOpen(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setArticleToDelete(article.id);
-                            setShowDeleteModal(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all hover:bg-red-50`}
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sortedArticles.map((article) => {
+                  const priceHT = normalizeValue(article.price_ht || article.unit_price);
+                  const tva = normalizeValue(article.tva || article.tax_rate);
+                  const priceTTC = calculateTTC(priceHT, tva);
+                  const tvaAmount = priceHT * (tva / 100);
+                  const isSelected = selectedArticles.has(String(article.id));
+                  
+                  return (
+                    <TableRow
+                      key={String(article.id)}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${isSelected ? 'bg-[#E3F5FF]' : ''}`}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectArticle(String(article.id), checked as boolean)}
+                          className={`w-5 h-5 rounded-md border ${isSelected ? 'bg-[#2196F3] border-[#2196F3]' : 'bg-white border-[#d5d6da]'}`}
+                        />
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {article.reference || '-'}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : ''} text-[15px]`}>
+                        <span style={{ color: primaryColor }} className="cursor-pointer hover:underline">
+                          {article.designation || article.name || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium italic ${isDark ? 'text-gray-300' : 'text-blue-500'} text-[15px]`}>
+                        {article.category || 'catégorie'}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {formatCurrency(priceHT)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {formatCurrency(tvaAmount)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {formatCurrency(priceTTC)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
+                        {formatDate(article.updated_at)}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setSelectedArticle(article);
+                              setIsEditModalOpen(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Modifier"
+                          >
+                            <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setArticleToDelete(String(article.id));
+                              setShowDeleteModal(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Supprimer"
+                          >
+                            <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
 
-        {pagination.total_pages > 1 && (
+        {/* Pagination */}
+        {pagination.total_pages > 0 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <Button
               variant="outline"
               disabled={page === 1}
-              onClick={() => setPage(page - 1)}
+              onClick={() => setPage(Math.max(1, page - 1))}
+              className={`${isDark ? 'border-gray-600' : ''}`}
             >
               {t('common.previous')}
             </Button>
-            <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-              {t('common.page')} {page} {t('common.of')} {pagination.total_pages}
+            <span className={`px-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              {t('common.page')} {page} {t('common.of')} {pagination.total_pages || 1}
             </span>
             <Button
               variant="outline"
-              disabled={page === pagination.total_pages}
+              disabled={page >= (pagination.total_pages || 1)}
               onClick={() => setPage(page + 1)}
+              className={`${isDark ? 'border-gray-600' : ''}`}
             >
               {t('common.next')}
             </Button>

@@ -38,7 +38,7 @@ import {
 interface Filters {
   search: string;
   type: 'all' | 'event' | 'session_instance' | 'course';
-  instance_type: 'all' | 'presentiel' | 'distanciel' | 'e-learning';
+  instance_type: 'all' | 'presentiel' | 'distanciel' | 'hybride' | 'e-learning';
   instructor: string;
   status: 'all' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
 }
@@ -208,14 +208,15 @@ export const Planning = (): JSX.Element => {
     return items;
   };
 
-  // Get calendar days
+  // Get calendar days (starting with Monday)
   const getCalendarDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    // Convert Sunday (0) to 6, Monday (1) to 0, etc.
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7;
 
     const days: Array<{ date: Date | null; items: CalendarItem[] }> = [];
 
@@ -229,10 +230,14 @@ export const Planning = (): JSX.Element => {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dayItems = filteredItems.filter(item => {
-        const itemDate = new Date(item.start);
-        return itemDate.getDate() === day &&
-          itemDate.getMonth() === month &&
-          itemDate.getFullYear() === year;
+        const itemStart = new Date(item.start);
+        const itemEnd = new Date(item.end);
+        const itemStartDate = new Date(itemStart.getFullYear(), itemStart.getMonth(), itemStart.getDate());
+        const itemEndDate = new Date(itemEnd.getFullYear(), itemEnd.getMonth(), itemEnd.getDate());
+        const currentDateOnly = new Date(year, month, day);
+        
+        // Check if item spans this day
+        return currentDateOnly >= itemStartDate && currentDateOnly <= itemEndDate;
       });
       days.push({ date, items: dayItems });
     }
@@ -256,6 +261,7 @@ export const Planning = (): JSX.Element => {
         participants: planningOverview.stats.total_participants,
         presentiel: planningOverview.stats.instances_by_type?.presentiel || 0,
         distanciel: planningOverview.stats.instances_by_type?.distanciel || 0,
+        hybride: planningOverview.stats.instances_by_type?.hybride || 0,
         elearning: planningOverview.stats.instances_by_type?.['e-learning'] || 0
       };
     }
@@ -268,6 +274,7 @@ export const Planning = (): JSX.Element => {
       participants: items.reduce((sum, item) => sum + (item.participants_count || 0), 0),
       presentiel: items.filter(i => i.instance_type === 'presentiel').length,
       distanciel: items.filter(i => i.instance_type === 'distanciel').length,
+      hybride: items.filter(i => i.instance_type === 'hybride').length,
       elearning: items.filter(i => i.instance_type === 'e-learning').length
     };
   };
@@ -303,9 +310,72 @@ export const Planning = (): JSX.Element => {
     return primaryColor;
   };
 
+  // Get icon for instance type
+  const getInstanceTypeIcon = (type?: string) => {
+    switch (type) {
+      case 'presentiel':
+        return MapPin;
+      case 'distanciel':
+        return Video;
+      case 'hybride':
+        return Monitor;
+      case 'e-learning':
+        return Laptop;
+      default:
+        return BookOpen;
+    }
+  };
+
+  // Check if item spans multiple days
+  const isMultiDayEvent = (item: CalendarItem): boolean => {
+    const start = new Date(item.start);
+    const end = new Date(item.end);
+    const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    return startDate.getTime() !== endDate.getTime();
+  };
+
+  // Get the span of days for a multi-day event
+  const getEventSpan = (item: CalendarItem, currentDate: Date): { start: number; end: number } | null => {
+    if (!isMultiDayEvent(item)) return null;
+    
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const itemStart = new Date(item.start);
+    const itemEnd = new Date(item.end);
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    
+    const eventStartDate = new Date(itemStart.getFullYear(), itemStart.getMonth(), itemStart.getDate());
+    const eventEndDate = new Date(itemEnd.getFullYear(), itemEnd.getMonth(), itemEnd.getDate());
+    
+    // Check if event overlaps with current month
+    if (eventEndDate < monthStart || eventStartDate > monthEnd) return null;
+    
+    const firstDay = new Date(year, month, 1);
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7;
+    
+    const startDay = eventStartDate >= monthStart 
+      ? eventStartDate.getDate() + startingDayOfWeek
+      : startingDayOfWeek;
+    const endDay = eventEndDate <= monthEnd
+      ? eventEndDate.getDate() + startingDayOfWeek
+      : startingDayOfWeek + new Date(year, month + 1, 0).getDate();
+    
+    return { start: startDay, end: endDay };
+  };
+
+  // Check if item starts on this day
+  const isEventStartDay = (item: CalendarItem, date: Date): boolean => {
+    const itemStart = new Date(item.start);
+    return itemStart.getDate() === date.getDate() &&
+           itemStart.getMonth() === date.getMonth() &&
+           itemStart.getFullYear() === date.getFullYear();
+  };
+
   const stats = getStats();
   const calendarDays = getCalendarDays();
-  const weekDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   if (loading) {
     return (
@@ -322,7 +392,7 @@ export const Planning = (): JSX.Element => {
   const totalCourses = planningOverview?.courses?.length || 0;
 
   return (
-    <div className="flex flex-col h-full p-6 gap-6">
+    <div className="flex flex-col min-h-0 p-6 gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -476,6 +546,7 @@ export const Planning = (): JSX.Element => {
                   { value: 'all', label: 'Tous', icon: null },
                   { value: 'presentiel', label: 'Présentiel', icon: MapPin },
                   { value: 'distanciel', label: 'Distanciel', icon: Video },
+                  { value: 'hybride', label: 'Hybride', icon: Monitor },
                   { value: 'e-learning', label: 'E-learning', icon: Laptop }
                 ].map((format) => (
                   <Button
@@ -602,58 +673,182 @@ export const Planning = (): JSX.Element => {
 
              {/* Calendar days */}
              <div className="grid grid-cols-7 auto-rows-fr" style={{ height: 'calc(100% - 60px)' }}>
-          {calendarDays.map((day, index) => (
-            <div
-              key={index}
-              className={`border-r border-b p-2 overflow-y-auto ${
-                isDark ? 'border-gray-700' : 'border-gray-200'
-              } ${!day.date ? 'bg-gray-50 dark:bg-gray-900' : ''} ${
-                day.date && isToday(day.date) ? (isDark ? 'bg-blue-900/20' : 'bg-blue-50') : ''
-              }`}
-            >
-              {day.date && (
-                <>
-                  <div className={`text-sm font-semibold mb-2 ${
-                    isToday(day.date)
-                      ? 'text-white bg-[#007aff] rounded-full w-7 h-7 flex items-center justify-center'
-                      : isDark ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                    {day.date.getDate()}
-                  </div>
-                  <div className="space-y-1">
-                    {day.items.slice(0, 3).map((item) => (
+          {calendarDays.map((day, index) => {
+            if (!day.date) {
+              return (
+                <div
+                  key={index}
+                  className={`border-r border-b ${isDark ? 'border-gray-700 bg-gray-900/30' : 'border-gray-200 bg-gray-50'}`}
+                  style={{ minHeight: '120px' }}
+                />
+              );
+            }
+
+            // Separate single-day and multi-day events
+            const singleDayItems: CalendarItem[] = [];
+            const multiDayItems: CalendarItem[] = [];
+
+            day.items.forEach(item => {
+              if (isMultiDayEvent(item)) {
+                multiDayItems.push(item);
+              } else {
+                singleDayItems.push(item);
+              }
+            });
+
+            // Filter multi-day items that span this day
+            const spanningMultiDayItems = multiDayItems.filter(item => {
+              const itemStart = new Date(item.start);
+              const itemEnd = new Date(item.end);
+              const itemStartDate = new Date(itemStart.getFullYear(), itemStart.getMonth(), itemStart.getDate());
+              const itemEndDate = new Date(itemEnd.getFullYear(), itemEnd.getMonth(), itemEnd.getDate());
+              const currentDateOnly = new Date(day.date!.getFullYear(), day.date!.getMonth(), day.date!.getDate());
+              return currentDateOnly >= itemStartDate && currentDateOnly <= itemEndDate;
+            });
+
+            const maxVisibleItems = 3;
+            const visibleSingleDayItems = singleDayItems.slice(0, maxVisibleItems);
+            const remainingCount = singleDayItems.length - maxVisibleItems;
+
+            return (
+              <div
+                key={index}
+                className={`border-r border-b p-2 relative overflow-hidden ${
+                  isDark ? 'border-gray-700' : 'border-gray-200'
+                } ${
+                  isToday(day.date) ? (isDark ? 'bg-blue-900/20' : 'bg-blue-50') : ''
+                }`}
+                style={{ minHeight: '120px' }}
+              >
+                {/* Day number */}
+                <div className={`text-base font-bold mb-2 ${
+                  isToday(day.date)
+                    ? 'text-white bg-[#007aff] rounded-full w-8 h-8 flex items-center justify-center'
+                    : isDark ? 'text-gray-200' : 'text-gray-800'
+                }`}>
+                  {day.date.getDate()}
+                </div>
+
+                {/* Multi-day event spans - positioned absolutely */}
+                {spanningMultiDayItems.map((item, multiIndex) => {
+                  const itemStart = new Date(item.start);
+                  const itemEnd = new Date(item.end);
+                  const itemStartDate = new Date(itemStart.getFullYear(), itemStart.getMonth(), itemStart.getDate());
+                  const itemEndDate = new Date(itemEnd.getFullYear(), itemEnd.getMonth(), itemEnd.getDate());
+                  const currentDateOnly = new Date(day.date!.getFullYear(), day.date!.getMonth(), day.date!.getDate());
+                  const isStart = currentDateOnly.getTime() === itemStartDate.getTime();
+                  const isEnd = currentDateOnly.getTime() === itemEndDate.getTime();
+                  const isMiddle = !isStart && !isEnd;
+                  const itemColor = getItemColor(item);
+                  const Icon = item.instance_type ? getInstanceTypeIcon(item.instance_type) : BookOpen;
+
+                  return (
+                    <div
+                      key={`multi-${item.id}-${index}`}
+                      className="absolute left-0 right-0 h-6 flex items-center z-10"
+                      style={{ 
+                        top: `${40 + (multiIndex * 28)}px`,
+                        backgroundColor: itemColor + '15',
+                        borderLeft: isStart ? `3px solid ${itemColor}` : 'none',
+                        borderRight: isEnd ? `3px solid ${itemColor}` : 'none',
+                        borderTop: isMiddle ? `1px solid ${itemColor}40` : 'none',
+                        borderBottom: isMiddle ? `1px solid ${itemColor}40` : 'none',
+                      }}
+                      onClick={() => setSelectedItem(item)}
+                    >
+                      {isStart && (
+                        <div className="flex items-center gap-1 px-2 truncate w-full">
+                          <Icon className="w-3 h-3 flex-shrink-0" style={{ color: itemColor }} />
+                          <span 
+                            className="text-xs font-medium truncate"
+                            style={{ color: itemColor }}
+                          >
+                            {item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Single day events - positioned relative to avoid overlap with multi-day */}
+                <div 
+                  className="space-y-1.5 mt-1 relative z-20"
+                  style={{ marginTop: spanningMultiDayItems.length > 0 ? `${spanningMultiDayItems.length * 28 + 4}px` : '4px' }}
+                >
+                  {visibleSingleDayItems.map((item) => {
+                    const itemColor = getItemColor(item);
+                    const Icon = item.instance_type ? getInstanceTypeIcon(item.instance_type) : BookOpen;
+                    
+                    return (
                       <button
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
-                        className={`w-full text-left p-2 rounded-lg text-xs transition-all hover:shadow-md ${
-                          isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                        className={`w-full text-left p-2 rounded-lg transition-all hover:shadow-md ${
+                          isDark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'
                         }`}
                         style={{
-                          backgroundColor: getItemColor(item) + '20',
-                          borderLeft: `3px solid ${getItemColor(item)}`
+                          backgroundColor: itemColor + '15',
+                          borderLeft: `3px solid ${itemColor}`
                         }}
                       >
-                        <div className="font-semibold truncate" style={{ color: getItemColor(item) }}>
-                          {formatTime(item.start)}
+                        {/* Badge with icon and label */}
+                        <div className="flex items-center gap-1 mb-1">
+                          <Badge
+                            className="h-5 px-2 py-0 flex items-center gap-1 rounded-md"
+                            style={{
+                              backgroundColor: itemColor + '20',
+                              color: itemColor,
+                              border: `1px solid ${itemColor}40`
+                            }}
+                          >
+                            <Icon className="w-3 h-3" />
+                            <span className="text-[10px] font-semibold">
+                              {item.instance_type 
+                                ? getInstanceTypeLabel(item.instance_type)
+                                : item.type === 'event' ? 'Événement' : 'Cours'}
+                            </span>
+                          </Badge>
                         </div>
-                        <div className={`truncate ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        
+                        {/* Title (truncated) */}
+                        <div 
+                          className={`text-xs font-semibold truncate mb-0.5 ${
+                            isDark ? 'text-gray-200' : 'text-gray-800'
+                          }`}
+                          style={{ color: itemColor }}
+                        >
                           {item.title}
                         </div>
-                        {item.is_online && (
-                          <Video className="w-3 h-3 mt-1" style={{ color: getItemColor(item) }} />
-                        )}
+                        
+                        {/* Time */}
+                        <div className={`text-[10px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {formatTime(item.start)}
+                        </div>
                       </button>
-                    ))}
-                    {day.items.length > 3 && (
-                      <div className={`text-xs text-center py-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        +{day.items.length - 3} autres
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
+                    );
+                  })}
+
+                  {/* Overflow indicator */}
+                  {remainingCount > 0 && (
+                    <button
+                      onClick={() => {
+                        // Show first remaining item
+                        setSelectedItem(singleDayItems[maxVisibleItems]);
+                      }}
+                      className={`w-full text-center py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        isDark 
+                          ? 'text-gray-400 hover:bg-gray-700/50' 
+                          : 'text-gray-500 hover:bg-gray-100'
+                      }`}
+                    >
+                      +{remainingCount} Plus
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
              </div>
            </>
          )}
@@ -693,6 +888,7 @@ export const Planning = (): JSX.Element => {
                       >
                         {selectedItem.instance_type === 'presentiel' && <MapPin className="w-3 h-3 mr-1" />}
                         {selectedItem.instance_type === 'distanciel' && <Video className="w-3 h-3 mr-1" />}
+                        {selectedItem.instance_type === 'hybride' && <Monitor className="w-3 h-3 mr-1" />}
                         {selectedItem.instance_type === 'e-learning' && <Laptop className="w-3 h-3 mr-1" />}
                         {getInstanceTypeLabel(selectedItem.instance_type)}
                       </Badge>

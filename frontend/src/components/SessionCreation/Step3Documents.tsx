@@ -63,7 +63,7 @@ export const Step3Documents: React.FC = () => {
   const { organization } = useOrganization();
   const { formData } = useSessionCreation();
   const { error: showError, success: showSuccess } = useToast();
-  const { navigateToRoute, buildRoute } = useSubdomainNavigation();
+  const { navigateToRoute, buildRoute, subdomain } = useSubdomainNavigation();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [documents, setDocuments] = useState<CourseDocument[]>([]);
@@ -363,7 +363,12 @@ export const Step3Documents: React.FC = () => {
           </Button>
           {!showTemplatesView && (
             <Button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                const url = subdomain
+                  ? `/${subdomain}/document-creation?sessionUuid=${formData.sessionUuid}`
+                  : `/document-creation?sessionUuid=${formData.sessionUuid}`;
+                window.open(url, '_blank');
+              }}
               style={{ backgroundColor: primaryColor }}
               className="gap-2"
             >
@@ -557,7 +562,13 @@ export const Step3Documents: React.FC = () => {
                   : `Aucun document pour l'audience "${getAudienceLabel(selectedAudience)}"`}
               </p>
               <Button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => {
+                  // Navigate to document creation page with session UUID
+                  const url = subdomain
+                    ? `/${subdomain}/document-creation?sessionUuid=${formData.sessionUuid}`
+                    : `/document-creation?sessionUuid=${formData.sessionUuid}`;
+                  window.open(url, '_blank');
+                }}
                 style={{ backgroundColor: primaryColor }}
                 className="gap-2"
               >

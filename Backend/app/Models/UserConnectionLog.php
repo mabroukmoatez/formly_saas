@@ -73,30 +73,5 @@ class UserConnectionLog extends Model
         }
         return 'desktop';
     }
-
-    // ✨ NOUVEAUX ACCESSEURS
-    public function getSessionDurationInHoursAttribute()
-    {
-        return $this->session_duration ? round($this->session_duration / 60, 2) : 0;
-    }
-
-    public function getFormattedDurationAttribute()
-    {
-        if (!$this->session_duration) return '0 min';
-        
-        $hours = floor($this->session_duration / 60);
-        $minutes = $this->session_duration % 60;
-        
-        if ($hours > 0) {
-            return "{$hours}h {$minutes}min";
-        }
-        return "{$minutes}min";
-    }
-
-    // ✨ NOUVEAU SCOPE
-    public function scopeInDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('login_at', [$startDate, $endDate]);
-    }
 }
 

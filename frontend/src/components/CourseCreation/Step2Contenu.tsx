@@ -77,8 +77,8 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     deleteSupportFile,
   } = useCourseCreation();
 
-  // Sections state (ALWAYS USED - no choice)
-  const [sections, setSections] = useState<CourseSection[]>([]);
+  // Blocks state (ALWAYS USED - no choice) - renamed from sections to blocks
+  const [sections, setSections] = useState<CourseSection[]>([]); // Keep variable name for API compatibility, but UI shows "Blocks"
 
   // Local state for UI management
   const [draggedItem, setDraggedItem] = useState<{id: string, type: 'chapter' | 'subchapter' | 'content', chapterId?: string, subChapterId?: string} | null>(null);
@@ -115,7 +115,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     loadChaptersData();
   }, [loadChapters, formData.courseUuid]);
 
-  // Load sections
+  // Load blocks (sections in API, but displayed as "Blocks" in UI)
   const loadSectionsData = async () => {
     try {
       const response: any = await courseCreation.getSections(formData.courseUuid!);
@@ -123,11 +123,11 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         setSections(response.data);
       }
     } catch (error) {
-      console.error('Error loading sections:', error);
+      console.error('Error loading blocks:', error);
     }
   };
 
-  // Section handlers
+  // Block handlers (sections in API, but displayed as "Blocks" in UI)
   const handleCreateSection = async (data: any) => {
     try {
       const response: any = await courseCreation.createSection(formData.courseUuid!, data);
@@ -135,7 +135,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         setSections(prev => [...prev, response.data]);
       }
     } catch (error) {
-      console.error('Error creating section:', error);
+      console.error('Error creating block:', error);
       throw error;
     }
   };
@@ -147,7 +147,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         setSections(prev => prev.map(s => s.id === sectionId ? { ...s, ...data } : s));
       }
     } catch (error) {
-      console.error('Error updating section:', error);
+      console.error('Error updating block:', error);
       throw error;
     }
   };
@@ -157,7 +157,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       await courseCreation.deleteSection(formData.courseUuid!, sectionId);
       setSections(prev => prev.filter(s => s.id !== sectionId));
     } catch (error) {
-      console.error('Error deleting section:', error);
+      console.error('Error deleting block:', error);
       throw error;
     }
   };
@@ -409,8 +409,8 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           delete newTimeouts[chapterId];
           return newTimeouts;
         });
-        // Reload chapters to ensure data consistency
-        await loadChapters();
+        // Don't reload chapters to avoid collapse - update local state only
+        // await loadChapters(); // REMOVED to prevent collapse
       }, 1000); // 1 second delay
       
       setChapterUpdateTimeouts(prev => ({ ...prev, [chapterId]: timeout }));
@@ -492,8 +492,8 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           delete newTimeouts[subChapterId];
           return newTimeouts;
         });
-        // Reload chapters to ensure data consistency
-        await loadChapters();
+        // Don't reload chapters to avoid collapse - update local state only
+        // await loadChapters(); // REMOVED to prevent collapse
       }, 1000); // 1 second delay
       
       setSubChapterUpdateTimeouts(prev => ({ ...prev, [subChapterId]: timeout }));
@@ -1123,7 +1123,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     setCollapsedSections((prev) => {
       const next: Record<number, boolean> = {};
       sections.forEach((section) => {
-        // Nouvelle section ? Ouverte par défaut (false = ouvert)
+        // Nouveau block ? Ouvert par défaut (false = ouvert)
         next[section.id] = prev[section.id] ?? false;
       });
       return next;
@@ -1142,7 +1142,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       setNewSectionName('');
       setIsAddingSection(false);
     } catch (error) {
-      console.error('Error adding section:', error);
+      console.error('Error adding block:', error);
     }
   };
 
@@ -1397,7 +1397,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                     value={newSectionName}
                     onChange={(e) => setNewSectionName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleQuickAddSection()}
-                    placeholder="Nom de la nouvelle section"
+                    placeholder="Nom du nouveau block"
                     className={isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white'}
                     autoFocus
                   />
@@ -1425,7 +1425,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                   className={`w-full rounded-lg border-2 border-dashed p-4 text-sm font-medium transition ${isDark ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-gray-200' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700'}`}
                 >
                   <Plus className="mr-2 inline h-4 w-4" />
-                  Ajouter une section
+                  Ajouter un block
                 </button>
               )}
             </div>

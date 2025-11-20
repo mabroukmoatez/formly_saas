@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -6,6 +6,8 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { useLocation } from 'react-router-dom';
+import { usePermissions } from '../../hooks/usePermissions';
+import { COMMERCIAL_SIDEBAR_PERMISSIONS, shouldShowMenuItem } from '../../utils/permissionMappings';
 import { 
   BarChart3, 
   FileText, 
@@ -31,7 +33,9 @@ import {
   Briefcase,
   GraduationCap,
   Building2,
-  Wallet
+  Wallet,
+  Palette,
+  Sparkles
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -142,8 +146,6 @@ const CollapsibleMenuItem: React.FC<CollapsibleMenuItemProps> = ({
                     navigateToRoute('/mes-articles');
                   } else if (subItem.id === 'charges-depenses') {
                     navigateToRoute('/charges-depenses');
-                  } else if (subItem.id === 'gestion-utilisateurs') {
-                    navigateToRoute('/user-management');
                   } else if (subItem.id === 'gestion-organisme') {
                     navigateToRoute('/gestion-organisme');
                   } else if (subItem.id === 'messagerie') {
@@ -174,6 +176,16 @@ const CollapsibleMenuItem: React.FC<CollapsibleMenuItemProps> = ({
                     navigateToRoute('/entreprises');
                   } else if (subItem.id === 'financeurs') {
                     navigateToRoute('/financeurs');
+                  } else if (subItem.id === 'marque-blanche-identite') {
+                    navigateToRoute('/white-label/identite');
+                  } else if (subItem.id === 'marque-blanche-bibliotheque') {
+                    navigateToRoute('/white-label/bibliotheque');
+                  } else if (subItem.id === 'marque-blanche-identifiants') {
+                    navigateToRoute('/white-label/identifiants');
+                  } else if (subItem.id === 'marque-blanche-formules') {
+                    navigateToRoute('/white-label/formules');
+                  } else if (subItem.path) {
+                    navigateToRoute(subItem.path);
                   }
                 }}
               >
@@ -225,6 +237,7 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [openMenus, setOpenMenus] = useState<Set<string>>(new Set());
+  const { hasPermission, hasAnyPermission, hasAllPermissions, isOrganizationAdmin } = usePermissions();
 
   // Function to get role icon dynamically
   const getRoleIcon = () => {
@@ -322,8 +335,6 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
         return route === '/entreprises';
       case 'financeurs':
         return route === '/financeurs';
-      case 'gestion-utilisateurs':
-        return route === '/user-management';
       case 'gestion-organisme':
         return route === '/gestion-organisme';
       case 'messagerie':
@@ -336,6 +347,14 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
         return route === '/plannings';
       case 'rapports-statistiques':
         return route === '/rapports-statistiques';
+      case 'marque-blanche-identite':
+        return route === '/white-label/identite';
+      case 'marque-blanche-bibliotheque':
+        return route === '/white-label/bibliotheque';
+      case 'marque-blanche-identifiants':
+        return route === '/white-label/identifiants' || route === '/user-management';
+      case 'marque-blanche-formules':
+        return route === '/white-label/formules';
       default:
         return false;
     }
@@ -357,8 +376,11 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
     if (['/formateurs', '/apprenants', '/entreprises', '/financeurs'].includes(route)) {
       return 'parties-prenantes';
     }
-    if (['/user-management', '/gestion-organisme', '/messagerie', '/actualites', '/evenements', '/plannings', '/rapports-statistiques'].includes(route)) {
+    if (['/gestion-organisme', '/messagerie', '/actualites', '/evenements', '/plannings', '/rapports-statistiques'].includes(route)) {
       return 'gestion-administrative';
+    }
+    if (['/white-label', '/white-label/identite', '/white-label/bibliotheque', '/white-label/identifiants', '/white-label/formules', '/user-management'].includes(route) || route.startsWith('/white-label/')) {
+      return 'marque-blanche';
     }
     
     return null;
@@ -445,163 +467,232 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
     return `invert(${invert}%) sepia(${sepia}%) saturate(${saturate}%) hue-rotate(${hueRotate}deg) brightness(${brightness}%) contrast(${contrast}%)`;
   };
 
-  const menuItems = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: "/assets/icons/sidebar/group-1000003443.png",
-      isCollapsible: false,
-    },
-    {
-      id: "gestion-commerciale",
-      label: t('dashboard.sidebar.commercialManagement'),
-      icon: "/assets/icons/sidebar/group-1000003443.png",
-      isCollapsible: true,
-      subItems: [
-        {
-          id: "tableau-de-bord",
-          label: t('dashboard.sidebar.dashboard'),
-          icon: BarChart3,
-        },
-        {
-          id: "mes-facture",
-          label: t('dashboard.sidebar.myInvoices'),
-          icon: Receipt,
-        },
-        {
-          id: "mes-devis",
-          label: t('dashboard.sidebar.myQuotes'),
-          icon: FileText,
-        },
-        {
-          id: "mes-article",
-          label: t('dashboard.sidebar.myArticles'),
-          icon: Package,
-        },
-        {
-          id: "charges-depenses",
-          label: t('dashboard.sidebar.chargesExpenses'),
-          icon: CreditCard,
-        },
-      ],
-    },
-    {
-      id: "gestion-administrative",
-      label: t('dashboard.sidebar.administrativeManagement'),
-      icon: "/assets/icons/sidebar/group-1000003444.png",
-      isCollapsible: true,
-      subItems: [
-        {
-          id: "gestion-utilisateurs",
-          label: t('dashboard.sidebar.userManagement'),
-          icon: Users,
-        },
-        {
-          id: "gestion-organisme",
-          label: t('dashboard.sidebar.organizationManagement'),
-          icon: Settings,
-        },
-        {
-          id: "messagerie",
-          label: t('dashboard.sidebar.messaging'),
-          icon: MessageSquare,
-        },
-        {
-          id: "actualites",
-          label: t('dashboard.sidebar.news'),
-          icon: FileText,
-        },
-        {
-          id: "evenements",
-          label: t('dashboard.sidebar.events'),
-          icon: Calendar,
-        },
-        {
-          id: "plannings",
-          label: t('dashboard.sidebar.schedules'),
-          icon: Clock,
-        },
-        {
-          id: "rapports-statistiques",
-          label: t('dashboard.sidebar.reportsStatistics'),
-          icon: BarChart3,
-        },
-      ],
-    },
-    {
-      id: "gestion-formations",
-      label: t('dashboard.sidebar.trainingManagement'),
-      icon: "/assets/icons/sidebar/group-1000003445.png",
-      isCollapsible: true,
-      subItems: [
-        {
-          id: "statistiques",
-          label: "Statistiques",
-          icon: BarChart3,
-        },
-        {
-          id: "gestion-formations",
-          label: "Gestion des formations",
-          icon: BookOpen,
-        },
-        {
-          id: "sessions",
-          label: "Sessions",
-          icon: Clock,
-        },
-        {
-          id: "gestion-quizz",
-          label: "Gestion Des Quizz",
-          icon: ClipboardList,
-        },
-        {
-          id: "supports-pedagogiques",
-          label: "Supports Pédagogiques",
-          icon: FileImage,
-        },
-      ],
-    },
-    {
-      id: "parties-prenantes",
-      label: t('dashboard.sidebar.stakeholders'),
-      icon: "/assets/icons/sidebar/group-1000003446.png",
-      isCollapsible: true,
-      subItems: [
-        {
-          id: "formateurs",
-          label: t('dashboard.sidebar.trainers'),
-          icon: GraduationCap,
-        },
-        {
-          id: "apprenants",
-          label: t('dashboard.sidebar.learners'),
-          icon: Users,
-        },
-        {
-          id: "entreprises",
-          label: t('dashboard.sidebar.companies'),
-          icon: Building2,
-        },
-        {
-          id: "financeurs",
-          label: t('dashboard.sidebar.funders'),
-          icon: Wallet,
-        },
-      ],
-    },
-    {
-      id: "gestion-qualite",
-      label: t('dashboard.sidebar.qualityManagement'),
-      icon: "/assets/icons/sidebar/group-1000003445-1.png",
-      isCollapsible: false,
-    },
-    {
-      id: "marque-blanche",
-      label: t('dashboard.sidebar.whiteLabel'),
-      icon: "/assets/icons/sidebar/group-1000003444.png",
-      isCollapsible: false,
-    },
-  ];
+  // Filtrer les éléments du menu selon les permissions
+  const menuItems = useMemo(() => {
+    const allMenuItems = [
+      {
+        id: "dashboard",
+        label: "Dashboard",
+        icon: "/assets/icons/sidebar/group-1000003443.png",
+        isCollapsible: false,
+      },
+      {
+        id: "gestion-commerciale",
+        label: t('dashboard.sidebar.commercialManagement'),
+        icon: "/assets/icons/sidebar/group-1000003443.png",
+        isCollapsible: true,
+        subItems: [
+          {
+            id: "tableau-de-bord",
+            label: t('dashboard.sidebar.dashboard'),
+            icon: BarChart3,
+          },
+          {
+            id: "mes-facture",
+            label: t('dashboard.sidebar.myInvoices'),
+            icon: Receipt,
+          },
+          {
+            id: "mes-devis",
+            label: t('dashboard.sidebar.myQuotes'),
+            icon: FileText,
+          },
+          {
+            id: "mes-article",
+            label: t('dashboard.sidebar.myArticles'),
+            icon: Package,
+          },
+          {
+            id: "charges-depenses",
+            label: t('dashboard.sidebar.chargesExpenses'),
+            icon: CreditCard,
+          },
+        ],
+      },
+      {
+        id: "gestion-administrative",
+        label: t('dashboard.sidebar.administrativeManagement'),
+        icon: "/assets/icons/sidebar/group-1000003444.png",
+        isCollapsible: true,
+        subItems: [
+          {
+            id: "gestion-organisme",
+            label: t('dashboard.sidebar.organizationManagement'),
+            icon: Settings,
+          },
+          {
+            id: "messagerie",
+            label: t('dashboard.sidebar.messaging'),
+            icon: MessageSquare,
+          },
+          {
+            id: "actualites",
+            label: t('dashboard.sidebar.news'),
+            icon: FileText,
+          },
+          {
+            id: "evenements",
+            label: t('dashboard.sidebar.events'),
+            icon: Calendar,
+          },
+          {
+            id: "plannings",
+            label: t('dashboard.sidebar.schedules'),
+            icon: Clock,
+          },
+          {
+            id: "rapports-statistiques",
+            label: t('dashboard.sidebar.reportsStatistics'),
+            icon: BarChart3,
+          },
+        ],
+      },
+      {
+        id: "gestion-formations",
+        label: t('dashboard.sidebar.trainingManagement'),
+        icon: "/assets/icons/sidebar/group-1000003445.png",
+        isCollapsible: true,
+        subItems: [
+          {
+            id: "statistiques",
+            label: "Statistiques",
+            icon: BarChart3,
+          },
+          {
+            id: "gestion-formations",
+            label: "Gestion des formations",
+            icon: BookOpen,
+          },
+          {
+            id: "sessions",
+            label: "Sessions",
+            icon: Clock,
+          },
+          {
+            id: "gestion-quizz",
+            label: "Gestion Des Quizz",
+            icon: ClipboardList,
+          },
+          {
+            id: "supports-pedagogiques",
+            label: "Supports Pédagogiques",
+            icon: FileImage,
+          },
+        ],
+      },
+      {
+        id: "parties-prenantes",
+        label: t('dashboard.sidebar.stakeholders'),
+        icon: "/assets/icons/sidebar/group-1000003446.png",
+        isCollapsible: true,
+        subItems: [
+          {
+            id: "formateurs",
+            label: t('dashboard.sidebar.trainers'),
+            icon: GraduationCap,
+          },
+          {
+            id: "apprenants",
+            label: t('dashboard.sidebar.learners'),
+            icon: Users,
+          },
+          {
+            id: "entreprises",
+            label: t('dashboard.sidebar.companies'),
+            icon: Building2,
+          },
+          {
+            id: "financeurs",
+            label: t('dashboard.sidebar.funders'),
+            icon: Wallet,
+          },
+        ],
+      },
+      {
+        id: "gestion-qualite",
+        label: t('dashboard.sidebar.qualityManagement'),
+        icon: "/assets/icons/sidebar/group-1000003445-1.png",
+        isCollapsible: false,
+      },
+      {
+        id: "marque-blanche",
+        label: t('dashboard.sidebar.whiteLabel'),
+        icon: "/assets/icons/sidebar/group-1000003444.png",
+        isCollapsible: true,
+        subItems: [
+          {
+            id: "marque-blanche-identite",
+            label: t('dashboard.sidebar.whiteLabelIdentity') || 'Identité',
+            icon: Palette,
+            path: "/white-label/identite",
+          },
+          {
+            id: "marque-blanche-bibliotheque",
+            label: t('dashboard.sidebar.whiteLabelLibrary') || 'Bibliothèque',
+            icon: BookOpen,
+            path: "/white-label/bibliotheque",
+          },
+          {
+            id: "marque-blanche-identifiants",
+            label: t('dashboard.sidebar.whiteLabelIdentifiers') || 'Gestion Des Identifiants',
+            icon: Users,
+            path: "/white-label/identifiants",
+          },
+          {
+            id: "marque-blanche-formules",
+            label: t('dashboard.sidebar.whiteLabelPlans') || 'Formules',
+            icon: Sparkles,
+            path: "/white-label/formules",
+          },
+        ],
+      },
+    ];
+
+    // Filtrer les éléments selon les permissions
+    return allMenuItems
+      .map(item => {
+        // Vérifier si l'élément parent doit être affiché
+        const showParent = shouldShowMenuItem(
+          item.id,
+          COMMERCIAL_SIDEBAR_PERMISSIONS,
+          hasPermission,
+          hasAnyPermission,
+          hasAllPermissions,
+          isOrganizationAdmin
+        );
+
+        if (!showParent) {
+          return null;
+        }
+
+        // Si l'élément a des sous-éléments, filtrer ceux-ci aussi
+        if (item.subItems) {
+          const filteredSubItems = item.subItems.filter(subItem =>
+            shouldShowMenuItem(
+              subItem.id,
+              COMMERCIAL_SIDEBAR_PERMISSIONS,
+              hasPermission,
+              hasAnyPermission,
+              hasAllPermissions,
+              isOrganizationAdmin
+            )
+          );
+
+          // Si aucun sous-élément n'est visible, ne pas afficher le parent
+          if (filteredSubItems.length === 0) {
+            return null;
+          }
+
+          return {
+            ...item,
+            subItems: filteredSubItems,
+          };
+        }
+
+        return item;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [t, hasPermission, hasAnyPermission, hasAllPermissions, isOrganizationAdmin]);
 
   return (
     <>

@@ -60,38 +60,5 @@ class SessionInstanceAttendance extends Model
     {
         return $this->belongsTo(User::class, 'marked_by');
     }
-
-    // ✨ NOUVEAUX ACCESSEURS
-    public function getMorningStatusAttribute()
-    {
-        if (!$this->check_in_time) return null;
-        
-        $checkInHour = $this->check_in_time->format('H');
-        return $checkInHour < 12 ? $this->status : null;
-    }
-
-    public function getAfternoonStatusAttribute()
-    {
-        if (!$this->check_in_time) return null;
-        
-        $checkInHour = $this->check_in_time->format('H');
-        return $checkInHour >= 12 ? $this->status : null;
-    }
-
-    // ✨ NOUVEAUX SCOPES
-    public function scopePresent($query)
-    {
-        return $query->where('status', 'present');
-    }
-
-    public function scopeAbsent($query)
-    {
-        return $query->where('status', 'absent');
-    }
-
-    public function scopeByUser($query, $userId)
-    {
-        return $query->where('user_id', $userId);
-    }
 }
 

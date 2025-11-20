@@ -70,7 +70,7 @@ export const SessionView: React.FC<SessionViewProps> = ({
   const { organization } = useOrganization();
   const { t } = useLanguage();
   const { success, error } = useToast();
-  const { navigateToRoute } = useSubdomainNavigation();
+  const { navigateToRoute, subdomain } = useSubdomainNavigation();
 
   // Organization colors
   const primaryColor = organization?.primary_color || '#007aff';
@@ -1623,7 +1623,12 @@ export const SessionView: React.FC<SessionViewProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setShowDocumentModal(true)}
+                          onClick={() => {
+                            const url = subdomain
+                              ? `/${subdomain}/document-creation?sessionUuid=${sessionUuid}`
+                              : `/document-creation?sessionUuid=${sessionUuid}`;
+                            window.open(url, '_blank');
+                          }}
                           style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
                           className="h-auto px-3 py-2 text-xs"
                         >
@@ -1753,7 +1758,12 @@ export const SessionView: React.FC<SessionViewProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setShowQuestionnaireModal(true)}
+                          onClick={() => {
+                            const url = subdomain
+                              ? `/${subdomain}/questionnaire-creation?sessionUuid=${sessionUuid}`
+                              : `/questionnaire-creation?sessionUuid=${sessionUuid}`;
+                            window.open(url, '_blank');
+                          }}
                           style={{ backgroundColor: `${primaryColor}20`, color: primaryColor }}
                           className="h-auto px-3 py-2 text-xs"
                         >

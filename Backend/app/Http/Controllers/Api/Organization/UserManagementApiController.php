@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\Api\Organization;
 
 use App\Http\Controllers\Controller;
+use App\Mail\UserInvitationMail;
 use App\Models\Organization;
 use App\Models\OrganizationRole;
 use App\Models\User;
 use App\Traits\General;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class UserManagementApiController extends Controller
 {
@@ -211,11 +214,11 @@ class UserManagementApiController extends Controller
                 ], 404);
             }
 
-            // Validation
+            // Validation - password is now optional
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
-                'password' => 'required|string|min:8',
+                'password' => 'nullable|string|min:8', // Now optional
                 'role_id' => 'required|exists:organization_roles,id',
                 'status' => 'required|in:' . STATUS_APPROVED . ',' . STATUS_SUSPENDED,
                 'phone' => 'nullable|string|max:20',
@@ -246,28 +249,73 @@ class UserManagementApiController extends Controller
             DB::beginTransaction();
 
             try {
+                $hasPassword = !empty($request->password);
+                
                 // Create user
                 $user = User::create([
                     'name' => $request->name,
                     'email' => $request->email,
-                    'password' => Hash::make($request->password),
+                    'password' => $hasPassword ? Hash::make($request->password) : null,
                     'role' => USER_ROLE_ORGANIZATION, // CRITICAL: Must be 4 for OrganizationApiMiddleware
                     'status' => $request->status,
                     'phone' => $request->phone,
                     'address' => $request->address,
                     'organization_id' => $organization->id, // Assign to organization directly
-                    'email_verified_at' => now(),
+                    'email_verified_at' => $hasPassword ? now() : null, // Only verify if password provided
                 ]);
 
                 // Assign organization role (for permissions)
                 $user->organizationRoles()->attach($role->id);
 
+                // If no password provided, generate invitation token and send email
+                if (!$hasPassword) {
+                    $token = Str::random(64);
+                    $expiresAt = now()->addDays(7);
+                    
+                    // Delete existing unused tokens for this email
+                    DB::table('password_resets')
+                        ->where('email', $user->email)
+                        ->where('type', 'password_setup')
+                        ->whereNull('used_at')
+                        ->delete();
+                    
+                    // Create invitation token
+                    DB::table('password_resets')->insert([
+                        'email' => $user->email,
+                        'token' => Hash::make($token),
+                        'type' => 'password_setup',
+                        'expires_at' => $expiresAt,
+                        'created_at' => now(),
+                    ]);
+                    
+                    // Generate setup URL with organization subdomain
+                    $setupUrl = $this->generateOrganizationUrl($organization, "/setup-password?token={$token}");
+                    
+                    // Send invitation email
+                    try {
+                        Mail::to($user->email)->send(new UserInvitationMail($user, $organization, $setupUrl));
+                        \Log::info('Invitation email sent successfully', ['user_id' => $user->id, 'email' => $user->email]);
+                    } catch (\Exception $mailException) {
+                        // Log error but don't fail the user creation
+                        \Log::error('Failed to send invitation email: ' . $mailException->getMessage(), [
+                            'user_id' => $user->id,
+                            'email' => $user->email,
+                            'exception' => $mailException->getTraceAsString()
+                        ]);
+                    }
+                }
+
                 DB::commit();
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'User created successfully',
-                    'data' => $user->load('organizationRoles')
+                    'message' => $hasPassword 
+                        ? 'User created successfully' 
+                        : 'User created successfully. An invitation email has been sent.',
+                    'data' => [
+                        'user' => $user->load('organizationRoles'),
+                        'invitation_sent' => !$hasPassword
+                    ]
                 ], 201);
 
             } catch (\Exception $e) {
@@ -733,5 +781,145 @@ class UserManagementApiController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Resend Invitation Email
+     * POST /api/organization/users/{id}/resend-invitation
+     * 
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resendInvitation($id)
+    {
+        try {
+            // Check permission
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_users')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage users'
+                ], 403);
+            }
+
+            // Get organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            // Find user
+            $user = User::where('id', $id)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+
+            // Check if user already has a password
+            if ($user->password) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cet utilisateur a déjà un mot de passe'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Generate new token
+                $token = Str::random(64);
+                $expiresAt = now()->addDays(7);
+
+                // Delete existing unused tokens
+                DB::table('password_resets')
+                    ->where('email', $user->email)
+                    ->where('type', 'password_setup')
+                    ->whereNull('used_at')
+                    ->delete();
+
+                // Create new token
+                DB::table('password_resets')->insert([
+                    'email' => $user->email,
+                    'token' => Hash::make($token),
+                    'type' => 'password_setup',
+                    'expires_at' => $expiresAt,
+                    'created_at' => now(),
+                ]);
+
+                // Generate setup URL with organization subdomain
+                $setupUrl = $this->generateOrganizationUrl($organization, "/setup-password?token={$token}");
+
+                // Send invitation email
+                try {
+                    Mail::to($user->email)->send(new UserInvitationMail($user, $organization, $setupUrl));
+                    \Log::info('Invitation email resent successfully', ['user_id' => $user->id, 'email' => $user->email]);
+                } catch (\Exception $mailException) {
+                    DB::rollBack();
+                    \Log::error('Failed to send invitation email: ' . $mailException->getMessage(), [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'exception' => $mailException->getTraceAsString()
+                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to send invitation email: ' . $mailException->getMessage()
+                    ], 500);
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Email d\'invitation renvoyé avec succès'
+                ], 200);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while resending invitation',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate URL with organization subdomain/path
+     * Format: http://localhost:5173/{slug}/path
+     * 
+     * @param Organization $organization
+     * @param string $path
+     * @return string
+     */
+    private function generateOrganizationUrl(Organization $organization, string $path = '')
+    {
+        // Get slug (custom_domain or slug)
+        $slug = $organization->custom_domain ?? $organization->slug;
+        
+        // Get base frontend URL
+        $frontendUrl = env('FRONTEND_URL', config('app.frontend_url', 'http://localhost:5173'));
+        $baseUrl = rtrim($frontendUrl, '/');
+        
+        if (!$slug) {
+            // Fallback to default FRONTEND_URL if no slug
+            return $baseUrl . $path;
+        }
+        
+        // Format: http://localhost:5173/{slug}/path
+        // Remove leading slash from path if present
+        $path = ltrim($path, '/');
+        
+        return "{$baseUrl}/{$slug}/{$path}";
     }
 }

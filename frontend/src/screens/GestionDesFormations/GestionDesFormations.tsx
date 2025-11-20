@@ -7,7 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api';
-import { Search, Clock, User, Eye, MoreHorizontal, Edit, Trash2, Plus, Grid3X3, List, X, AlertTriangle, Filter, Download, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Clock, User, Eye, MoreHorizontal, Edit, Trash2, Plus, Grid3X3, List, X, AlertTriangle, Filter, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DashboardLayout } from '../../components/CommercialDashboard';
 import { useTranslation } from 'react-i18next';
 import { LoadingScreen } from '../../components/LoadingScreen';
@@ -73,11 +73,18 @@ export const GestionDesFormations: React.FC = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [trainerFilter, setTrainerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Temporary filter states for modal
+  const [tempMinPrice, setTempMinPrice] = useState('');
+  const [tempMaxPrice, setTempMaxPrice] = useState('');
+  const [tempCategory, setTempCategory] = useState('');
+  const [tempTrainer, setTempTrainer] = useState('');
+  const [tempStatus, setTempStatus] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,26 +115,56 @@ export const GestionDesFormations: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filtering
     loadCourses();
-  }, [priceFilter, categoryFilter, trainerFilter]);
+  }, [priceFilter, categoryFilter, trainerFilter, statusFilter]);
 
   // Reload courses when page or items per page changes
   useEffect(() => {
     loadCourses();
   }, [currentPage, itemsPerPage]);
 
-  // Close filter dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
-        setShowFilterDropdown(false);
-      }
-    };
+  // Apply filters from modal
+  const applyFilters = () => {
+    // Combine min and max price into priceFilter
+    if (tempMinPrice || tempMaxPrice) {
+      setPriceFilter(`${tempMinPrice || '0'}-${tempMaxPrice || '999999'}`);
+    } else {
+      setPriceFilter('');
+    }
+    setCategoryFilter(tempCategory);
+    setTrainerFilter(tempTrainer);
+    setStatusFilter(tempStatus);
+    setShowFilterModal(false);
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // Reset all filters
+  const resetAllFilters = () => {
+    setTempMinPrice('');
+    setTempMaxPrice('');
+    setTempCategory('');
+    setTempTrainer('');
+    setTempStatus('');
+    setPriceFilter('');
+    setCategoryFilter('');
+    setTrainerFilter('');
+    setStatusFilter('');
+  };
+
+  // Open filter modal with current values
+  const openFilterModal = () => {
+    // Parse current priceFilter if exists
+    if (priceFilter) {
+      const [min, max] = priceFilter.split('-');
+      setTempMinPrice(min === '0' ? '' : min);
+      setTempMaxPrice(max === '999999' ? '' : max);
+    } else {
+      setTempMinPrice('');
+      setTempMaxPrice('');
+    }
+    setTempCategory(categoryFilter);
+    setTempTrainer(trainerFilter);
+    setTempStatus(statusFilter);
+    setShowFilterModal(true);
+  };
 
   const loadCourses = async () => {
     try {
@@ -176,26 +213,45 @@ export const GestionDesFormations: React.FC = () => {
           coursesList = [];
         }
 
-        // Apply client-side price filtering
-        if (priceFilter && coursesList.length > 0) {
-          coursesList = coursesList.filter(course => {
+        // Apply client-side filters
+        let filteredCourses = coursesList;
+
+        // Price filter (format: "min-max")
+        if (priceFilter && filteredCourses.length > 0) {
+          const [min, max] = priceFilter.split('-').map(v => parseFloat(v) || 0);
+          filteredCourses = filteredCourses.filter(course => {
             const price = parseFloat(course.price);
-            switch (priceFilter) {
-              case '0-50':
-                return price >= 0 && price <= 50;
-              case '50-100':
-                return price > 50 && price <= 100;
-              case '100-200':
-                return price > 100 && price <= 200;
-              case '200+':
-                return price > 200;
-              default:
-                return true;
-            }
+            return price >= min && price <= max;
           });
         }
 
-        setCourses(coursesList);
+        // Trainer filter
+        if (trainerFilter && filteredCourses.length > 0) {
+          filteredCourses = filteredCourses.filter(course => {
+            return course.trainers?.some(trainer => 
+              trainer.id.toString() === trainerFilter || 
+              trainer.name.toLowerCase().includes(trainerFilter.toLowerCase())
+            ) || course.course_instructors?.some(instructor =>
+              instructor.id.toString() === trainerFilter ||
+              instructor.name.toLowerCase().includes(trainerFilter.toLowerCase())
+            );
+          });
+        }
+
+        // Status filter
+        if (statusFilter && filteredCourses.length > 0) {
+          const statusMap: Record<string, number> = {
+            'published': 1,
+            'draft': 0,
+            'archived': 2,
+          };
+          const statusValue = statusMap[statusFilter];
+          if (statusValue !== undefined) {
+            filteredCourses = filteredCourses.filter(course => course.status === statusValue);
+          }
+        }
+
+        setCourses(filteredCourses);
         setTotalItems(paginationInfo.total || coursesList.length);
         setTotalPages(paginationInfo.last_page || 1);
       } else {
@@ -443,103 +499,16 @@ export const GestionDesFormations: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div className="relative" ref={filterDropdownRef}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                      className="h-10 gap-2.5 px-4 py-2.5 bg-[#f5f4f4] rounded-[10px] hover:bg-[#e5e4e4] transition-colors"
-                    >
-                      <Filter className="w-5 h-5 text-[#7e8ca9]" />
-                      <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
-                        {t('common.filter')}
-                      </span>
-                      <ChevronDown className="w-[11px] h-[6.51px] text-[#7e8ca9]" />
-                    </Button>
-                    
-                    {/* Filter Dropdown */}
-                    {showFilterDropdown && (
-                      <div className="absolute top-12 right-0 bg-white border border-[#e2e2ea] rounded-[10px] shadow-lg z-10 min-w-[200px] p-4">
-                        <div className="space-y-4">
-                          {/* Price Filter */}
-                          <div>
-                            <label className="block text-sm font-medium text-[#19294a] mb-2">
-                              {t('common.price')}
-                            </label>
-                            <select
-                              value={priceFilter}
-                              onChange={(e) => setPriceFilter(e.target.value)}
-                              className="w-full p-2 border border-[#e2e2ea] rounded-[8px] text-sm"
-                            >
-                              <option value="">{t('common.allPrices')}</option>
-                              <option value="0-50">0 - 50€</option>
-                              <option value="50-100">50 - 100€</option>
-                              <option value="100-200">100 - 200€</option>
-                              <option value="200+">200€+</option>
-                            </select>
-                          </div>
-                          
-                          {/* Category Filter */}
-                          <div>
-                            <label className="block text-sm font-medium text-[#19294a] mb-2">
-                              {t('common.category')}
-                            </label>
-                            <select
-                              value={categoryFilter}
-                              onChange={(e) => setCategoryFilter(e.target.value)}
-                              className="w-full p-2 border border-[#e2e2ea] rounded-[8px] text-sm"
-                            >
-                              <option value="">{t('common.allCategories')}</option>
-                              <option value="1">Development</option>
-                              <option value="2">Design</option>
-                              <option value="3">Business</option>
-                              <option value="4">Marketing</option>
-                            </select>
-                          </div>
-                          
-                          {/* Trainer Filter */}
-                          <div>
-                            <label className="block text-sm font-medium text-[#19294a] mb-2">
-                              {t('common.trainer')}
-                            </label>
-                            <select
-                              value={trainerFilter}
-                              onChange={(e) => setTrainerFilter(e.target.value)}
-                              className="w-full p-2 border border-[#e2e2ea] rounded-[8px] text-sm"
-                            >
-                              <option value="">{t('common.allTrainers')}</option>
-                              <option value="trainer1">Formateur Nom</option>
-                              <option value="trainer2">Autre Formateur</option>
-                            </select>
-                          </div>
-                          
-                          {/* Clear Filters */}
-                          <div className="pt-2 border-t border-[#e2e2ea]">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setPriceFilter('');
-                                setCategoryFilter('');
-                                setTrainerFilter('');
-                                setSearchQuery('');
-                              }}
-                              className="w-full h-8 text-xs"
-                            >
-                              {t('common.clearFilters')}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   <Button
-                    variant="outline"
-                    className="h-10 gap-2.5 px-4 py-2.5 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
+                    variant="ghost"
+                    onClick={openFilterModal}
+                    className="h-10 gap-2.5 px-4 py-2.5 bg-[#f5f4f4] rounded-[10px] hover:bg-[#e5e4e4] transition-colors"
                   >
-                    <Download className="w-5 h-5 text-[#7e8ca9]" />
+                    <Filter className="w-5 h-5 text-[#7e8ca9]" />
                     <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
-                      {t('common.export')}
+                      {t('common.filter')}
                     </span>
+                    <ChevronDown className="w-[11px] h-[6.51px] text-[#7e8ca9]" />
                   </Button>
 
                   {/* View Toggle */}
@@ -977,6 +946,179 @@ export const GestionDesFormations: React.FC = () => {
               >
                 <Trash2 className="w-4 h-4" />
                 {loading ? 'Suppression...' : 'Oui Supprimer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-[18px] max-w-md w-full ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b" style={{
+              borderColor: isDark ? '#374151' : '#e5e7eb'
+            }}>
+              <h2 className={`[font-family:'Poppins',Helvetica] font-bold text-xl ${
+                isDark ? 'text-white' : 'text-[#19294a]'
+              }`}>
+                Montant TTC
+              </h2>
+              <button
+                onClick={resetAllFilters}
+                className="[font-family:'Poppins',Helvetica] font-medium text-sm hover:underline"
+                style={{ color: primaryColor }}
+              >
+                Reset
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Montant TTC (Min/Max) */}
+              <div>
+                <label className={`[font-family:'Poppins',Helvetica] font-semibold text-sm mb-3 block ${
+                  isDark ? 'text-gray-300' : 'text-[#19294a]'
+                }`}>
+                  Montant TTC
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    type="number"
+                    placeholder="Ex: 1000 €"
+                    value={tempMinPrice}
+                    onChange={(e) => setTempMinPrice(e.target.value)}
+                    className={`h-10 rounded-[10px] ${
+                      isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#f5f5f5] border-[#e2e2ea]'
+                    } [font-family:'Poppins',Helvetica] text-sm`}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Ex: 2000 €"
+                    value={tempMaxPrice}
+                    onChange={(e) => setTempMaxPrice(e.target.value)}
+                    className={`h-10 rounded-[10px] ${
+                      isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#f5f5f5] border-[#e2e2ea]'
+                    } [font-family:'Poppins',Helvetica] text-sm`}
+                  />
+                </div>
+              </div>
+
+              {/* Catégorie */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className={`[font-family:'Poppins',Helvetica] font-semibold text-sm ${
+                    isDark ? 'text-gray-300' : 'text-[#19294a]'
+                  }`}>
+                    Catégorie
+                  </label>
+                  <button
+                    onClick={() => setTempCategory('')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <select
+                  value={tempCategory}
+                  onChange={(e) => setTempCategory(e.target.value)}
+                  className={`w-full h-10 px-4 rounded-[10px] ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-[#f5f5f5] border-[#e2e2ea] text-[#19294a]'
+                  } [font-family:'Poppins',Helvetica] text-sm border`}
+                >
+                  <option value="">Sélectionner Catégorie</option>
+                  <option value="1">Development</option>
+                  <option value="2">Design</option>
+                  <option value="3">Business</option>
+                  <option value="4">Marketing</option>
+                </select>
+              </div>
+
+              {/* Formateur */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className={`[font-family:'Poppins',Helvetica] font-semibold text-sm ${
+                    isDark ? 'text-gray-300' : 'text-[#19294a]'
+                  }`}>
+                    Formateur
+                  </label>
+                  <button
+                    onClick={() => setTempTrainer('')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <select
+                  value={tempTrainer}
+                  onChange={(e) => setTempTrainer(e.target.value)}
+                  className={`w-full h-10 px-4 rounded-[10px] ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-[#f5f5f5] border-[#e2e2ea] text-[#19294a]'
+                  } [font-family:'Poppins',Helvetica] text-sm border`}
+                >
+                  <option value="">Sélectionner formateur</option>
+                  <option value="trainer1">Formateur Nom</option>
+                  <option value="trainer2">Autre Formateur</option>
+                </select>
+              </div>
+
+              {/* Status */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className={`[font-family:'Poppins',Helvetica] font-semibold text-sm ${
+                    isDark ? 'text-gray-300' : 'text-[#19294a]'
+                  }`}>
+                    Status
+                  </label>
+                  <button
+                    onClick={() => setTempStatus('')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <select
+                  value={tempStatus}
+                  onChange={(e) => setTempStatus(e.target.value)}
+                  className={`w-full h-10 px-4 rounded-[10px] ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-[#f5f5f5] border-[#e2e2ea] text-[#19294a]'
+                  } [font-family:'Poppins',Helvetica] text-sm border`}
+                >
+                  <option value="">Tous les statuts</option>
+                  <option value="published">Publié</option>
+                  <option value="draft">Brouillon</option>
+                  <option value="archived">Archivé</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`p-6 border-t flex justify-between gap-3 ${
+              isDark ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilterModal(false)}
+                className="rounded-[10px] [font-family:'Poppins',Helvetica]"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={applyFilters}
+                className="rounded-[10px] flex-1 [font-family:'Poppins',Helvetica] font-medium"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Appliquer les filtres
               </Button>
             </div>
           </div>

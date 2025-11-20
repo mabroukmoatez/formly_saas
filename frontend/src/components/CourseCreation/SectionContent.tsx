@@ -9,6 +9,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 import { XIcon, PlusIcon, GripVerticalIcon, EditIcon, TrashIcon } from 'lucide-react';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 
 // Modules Section
 export const ModulesSection: React.FC<{
@@ -380,6 +382,148 @@ export const MethodsSection: React.FC<{
   );
 };
 
+// Additional Fee Modal Component
+interface AdditionalFeeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: { name: string; amount: number; description: string }) => void;
+  fee?: {
+    id: string;
+    name: string;
+    amount: number;
+    description?: string;
+  } | null;
+}
+
+const AdditionalFeeModal: React.FC<AdditionalFeeModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  fee
+}) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+  const { organization } = useOrganization();
+  const primaryColor = organization?.primary_color || '#007aff';
+
+  const [name, setName] = useState(fee?.name || '');
+  const [amount, setAmount] = useState(fee?.amount?.toString() || '');
+  const [description, setDescription] = useState(fee?.description || '');
+
+  React.useEffect(() => {
+    if (fee) {
+      setName(fee.name || '');
+      setAmount(fee.amount?.toString() || '');
+      setDescription(fee.description || '');
+    } else {
+      setName('');
+      setAmount('');
+      setDescription('');
+    }
+  }, [fee, isOpen]);
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      return;
+    }
+    onSave({
+      name: name.trim(),
+      amount: parseFloat(amount) || 0,
+      description: description.trim()
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div 
+        className={`w-full max-w-md rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {fee ? 'Modifier le frais annexe' : 'Ajouter un frais annexe'}
+            </h2>
+            <button
+              onClick={onClose}
+              className={`p-1 rounded-md hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+            >
+              <XIcon className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <Label className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Nom du frais *
+            </Label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Frais de certification"
+              className={`mt-1 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+            />
+          </div>
+
+          <div>
+            <Label className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Montant (€ HT) *
+            </Label>
+            <div className="relative mt-1">
+              <span className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>€</span>
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                className={`pl-8 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Description (optionnel)
+            </Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Description du frais..."
+              rows={3}
+              className={`mt-1 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+            />
+          </div>
+        </div>
+
+        <div className={`p-6 border-t flex justify-end gap-3 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : ''}
+          >
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!name.trim()}
+            style={{ backgroundColor: primaryColor }}
+            className="text-white"
+          >
+            {fee ? 'Modifier' : 'Ajouter'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Pricing Section
 export const PricingSection: React.FC<{
   priceHT: number;
@@ -393,7 +537,7 @@ export const PricingSection: React.FC<{
   }>;
   onUpdatePriceHT: (value: number) => void;
   onUpdateVATPercentage: (value: number) => void;
-  onAddAdditionalFee: () => void;
+  onAddAdditionalFee: (initialData?: { name: string; amount: number; description: string }) => void;
   onUpdateAdditionalFee: (id: string, field: string, value: any) => void;
   onRemoveAdditionalFee: (id: string) => void;
 }> = ({ 
@@ -410,120 +554,161 @@ export const PricingSection: React.FC<{
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#007aff';
+  const [showModal, setShowModal] = useState(false);
+  const [editingFee, setEditingFee] = useState<{ id: string; name: string; amount: number; description?: string } | null>(null);
+
+  const handleOpenModal = (fee?: { id: string; name: string; amount: number; description?: string }) => {
+    if (fee) {
+      setEditingFee(fee);
+    } else {
+      setEditingFee(null);
+    }
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingFee(null);
+  };
+
+  const handleSaveFee = (data: { name: string; amount: number; description: string }) => {
+    if (editingFee) {
+      // Update existing fee
+      onUpdateAdditionalFee(editingFee.id, 'name', data.name);
+      onUpdateAdditionalFee(editingFee.id, 'amount', data.amount);
+      onUpdateAdditionalFee(editingFee.id, 'description', data.description);
+    } else {
+      // Create new fee with initial data
+      onAddAdditionalFee(data);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {t('courseCreation.form.price')}
-          </h3>
-          
-          <div className="space-y-3">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('courseCreation.form.priceHT')}:
-              </label>
-              <Input
-                type="number"
-                value={priceHT || ''}
-                onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                min="0"
-                step="0.01"
-                className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-              />
+    <>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {t('courseCreation.form.price')}
+            </h3>
+            
+            <div className="space-y-3">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('courseCreation.form.priceHT')}:
+                </label>
+                <Input
+                  type="number"
+                  value={priceHT || ''}
+                  onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                />
+              </div>
+              
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('courseCreation.form.vatPercentage')}:
+                </label>
+                <Input
+                  type="number"
+                  value={vatPercentage || ''}
+                  onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
+                  placeholder="20"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {t('courseCreation.form.additionalFees')} ({additionalFees.length})
+              </h3>
+              <Button
+                data-action="add-additional-fee"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleOpenModal();
+                }}
+                className="flex items-center gap-2"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <PlusIcon className="w-4 h-4" />
+                {t('courseCreation.form.addAdditionalFee')}
+              </Button>
             </div>
             
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('courseCreation.form.vatPercentage')}:
-              </label>
-              <Input
-                type="number"
-                value={vatPercentage || ''}
-                onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
-                placeholder="20"
-                min="0"
-                max="100"
-                step="0.01"
-                className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-              />
+            <div className="space-y-3">
+              {additionalFees.map((fee) => (
+                <Card key={fee.id} className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {fee.name}
+                          {fee.vat_applied && (
+                            <span className={`ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              (TVA À {vatPercentage}%)
+                            </span>
+                          )}
+                        </div>
+                        <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenModal({
+                              id: fee.id,
+                              name: fee.name,
+                              amount: fee.amount,
+                              description: ''
+                            });
+                          }}
+                        >
+                          <EditIcon className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveAdditionalFee(fee.id);
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {t('courseCreation.form.additionalFees')} ({additionalFees.length})
-            </h3>
-            <Button
-              data-action="add-additional-fee"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // ('Add Additional Fee clicked - preventing propagation');
-                onAddAdditionalFee();
-              }}
-              className="flex items-center gap-2"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <PlusIcon className="w-4 h-4" />
-              {t('courseCreation.form.addAdditionalFee')}
-            </Button>
-          </div>
-          
-          <div className="space-y-3">
-            {additionalFees.map((fee) => (
-              <Card key={fee.id} className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {fee.name}
-                        {fee.vat_applied && (
-                          <span className={`ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            (TVA À {vatPercentage}%)
-                          </span>
-                        )}
-                      </div>
-                      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateAdditionalFee(fee.id, 'name', prompt('Nom du frais:', fee.name) || fee.name);
-                        }}
-                      >
-                        <EditIcon className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveAdditionalFee(fee.id);
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
           </div>
         </div>
       </div>
-    </div>
+
+      <AdditionalFeeModal
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        onSave={handleSaveFee}
+        fee={editingFee}
+      />
+    </>
   );
 };
 

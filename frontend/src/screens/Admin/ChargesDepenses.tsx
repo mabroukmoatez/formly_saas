@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
@@ -11,9 +11,25 @@ import { commercialService } from '../../services/commercial';
 import { Charge, ExpensesDashboardResponse } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
 import { ChargeCreationModal } from '../../components/CommercialDashboard/ChargeCreationModal';
-import { ChargeViewModal } from '../../components/CommercialDashboard/ChargeViewModal';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
-import { Plus, Search, Download, Eye, Edit, Trash2, CreditCard, DollarSign, TrendingUp, FileText, Calendar, Filter, Eye as EyeIcon } from 'lucide-react';
+import { 
+  Plus, 
+  Search, 
+  Edit, 
+  Trash2, 
+  CreditCard, 
+  ChevronDown,
+  ChevronUp,
+  ArrowUpDown,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  ArrowUpDown as SwapIcon,
+  FileIcon,
+  DollarSign,
+  TrendingUp,
+  Target
+} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -22,6 +38,251 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table';
+
+type SortField = 'date' | 'label' | 'category' | 'amount';
+type SortDirection = 'asc' | 'desc';
+
+// Component for Expense Stat Card with Stacked Bar Chart
+interface ExpenseStatCardProps {
+  title: string;
+  amount: number;
+  monthlyData: Array<{ month: string; humains: number; environnement: number; total: number }>;
+  type: 'total' | 'environnement' | 'humains';
+  isDark: boolean;
+  primaryColor: string;
+}
+
+const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
+  title,
+  amount,
+  monthlyData,
+  type,
+  isDark,
+  primaryColor
+}) => {
+  const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  // Chart configuration
+  const chartHeight = 120;
+  const chartWidth = 300; // Increased width for better spacing
+  const padding = { top: 10, right: 10, bottom: 25, left: 10 };
+  const innerHeight = chartHeight - padding.top - padding.bottom;
+  const innerWidth = chartWidth - padding.left - padding.right;
+  const barWidth = Math.max(4, innerWidth / 12 - 1); // Minimum bar width of 4
+
+  // Calculate max value for scaling
+  const maxValue = Math.max(
+    ...monthlyData.map(d => type === 'total' ? d.total : (type === 'humains' ? d.humains : d.environnement)),
+    1
+  );
+
+  // Colors based on type
+  const colors = {
+    total: {
+      iconBg: isDark ? 'bg-blue-900/30' : 'bg-blue-100',
+      iconColor: isDark ? 'text-blue-400' : 'text-blue-600',
+      amountColor: isDark ? 'text-blue-400' : 'text-blue-600',
+      bar1: '#25C9B5', // Turquoise (environnementaux)
+      bar2: '#9C27B0', // Violet (humains)
+    },
+    environnement: {
+      iconBg: isDark ? 'bg-purple-900/30' : 'bg-purple-100',
+      iconColor: isDark ? 'text-purple-400' : 'text-purple-600',
+      amountColor: isDark ? 'text-purple-400' : 'text-purple-600',
+      bar1: '#BA68C8', // Violet clair
+      bar2: '#7B1FA2', // Violet foncé
+    },
+    humains: {
+      iconBg: isDark ? 'bg-cyan-900/30' : 'bg-cyan-100',
+      iconColor: isDark ? 'text-cyan-400' : 'text-cyan-600',
+      amountColor: isDark ? 'text-cyan-400' : 'text-cyan-600',
+      bar1: '#4DD0E1', // Turquoise clair
+      bar2: '#00ACC1', // Turquoise moyen
+      bar3: '#00838F', // Turquoise foncé
+    }
+  };
+
+  const currentColors = colors[type];
+
+  return (
+    <Card className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border-0`}>
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className={`font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-sm`}>
+            {title}
+          </div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentColors.iconBg}`}>
+            <Target className={`w-4 h-4 ${currentColors.iconColor}`} />
+          </div>
+        </div>
+
+        {/* Amount */}
+        <div className={`font-bold ${currentColors.amountColor} text-2xl mb-4`}>
+          {formatCurrency(amount)}
+        </div>
+
+        {/* Stacked Bar Chart */}
+        <div className="w-full overflow-x-auto" style={{ height: `${chartHeight}px` }}>
+          <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet">
+            {monthlyData.map((data, index) => {
+              const barSpacing = innerWidth / 12;
+              const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+              const value = type === 'total' ? data.total : (type === 'humains' ? data.humains : data.environnement);
+              const barHeight = (value / maxValue) * innerHeight;
+              const y = padding.top + innerHeight - barHeight;
+
+              if (type === 'total') {
+                // Stacked: environnement (bottom) + humains (top)
+                const envHeight = (data.environnement / maxValue) * innerHeight;
+                const humainsHeight = (data.humains / maxValue) * innerHeight;
+                const envY = padding.top + innerHeight - envHeight;
+                const humainsY = envY - humainsHeight;
+
+                return (
+                  <g key={index}>
+                    {/* Environnement (bottom - turquoise) */}
+                    {data.environnement > 0 && (
+                      <rect
+                        x={x}
+                        y={envY}
+                        width={barWidth}
+                        height={envHeight}
+                        fill={currentColors.bar1}
+                        rx="2"
+                      />
+                    )}
+                    {/* Humains (top - violet) */}
+                    {data.humains > 0 && (
+                      <rect
+                        x={x}
+                        y={humainsY}
+                        width={barWidth}
+                        height={humainsHeight}
+                        fill={currentColors.bar2}
+                        rx="2"
+                      />
+                    )}
+                    {/* Month label */}
+                    <text
+                      x={x + barWidth / 2}
+                      y={chartHeight - 5}
+                      textAnchor="middle"
+                      fill={isDark ? '#94a3b8' : '#6a90b9'}
+                      fontSize="10"
+                      fontWeight="500"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      {data.month}
+                    </text>
+                  </g>
+                );
+              } else if (type === 'environnement') {
+                // Stacked: violet clair (bottom) + violet foncé (top)
+                const part1 = value * 0.6;
+                const part2 = value * 0.4;
+                const height1 = (part1 / maxValue) * innerHeight;
+                const height2 = (part2 / maxValue) * innerHeight;
+                const y1 = padding.top + innerHeight - height1;
+                const y2 = y1 - height2;
+
+                return (
+                  <g key={index}>
+                    <rect
+                      x={x}
+                      y={y1}
+                      width={barWidth}
+                      height={height1}
+                      fill={currentColors.bar1}
+                      rx="2"
+                    />
+                    <rect
+                      x={x}
+                      y={y2}
+                      width={barWidth}
+                      height={height2}
+                      fill={currentColors.bar2}
+                      rx="2"
+                    />
+                    <text
+                      x={x + barWidth / 2}
+                      y={chartHeight - 5}
+                      textAnchor="middle"
+                      fill={isDark ? '#94a3b8' : '#6a90b9'}
+                      fontSize="10"
+                      fontWeight="500"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      {data.month}
+                    </text>
+                  </g>
+                );
+              } else {
+                // Stacked: turquoise clair (bottom) + moyen (middle) + foncé (top)
+                const part1 = value * 0.5;
+                const part2 = value * 0.3;
+                const part3 = value * 0.2;
+                const height1 = (part1 / maxValue) * innerHeight;
+                const height2 = (part2 / maxValue) * innerHeight;
+                const height3 = (part3 / maxValue) * innerHeight;
+                const y1 = padding.top + innerHeight - height1;
+                const y2 = y1 - height2;
+                const y3 = y2 - height3;
+
+                return (
+                  <g key={index}>
+                    <rect
+                      x={x}
+                      y={y1}
+                      width={barWidth}
+                      height={height1}
+                      fill={currentColors.bar1}
+                      rx="2"
+                    />
+                    <rect
+                      x={x}
+                      y={y2}
+                      width={barWidth}
+                      height={height2}
+                      fill={currentColors.bar2}
+                      rx="2"
+                    />
+                    <rect
+                      x={x}
+                      y={y3}
+                      width={barWidth}
+                      height={height3}
+                      fill={currentColors.bar3}
+                      rx="2"
+                    />
+                    <text
+                      x={x + barWidth / 2}
+                      y={chartHeight - 5}
+                      textAnchor="middle"
+                      fill={isDark ? '#94a3b8' : '#6a90b9'}
+                      fontSize="10"
+                      fontWeight="500"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      {data.month}
+                    </text>
+                  </g>
+                );
+              }
+            })}
+          </svg>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const ChargesDepenses = (): JSX.Element => {
   const { isDark } = useTheme();
@@ -36,38 +297,45 @@ export const ChargesDepenses = (): JSX.Element => {
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedRole, setSelectedRole] = useState<string>('');
-  const [selectedContractType, setSelectedContractType] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCharge, setSelectedCharge] = useState<Charge | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [chargeToDelete, setChargeToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<ExpensesDashboardResponse | null>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
+      }
+    };
+    if (showFilterDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFilterDropdown]);
 
   useEffect(() => {
     fetchCharges();
     fetchDashboardStats();
-  }, [page, selectedCategory, selectedRole, selectedContractType, dateFrom, dateTo]);
+  }, [page, selectedCategory, searchTerm, sortField, sortDirection]);
 
   const fetchDashboardStats = async () => {
     try {
       setDashboardLoading(true);
-      const params: any = {};
-      if (dateFrom) params.date_from = dateFrom;
-      if (dateTo) params.date_to = dateTo;
-      if (selectedCategory) params.category = selectedCategory;
-      if (selectedRole) params.role = selectedRole;
-      if (selectedContractType) params.contract_type = selectedContractType;
-
       try {
-        const response = await commercialService.getExpensesDashboard(params);
+        const response = await commercialService.getExpensesDashboard({});
         if (response.success && response.data) {
           setDashboardStats(response);
           return;
@@ -77,13 +345,10 @@ export const ChargesDepenses = (): JSX.Element => {
       }
 
       // Fallback: Calculate statistics from charges
-      // Fetch all charges (without pagination) to calculate stats
       const allChargesResponse = await commercialService.getCharges({
-        per_page: 1000, // Get a large number to calculate stats
+        per_page: 1000,
         search: searchTerm || undefined,
         category: selectedCategory || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
       });
 
       if (allChargesResponse.success && allChargesResponse.data?.data) {
@@ -97,8 +362,26 @@ export const ChargesDepenses = (): JSX.Element => {
     }
   };
 
+  const getCategoryLabel = (category: string): string => {
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes('rh') || categoryLower.includes('humain') || categoryLower.includes('salary')) {
+      return 'Moyens Humains';
+    }
+    if (categoryLower.includes('environnement') || categoryLower.includes('environment')) {
+      return 'Moyens Environnementaux';
+    }
+    const labels: Record<string, string> = {
+      office: 'Bureau',
+      travel: 'Voyage',
+      marketing: 'Marketing',
+      utilities: 'Services',
+      salary: 'Moyens Humains',
+      other: 'Autre',
+    };
+    return labels[category] || category;
+  };
+
   const calculateStatsFromCharges = (chargesList: Charge[]) => {
-    // Calculate totals
     const totalExpenses = chargesList.reduce((sum, charge) => {
       return sum + parseFloat(String(charge.amount || 0));
     }, 0);
@@ -114,20 +397,20 @@ export const ChargesDepenses = (): JSX.Element => {
       byCategory[category] = (byCategory[category] || 0) + amount;
     });
 
-    // Group by month
-    const monthlyData: Record<string, number> = {};
-    chargesList.forEach(charge => {
-      const date = charge.date ? new Date(charge.date) : new Date(charge.created_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const amount = parseFloat(String(charge.amount || 0));
-      monthlyData[monthKey] = (monthlyData[monthKey] || 0) + amount;
+    // Calculate monthly data by category
+    const monthlyByCategory: Record<string, { humains: number; environnement: number }> = {};
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    // Initialize all months
+    months.forEach((month, index) => {
+      const monthKey = `${index + 1}`.padStart(2, '0');
+      monthlyByCategory[monthKey] = { humains: 0, environnement: 0 };
     });
 
-    // Group by category and month for stacked chart
-    const monthlyByCategory: Record<string, { humains: number; environnement: number }> = {};
+    // First pass: categorize charges
     chargesList.forEach(charge => {
       const date = charge.date ? new Date(charge.date) : new Date(charge.created_at);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthKey = `${date.getMonth() + 1}`.padStart(2, '0');
       const amount = parseFloat(String(charge.amount || 0));
       const category = (charge.category || '').toLowerCase();
       
@@ -137,61 +420,62 @@ export const ChargesDepenses = (): JSX.Element => {
 
       if (category.includes('rh') || category.includes('humain') || category.includes('salary')) {
         monthlyByCategory[monthKey].humains += amount;
-      } else if (category.includes('environnement') || category.includes('environment')) {
+      } else if (category.includes('environnement') || category.includes('environment') || category.includes('utilities') || category.includes('office')) {
         monthlyByCategory[monthKey].environnement += amount;
       } else {
-        // Distribute proportionally
-        const humainsRatio = byCategory['salary'] || 0;
-        const envRatio = byCategory['utilities'] || 0;
-        const totalRatio = humainsRatio + envRatio || 1;
-        monthlyByCategory[monthKey].humains += amount * (humainsRatio / totalRatio);
-        monthlyByCategory[monthKey].environnement += amount * (envRatio / totalRatio);
+        // For other categories, distribute equally or based on existing pattern
+        const humainsTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.humains, 0);
+        const envTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.environnement, 0);
+        const total = humainsTotal + envTotal || 1;
+        if (total > 0) {
+          monthlyByCategory[monthKey].humains += amount * (humainsTotal / total);
+          monthlyByCategory[monthKey].environnement += amount * (envTotal / total);
+        } else {
+          // If no data yet, split equally
+          monthlyByCategory[monthKey].humains += amount * 0.5;
+          monthlyByCategory[monthKey].environnement += amount * 0.5;
+        }
       }
     });
 
-    // Convert to API format
-    const monthlyEvolution = Object.keys(monthlyData)
-      .sort()
-      .map(month => ({
-        month,
-        value: monthlyData[month]
-      }));
+    // Convert to array format for charts
+    const monthlyEvolution = months.map((month, index) => {
+      const monthKey = `${index + 1}`.padStart(2, '0');
+      const data = monthlyByCategory[monthKey] || { humains: 0, environnement: 0 };
+      return {
+        month: month,
+        humains: data.humains,
+        environnement: data.environnement,
+        total: data.humains + data.environnement
+      };
+    });
 
     const byCategoryArray = Object.keys(byCategory).map(name => ({
       name: getCategoryLabel(name),
       value: byCategory[name]
     }));
 
-    // Calculate category totals for display
-    const humainsTotalCalc = byCategoryArray
-      .filter(c => {
-        const name = c.name.toLowerCase();
-        return name.includes('rh') || name.includes('humain') || name.includes('salaire');
-      })
-      .reduce((sum, c) => sum + c.value, 0);
-    
-    const environnementTotalCalc = byCategoryArray
-      .filter(c => {
-        const name = c.name.toLowerCase();
-        return name.includes('environnement') || name.includes('environment');
-      })
-      .reduce((sum, c) => sum + c.value, 0);
+    // Calculate totals by category
+    const humainsTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.humains, 0);
+    const environnementTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.environnement, 0);
 
-    // Create dashboard response structure
     const dashboardData: ExpensesDashboardResponse = {
       success: true,
       data: {
         charts: {
           by_category: byCategoryArray,
-          monthly_evolution: monthlyEvolution,
+          monthly_evolution: monthlyEvolution.map(m => ({ month: m.month, value: m.total })),
           by_contract_type: []
         },
         summary: {
           total_expenses: totalExpenses,
           total_count: totalCount,
           average_expense: averageExpense
-        }
-      }
+        },
+        monthly_data: monthlyEvolution,
+        humains_total: humainsTotal,
+        environnement_total: environnementTotal
+      } as any
     };
 
     setDashboardStats(dashboardData);
@@ -205,8 +489,6 @@ export const ChargesDepenses = (): JSX.Element => {
         per_page: 12,
         search: searchTerm || undefined,
         category: selectedCategory || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
       });
       if (response.success && response.data) {
         setCharges(response.data.data || []);
@@ -239,28 +521,110 @@ export const ChargesDepenses = (): JSX.Element => {
     setSelectedCharges(newSelected);
   };
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      office: 'bg-blue-100 text-blue-700',
-      travel: 'bg-purple-100 text-purple-700',
-      marketing: 'bg-pink-100 text-pink-700',
-      utilities: 'bg-yellow-100 text-yellow-700',
-      salary: 'bg-green-100 text-green-700',
-      other: 'bg-gray-100 text-gray-700',
-    };
-    return colors[category] || colors.other;
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
   };
 
-  const getCategoryLabel = (category: string): string => {
-    const labels: Record<string, string> = {
-      office: 'Bureau',
-      travel: 'Voyage',
-      marketing: 'Marketing',
-      utilities: 'Services',
-      salary: 'Salaire',
-      other: 'Autre',
-    };
-    return labels[category] || category;
+  const handleDateSortToggle = () => {
+    if (sortField === 'date') {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField('date');
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedCharges = useMemo(() => {
+    const sorted = [...charges];
+    sorted.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortField) {
+        case 'date':
+          aValue = new Date(a.date || a.created_at).getTime();
+          bValue = new Date(b.date || b.created_at).getTime();
+          break;
+        case 'label':
+          aValue = a.label || '';
+          bValue = b.label || '';
+          break;
+        case 'category':
+          aValue = getCategoryLabel(a.category || '');
+          bValue = getCategoryLabel(b.category || '');
+          break;
+        case 'amount':
+          aValue = parseFloat(String(a.amount || 0));
+          bValue = parseFloat(String(b.amount || 0));
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        const comparison = aValue.localeCompare(bValue, 'fr', { numeric: true, sensitivity: 'base' });
+        return sortDirection === 'asc' ? comparison : -comparison;
+      }
+
+      const comparison = aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+    return sorted;
+  }, [charges, sortField, sortDirection]);
+
+  const formatCurrency = (value: number | string | undefined): string => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : (value || 0);
+    return new Intl.NumberFormat('fr-FR', { 
+      style: 'currency', 
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(numValue);
+  };
+
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0]; // Format YYYY-MM-DD
+  };
+
+  const getDocumentCount = (charge: Charge): number => {
+    return charge.documents?.length || 0;
+  };
+
+  const getFirstDocumentName = (charge: Charge): string => {
+    if (charge.documents && charge.documents.length > 0) {
+      return charge.documents[0].original_name || charge.documents[0].file_path.split('/').pop() || 'document.pdf';
+    }
+    return '';
+  };
+
+  const handleDownloadDocument = (document: any) => {
+    try {
+      // Use the same base URL as in ChargeViewModal
+      const baseURL = 'http://localhost:8000';
+      const filePath = document.file_path.startsWith('/') ? document.file_path.slice(1) : document.file_path;
+      const fileUrl = `${baseURL}/storage/${filePath}`;
+      window.open(fileUrl, '_blank');
+    } catch (err) {
+      console.error('Error downloading document:', err);
+      showError('Erreur', 'Impossible de télécharger le document');
+    }
+  };
+
+  const getCourseName = (charge: Charge): string => {
+    if (charge.course) {
+      return charge.course.name || charge.course.title || '-';
+    }
+    return '-';
   };
 
   const confirmDeleteCharge = async () => {
@@ -269,7 +633,6 @@ export const ChargesDepenses = (): JSX.Element => {
     setDeleting(true);
     try {
       if (chargeToDelete === 'bulk') {
-        // Delete multiple charges
         const deletePromises = Array.from(selectedCharges).map(id =>
           commercialService.deleteCharge(id)
         );
@@ -277,12 +640,10 @@ export const ChargesDepenses = (): JSX.Element => {
         success(`${selectedCharges.size} dépense(s) supprimée(s) avec succès`);
         setSelectedCharges(new Set());
       } else {
-        // Delete single charge
         await commercialService.deleteCharge(chargeToDelete);
         success('Dépense supprimée avec succès');
       }
       fetchCharges();
-      fetchDashboardStats();
       setShowDeleteModal(false);
       setChargeToDelete(null);
     } catch (err: any) {
@@ -297,190 +658,99 @@ export const ChargesDepenses = (): JSX.Element => {
     setChargeToDelete(null);
   };
 
-  const handleApplyFilters = () => {
-    setPage(1);
-    fetchCharges();
-    fetchDashboardStats();
+  const handleExportExcel = async () => {
+    try {
+      const csvData = sortedCharges.map(charge => ({
+        'Date': formatDate(charge.date || charge.created_at),
+        'Libellé': charge.label || '',
+        'Catégorie': getCategoryLabel(charge.category || ''),
+        'Montant (€)': parseFloat(String(charge.amount || 0)),
+        'Pièce jointe': getDocumentCount(charge) > 0 ? getFirstDocumentName(charge) : '',
+        'Formation liée': getCourseName(charge),
+      }));
+      
+      const csv = [
+        Object.keys(csvData[0]).join(','),
+        ...csvData.map(row => Object.values(row).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `charges_depenses_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      success('Charges exportées en Excel avec succès');
+    } catch (err) {
+      showError('Erreur', 'Impossible d\'exporter les charges');
+    }
   };
 
-  const handleResetFilters = () => {
-    setSearchTerm('');
-    setSelectedCategory('');
-    setSelectedRole('');
-    setSelectedContractType('');
-    setDateFrom('');
-    setDateTo('');
-    setPage(1);
+  const handleExportPDF = async () => {
+    try {
+      // Create a simple PDF using window.print() approach
+      // For a more sophisticated PDF, you would use a library like jsPDF
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showError('Erreur', 'Impossible d\'ouvrir la fenêtre d\'impression');
+        return;
+      }
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Charges et Dépenses</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+          </style>
+        </head>
+        <body>
+          <h1>Charges et Dépenses</h1>
+          <p>Date d'export : ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Libellé</th>
+                <th>Catégorie</th>
+                <th>Montant (€)</th>
+                <th>Formation liée</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sortedCharges.map(charge => `
+                <tr>
+                  <td>${formatDate(charge.date || charge.created_at)}</td>
+                  <td>${charge.label || ''}</td>
+                  <td>${getCategoryLabel(charge.category || '')}</td>
+                  <td>${formatCurrency(charge.amount)}</td>
+                  <td>${getCourseName(charge)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      printWindow.print();
+      success('PDF généré avec succès');
+    } catch (err) {
+      showError('Erreur', 'Impossible d\'exporter en PDF');
+    }
   };
 
   const allSelected = selectedCharges.size === charges.length && charges.length > 0;
   const someSelected = selectedCharges.size > 0 && selectedCharges.size < charges.length;
-
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount);
-  };
-
-  // Get dashboard summary values
-  const totalExpenses = dashboardStats?.data?.summary?.total_expenses || 0;
-  const totalCount = dashboardStats?.data?.summary?.total_count || 0;
-  const averageExpense = dashboardStats?.data?.summary?.average_expense || 0;
-
-  // Helper function to format month
-  const formatMonth = (monthStr: string) => {
-    if (!monthStr) return '';
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const date = new Date(monthStr + '-01');
-    return months[date.getMonth()] || monthStr.substring(5, 7);
-  };
-
-  // Get monthly data
-  const monthlyData = dashboardStats?.data?.charts?.monthly_evolution || [];
-  const byCategoryData = dashboardStats?.data?.charts?.by_category || [];
-  
-  // Calculate totals by category
-  const environnementTotal = byCategoryData.reduce((sum, c) => {
-    const name = c.name?.toLowerCase() || '';
-    if (name.includes('environnement') || name.includes('environment')) {
-      return sum + (c.value || 0);
-    }
-    return sum;
-  }, 0);
-
-  const humainsTotal = byCategoryData.reduce((sum, c) => {
-    const name = c.name?.toLowerCase() || '';
-    if (name.includes('rh') || name.includes('humain') || name.includes('salaire')) {
-      return sum + (c.value || 0);
-    }
-    return sum;
-  }, 0);
-
-  // Prepare monthly data for stacked chart (Total)
-  // Group by month and sum all categories
-  const monthlyTotals: Record<string, { humains: number; environnement: number }> = {};
-  
-  // Initialize all months
-  const allMonths = monthlyData.map(m => m.month);
-  allMonths.forEach(month => {
-    monthlyTotals[month] = { humains: 0, environnement: 0 };
-  });
-
-  // Calculate monthly split based on category totals
-  monthlyData.forEach(item => {
-    const total = item.value || 0;
-    if (total > 0) {
-      const totalCategory = humainsTotal + environnementTotal;
-      if (totalCategory > 0) {
-        const humainsRatio = humainsTotal / totalCategory;
-        const envRatio = environnementTotal / totalCategory;
-        monthlyTotals[item.month] = {
-          humains: total * humainsRatio,
-          environnement: total * envRatio
-        };
-      } else {
-        // If no category data, split 50/50
-        monthlyTotals[item.month] = {
-          humains: total * 0.5,
-          environnement: total * 0.5
-        };
-      }
-    }
-  });
-
-  // Helper to render bar chart
-  const renderBarChart = (
-    data: Array<{ month: string; value: number }>,
-    color: string,
-    isStacked: boolean = false,
-    secondaryData?: Array<{ month: string; value: number }>,
-    secondaryColor?: string
-  ) => {
-    if (!data || data.length === 0) {
-      return (
-        <div className="h-32 flex items-center justify-center">
-          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Aucune donnée</p>
-        </div>
-      );
-    }
-
-    const maxValue = Math.max(
-      ...data.map(d => d.value || 0),
-      ...(secondaryData ? secondaryData.map(d => d.value || 0) : [0]),
-      1
-    );
-
-    // Generate all 12 months
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    
-    // Helper to match month from API data
-    const matchMonth = (monthStr: string, index: number) => {
-      if (!monthStr) return null;
-      // Try to parse YYYY-MM format
-      const parts = monthStr.split('-');
-      if (parts.length === 2) {
-        const monthNum = parseInt(parts[1]);
-        if (monthNum === index + 1) return monthStr;
-      }
-      // Try formatMonth comparison
-      if (formatMonth(monthStr) === months[index]) return monthStr;
-      return null;
-    };
-    
-    return (
-      <div className="h-32 flex items-end justify-between gap-1 px-2 mt-4">
-        {months.map((monthLabel, index) => {
-          const dataPoint = data.find(d => matchMonth(d.month, index));
-          const secondaryPoint = secondaryData?.find(d => matchMonth(d.month, index));
-          
-          const value = dataPoint?.value || 0;
-          const secondaryValue = secondaryPoint?.value || 0;
-          const totalValue = value + secondaryValue;
-          
-          const maxHeight = 100; // Max height percentage
-          const secondaryHeight = secondaryValue > 0 ? Math.max((secondaryValue / maxValue) * maxHeight, 2) : 0;
-          const primaryHeight = value > 0 ? Math.max((value / maxValue) * maxHeight, 2) : 0;
-
-          return (
-            <div key={index} className="flex-1 flex flex-col items-center gap-1 group relative">
-              <div className="relative w-full flex flex-col items-end justify-end" style={{ height: '100%', minHeight: '80px' }}>
-                {isStacked && secondaryValue > 0 && (
-                  <div
-                    className="w-full rounded-t transition-all hover:opacity-90"
-                    style={{
-                      height: `${secondaryHeight}%`,
-                      minHeight: secondaryValue > 0 ? '3px' : '0',
-                      backgroundColor: secondaryColor || '#a855f7',
-                    }}
-                    title={`${monthLabel} (Environnement): ${formatCurrency(secondaryValue)}`}
-                  />
-                )}
-                {value > 0 && (
-                  <div
-                    className={`w-full transition-all hover:opacity-90 ${isStacked ? 'rounded-t' : 'rounded-t rounded-b'}`}
-                    style={{
-                      height: `${primaryHeight}%`,
-                      minHeight: value > 0 ? '3px' : '0',
-                      backgroundColor: color,
-                    }}
-                    title={`${monthLabel}${isStacked ? ' (Humains)' : ''}: ${formatCurrency(value)}`}
-                  />
-                )}
-                {/* Tooltip */}
-                {totalValue > 0 && (
-                  <div className="absolute bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10 shadow-lg">
-                    {monthLabel}: {formatCurrency(totalValue)}
-                  </div>
-                )}
-              </div>
-              <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-500'}`} style={{ fontFamily: 'Poppins, Helvetica' }}>
-                {monthLabel}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
 
   if (loading && charges.length === 0) {
     return (
@@ -533,240 +803,66 @@ export const ChargesDepenses = (): JSX.Element => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Card 1: Dépenses Total */}
-        <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} style={{ fontFamily: 'Poppins, Helvetica' }}>
-                  Dépenses Total
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, Helvetica', color: '#007aff' }}>
-                  {dashboardLoading ? '...' : formatCurrency(totalExpenses)}
-                </p>
-              </div>
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center`} style={{ backgroundColor: '#007aff15' }}>
-                <EyeIcon className="h-5 w-5" style={{ color: '#007aff' }} />
-              </div>
-            </div>
-            {/* Stacked Bar Chart */}
-            {renderBarChart(
-              monthlyData.map(item => ({
-                month: item.month,
-                value: (monthlyTotals[item.month]?.humains || 0)
-              })),
-              '#25c9b5', // Teal color
-              true,
-              monthlyData.map(item => ({
-                month: item.month,
-                value: (monthlyTotals[item.month]?.environnement || 0)
-              })),
-              '#a855f7' // Purple color
-            )}
-          </CardContent>
-        </Card>
+      {/* Statistics Cards with Stacked Bar Charts */}
+      {dashboardStats && dashboardStats.data && (dashboardStats.data as any).monthly_data && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Total Expenses Card */}
+          <ExpenseStatCard
+            title="Dépenses Total"
+            amount={dashboardStats.data.summary.total_expenses}
+            monthlyData={(dashboardStats.data as any).monthly_data}
+            type="total"
+            isDark={isDark}
+            primaryColor={primaryColor}
+          />
 
-        {/* Card 2: Moyens Environnementaux */}
-        <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} style={{ fontFamily: 'Poppins, Helvetica' }}>
-                  Moyens Environnementaux
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, Helvetica', color: '#a855f7' }}>
-                  {dashboardLoading ? '...' : formatCurrency(environnementTotal)}
-                </p>
-              </div>
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center`} style={{ backgroundColor: '#a855f715' }}>
-                <EyeIcon className="h-5 w-5" style={{ color: '#a855f7' }} />
-              </div>
-            </div>
-            {/* Bar Chart - Purple */}
-            {renderBarChart(
-              monthlyData.map(item => ({
-                month: item.month,
-                value: (monthlyTotals[item.month]?.environnement || 0)
-              })),
-              '#a855f7' // Purple color
-            )}
-          </CardContent>
-        </Card>
+          {/* Moyens Environnementaux Card */}
+          <ExpenseStatCard
+            title="Moyens Environnementaux"
+            amount={(dashboardStats.data as any).environnement_total || 0}
+            monthlyData={(dashboardStats.data as any).monthly_data}
+            type="environnement"
+            isDark={isDark}
+            primaryColor={primaryColor}
+          />
 
-        {/* Card 3: Moyens Humains */}
-        <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border`}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} style={{ fontFamily: 'Poppins, Helvetica' }}>
-                  Moyens Humains
-                </p>
-                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, Helvetica', color: '#25c9b5' }}>
-                  {dashboardLoading ? '...' : formatCurrency(humainsTotal)}
-                </p>
-              </div>
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center`} style={{ backgroundColor: '#25c9b515' }}>
-                <EyeIcon className="h-5 w-5" style={{ color: '#25c9b5' }} />
-              </div>
-            </div>
-            {/* Bar Chart - Teal */}
-            {renderBarChart(
-              monthlyData.map(item => ({
-                month: item.month,
-                value: (monthlyTotals[item.month]?.humains || 0)
-              })),
-              '#25c9b5' // Teal color
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {/* Moyens Humains Card */}
+          <ExpenseStatCard
+            title="Moyens Humains"
+            amount={(dashboardStats.data as any).humains_total || 0}
+            monthlyData={(dashboardStats.data as any).monthly_data}
+            type="humains"
+            isDark={isDark}
+            primaryColor={primaryColor}
+          />
+        </div>
+      )}
 
       {/* Filters and Table Card */}
       <div className={`flex flex-col gap-[18px] w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-6`}>
-        {/* Filters Section */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Filter className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
-            <h3 className={`font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, Helvetica' }}>
-              Filtres
-            </h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search */}
-            <div className={`flex items-center gap-2 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-[#e8f0f7]'} rounded-[10px]`}>
+        {/* Top Action Bar */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Search and Delete */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
               <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
               <Input
-                placeholder="Rechercher..."
+                placeholder="Rechercher Un Article"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setTimeout(() => {
+                    if (e.target.value === searchTerm) {
+                      fetchCharges();
+                    }
+                  }, 500);
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && fetchCharges()}
                 className={`border-0 bg-transparent ${isDark ? 'text-gray-300 placeholder:text-gray-500' : 'text-[#698eac] placeholder:text-[#698eac]'} focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0`}
               />
             </div>
 
-            {/* Category Filter */}
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-            >
-              <option value="">Toutes les catégories</option>
-              <option value="office">Bureau</option>
-              <option value="travel">Voyage</option>
-              <option value="marketing">Marketing</option>
-              <option value="utilities">Services</option>
-              <option value="salary">Salaire</option>
-              <option value="other">Autre</option>
-            </select>
-
-            {/* Role Filter */}
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-            >
-              <option value="">Tous les rôles</option>
-              <option value="Formateur">Formateur</option>
-              <option value="Coordinateur">Coordinateur</option>
-              <option value="Administrateur">Administrateur</option>
-            </select>
-
-            {/* Contract Type Filter */}
-            <select
-              value={selectedContractType}
-              onChange={(e) => setSelectedContractType(e.target.value)}
-              className={`px-4 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-            >
-              <option value="">Tous les contrats</option>
-              <option value="CDI">CDI</option>
-              <option value="CDD">CDD</option>
-              <option value="Freelance">Freelance</option>
-            </select>
-
-            {/* Date Range */}
-            <div className="flex items-center gap-2">
-              <Calendar className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                placeholder="Date début"
-                className={`px-2 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-              />
-              <span className={isDark ? 'text-gray-400' : 'text-[#698eac]'}>-</span>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                placeholder="Date fin"
-                className={`px-2 py-2.5 rounded-[10px] border border-solid ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#d5d6da]'} text-[13px]`}
-              />
-            </div>
-          </div>
-
-          {/* Filter Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleApplyFilters}
-              className={`inline-flex items-center gap-2 px-4 py-2 h-auto rounded-[10px] ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#007aff] hover:bg-[#0066cc]'} text-white`}
-            >
-              <Filter className="w-4 h-4" />
-              Appliquer les filtres
-            </Button>
-            <Button
-              onClick={handleResetFilters}
-              variant="outline"
-              className={`inline-flex items-center gap-2 px-4 py-2 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-[#d5d6da] bg-white hover:bg-gray-50'}`}
-            >
-              Réinitialiser
-            </Button>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className={`flex items-center justify-between w-full pt-4 border-t border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'}`}>
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  // Export to CSV
-                  const csvData = charges.map(charge => ({
-                    'Référence': charge.reference || '',
-                    'Description': charge.description || '',
-                    'Montant': parseFloat(String(charge.amount || 0)),
-                    'Catégorie': getCategoryLabel(charge.category || ''),
-                    'Date': charge.date ? new Date(charge.date).toLocaleDateString('fr-FR') : '',
-                  }));
-                  
-                  const csv = [
-                    Object.keys(csvData[0]).join(','),
-                    ...csvData.map(row => Object.values(row).map(v => `"${v}"`).join(','))
-                  ].join('\n');
-                  
-                  const blob = new Blob([csv], { type: 'text/csv' });
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `depenses_${new Date().toISOString().split('T')[0]}.csv`;
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                  success('Dépenses exportées avec succès');
-                } catch (err) {
-                  showError('Erreur', 'Impossible d\'exporter les dépenses');
-                }
-              }}
-              className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-[#6a90b9] bg-transparent hover:bg-[#f5f5f5]'}`}
-            >
-              <Download className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#698eac]'}`} />
-              <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#698eac]'} text-[13px]`}>
-                {t('common.export')}
-              </span>
-            </Button>
-
+            {/* Delete Button */}
             <Button
               variant="outline"
               onClick={() => {
@@ -774,142 +870,335 @@ export const ChargesDepenses = (): JSX.Element => {
                 setShowDeleteModal(true);
                 setChargeToDelete('bulk');
               }}
-              className={`inline-flex items-center gap-2.5 px-4 py-2.5 h-auto rounded-[10px] border border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-[#fe2f40] bg-transparent hover:bg-[#fff5f5]'}`}
               disabled={selectedCharges.size === 0}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'} ${selectedCharges.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              style={{ 
+                borderColor: selectedCharges.size > 0 ? '#ef4444' : undefined,
+                borderStyle: 'dashed',
+              }}
             >
-              <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-[#fe2f40]'}`} />
-              <span className={`font-medium ${isDark ? 'text-red-400' : 'text-[#fe2f40]'} text-[13px]`}>
-                {t('common.delete')} ({selectedCharges.size})
+              <Trash2 className={`w-4 h-4 ${selectedCharges.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+              <span className={`font-medium text-sm ${selectedCharges.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Supprimer {selectedCharges.size > 0 && `(${selectedCharges.size})`}
+              </span>
+            </Button>
+          </div>
+
+          {/* Center: Date Sort */}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleDateSortToggle}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-0 ${isDark ? 'bg-blue-900/30 hover:bg-blue-900/40' : 'bg-blue-50 hover:bg-blue-100'}`}
+              style={{ backgroundColor: isDark ? undefined : '#E3F2FD' }}
+            >
+              <SwapIcon className={`w-4 h-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
+              <span className={`font-medium text-sm ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
+                Date De Création
+              </span>
+            </Button>
+          </div>
+
+          {/* Center-Right: Filter */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={filterDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-blue-500 bg-transparent hover:bg-blue-50'}`}
+                style={{ borderColor: isDark ? undefined : primaryColor }}
+              >
+                <Filter className={`w-4 h-4`} style={{ color: primaryColor }} />
+                <span className={`font-medium text-sm`} style={{ color: primaryColor }}>
+                  Filtre
+                </span>
+                <ChevronDown className={`w-4 h-4`} style={{ color: primaryColor }} />
+              </Button>
+              {showFilterDropdown && (
+                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('');
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                    >
+                      Toutes les catégories
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('salary');
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                    >
+                      Moyens Humains
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('utilities');
+                        setShowFilterDropdown(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                    >
+                      Moyens Environnementaux
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Export Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Export Excel Button */}
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+              style={{ 
+                borderColor: isDark ? undefined : primaryColor,
+                borderStyle: 'dashed',
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
+              <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                Export Excel
+              </span>
+            </Button>
+
+            {/* Export PDF Button */}
+            <Button
+              variant="outline"
+              onClick={handleExportPDF}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+              style={{ 
+                borderColor: isDark ? undefined : primaryColor,
+                borderStyle: 'dashed',
+              }}
+            >
+              <FileText className="w-4 h-4" style={{ color: primaryColor }} />
+              <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                Export PDF
               </span>
             </Button>
           </div>
         </div>
 
-        {charges.length === 0 ? (
+        {/* Table */}
+        {sortedCharges.length === 0 ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col w-full">
+          <div className="flex flex-col w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
-                  <TableHead className="w-[80px] px-[42px]">
+                  <TableHead className="w-[50px] px-4">
                     <Checkbox
                       checked={allSelected}
                       onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                       className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
                     />
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Type
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('date')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Date
+                      {sortField === 'date' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Description
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('label')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Libellé
+                      {sortField === 'label' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Catégorie
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('category')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Catégorie
+                      {sortField === 'category' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Montant
+                  <TableHead 
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('amount')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Montant (€)
+                      {sortField === 'amount' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
-                    Date
+                  <TableHead className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
+                    Pièce jointe
                   </TableHead>
-                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px]`}>
+                  <TableHead className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
+                    Formation liée
+                  </TableHead>
+                  <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {charges.map((charge) => (
-                  <TableRow
-                    key={String(charge.id)}
-                    className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-[#007aff14]'} ${selectedCharges.has(String(charge.id)) ? 'bg-[#007aff14]' : ''}`}
-                  >
-                    <TableCell className="px-[42px]">
-                      <Checkbox
-                        checked={selectedCharges.has(String(charge.id))}
-                        onCheckedChange={(checked) => handleSelectCharge(String(charge.id), checked as boolean)}
-                        className={`w-5 h-5 rounded-md border ${selectedCharges.has(String(charge.id)) ? 'bg-[#007aff14] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                      />
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {charge.reference || charge.label || '-'}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px] max-w-xs truncate`}>
-                      {charge.description || (charge.documents && charge.documents.length > 0 ? `${charge.documents.length} document(s)` : '-')}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={getCategoryColor(charge.category.toLowerCase())}>
-                        {getCategoryLabel(charge.category.toLowerCase())}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(parseFloat(charge.amount))}
-                    </TableCell>
-                    <TableCell className={`text-center font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                      {new Date(charge.created_at).toLocaleDateString('fr-FR')}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="inline-flex items-center justify-center gap-2.5">
-                        <button 
-                          onClick={() => {
-                            setSelectedCharge(charge);
-                            setIsViewModalOpen(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Voir les détails"
-                        >
-                          <Eye className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setSelectedCharge(charge);
-                            setIsEditModalOpen(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all ${isDark ? 'hover:bg-gray-700' : 'hover:bg-blue-50'}`}
-                          title="Modifier"
-                        >
-                          <Edit className="w-4 h-4" style={{ color: primaryColor }} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setChargeToDelete(String(charge.id));
-                            setShowDeleteModal(true);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all hover:bg-red-50`}
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500 hover:text-red-600" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sortedCharges.map((charge) => {
+                  const isSelected = selectedCharges.has(String(charge.id));
+                  const docCount = getDocumentCount(charge);
+                  const firstDocName = getFirstDocumentName(charge);
+                  
+                  return (
+                    <TableRow
+                      key={String(charge.id)}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${isSelected ? 'bg-[#F0F8FF]' : ''}`}
+                    >
+                      <TableCell className="px-4 py-4">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleSelectCharge(String(charge.id), checked as boolean)}
+                          className={`w-5 h-5 rounded-md border ${isSelected ? 'bg-[#2196F3] border-[#2196F3]' : 'bg-white border-[#d5d6da]'}`}
+                        />
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {formatDate(charge.date || charge.created_at)}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {charge.label || '-'}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {getCategoryLabel(charge.category || '')}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {formatCurrency(charge.amount)}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        {docCount > 0 ? (
+                          <Badge 
+                            className="rounded-full px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                            style={{ 
+                              backgroundColor: '#E3F2FD',
+                              color: '#2196F3',
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (charge.documents && charge.documents.length > 0) {
+                                handleDownloadDocument(charge.documents[0]);
+                              }
+                            }}
+                            title={`Cliquer pour télécharger${docCount > 1 ? ` (${docCount} fichiers)` : ''}`}
+                          >
+                            <FileIcon className="w-3 h-3" />
+                            <span className="hover:underline">{firstDocName}</span>
+                            {docCount > 1 && (
+                              <span 
+                                className="ml-1 text-xs"
+                                style={{ color: '#1976D2' }}
+                              >
+                                +{docCount - 1}
+                              </span>
+                            )}
+                          </Badge>
+                        ) : (
+                          <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
+                        {getCourseName(charge)}
+                      </TableCell>
+                      <TableCell className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button 
+                            onClick={() => {
+                              setSelectedCharge(charge);
+                              setIsEditModalOpen(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Modifier"
+                          >
+                            <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setChargeToDelete(String(charge.id));
+                              setShowDeleteModal(true);
+                            }}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                            title="Supprimer"
+                          >
+                            <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
 
-        {pagination.total_pages > 1 && (
+        {/* Pagination */}
+        {pagination.total_pages > 0 && (
           <div className="flex justify-center items-center gap-2 py-4">
             <Button
               variant="outline"
               disabled={page === 1}
-              onClick={() => setPage(page - 1)}
+              onClick={() => setPage(Math.max(1, page - 1))}
+              className={`${isDark ? 'border-gray-600' : ''}`}
             >
               {t('common.previous')}
             </Button>
-            <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-              {t('common.page')} {page} {t('common.of')} {pagination.total_pages}
+            <span className={`px-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              {t('common.page')} {page} {t('common.of')} {pagination.total_pages || 1}
             </span>
             <Button
               variant="outline"
-              disabled={page === pagination.total_pages}
+              disabled={page >= (pagination.total_pages || 1)}
               onClick={() => setPage(page + 1)}
+              className={`${isDark ? 'border-gray-600' : ''}`}
             >
               {t('common.next')}
             </Button>
@@ -917,7 +1206,7 @@ export const ChargesDepenses = (): JSX.Element => {
         )}
       </div>
 
-      {/* Charge Creation Modal */}
+      {/* Article Creation Modal */}
       <ChargeCreationModal
         isOpen={isModalOpen}
         onClose={() => {
@@ -928,19 +1217,10 @@ export const ChargesDepenses = (): JSX.Element => {
           setIsModalOpen(false);
           setSelectedCharge(null);
           fetchCharges();
-          fetchDashboardStats();
         }}
       />
 
-      {/* Charge View Modal */}
-      <ChargeViewModal
-        isOpen={isViewModalOpen}
-        onClose={() => setIsViewModalOpen(false)}
-        charge={selectedCharge}
-        primaryColor={primaryColor}
-      />
-
-      {/* Charge Edit Modal */}
+      {/* Article Edit Modal */}
       <ChargeCreationModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -952,7 +1232,6 @@ export const ChargesDepenses = (): JSX.Element => {
           setIsEditModalOpen(false);
           setSelectedCharge(null);
           fetchCharges();
-          fetchDashboardStats();
         }}
       />
 
@@ -961,7 +1240,9 @@ export const ChargesDepenses = (): JSX.Element => {
         isOpen={showDeleteModal}
         onClose={cancelDeleteCharge}
         onConfirm={confirmDeleteCharge}
-        title="Voulez-vous vraiment supprimer cette dépense ?"
+        title={chargeToDelete === 'bulk' 
+          ? `Voulez-vous vraiment supprimer ${selectedCharges.size} dépense(s) ?`
+          : "Voulez-vous vraiment supprimer cette dépense ?"}
         message="Cette action est irréversible. La dépense sera définitivement supprimée."
         confirmText="Supprimer"
         cancelText="Annuler"

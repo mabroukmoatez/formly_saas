@@ -17,6 +17,7 @@ export const useSubdomainNavigation = () => {
     const appRoutes = [
       'login', 'forgot-password', 'white-label', 'gestion-commercial',
       'dashboard', 'course-creation', 'course-edit', 'course-view',
+      'document-creation', 'questionnaire-creation',
       'mes-factures', 'mes-devis', 'mes-articles', 'charges-depenses',
       'gestion-utilisateurs', 'gestion-roles', 'gestion-organisme',
       'messagerie', 'actualites', 'evenements', 'plannings',
@@ -44,5 +45,5 @@ export const useSubdomainNavigation = () => {
     navigate(buildRoute(route));
   };
 
-  return { navigateToRoute, buildRoute };
+  return { navigateToRoute, buildRoute, subdomain };
 };

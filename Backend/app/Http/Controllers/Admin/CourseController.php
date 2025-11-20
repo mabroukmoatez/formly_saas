@@ -48,8 +48,16 @@ class CourseController extends Controller
 
         $data['title'] = 'All Courses';
         
-        // Start building the query
-        $query = Course::with(['instructor', 'category', 'subcategory', 'lectures']);
+        // Start building the query with all necessary relationships
+        $query = Course::with([
+            'instructor.user',      // Load instructor with user data
+            'category',             // Course category
+            'subcategory',          // Course subcategory
+            'organization',         // Organization if course belongs to one
+            'user',                 // Course owner/creator
+            'language',             // Course language (using 'language' method)
+            'difficultyLevel',      // Difficulty level (using 'difficultyLevel' method)
+        ]);
         
         // Search filter
         if ($request->filled('search')) {

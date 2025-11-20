@@ -910,7 +910,8 @@ class CourseCreationService {
     return apiService.get('/api/organization/documents/stats');
   }
   createDocumentEnhanced(courseUuid: UUID, data: FormData | any) {
-    return apiService.post(`${this.orgCoursesBase}/${courseUuid}/documents-enhanced`, data);
+    // Utiliser /documents au lieu de /documents-enhanced pour correspondre au backend
+    return apiService.post(`${this.orgCoursesBase}/${courseUuid}/documents`, data);
   }
   updateDocumentEnhanced(courseUuid: UUID, documentId: number, data: any) {
     return apiService.put(`${this.orgCoursesBase}/${courseUuid}/documents-enhanced/${documentId}`, data);

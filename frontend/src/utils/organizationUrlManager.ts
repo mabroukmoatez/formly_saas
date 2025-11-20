@@ -33,13 +33,32 @@ export class OrganizationUrlManager {
     const currentPath = window.location.pathname;
     const pathParts = currentPath.split('/').filter(part => part);
     
+    // Don't redirect public routes or superadmin routes - check this FIRST
+    const publicRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'setup-password'];
+    const superAdminRoutes = ['superadmin'];
+    
+    // If we're on a public route without subdomain, NEVER redirect
+    if (pathParts.length === 1 && publicRoutes.includes(pathParts[0])) {
+      return; // Allow public routes without subdomain - CRITICAL: don't modify URL
+    }
+    
+    // If we're on a public route with subdomain (e.g., /edufirma/setup-password), NEVER redirect
+    if (pathParts.length === 2 && publicRoutes.includes(pathParts[1])) {
+      return; // Allow public routes with subdomain - CRITICAL: don't modify URL
+    }
+    
+    // If we're on a superadmin route, NEVER redirect
+    if (pathParts.length > 0 && superAdminRoutes.includes(pathParts[0])) {
+      return; // Allow superadmin routes without subdomain - CRITICAL: don't modify URL
+    }
+    
     // Check if subdomain is already in the URL
     if (pathParts.length > 0 && pathParts[0] === subdomain) {
       return; // Already correct
     }
     
     // Remove any existing organization subdomain
-    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'dashboard', 'admin', 'instructor', 'student', 'manager'];
+    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'dashboard', 'admin', 'instructor', 'student', 'manager', 'superadmin'];
     const filteredParts = pathParts.filter(part => !commonRoutes.includes(part) && part !== 'form.fr');
     
     // Add the organization subdomain at the beginning
@@ -83,7 +102,7 @@ export class OrganizationUrlManager {
    */
   static hasOrganizationInUrl(): boolean {
     const pathParts = window.location.pathname.split('/').filter(part => part);
-    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'dashboard', 'admin', 'instructor', 'student', 'manager'];
+    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'dashboard', 'admin', 'instructor', 'student', 'manager', 'superadmin'];
     
     return pathParts.length > 0 && !commonRoutes.includes(pathParts[0]) && pathParts[0] !== 'form.fr';
   }
@@ -93,7 +112,7 @@ export class OrganizationUrlManager {
    */
   static extractSubdomainFromUrl(): string | null {
     const pathParts = window.location.pathname.split('/').filter(part => part);
-    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'dashboard', 'admin', 'instructor', 'student', 'manager'];
+    const commonRoutes = ['login', 'forgot-password', 'reset-password', 'signup', 'dashboard', 'admin', 'instructor', 'student', 'manager', 'superadmin'];
     
     if (pathParts.length > 0 && !commonRoutes.includes(pathParts[0]) && pathParts[0] !== 'form.fr') {
       return pathParts[0];

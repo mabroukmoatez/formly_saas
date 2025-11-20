@@ -137,12 +137,13 @@ class CourseDocumentController extends Controller
                 'custom_template' => 'required_if:document_type,custom_builder|array',
                 'custom_template.pages' => 'required_if:document_type,custom_builder|array',
                 'custom_template.total_pages' => 'required_if:document_type,custom_builder|integer',
+                'custom_template.fields' => 'required_if:document_type,custom_builder|array|min:1',
                 'questions' => 'nullable|array',
                 'audience_type' => 'required|in:students,instructors,organization',
-                'is_certificate' => 'boolean',
-                'certificate_background' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+                'is_certificate' => 'required|in:0,1,true,false', // Accept "0", "1", true, false
+                'certificate_background' => 'nullable|string', // Can be base64 string or file
                 'certificate_orientation' => 'nullable|in:portrait,landscape',
-                'is_questionnaire' => 'boolean',
+                'is_questionnaire' => 'nullable|boolean',
                 'questionnaire_type' => 'nullable|in:pre_course,post_course,mid_course,custom'
             ]);
             
@@ -181,20 +182,48 @@ class CourseDocumentController extends Controller
                 );
                 
             } elseif ($request->document_type === 'custom_builder') {
-                // Generate PDF from custom builder pages
-                // Auto-extract variables from course/organization if not provided
-                $variables = $request->variables ?? [];
-                if (empty($variables)) {
-                    $variables = $this->documentService->extractDefaultVariables($courseUuid);
+                // Parse is_certificate (can be "0", "1", true, false)
+                $isCertificate = $request->is_certificate === '1' || $request->is_certificate === true || $request->boolean('is_certificate', false);
+                
+                // Handle certificate background (can be base64 string or file)
+                $certificateBackgroundUrl = null;
+                if ($isCertificate && $request->has('certificate_background')) {
+                    $backgroundData = $request->certificate_background;
+                    
+                    // Check if it's a base64 string
+                    if (is_string($backgroundData) && strpos($backgroundData, 'data:image') === 0) {
+                        // Extract base64 data
+                        list($type, $data) = explode(';', $backgroundData);
+                        list(, $data) = explode(',', $data);
+                        $imageData = base64_decode($data);
+                        
+                        // Determine extension
+                        $extension = 'png';
+                        if (strpos($type, 'jpeg') !== false || strpos($type, 'jpg') !== false) {
+                            $extension = 'jpg';
+                        } elseif (strpos($type, 'gif') !== false) {
+                            $extension = 'gif';
+                        } elseif (strpos($type, 'webp') !== false) {
+                            $extension = 'webp';
+                        }
+                        
+                        // Save image to storage
+                        $backgroundFilename = 'certificate-bg-' . time() . '-' . uniqid() . '.' . $extension;
+                        $backgroundPath = 'certificates/backgrounds/' . $backgroundFilename;
+                        \Storage::disk('public')->put($backgroundPath, $imageData);
+                        $certificateBackgroundUrl = $backgroundPath;
+                    } 
+                    // Check if it's a file upload
+                    elseif ($request->hasFile('certificate_background')) {
+                        $backgroundFile = $request->file('certificate_background');
+                        $backgroundPath = $backgroundFile->store('certificates/backgrounds', 'public');
+                        $certificateBackgroundUrl = $backgroundPath;
+                    }
                 }
                 
-                // Handle certificate background upload
-                $certificateBackgroundUrl = null;
-                if ($request->boolean('is_certificate', false) && $request->hasFile('certificate_background')) {
-                    $backgroundFile = $request->file('certificate_background');
-                    $backgroundPath = $backgroundFile->store('certificates/backgrounds', 'public');
-                    $certificateBackgroundUrl = $backgroundPath;
-                }
+                // Auto-extract variables from course/organization if not provided
+                $variables = $request->variables ?? [];
+                // Variables will be extracted from badges during PDF generation
                 
                 // Determine if it's a questionnaire
                 $isQuestionnaire = $request->boolean('is_questionnaire', false);
@@ -202,6 +231,9 @@ class CourseDocumentController extends Controller
                 // Log for debugging
                 \Log::info('📋 Creating custom_builder document', [
                     'name' => $request->name,
+                    'is_certificate_raw' => $request->is_certificate,
+                    'is_certificate_boolean' => $isCertificate,
+                    'has_background' => !empty($certificateBackgroundUrl),
                     'is_questionnaire_raw' => $request->get('is_questionnaire'),
                     'is_questionnaire_boolean' => $isQuestionnaire,
                     'has_questions' => !empty($request->questions),
@@ -217,9 +249,9 @@ class CourseDocumentController extends Controller
                         'description' => $request->description,
                         'questions' => $request->questions,
                         'audience_type' => $request->audience_type,
-                        'is_certificate' => $request->boolean('is_certificate', false),
+                        'is_certificate' => $isCertificate,
                         'certificate_background_url' => $certificateBackgroundUrl,
-                        'certificate_orientation' => $request->certificate_orientation ?? 'landscape',
+                        'certificate_orientation' => $isCertificate ? 'landscape' : ($request->certificate_orientation ?? 'portrait'),
                         'is_questionnaire' => $isQuestionnaire,
                         'questionnaire_type' => $request->questionnaire_type,
                         'variables' => $variables
@@ -229,6 +261,7 @@ class CourseDocumentController extends Controller
                 // Log after creation
                 \Log::info('✅ Document created', [
                     'id' => $document->id,
+                    'is_certificate' => $document->is_certificate,
                     'is_questionnaire' => $document->is_questionnaire,
                     'questionnaire_type' => $document->questionnaire_type,
                     'has_questions' => !empty($document->questions),

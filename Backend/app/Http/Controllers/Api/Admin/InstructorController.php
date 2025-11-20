@@ -37,7 +37,10 @@ class InstructorController extends Controller
             return $this->error([], 'Unauthorize access', 403);
         } // end permission checking
         
-        $data['instructors'] = $this->instructorModel->getOrderById('DESC', 25);
+        // Get instructors with user relationship loaded
+        $data['instructors'] = Instructor::with('user')
+            ->orderBy('id', 'DESC')
+            ->paginate(25);
         return $this->success($data);
     }
 
