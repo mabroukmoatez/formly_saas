@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\Student\MyCourseController;
 use App\Http\Controllers\Api\Student\CartManagementController;
 use App\Http\Controllers\Api\Student\PaymentController;
 use App\Http\Controllers\Api\Student\ProfileController;
+use App\Http\Controllers\Api\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\OrganizationAuthController;
 use App\Http\Controllers\Api\Student\WishlistController;
@@ -1177,6 +1178,12 @@ Route::middleware('auth:api')->group(function () {
     });
     
     Route::group(['prefix' => 'student', 'middleware' => ['student', 'local']], function () {
+        // Dashboard routes
+        Route::get('dashboard/statistics', [StudentDashboardController::class, 'statistics']);
+        Route::get('dashboard/recent-courses', [StudentDashboardController::class, 'recentCourses']);
+        Route::get('dashboard/progress-summary', [StudentDashboardController::class, 'progressSummary']);
+        Route::get('dashboard/upcoming-sessions', [StudentDashboardController::class, 'upcomingSessions']);
+
         Route::get('my-learning', [MyCourseController::class, 'myLearningCourseList']);
         Route::get('my-consultation', [MyCourseController::class, 'myConsultationList']);
         Route::get('my-course/{slug}/{type?}', [MyCourseController::class, 'myCourseShow'])->middleware('course.access');
