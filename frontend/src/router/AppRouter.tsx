@@ -113,6 +113,14 @@ import { OrganizationNotFound } from '../screens/OrganizationNotFound';
 import ApprenantsPage from '../pages/Apprenants';
 import EntreprisesPage from '../pages/Entreprises';
 import FinanceursPage from '../pages/Financeurs';
+import StudentDashboard from '../pages/StudentDashboard';
+import StudentProfile from '../pages/StudentProfile';
+import StudentCatalogue from '../pages/StudentCatalogue';
+import StudentLearning from '../pages/StudentLearning';
+import StudentMessaging from '../pages/StudentMessaging';
+import StudentResults from '../pages/StudentResults';
+import StudentSharedFolder from '../pages/StudentSharedFolder';
+import StudentEvents from '../pages/StudentEvents';
 
 /**
  * Protected Route Component
@@ -475,6 +483,89 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
+
+        {/* Student Platform Routes */}
+        <Route
+          path="/student/dashboard"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/profile"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentProfile />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/catalogue"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentCatalogue />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/learning"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentLearning />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/messaging"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentMessaging />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/results"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentResults />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/shared-folder"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentSharedFolder />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/events"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentEvents />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+
         <Route
           path="/gestion-commercial"
           element={
@@ -979,6 +1070,89 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
+
+        {/* Student Platform Routes (with subdomain) */}
+        <Route
+          path="/:subdomain/student/dashboard"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/profile"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentProfile />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/catalogue"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentCatalogue />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/learning"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentLearning />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/messaging"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentMessaging />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/results"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentResults />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/shared-folder"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentSharedFolder />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/events"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentEvents />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+
         <Route
           path="/:subdomain/gestion-commercial"
           element={
