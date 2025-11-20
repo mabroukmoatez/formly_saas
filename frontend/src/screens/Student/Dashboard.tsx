@@ -97,7 +97,7 @@ export const StudentDashboardScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="min-h-full p-6">
         <div className="max-w-7xl mx-auto flex items-center justify-center h-64">
           <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
         </div>
@@ -107,7 +107,7 @@ export const StudentDashboardScreen: React.FC = () => {
 
   if (error) {
     return (
-      <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className="min-h-full p-6">
         <div className="max-w-7xl mx-auto">
           <div className={`rounded-lg p-6 border ${isDark ? 'bg-red-900/20 border-red-800' : 'bg-red-50 border-red-200'}`}>
             <p className={`${isDark ? 'text-red-400' : 'text-red-600'}`}>{error}</p>
@@ -118,7 +118,7 @@ export const StudentDashboardScreen: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="min-h-full p-6">
       <div className="max-w-7xl mx-auto">
         {/* Welcome Section */}
         <div className="mb-8">

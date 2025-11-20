@@ -8,7 +8,7 @@ export const StudentEventsScreen: React.FC = () => {
   const { t } = useLanguage();
 
   return (
-    <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="min-h-full p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">

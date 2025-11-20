@@ -21,7 +21,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
 
   return (
     <header
-      className={`flex items-center justify-between gap-7 px-6 py-4 h-16 flex-shrink-0 border-b transition-colors bg-[#19294a] border-[#2a3f5f] ${className}`}
+      className={`flex items-center justify-between gap-7 px-6 py-4 h-16 flex-shrink-0 transition-colors bg-[#19294a] rounded-bl-[18px] ${className}`}
     >
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}

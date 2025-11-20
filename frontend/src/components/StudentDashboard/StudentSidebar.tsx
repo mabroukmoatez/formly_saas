@@ -120,7 +120,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
       {/* Sidebar */}
       <aside
-        className={`flex ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 bg-[#19294a] border-[#dadfe8] ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
+        className={`flex ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden transition-all duration-300 bg-[#19294a] h-screen ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
       >
         {/* Background decorations */}
         <img
