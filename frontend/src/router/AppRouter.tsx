@@ -113,6 +113,7 @@ import { OrganizationNotFound } from '../screens/OrganizationNotFound';
 import ApprenantsPage from '../pages/Apprenants';
 import EntreprisesPage from '../pages/Entreprises';
 import FinanceursPage from '../pages/Financeurs';
+import StudentDashboard from '../pages/StudentDashboard';
 
 /**
  * Protected Route Component
@@ -475,6 +476,89 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
+
+        {/* Student Dashboard Routes */}
+        <Route
+          path="/student/dashboard"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/catalogue"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/learning"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/messaging"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/results"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/shared-folder"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/events"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/student/info"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+
         <Route
           path="/gestion-commercial"
           element={

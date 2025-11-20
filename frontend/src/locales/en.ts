@@ -2498,4 +2498,33 @@ export default {
       },
     },
   },
+
+  // Student Dashboard
+  student: {
+    header: {
+      hello: 'Hello',
+    },
+    sidebar: {
+      dashboard: 'Dashboard',
+      catalogue: 'Course Catalog',
+      myLearning: 'My Learning',
+      messaging: 'Messaging',
+      myResults: 'My Results',
+      sharedFolder: 'Shared Folder',
+      eventsNews: 'Events /News',
+      info: 'Info',
+    },
+    dashboard: {
+      welcome: 'Welcome',
+      subtitle: 'Here is an overview of your learning journey',
+      activeCourses: 'Active Courses',
+      hoursLearned: 'Learning Hours',
+      completedCourses: 'Completed Courses',
+      averageScore: 'Average Score',
+      myCourses: 'My Courses',
+      noCoursesYet: 'No courses enrolled yet',
+      exploreCatalogue: 'Explore the catalog to start your learning journey',
+      progress: 'Progress',
+    },
+  },
 };
