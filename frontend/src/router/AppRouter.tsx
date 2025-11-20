@@ -235,27 +235,35 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
                           location.pathname === '/';
     
     if (isPublicRoute) {
-      // Otherwise redirect to dashboard
+      // Otherwise redirect to dashboard based on user role
       // ('🏠 No saved path, redirecting to dashboard...');
       // Check if we're on a subdomain route
       const pathSegments = location.pathname.split('/').filter(Boolean);
       const isSubdomainRoute = pathSegments.length > 1 && pathSegments[0] !== 'white-label' && pathSegments[0] !== 'superadmin';
-      
+
       // ('📍 Path segments:', pathSegments, 'IsSubdomain:', isSubdomainRoute);
-      
+
+      // Determine dashboard path based on user role
+      let dashboardPath = '/dashboard';
+      if (user?.role === 3) { // Student role
+        dashboardPath = '/student/dashboard';
+      } else if (user?.role === 4) { // Organization role
+        dashboardPath = '/dashboard';
+      }
+
       if (isSubdomainRoute) {
         // We're on a subdomain route, redirect to subdomain dashboard
         const subdomain = pathSegments[0];
-        // ('🔀 Redirecting to:', `/${subdomain}/dashboard`);
-        return <Navigate to={`/${subdomain}/dashboard`} replace />;
+        // ('🔀 Redirecting to:', `/${subdomain}${dashboardPath}`);
+        return <Navigate to={`/${subdomain}${dashboardPath}`} replace />;
       } else if (organization?.custom_domain) {
         // Not on subdomain route but have organization, redirect to subdomain dashboard
-        // ('🔀 Redirecting to org dashboard:', `/${organization.custom_domain}/dashboard`);
-        return <Navigate to={`/${organization.custom_domain}/dashboard`} replace />;
+        // ('🔀 Redirecting to org dashboard:', `/${organization.custom_domain}${dashboardPath}`);
+        return <Navigate to={`/${organization.custom_domain}${dashboardPath}`} replace />;
       } else {
         // No subdomain, redirect to regular dashboard
-        // ('🔀 Redirecting to: /dashboard');
-        return <Navigate to="/dashboard" replace />;
+        // ('🔀 Redirecting to:', dashboardPath);
+        return <Navigate to={dashboardPath} replace />;
       }
     }
   }
