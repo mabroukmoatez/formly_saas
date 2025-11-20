@@ -48,11 +48,11 @@ class OrganizationAuthController extends Controller
 
             if (Auth::attempt($credentials)) {
                 $user = Auth::user();
-                
-                // Check if user is organization user (role 4)
-                if ($user->role != USER_ROLE_ORGANIZATION) {
+
+                // Check if user is organization user (role 4) or student (role 3)
+                if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
                     Auth::logout();
-                    return $this->failed([], 'Access denied. Organization role required.');
+                    return $this->failed([], 'Access denied. Organization or student role required.');
                 }
 
                 // Check if user has organization_id
@@ -86,6 +86,12 @@ class OrganizationAuthController extends Controller
                 // Generate token
                 $token = $user->createToken(Str::random(32))->plainTextToken;
 
+                // Determine role name
+                $roleName = 'Organization';
+                if ($user->role == USER_ROLE_STUDENT) {
+                    $roleName = 'Student';
+                }
+
                 // Prepare user data
                 $userData = [
                     'id' => $user->id,
@@ -93,7 +99,7 @@ class OrganizationAuthController extends Controller
                     'email' => $user->email,
                     'mobile_number' => $user->mobile_number,
                     'role' => $user->role,
-                    'role_name' => 'Organization',
+                    'role_name' => $roleName,
                     'organization_id' => $user->organization_id,
                     'is_organization_admin' => $user->isOrganizationAdmin(),
                     'organization_roles' => $user->organizationRoles->pluck('name')->toArray(),
@@ -248,9 +254,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user
-            if ($user->role != USER_ROLE_ORGANIZATION) {
-                return $this->failed([], 'Access denied. Organization role required.');
+            // Check if user is organization user or student
+            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
+                return $this->failed([], 'Access denied. Organization or student role required.');
             }
 
             // Load relationships
@@ -262,6 +268,12 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'Organization not found.');
             }
 
+            // Determine role name
+            $roleName = 'Organization';
+            if ($user->role == USER_ROLE_STUDENT) {
+                $roleName = 'Student';
+            }
+
             // Prepare user data
             $userData = [
                 'id' => $user->id,
@@ -269,7 +281,7 @@ class OrganizationAuthController extends Controller
                 'email' => $user->email,
                 'mobile_number' => $user->mobile_number,
                 'role' => $user->role,
-                'role_name' => 'Organization',
+                'role_name' => $roleName,
                 'organization_id' => $user->organization_id,
                 'is_organization_admin' => $user->isOrganizationAdmin(),
                 'organization_roles' => $user->organizationRoles->pluck('name')->toArray(),
@@ -353,9 +365,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user
-            if ($user->role != USER_ROLE_ORGANIZATION) {
-                return $this->failed([], 'Access denied. Organization role required.');
+            // Check if user is organization user or student
+            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
+                return $this->failed([], 'Access denied. Organization or student role required.');
             }
 
             $validator = Validator::make($request->all(), [
@@ -395,9 +407,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user
-            if ($user->role != USER_ROLE_ORGANIZATION) {
-                return $this->failed([], 'Access denied. Organization role required.');
+            // Check if user is organization user or student
+            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
+                return $this->failed([], 'Access denied. Organization or student role required.');
             }
 
             // Load organization roles
