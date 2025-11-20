@@ -21,24 +21,22 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
 
   return (
     <header
-      className={`flex items-center justify-between gap-7 px-6 py-4 h-16 flex-shrink-0 border-b transition-colors ${
-        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-      } ${className}`}
+      className={`flex items-center justify-between gap-7 px-6 py-4 h-16 flex-shrink-0 border-b transition-colors bg-[#19294a] border-[#2a3f5f] ${className}`}
     >
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <Button
           variant="ghost"
           size="icon"
-          className={`h-9 w-9 rounded-[10px] lg:hidden ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+          className="h-9 w-9 rounded-[10px] lg:hidden hover:bg-white/10"
           onClick={onMobileMenuToggle}
         >
-          <Menu className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+          <Menu className="w-5 h-5 text-white" />
         </Button>
 
         {/* Welcome Message */}
         <div className="hidden sm:block">
-          <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className="text-lg font-semibold text-white">
             {t('student.header.hello') || 'Hello'}, {user?.name || user?.first_name || 'Student'}
           </h2>
         </div>
@@ -48,21 +46,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
         {/* Notification Dropdown */}
         <NotificationDropdown />
 
-        {/* Theme Toggle Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-9 w-9 rounded-[10px] ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
-          onClick={toggleTheme}
-          title={isDark ? t('common.lightMode') : t('common.darkMode')}
-        >
-          {isDark ? (
-            <Sun className="w-5 h-5 text-yellow-500" />
-          ) : (
-            <Moon className="w-5 h-5 text-gray-600" />
-          )}
-        </Button>
-
+        {/* Theme Toggle Button - Hidden for consistent design */}
         {/* Profile Dropdown */}
         <ProfileDropdown />
       </div>
