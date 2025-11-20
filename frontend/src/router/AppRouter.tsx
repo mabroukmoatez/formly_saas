@@ -113,7 +113,6 @@ import { OrganizationNotFound } from '../screens/OrganizationNotFound';
 import ApprenantsPage from '../pages/Apprenants';
 import EntreprisesPage from '../pages/Entreprises';
 import FinanceursPage from '../pages/Financeurs';
-import StudentDashboard from '../pages/StudentDashboard';
 
 /**
  * Protected Route Component
@@ -235,35 +234,27 @@ const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
                           location.pathname === '/';
     
     if (isPublicRoute) {
-      // Otherwise redirect to dashboard based on user role
+      // Otherwise redirect to dashboard
       // ('🏠 No saved path, redirecting to dashboard...');
       // Check if we're on a subdomain route
       const pathSegments = location.pathname.split('/').filter(Boolean);
       const isSubdomainRoute = pathSegments.length > 1 && pathSegments[0] !== 'white-label' && pathSegments[0] !== 'superadmin';
-
+      
       // ('📍 Path segments:', pathSegments, 'IsSubdomain:', isSubdomainRoute);
-
-      // Determine dashboard path based on user role
-      let dashboardPath = '/dashboard';
-      if (user?.role === 3) { // Student role
-        dashboardPath = '/student/dashboard';
-      } else if (user?.role === 4) { // Organization role
-        dashboardPath = '/dashboard';
-      }
-
+      
       if (isSubdomainRoute) {
         // We're on a subdomain route, redirect to subdomain dashboard
         const subdomain = pathSegments[0];
-        // ('🔀 Redirecting to:', `/${subdomain}${dashboardPath}`);
-        return <Navigate to={`/${subdomain}${dashboardPath}`} replace />;
+        // ('🔀 Redirecting to:', `/${subdomain}/dashboard`);
+        return <Navigate to={`/${subdomain}/dashboard`} replace />;
       } else if (organization?.custom_domain) {
         // Not on subdomain route but have organization, redirect to subdomain dashboard
-        // ('🔀 Redirecting to org dashboard:', `/${organization.custom_domain}${dashboardPath}`);
-        return <Navigate to={`/${organization.custom_domain}${dashboardPath}`} replace />;
+        // ('🔀 Redirecting to org dashboard:', `/${organization.custom_domain}/dashboard`);
+        return <Navigate to={`/${organization.custom_domain}/dashboard`} replace />;
       } else {
         // No subdomain, redirect to regular dashboard
-        // ('🔀 Redirecting to:', dashboardPath);
-        return <Navigate to={dashboardPath} replace />;
+        // ('🔀 Redirecting to: /dashboard');
+        return <Navigate to="/dashboard" replace />;
       }
     }
   }
@@ -484,89 +475,6 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
-
-        {/* Student Dashboard Routes */}
-        <Route
-          path="/student/dashboard"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/catalogue"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/learning"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/messaging"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/results"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/shared-folder"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/events"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/student/info"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-
         <Route
           path="/gestion-commercial"
           element={
@@ -1041,89 +949,6 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
-
-        {/* Student Dashboard Routes - Subdomain aware */}
-        <Route
-          path="/:subdomain/student/dashboard"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/catalogue"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/learning"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/messaging"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/results"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/shared-folder"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/events"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-        <Route
-          path="/:subdomain/student/info"
-          element={
-            <OrganizationRoute>
-              <ProtectedRoute>
-                <StudentDashboard />
-              </ProtectedRoute>
-            </OrganizationRoute>
-          }
-        />
-
         <Route
           path="/:subdomain/profile"
           element={

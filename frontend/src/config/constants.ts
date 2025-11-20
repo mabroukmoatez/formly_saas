@@ -10,8 +10,7 @@ export const CONFIG = {
   // API Endpoints
   API: {
     ORGANIZATION_BY_SUBDOMAIN: '/api/organization/by-subdomain',
-    LOGIN: '/api/login', // Students (role 3) and Instructors (role 2) - DEFAULT
-    ORGANIZATION_LOGIN: '/api/auth/login', // Organization users (role 4)
+    LOGIN: '/api/auth/login',
     SUPERADMIN_LOGIN: '/api/superadmin/auth/login',
     LOGOUT: '/api/auth/logout',
     FORGOT_PASSWORD: '/api/auth/forgot-password',
@@ -62,12 +61,13 @@ export const CONFIG = {
     MANAGER: 'manager',
   },
   
-  // Dashboard Routes
+  // Dashboard Routes - All users go to Gestion Commercial
   DASHBOARD_ROUTES: {
     admin: '/gestion-commercial',
     instructor: '/gestion-commercial',
-    student: '/student/dashboard', // Students go to their own dashboard
+    student: '/gestion-commercial',
     manager: '/gestion-commercial',
+    // All roles redirect to the same dashboard
   },
   
   // Supported Languages

@@ -141,38 +141,7 @@ class AuthController extends Controller
                 }
             }
 
-            // Load relationships
-            $user->load(['organizationBelongsTo', 'student']);
-
-            $response['token'] = $user->createToken(Str::random(32))->plainTextToken;
-            $response['user'] = [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'mobile_number' => $user->mobile_number,
-                'role' => $user->role,
-                'role_name' => $user->role == USER_ROLE_STUDENT ? 'Student' : ($user->role == USER_ROLE_INSTRUCTOR ? 'Instructor' : 'User'),
-                'organization_id' => $user->organization_id,
-                'image' => $user->image,
-                'image_url' => $user->image ? asset($user->image) : null,
-                'first_name' => $user->student->first_name ?? null,
-                'last_name' => $user->student->last_name ?? null,
-            ];
-
-            if ($user->organization_id && $user->organizationBelongsTo) {
-                $org = $user->organizationBelongsTo;
-                $response['organization'] = [
-                    'id' => $org->id,
-                    'uuid' => $org->uuid,
-                    'organization_name' => $org->organization_name,
-                    'custom_domain' => $org->custom_domain,
-                    'primary_color' => $org->primary_color,
-                    'secondary_color' => $org->secondary_color,
-                    'organization_logo_url' => $org->organization_logo ? asset($org->organization_logo) : null,
-                ];
-            } else {
-                $response['organization'] = null;
-            }
+            $response['token'] = $user->createToken(Str::random(32))->accessToken;
 
             return $this->success($response, __('Successfully Logged In'));
         }

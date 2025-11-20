@@ -2658,33 +2658,5 @@ export default {
     },
   },
 
-  // Student Dashboard
-  student: {
-    header: {
-      hello: 'Bonjour',
-    },
-    sidebar: {
-      dashboard: 'Dashboard',
-      catalogue: 'Catalogue de formation',
-      myLearning: 'Mon apprentissage',
-      messaging: 'Messagerie',
-      myResults: 'Mes résultats',
-      sharedFolder: 'Dossier partagé',
-      eventsNews: 'Événements /Actualités',
-      info: 'Info',
-    },
-    dashboard: {
-      welcome: 'Bienvenue',
-      subtitle: 'Voici un aperçu de votre parcours d\'apprentissage',
-      activeCourses: 'Cours actifs',
-      hoursLearned: 'Heures d\'apprentissage',
-      completedCourses: 'Cours terminés',
-      averageScore: 'Score moyen',
-      myCourses: 'Mes Cours',
-      noCoursesYet: 'Aucun cours inscrit pour le moment',
-      exploreCatalogue: 'Explorez le catalogue pour commencer votre apprentissage',
-      progress: 'Progression',
-    },
-  },
 
 };
