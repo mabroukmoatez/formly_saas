@@ -2498,4 +2498,69 @@ export default {
       },
     },
   },
+
+  // Student Platform
+  student: {
+    sidebar: {
+      dashboard: 'Dashboard',
+      catalogue: 'Course Catalogue',
+      myLearning: 'My Learning',
+      messaging: 'Messaging',
+      myResults: 'My Results',
+      sharedFolder: 'Shared Folder',
+      eventsNews: 'Events / News',
+      info: 'Info',
+    },
+    header: {
+      hello: 'Hello',
+    },
+    dashboard: {
+      title: 'Dashboard',
+      welcome: 'Welcome',
+      subtitle: 'Here is an overview of your learning journey',
+      activeCourses: 'Active courses',
+      hoursLearned: 'Learning hours',
+      completedCourses: 'Completed courses',
+      averageScore: 'Average score',
+      myCourses: 'My Courses',
+      progress: 'Progress',
+      noCoursesYet: 'No courses enrolled yet',
+      exploreCatalogue: 'Explore the catalogue to start your learning',
+    },
+    profile: {
+      title: 'My Profile',
+      subtitle: 'Manage your personal information',
+      comingSoon: 'Profile content coming soon...',
+    },
+    catalogue: {
+      title: 'Course Catalogue',
+      subtitle: 'Explore our available courses',
+      comingSoon: 'Course catalogue coming soon...',
+    },
+    learning: {
+      title: 'My Learning',
+      subtitle: 'Track your progress in your courses',
+      comingSoon: 'Learning content coming soon...',
+    },
+    messaging: {
+      title: 'Messaging',
+      subtitle: 'Communicate with your instructors',
+      comingSoon: 'Messaging coming soon...',
+    },
+    results: {
+      title: 'My Results',
+      subtitle: 'View your grades and results',
+      comingSoon: 'Results coming soon...',
+    },
+    sharedFolder: {
+      title: 'Shared Folder',
+      subtitle: 'Access shared documents',
+      comingSoon: 'Shared folder coming soon...',
+    },
+    events: {
+      title: 'Events / News',
+      subtitle: 'Stay informed about events and news',
+      comingSoon: 'Events and news coming soon...',
+    },
+  },
 };

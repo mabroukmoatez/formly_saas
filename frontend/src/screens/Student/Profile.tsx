@@ -9,7 +9,7 @@ export const StudentProfileScreen: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <div className={`min-h-full p-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="min-h-full p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
