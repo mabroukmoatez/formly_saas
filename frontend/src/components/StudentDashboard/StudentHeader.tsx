@@ -27,7 +27,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
       <div
         className="absolute bottom-0 left-0 w-5 h-5"
         style={{
-          backgroundColor: '#19294a',
+          backgroundColor: '#f3f4f6',
           borderTopRightRadius: '20px'
         }}
       />
