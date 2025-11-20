@@ -120,7 +120,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
       {/* Sidebar */}
       <aside
-        className={`flex ${isCollapsed ? 'w-[80px]' : 'w-[287px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 bg-[#19294a] border-[#dadfe8] ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
+        className={`flex ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 bg-[#19294a] border-[#dadfe8] ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
       >
         {/* Background decorations */}
         <img
@@ -129,7 +129,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
           src="/assets/images/sidebar-bg.png"
         />
 
-        <div className={`relative ${isCollapsed ? 'w-[54px]' : 'w-[259px]'} z-10 flex flex-col h-full`}>
+        <div className={`relative ${isCollapsed ? 'w-[54px]' : 'w-[214px]'} z-10 flex flex-col h-full`}>
           {/* Header */}
           <header className={`flex w-full items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
             <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-[15px]'}`}>
@@ -176,7 +176,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                     isCollapsed ? 'justify-center px-2' : 'justify-start gap-[18px] px-[18px]'
                   } py-2.5 rounded-lg border-l-4 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                     isActive
-                      ? 'border-l-white bg-white/20 hover:bg-white/30'
+                      ? 'border-l-transparent bg-[#e5f3ff] hover:bg-[#d0e7ff]'
                       : 'border-l-transparent hover:bg-white/10 hover:border-l-white/50'
                   }`}
                   onClick={() => {
@@ -187,15 +187,12 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                   <div className={`inline-flex items-center ${isCollapsed ? 'gap-0' : 'gap-[18px]'}`}>
                     <div className="flex items-center justify-center w-5 h-5">
                       <Icon
-                        className="w-5 h-5 text-white"
-                        style={{
-                          filter: isActive ? 'brightness(1.2)' : 'none'
-                        }}
+                        className={`w-5 h-5 ${isActive ? 'text-[#007aff]' : 'text-white'}`}
                       />
                     </div>
                     {!isCollapsed && (
-                      <span className={`[font-family:'Urbanist',Helvetica] text-sm tracking-[0] leading-tight transition-colors whitespace-nowrap overflow-hidden text-ellipsis text-white ${
-                        isActive ? 'font-bold' : 'font-semibold'
+                      <span className={`[font-family:'Urbanist',Helvetica] text-sm tracking-[0] leading-tight transition-colors whitespace-nowrap overflow-hidden text-ellipsis ${
+                        isActive ? 'font-bold text-[#007aff]' : 'font-semibold text-white'
                       }`}>
                         {item.label}
                       </span>

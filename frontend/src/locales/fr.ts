@@ -2658,5 +2658,70 @@ export default {
     },
   },
 
+  // Student Platform
+  student: {
+    sidebar: {
+      dashboard: 'Tableau de bord',
+      catalogue: 'Catalogue de formation',
+      myLearning: 'Mon apprentissage',
+      messaging: 'Messagerie',
+      myResults: 'Mes résultats',
+      sharedFolder: 'Dossier partagé',
+      eventsNews: 'Événements / Actualités',
+      info: 'Info',
+    },
+    header: {
+      hello: 'Bonjour',
+    },
+    dashboard: {
+      title: 'Tableau de bord',
+      welcome: 'Bienvenue',
+      subtitle: 'Voici un aperçu de votre parcours d\'apprentissage',
+      activeCourses: 'Cours actifs',
+      hoursLearned: 'Heures d\'apprentissage',
+      completedCourses: 'Cours terminés',
+      averageScore: 'Score moyen',
+      myCourses: 'Mes Cours',
+      progress: 'Progression',
+      noCoursesYet: 'Aucun cours inscrit pour le moment',
+      exploreCatalogue: 'Explorez le catalogue pour commencer votre apprentissage',
+    },
+    profile: {
+      title: 'Mon profil',
+      subtitle: 'Gérez vos informations personnelles',
+      comingSoon: 'Contenu de profil à venir...',
+    },
+    catalogue: {
+      title: 'Catalogue de formation',
+      subtitle: 'Explorez nos formations disponibles',
+      comingSoon: 'Catalogue de formation à venir...',
+    },
+    learning: {
+      title: 'Mon apprentissage',
+      subtitle: 'Suivez votre progression dans vos cours',
+      comingSoon: 'Contenu d\'apprentissage à venir...',
+    },
+    messaging: {
+      title: 'Messagerie',
+      subtitle: 'Communiquez avec vos formateurs',
+      comingSoon: 'Messagerie à venir...',
+    },
+    results: {
+      title: 'Mes résultats',
+      subtitle: 'Consultez vos notes et résultats',
+      comingSoon: 'Résultats à venir...',
+    },
+    sharedFolder: {
+      title: 'Dossier partagé',
+      subtitle: 'Accédez aux documents partagés',
+      comingSoon: 'Dossier partagé à venir...',
+    },
+    events: {
+      title: 'Événements / Actualités',
+      subtitle: 'Restez informé des événements et actualités',
+      comingSoon: 'Événements et actualités à venir...',
+    },
+  },
+
 
 };
