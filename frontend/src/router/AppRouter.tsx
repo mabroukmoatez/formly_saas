@@ -1041,6 +1041,89 @@ export const AppRouter: React.FC = () => {
             </OrganizationRoute>
           }
         />
+
+        {/* Student Dashboard Routes - Subdomain aware */}
+        <Route
+          path="/:subdomain/student/dashboard"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/catalogue"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/learning"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/messaging"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/results"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/shared-folder"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/events"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/student/info"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <StudentDashboard />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+
         <Route
           path="/:subdomain/profile"
           element={
