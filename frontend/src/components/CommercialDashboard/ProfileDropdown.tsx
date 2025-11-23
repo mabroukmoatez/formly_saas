@@ -78,7 +78,12 @@ export const ProfileDropdown: React.FC<ProfileDropdownProps> = ({ className }) =
 
   const handleNavigateToProfile = () => {
     setIsOpen(false);
-    navigateToRoute('/profile');
+    // Route based on user role
+    if (user?.role_name === 'student') {
+      navigateToRoute('/student/profile');
+    } else {
+      navigateToRoute('/profile');
+    }
   };
 
   const handleNavigateToSettings = () => {
