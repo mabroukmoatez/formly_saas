@@ -25,6 +25,7 @@ class Student extends Model
         'mobile_number',
         'postal_code',
         'address',
+        'banner_image',
         'about_me',
         'gender',
         'status',

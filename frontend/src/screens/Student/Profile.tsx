@@ -102,6 +102,11 @@ export const StudentProfileScreen: React.FC = () => {
         if (profileData.avatar_url || profileData.image) {
           setAvatarPreview(profileData.avatar_url || profileData.image || null);
         }
+
+        // Set banner preview
+        if (profileData.banner_image_url) {
+          setBannerPreview(profileData.banner_image_url);
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -237,7 +242,8 @@ export const StudentProfileScreen: React.FC = () => {
     loadProfile();
     setSelectedAvatar(null);
     setSelectedBanner(null);
-    setBannerPreview('/assets/images/course-2.png');
+    // Reset banner to saved banner or default
+    setBannerPreview(profile?.banner_image_url || '/assets/images/course-2.png');
   };
 
   if (loading) {

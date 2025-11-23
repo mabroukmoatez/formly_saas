@@ -38,6 +38,8 @@ export interface StudentProfile {
   gender?: string;
   image?: string;
   avatar_url?: string;
+  banner_image?: string;
+  banner_image_url?: string;
   status: number;
   organization_id?: number;
   date_of_birth?: string;

@@ -73,6 +73,8 @@ class ProfileController extends Controller
             'student_number' => $student->employee_number, // Map employee_number to student_number
             'image' => $user->image,
             'avatar_url' => $user->image ? asset($user->image) : null,
+            'banner_image' => $student->banner_image,
+            'banner_image_url' => $student->banner_image ? asset($student->banner_image) : null,
             'status' => $student->status,
             'organization_id' => $student->organization_id,
             // Include relationships
@@ -101,14 +103,15 @@ class ProfileController extends Controller
                 $image = $user->image;
             }
 
-            // Handle banner image upload (store in user folder for now)
-            $bannerImage = null;
+            // Handle banner image upload
+            $bannerImage = $student->banner_image; // Keep existing banner if no new one uploaded
             if ($request->banner_image) {
-                // For now, we'll store banner images but won't save to DB until migration is added
-                // This allows the feature to work without breaking existing functionality
+                // Delete old banner if exists
+                if ($student->banner_image) {
+                    $this->deleteFile($student->banner_image);
+                }
+                // Upload new banner image
                 $bannerImage = $this->saveImage('user/banners', $request->banner_image, null, 'null');
-                // TODO: Add banner_image column to students or users table via migration
-                // Then uncomment: $student->banner_image = $bannerImage;
             }
 
             $user->name = $request->first_name . ' ' . $request->last_name;
@@ -130,6 +133,7 @@ class ProfileController extends Controller
                 'city_id' => $request->city_id,
                 'postal_code' => $request->postal_code,
                 'address' => $request->address,
+                'banner_image' => $bannerImage,
                 'birth_date' => $request->date_of_birth ?: $request->birth_date,
                 'birth_place' => $request->birth_place,
                 'nationality' => $request->nationality,
