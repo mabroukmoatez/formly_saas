@@ -238,11 +238,14 @@ export const StudentProfileScreen: React.FC = () => {
 
         {/* Main Content Container */}
         <div className="relative">
-          {/* Gradient Banner */}
+          {/* Banner Image */}
           <div
             className="absolute top-0 left-0 right-0 h-[200px] rounded-t-[20px] overflow-hidden"
             style={{
-              background: 'linear-gradient(135deg, #ff9a56 0%, #ffb347 25%, #1e3c72 50%, #2a5298 75%, #e91e63 100%)',
+              backgroundImage: 'url(/assets/images/course-2.png)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
             }}
           />
 
