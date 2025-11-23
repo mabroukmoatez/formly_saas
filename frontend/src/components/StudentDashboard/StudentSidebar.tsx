@@ -132,7 +132,10 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
         <div className={`relative ${isCollapsed ? 'w-[54px]' : 'w-[214px]'} z-10 flex flex-col h-full`}>
           {/* Header */}
           <header className={`flex w-full items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
-            <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-[15px]'}`}>
+            <div
+              className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-[15px]'} cursor-pointer`}
+              onClick={() => navigateToRoute('/student/profile')}
+            >
               <img
                 className="w-[31px] h-8"
                 alt={`${getOrganizationName()} logo`}
@@ -143,7 +146,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
                 }}
               />
               {!isCollapsed && (
-                <h1 className="[font-family:'Urbanist',Helvetica] font-bold text-[25px] tracking-[0] leading-normal text-white">
+                <h1 className="[font-family:'Urbanist',Helvetica] font-bold text-[25px] tracking-[0] leading-normal text-white hover:opacity-90 transition-opacity">
                   {getOrganizationName()}
                 </h1>
               )}

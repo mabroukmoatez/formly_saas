@@ -5,6 +5,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProfileDropdown, NotificationDropdown } from '../CommercialDashboard/index';
 import { Menu, Sun, Moon, Bell } from 'lucide-react';
+import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 
 interface StudentHeaderProps {
   className?: string;
@@ -18,6 +19,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
   const { isDark, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { navigateToRoute } = useSubdomainNavigation();
 
   return (
     <header
@@ -43,9 +45,12 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
           <Menu className="w-5 h-5 text-white" />
         </Button>
 
-        {/* Welcome Message */}
+        {/* Welcome Message - Clickable to Profile */}
         <div className="hidden sm:block">
-          <h2 className="text-lg font-semibold text-white">
+          <h2
+            className="text-lg font-semibold text-white cursor-pointer hover:underline transition-all"
+            onClick={() => navigateToRoute('/student/profile')}
+          >
             {t('student.header.hello') || 'Hello'}, {user?.name || user?.first_name || 'Student'}
           </h2>
         </div>
