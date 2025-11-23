@@ -101,6 +101,16 @@ class ProfileController extends Controller
                 $image = $user->image;
             }
 
+            // Handle banner image upload (store in user folder for now)
+            $bannerImage = null;
+            if ($request->banner_image) {
+                // For now, we'll store banner images but won't save to DB until migration is added
+                // This allows the feature to work without breaking existing functionality
+                $bannerImage = $this->saveImage('user/banners', $request->banner_image, null, 'null');
+                // TODO: Add banner_image column to students or users table via migration
+                // Then uncomment: $student->banner_image = $bannerImage;
+            }
+
             $user->name = $request->first_name . ' ' . $request->last_name;
             $user->image = $image;
             $user->mobile_number = $request->mobile_number;

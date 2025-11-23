@@ -20,6 +20,7 @@ export const StudentProfileScreen: React.FC = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
 
   // State
   const [activeTab, setActiveTab] = useState<TabType>('profil');
@@ -28,6 +29,8 @@ export const StudentProfileScreen: React.FC = () => {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string>('/assets/images/course-2.png');
+  const [selectedBanner, setSelectedBanner] = useState<File | null>(null);
 
   // Location data
   const [countries, setCountries] = useState<Country[]>([]);
@@ -173,6 +176,22 @@ export const StudentProfileScreen: React.FC = () => {
     }
   };
 
+  const handleBannerClick = () => {
+    bannerFileInputRef.current?.click();
+  };
+
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedBanner(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBannerPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -195,6 +214,7 @@ export const StudentProfileScreen: React.FC = () => {
         state_id: formData.state_id ? parseInt(formData.state_id) : undefined,
         city_id: formData.city_id ? parseInt(formData.city_id) : undefined,
         image: selectedAvatar,
+        banner_image: selectedBanner,
       };
 
       const response = await studentProfileService.updateProfile(profile.uuid, updateData);
@@ -216,6 +236,8 @@ export const StudentProfileScreen: React.FC = () => {
   const handleCancel = () => {
     loadProfile();
     setSelectedAvatar(null);
+    setSelectedBanner(null);
+    setBannerPreview('/assets/images/course-2.png');
   };
 
   if (loading) {
@@ -242,12 +264,28 @@ export const StudentProfileScreen: React.FC = () => {
           <div
             className="absolute top-0 left-0 right-0 h-[200px] rounded-t-[20px] overflow-hidden"
             style={{
-              backgroundImage: 'url(/assets/images/course-2.png)',
+              backgroundImage: `url(${bannerPreview})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
             }}
-          />
+          >
+            {/* Camera Button for Banner */}
+            <button
+              onClick={handleBannerClick}
+              className="absolute bottom-4 right-4 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-gray-700 hover:bg-white transition-all shadow-lg"
+              title="Change banner image"
+            >
+              <Camera className="w-5 h-5" />
+            </button>
+            <input
+              ref={bannerFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleBannerChange}
+              className="hidden"
+            />
+          </div>
 
           {/* Content Cards */}
           <div className="relative grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 pt-8">

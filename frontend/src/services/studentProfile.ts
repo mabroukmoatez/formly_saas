@@ -61,6 +61,7 @@ export interface UpdateProfileData {
   about_me?: string;
   gender?: string;
   image?: File | null;
+  banner_image?: File | null;
 }
 
 export interface ChangePasswordData {
@@ -104,6 +105,7 @@ export const studentProfileService = {
     if (data.state_id) formData.append('state_id', data.state_id.toString());
     if (data.city_id) formData.append('city_id', data.city_id.toString());
     if (data.image) formData.append('image', data.image);
+    if (data.banner_image) formData.append('banner_image', data.banner_image);
 
     const response = await apiClient.post(`${API_BASE}/save-profile/${uuid}`, formData);
     return response;
