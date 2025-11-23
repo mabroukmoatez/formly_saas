@@ -22,12 +22,24 @@ class Student extends Model
         'first_name',
         'last_name',
         'phone_number',
+        'mobile_number',
         'postal_code',
         'address',
+        'banner_image',
         'about_me',
         'gender',
         'status',
         'organization_id',
+        'company_id',
+        'funder_id',
+        'birth_date',
+        'birth_place',
+        'nationality',
+        'employee_number',
+        'job_title',
+        'social_security_number',
+        'has_disability',
+        'disability_type',
     ];
 
     public function user()
@@ -58,6 +70,16 @@ class Student extends Model
     public function getNameAttribute()
     {
         return $this->first_name .' '. $this->last_name;
+    }
+
+    public function getStudentNumberAttribute()
+    {
+        return $this->employee_number;
+    }
+
+    public function getDateOfBirthAttribute()
+    {
+        return $this->birth_date;
     }
 
     public function scopeApproved($query)
