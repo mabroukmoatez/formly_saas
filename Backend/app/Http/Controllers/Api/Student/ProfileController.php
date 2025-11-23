@@ -41,8 +41,46 @@ class ProfileController extends Controller
 
     public function profile()
     {
-        $data = auth::user();
-        $data->student;
+        $user = auth::user();
+
+        // Load student with relationships
+        $student = $user->student()->with(['country', 'state', 'city'])->first();
+
+        if (!$student) {
+            return $this->failed([], __('Student profile not found'));
+        }
+
+        // Combine user and student data
+        $data = [
+            'id' => $student->id,
+            'uuid' => $student->uuid,
+            'user_id' => $user->id,
+            'first_name' => $student->first_name,
+            'last_name' => $student->last_name,
+            'email' => $user->email,
+            'phone_number' => $student->phone_number ?: $user->phone_number,
+            'mobile_number' => $student->phone_number ?: $user->mobile_number,
+            'address' => $student->address ?: $user->address,
+            'postal_code' => $student->postal_code,
+            'country_id' => $student->country_id,
+            'state_id' => $student->state_id,
+            'city_id' => $student->city_id,
+            'about_me' => $student->about_me,
+            'gender' => $student->gender,
+            'nationality' => $student->nationality,
+            'date_of_birth' => $student->birth_date,
+            'birth_place' => $student->birth_place,
+            'student_number' => $student->employee_number, // Map employee_number to student_number
+            'image' => $user->image,
+            'avatar_url' => $user->image ? asset($user->image) : null,
+            'status' => $student->status,
+            'organization_id' => $student->organization_id,
+            // Include relationships
+            'country' => $student->country,
+            'state' => $student->state,
+            'city' => $student->city,
+        ];
+
         return $this->success($data);
     }
 
@@ -73,8 +111,8 @@ class ProfileController extends Controller
             $data = [
                 'first_name' => $request->first_name,
                 'last_name' => $request->last_name,
-                'mobile_number' => $request->mobile_number,
-                'phone_number' => $request->mobile_number,
+                'mobile_number' => $request->mobile_number ?: $request->phone_number,
+                'phone_number' => $request->mobile_number ?: $request->phone_number,
                 'about_me' => $request->about_me,
                 'gender' => $request->gender,
                 'country_id' => $request->country_id,
@@ -82,6 +120,10 @@ class ProfileController extends Controller
                 'city_id' => $request->city_id,
                 'postal_code' => $request->postal_code,
                 'address' => $request->address,
+                'birth_date' => $request->date_of_birth ?: $request->birth_date,
+                'birth_place' => $request->birth_place,
+                'nationality' => $request->nationality,
+                'employee_number' => $request->student_number ?: $request->employee_number,
             ];
 
             $this->studentModel->updateByUuid($data, $uuid);
