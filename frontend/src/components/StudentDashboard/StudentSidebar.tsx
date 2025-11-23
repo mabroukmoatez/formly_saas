@@ -120,7 +120,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
 
       {/* Sidebar */}
       <aside
-        className={`flex ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden transition-all duration-300 bg-[#19294a] h-screen ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
+        className={`flex ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden transition-all duration-300 bg-[#19294a] h-[100%] ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}
       >
         {/* Background decorations */}
         <img
@@ -135,7 +135,7 @@ export const StudentSidebar: React.FC<StudentSidebarProps> = ({
             <div
               className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-[15px]'} cursor-pointer`}
               onClick={() => navigateToRoute('/student/profile')}
-            >
+            >              
               <img
                 className="w-[31px] h-8"
                 alt={`${getOrganizationName()} logo`}

@@ -16,7 +16,6 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
   className = '',
   onMobileMenuToggle
 }) => {
-  const { isDark, toggleTheme } = useTheme();
   const { t } = useLanguage();
   const { user } = useAuth();
   const { navigateToRoute } = useSubdomainNavigation();
@@ -25,15 +24,6 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
     <header
       className={`relative flex items-center justify-between gap-7 px-6 py-4 h-16 flex-shrink-0 transition-colors bg-[#19294a] ${className}`}
     >
-      {/* Outward curved corner - bottom-left */}
-      <div
-        className="absolute bottom-0 left-0 w-5 h-5"
-        style={{
-          backgroundColor: '#f3f4f6',
-          borderTopRightRadius: '20px'
-        }}
-      />
-
       <div className="flex items-center gap-4">
         {/* Mobile Menu Button */}
         <Button
@@ -51,7 +41,7 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
             className="text-lg font-semibold text-white cursor-pointer hover:underline transition-all"
             onClick={() => navigateToRoute('/student/profile')}
           >
-            {t('student.header.hello') || 'Hello'}, {user?.name || user?.first_name || 'Student'}
+            {t('student.header.hello') || 'Hello'}, {user?.name || 'Student'}
           </h2>
         </div>
       </div>

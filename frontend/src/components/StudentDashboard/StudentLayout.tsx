@@ -8,7 +8,6 @@ interface StudentLayoutProps {
 }
 
 export const StudentLayout: React.FC<StudentLayoutProps> = ({ children, className }) => {
-  const { isDark } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleMobileMenuToggle = () => {
@@ -16,7 +15,7 @@ export const StudentLayout: React.FC<StudentLayoutProps> = ({ children, classNam
   };
 
   return (
-    <div className={`w-full h-screen flex overflow-hidden ${isDark ? 'bg-gray-100' : 'bg-gray-100'} ${className}`}>
+    <div className={`w-full h-[100%] flex overflow-hidden bg-[#19294a]  ${className}`}>
       {/* Sidebar - Continuous block, no gaps */}
       <StudentSidebar
         isMobileOpen={isMobileMenuOpen}
