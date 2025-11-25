@@ -664,43 +664,50 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
           {currentStep === 6 && <Step6WorkflowNew />}
           
           {/* Footer Navigation */}
-          <div className="flex justify-between items-center pt-6 pb-4">
-            <button
-              onClick={handlePreviousStep}
-              disabled={currentStep === 1}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                currentStep === 1
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-                            style={{ 
-                backgroundColor: currentStep === 1 ? '#e5e7eb' : organization?.primary_color || '#4b5563',
-                color: currentStep === 1 ? '#9ca3af' : 'white'
-              }}
-            >
-              {t('common.previous')}
-            </button>
-            
+          <div className="flex justify-end items-center pt-6 pb-4">
+            {currentStep > 1 && (
+              <button
+                onClick={handlePreviousStep}
+                className={`px-6 py-3 rounded-[18px] font-medium transition-all duration-200 mr-4 ${
+                  isDark
+                    ? 'bg-gray-700 text-white hover:bg-gray-600'
+                    : 'bg-gray-100 text-[#19294a] hover:bg-gray-200'
+                }`}
+                style={{
+                  fontFamily: 'Poppins, Helvetica',
+                  fontSize: '15px'
+                }}
+              >
+                {t('common.previous')}
+              </button>
+            )}
+
             <button
               onClick={handleNextStep}
-              className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${
+              className={`px-8 py-3 rounded-[18px] font-semibold transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 ${
                 currentStep === 6
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'text-white'
               }`}
-              style={{ 
+              style={{
                 backgroundColor: currentStep === 6 ? '#16a34a' : (organization?.primary_color || '#0066FF'),
                 color: 'white',
-                fontSize: '16px',
+                fontFamily: 'Poppins, Helvetica',
+                fontSize: '15px',
                 padding: '12px 32px'
               }}
             >
-              {currentStep === 6 ? 'Soumettre' : t('common.next')}
+              <span>{currentStep === 6 ? 'Soumettre' : 'Suivant'}</span>
+              {currentStep !== 6 && (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
             </button>
-                      </div>
-                    </div>
-        </main>
+          </div>
         </div>
+      </main>
+    </div>
   );
 };
 

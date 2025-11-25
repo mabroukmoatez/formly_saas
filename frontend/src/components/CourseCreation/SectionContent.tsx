@@ -47,121 +47,109 @@ export const ModulesSection: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.sections.modules')}
-        </h3>
-        <Button
-          data-action="add-module"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // ('Add Module clicked - preventing propagation');
-            onAddModule();
-          }}
-          className="flex items-center gap-2"
-          style={{ backgroundColor: primaryColor }}
-        >
-          <PlusIcon className="w-4 h-4" />
-          {t('courseCreation.form.addModule')}
-        </Button>
-      </div>
+      {/* Add Module Button */}
+      <Button
+        data-action="add-module"
+        variant="outline"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onAddModule();
+        }}
+        className={`flex items-center gap-2 px-4 py-2 rounded-full border-dashed ${
+          isDark
+            ? 'border-gray-500 hover:bg-gray-700 text-white'
+            : 'border-[#e2e2ea] hover:bg-gray-50 text-[#19294a]'
+        }`}
+      >
+        <PlusIcon className="w-4 h-4" />
+        <span className="[font-family:'Poppins',Helvetica] font-medium text-[14px]">
+          Ajouter Un Module
+        </span>
+      </Button>
 
+      {/* Modules List */}
       <div className="space-y-3">
         {modules.length === 0 && (
-          <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            <p>No modules added yet. Click "Add Module" to get started.</p>
+          <div className={`text-center py-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className="text-sm">Aucun module ajouté. Cliquez sur "Ajouter Un Module" pour commencer.</p>
           </div>
         )}
         {modules.map((module, index) => (
-          <Card 
-            key={module.id} 
+          <div
+            key={module.id}
             draggable
             onDragStart={(e) => handleDragStart(e, index)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
-            className={`transition-all duration-200 ${
-              isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+            className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border transition-all duration-200 ${
+              isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
             } ${
               dragOverIndex === index ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
             } ${
               draggedItem?.id === module.id ? 'opacity-50' : ''
             }`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <GripVerticalIcon 
-                  className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'} cursor-move hover:text-blue-500 transition-colors`} 
-                />
-                
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {index + 1}.
-                    </span>
-                    <Input
-                      value={module.title}
-                      onChange={(e) => onUpdateModule(module.id, 'title', e.target.value)}
-                      placeholder={t('courseCreation.form.moduleTitle')}
-                      className={`flex-1 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                  </div>
-                  
-                  <RichTextEditor
-                    content={module.description}
-                    onChange={(content) => onUpdateModule(module.id, 'description', content)}
-                    placeholder={t('courseCreation.form.moduleDescription')}
-                    className="min-h-[100px]"
-                  />
-                  
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={module.duration || ''}
-                      onChange={(e) => onUpdateModule(module.id, 'duration', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      min="0"
-                      className={`w-24 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {t('courseCreation.form.hours')}
-                    </span>
-                  </div>
-                </div>
+            {/* Module Number Badge */}
+            <div className={`flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 ${
+              isDark ? 'bg-blue-600' : 'bg-[#E8F3FF]'
+            }`}>
+              <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[14px] ${
+                isDark ? 'text-white' : 'text-[#19294a]'
+              }`} style={{ color: primaryColor }}>
+                {index + 1})
+              </span>
+            </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateModule(module.id, 'title', prompt('Edit module title:', module.title) || module.title);
-                    }}
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveModule(module.id);
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Module Title Input */}
+            <Input
+              type="text"
+              value={module.title}
+              onChange={(e) => onUpdateModule(module.id, 'title', e.target.value)}
+              placeholder="Entrez le titre du module..."
+              className={`flex-1 border-none shadow-none text-[15px] font-medium ${
+                isDark
+                  ? 'text-white placeholder:text-gray-400 bg-transparent'
+                  : 'text-[#2D3748] placeholder:text-[#718096] bg-transparent'
+              }`}
+            />
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-full ${
+                  isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <EditIcon className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-full ${
+                  isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveModule(module.id);
+                }}
+              >
+                <TrashIcon className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+              </Button>
+            </div>
+          </div>
         ))}
-        
-        {/* Drop zone at the end for modules */}
+
+        {/* Drop zone at the end */}
         {draggedItem && (
-          <div 
+          <div
             className={`h-2 rounded-lg transition-all duration-200 ${
               dragOverIndex === modules.length ? 'bg-blue-500 opacity-50' : 'bg-transparent'
             }`}
@@ -202,12 +190,10 @@ export const ObjectivesSection: React.FC<{
   } = useDragAndDrop({
     items: objectives,
     onReorder: (reorderedObjectives) => {
-      // Update the order property for each objective
       const updatedObjectives = reorderedObjectives.map((obj, index) => ({
         ...obj,
         order: index
       }));
-      // Call a reorder function if it exists, or update each objective individually
       updatedObjectives.forEach((obj, index) => {
         onUpdateObjective(obj.id, 'order', index);
       });
@@ -217,95 +203,127 @@ export const ObjectivesSection: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.sections.objectives')}
-        </h3>
-        <Button
-          data-action="add-objective"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // ('Add Objective clicked - preventing propagation');
-            onAddObjective();
-          }}
-          className="flex items-center gap-2"
-          style={{ backgroundColor: primaryColor }}
-        >
-          <PlusIcon className="w-4 h-4" />
-          {t('courseCreation.form.addObjective')}
-        </Button>
+      {/* Add Objective Button */}
+      <Button
+        data-action="add-objective"
+        variant="outline"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onAddObjective();
+        }}
+        className={`flex items-center gap-2 px-4 py-2 rounded-full border-dashed ${
+          isDark
+            ? 'border-gray-500 hover:bg-gray-700 text-white'
+            : 'border-[#e2e2ea] hover:bg-gray-50 text-[#19294a]'
+        }`}
+      >
+        <PlusIcon className="w-4 h-4" />
+        <span className="[font-family:'Poppins',Helvetica] font-medium text-[14px]">
+          Ajouter Un Objectif
+        </span>
+      </Button>
+
+      {/* Add objective placeholder input */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border ${
+        isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+      }`}>
+        <Input
+          type="text"
+          placeholder="Ajouter un objectif..."
+          className={`flex-1 border-none shadow-none text-[15px] font-medium ${
+            isDark
+              ? 'text-white placeholder:text-gray-400 bg-transparent'
+              : 'text-[#2D3748] placeholder:text-[#718096] bg-transparent'
+          }`}
+        />
       </div>
 
+      {/* Objectives List */}
       <div className="space-y-3">
         {objectives.length === 0 && (
-          <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            <p>No objectives added yet. Click "Add Objective" to get started.</p>
+          <div className={`text-center py-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p className="text-sm">Aucun objectif ajouté. Cliquez sur "Ajouter Un Objectif" pour commencer.</p>
           </div>
         )}
         {objectives.map((objective, index) => (
-          <Card 
-            key={objective.id} 
+          <div
+            key={objective.id}
             draggable
             onDragStart={(e) => handleDragStart(e, index)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
-            className={`transition-all duration-200 ${
-              isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+            className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border transition-all duration-200 ${
+              isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
             } ${
               dragOverIndex === index ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
             } ${
               draggedItem?.id === objective.id ? 'opacity-50' : ''
             }`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <GripVerticalIcon 
-                  className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'} cursor-move hover:text-blue-500 transition-colors`} 
-                />
-                
-                <div className="flex-1">
-                  <RichTextEditor
-                    content={objective.text}
-                    onChange={(content) => onUpdateObjective(objective.id, 'text', content)}
-                    placeholder={t('courseCreation.form.objectiveText')}
-                    className="min-h-[80px]"
-                  />
-                </div>
+            {/* Grip Icon for Drag */}
+            <GripVerticalIcon
+              className={`w-5 h-5 cursor-move flex-shrink-0 ${
+                isDark ? 'text-gray-400 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+              }`}
+            />
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateObjective(objective.id, 'text', prompt('Edit objective:', objective.text) || objective.text);
-                    }}
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveObjective(objective.id);
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Objective Icon */}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              isDark ? 'bg-blue-600' : 'bg-[#E8F3FF]'
+            }`}>
+              <span style={{ color: primaryColor }}>🎯</span>
+            </div>
+
+            {/* Objective Text Input */}
+            <Input
+              type="text"
+              value={objective.text.replace(/<[^>]*>/g, '')} // Strip HTML tags for plain text display
+              onChange={(e) => onUpdateObjective(objective.id, 'text', e.target.value)}
+              placeholder="Entrez l'objectif..."
+              className={`flex-1 border-none shadow-none text-[15px] font-medium ${
+                isDark
+                  ? 'text-white placeholder:text-gray-400 bg-transparent'
+                  : 'text-[#2D3748] placeholder:text-[#718096] bg-transparent'
+              }`}
+            />
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-full ${
+                  isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <EditIcon className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-full ${
+                  isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveObjective(objective.id);
+                }}
+              >
+                <TrashIcon className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+              </Button>
+            </div>
+          </div>
         ))}
-        
-        {/* Drop zone at the end for objectives */}
+
+        {/* Drop zone at the end */}
         {draggedItem && (
-          <div 
+          <div
             className={`h-2 rounded-lg transition-all duration-200 ${
               dragOverIndex === objectives.length ? 'bg-blue-500 opacity-50' : 'bg-transparent'
             }`}
@@ -319,7 +337,126 @@ export const ObjectivesSection: React.FC<{
   );
 };
 
-// Prerequisites Section
+// Duration Section (placeholder)
+export const DurationSection: React.FC = () => {
+  const { isDark } = useTheme();
+  const { organization } = useOrganization();
+  const primaryColor = organization?.primary_color || '#0066FF';
+
+  return (
+    <div className="space-y-4">
+      <div className={`flex items-center gap-6 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+        {/* Hours (HH) */}
+        <div className="flex items-center gap-2">
+          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+            isDark ? 'text-gray-400' : 'text-[#718096]'
+          }`}>
+            -
+          </span>
+          <div className={`flex items-center px-3 py-2 rounded-full border ${
+            isDark ? 'bg-gray-600 border-gray-500' : 'bg-[#E8F3FF] border-[#E8F3FF]'
+          }`}>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              className={`w-[40px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                isDark
+                  ? 'text-white placeholder:text-gray-400 bg-transparent'
+                  : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+              }`}
+            />
+            <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ml-1 ${
+              isDark ? 'text-white' : 'text-[#19294a]'
+            }`}>
+              H(s)
+            </span>
+          </div>
+          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] mx-2 ${
+            isDark ? 'text-gray-400' : 'text-[#718096]'
+          }`}>
+            SOIT
+          </span>
+        </div>
+
+        {/* Days (JJ) */}
+        <div className="flex items-center gap-2">
+          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+            isDark ? 'text-gray-400' : 'text-[#718096]'
+          }`}>
+            -
+          </span>
+          <div className={`flex items-center px-3 py-2 rounded-full border ${
+            isDark ? 'bg-gray-600 border-gray-500' : 'bg-[#E8F3FF] border-[#E8F3FF]'
+          }`}>
+            <Input
+              type="number"
+              placeholder="0"
+              min="0"
+              className={`w-[40px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                isDark
+                  ? 'text-white placeholder:text-gray-400 bg-transparent'
+                  : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+              }`}
+            />
+            <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ml-1 ${
+              isDark ? 'text-white' : 'text-[#19294a]'
+            }`}>
+              J/J
+            </span>
+          </div>
+        </div>
+
+        {/* De Formation label */}
+        <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+          isDark ? 'text-gray-300' : 'text-[#19294a]'
+        }`}>
+          De Formation
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Public Visé Section
+export const PublicViseSection: React.FC<{
+  targetAudience: string;
+  onUpdateTargetAudience: (content: string) => void;
+}> = ({ targetAudience, onUpdateTargetAudience }) => {
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <RichTextEditor
+        content={targetAudience}
+        onChange={onUpdateTargetAudience}
+        placeholder="Aucun"
+        className="min-h-[120px]"
+      />
+    </div>
+  );
+};
+
+// Prérequis Section
+export const PrerequisSection: React.FC<{
+  prerequisites: string;
+  onUpdatePrerequisites: (content: string) => void;
+}> = ({ prerequisites, onUpdatePrerequisites }) => {
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <RichTextEditor
+        content={prerequisites}
+        onChange={onUpdatePrerequisites}
+        placeholder="Aucun"
+        className="min-h-[120px]"
+      />
+    </div>
+  );
+};
+
+// Prerequisites Section (keeping for backwards compatibility)
 export const PrerequisitesSection: React.FC<{
   targetAudience: string;
   prerequisites: string;
@@ -540,15 +677,15 @@ export const PricingSection: React.FC<{
   onAddAdditionalFee: (initialData?: { name: string; amount: number; description: string }) => void;
   onUpdateAdditionalFee: (id: string, field: string, value: any) => void;
   onRemoveAdditionalFee: (id: string) => void;
-}> = ({ 
-  priceHT, 
-  vatPercentage, 
-  additionalFees, 
-  onUpdatePriceHT, 
-  onUpdateVATPercentage, 
-  onAddAdditionalFee, 
-  onUpdateAdditionalFee, 
-  onRemoveAdditionalFee 
+}> = ({
+  priceHT,
+  vatPercentage,
+  additionalFees,
+  onUpdatePriceHT,
+  onUpdateVATPercentage,
+  onAddAdditionalFee,
+  onUpdateAdditionalFee,
+  onRemoveAdditionalFee
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
@@ -586,117 +723,204 @@ export const PricingSection: React.FC<{
   return (
     <>
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {t('courseCreation.form.price')}
-            </h3>
-            
-            <div className="space-y-3">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t('courseCreation.form.priceHT')}:
-                </label>
-                <Input
-                  type="number"
-                  value={priceHT || ''}
-                  onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
-              </div>
-              
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t('courseCreation.form.vatPercentage')}:
-                </label>
-                <Input
-                  type="number"
-                  value={vatPercentage || ''}
-                  onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
-                  placeholder="20"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
-              </div>
+        {/* Price and TVA Row */}
+        <div className="flex items-start gap-8">
+          {/* Prix */}
+          <div className="flex items-center gap-3">
+            <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+              isDark ? 'text-gray-400' : 'text-[#718096]'
+            }`}>
+              Prix HT (En €):
+            </span>
+            <div className={`flex items-center px-4 py-2 rounded-[18px] border ${
+              isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+            }`}>
+              <Input
+                type="number"
+                value={priceHT || ''}
+                onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                min="0"
+                step="0.01"
+                className={`w-[80px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                  isDark
+                    ? 'text-white placeholder:text-gray-400 bg-transparent'
+                    : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+                }`}
+              />
+            </div>
+            <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+              isDark ? 'text-gray-400' : 'text-[#718096]'
+            }`}>
+              TVA(En %):
+            </span>
+            <div className={`flex items-center px-4 py-2 rounded-[18px] border ${
+              isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+            }`}>
+              <Input
+                type="number"
+                value={vatPercentage || ''}
+                onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
+                placeholder="20"
+                min="0"
+                max="100"
+                step="0.01"
+                className={`w-[60px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                  isDark
+                    ? 'text-white placeholder:text-gray-400 bg-transparent'
+                    : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+                }`}
+              />
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {t('courseCreation.form.additionalFees')} ({additionalFees.length})
-              </h3>
+          {/* Frais annexes section */}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ${
+                isDark ? 'text-white' : 'text-[#19294a]'
+              }`}>
+                Frais annexes ({additionalFees.length})
+              </span>
+              <span className={`text-[13px] ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>*</span>
+            </div>
+
+            {/* Fee Cards - Horizontal Layout */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Frais Complémentaires Card */}
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border ${
+                isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  isDark ? 'bg-blue-600' : 'bg-[#E8F3FF]'
+                }`}>
+                  <span style={{ color: primaryColor }}>💰</span>
+                </div>
+                <div>
+                  <span className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] block ${
+                    isDark ? 'text-white' : 'text-[#19294a]'
+                  }`}>
+                    Frais Complémentaires
+                  </span>
+                  <span className={`text-[12px] ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>
+                    (TVA À 20%)
+                  </span>
+                </div>
+                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[14px] ml-4 ${
+                  isDark ? 'text-white' : 'text-[#19294a]'
+                }`}>
+                  150€ HT
+                </span>
+              </div>
+
+              {/* Import Du Catalogue Card */}
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border ${
+                isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  isDark ? 'bg-green-600' : 'bg-[#E8FFE8]'
+                }`}>
+                  <span>📁</span>
+                </div>
+                <div>
+                  <span className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] block ${
+                    isDark ? 'text-white' : 'text-[#19294a]'
+                  }`}>
+                    Import Du Catalogue De Formations
+                  </span>
+                  <span className={`text-[12px] ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>
+                    (TVA À 20%)
+                  </span>
+                </div>
+                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[14px] ml-4 ${
+                  isDark ? 'text-white' : 'text-[#19294a]'
+                }`}>
+                  150€ HT/Jour
+                </span>
+              </div>
+
+              {/* Dynamic Fee Cards */}
+              {additionalFees.map((fee) => (
+                <div
+                  key={fee.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-[18px] border ${
+                    isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    isDark ? 'bg-purple-600' : 'bg-[#F3E8FF]'
+                  }`}>
+                    <span>📋</span>
+                  </div>
+                  <div>
+                    <span className={`[font-family:'Poppins',Helvetica] font-medium text-[14px] block ${
+                      isDark ? 'text-white' : 'text-[#19294a]'
+                    }`}>
+                      {fee.name}
+                    </span>
+                    {fee.vat_applied && (
+                      <span className={`text-[12px] ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>
+                        (TVA À {vatPercentage}%)
+                      </span>
+                    )}
+                  </div>
+                  <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[14px] ml-4 ${
+                    isDark ? 'text-white' : 'text-[#19294a]'
+                  }`}>
+                    {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
+                  </span>
+                  <div className="flex items-center gap-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-6 h-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenModal({
+                          id: fee.id,
+                          name: fee.name,
+                          amount: fee.amount,
+                          description: ''
+                        });
+                      }}
+                    >
+                      <EditIcon className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-6 h-6 text-red-600 hover:text-red-700"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveAdditionalFee(fee.id);
+                      }}
+                    >
+                      <TrashIcon className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Fee Button */}
               <Button
                 data-action="add-additional-fee"
+                variant="outline"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   handleOpenModal();
                 }}
-                className="flex items-center gap-2"
-                style={{ backgroundColor: primaryColor }}
+                className={`flex items-center gap-2 px-4 py-3 rounded-[18px] border-dashed ${
+                  isDark
+                    ? 'border-gray-500 hover:bg-gray-700'
+                    : 'border-[#e2e2ea] hover:bg-gray-50'
+                }`}
               >
                 <PlusIcon className="w-4 h-4" />
-                {t('courseCreation.form.addAdditionalFee')}
+                <span className="[font-family:'Poppins',Helvetica] font-medium text-[14px]">
+                  Ajouter Un Frais Annexe
+                </span>
               </Button>
-            </div>
-            
-            <div className="space-y-3">
-              {additionalFees.map((fee) => (
-                <Card key={fee.id} className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {fee.name}
-                          {fee.vat_applied && (
-                            <span className={`ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              (TVA À {vatPercentage}%)
-                            </span>
-                          )}
-                        </div>
-                        <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenModal({
-                              id: fee.id,
-                              name: fee.name,
-                              amount: fee.amount,
-                              description: ''
-                            });
-                          }}
-                        >
-                          <EditIcon className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveAdditionalFee(fee.id);
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           </div>
         </div>
