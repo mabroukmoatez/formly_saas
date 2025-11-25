@@ -28,13 +28,15 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
       isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#e2e2ea]'
     } ${className}`}>
       <div className="flex flex-col gap-4">
-        <div className="inline-flex items-center gap-2">
-          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[17px] ${
-            isDark ? 'text-white' : 'text-[#19294a]'
-          }`}>
-            {label}:
-          </span>
-        </div>
+        {label && (
+          <div className="inline-flex items-center gap-2">
+            <span className={`[font-family:'Poppins',Helvetica] font-medium text-[17px] ${
+              isDark ? 'text-white' : 'text-[#19294a]'
+            }`}>
+              {label}:
+            </span>
+          </div>
+        )}
 
         <RichTextEditor
           value={value}
