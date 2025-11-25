@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { setGlobalToastFunctions } from '../../utils/notifications';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -36,6 +37,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toasts, setToasts] = useState<Toast[]>([]);
   const { isDark } = useTheme();
 
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+
   const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
     const id = Math.random().toString(36).substr(2, 9);
     const newToast = { ...toast, id };
@@ -47,11 +52,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTimeout(() => {
       removeToast(id);
     }, duration);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
+  }, [removeToast]);
 
   const success = useCallback((title: string, message?: string) => {
     addToast({ type: 'success', title, message });
@@ -68,6 +69,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const info = useCallback((title: string, message?: string) => {
     addToast({ type: 'info', title, message });
   }, [addToast]);
+
+  // Initialize global toast functions for use in utility functions
+  useEffect(() => {
+    setGlobalToastFunctions({
+      success,
+      error,
+      warning,
+      info
+    });
+  }, [success, error, warning, info]);
 
   const getToastIcon = (type: ToastType) => {
     switch (type) {

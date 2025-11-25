@@ -25,8 +25,12 @@ import {
   Loader2,
   RefreshCw,
   X,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUpDown,
+  ChevronDown,
+  User
 } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 
 // Composant pour la carte d'événement
 const EventCard: React.FC<{
@@ -54,9 +58,12 @@ const EventCard: React.FC<{
   // Style différent selon le mode d'affichage
   if (viewMode === 'list') {
     return (
-      <Card className={`border-2 rounded-[12px] overflow-hidden hover:shadow-lg transition-all duration-300 group ${
-        isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
-      }`}>
+      <Card 
+        onClick={() => onView(event.id)}
+        className={`border-2 rounded-[12px] overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer ${
+          isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
+        }`}
+      >
         <div className="flex">
           {/* Image en pleine hauteur */}
           <div className="relative w-80 h-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0">
@@ -71,13 +78,15 @@ const EventCard: React.FC<{
             )}
             
             {/* Badge de catégorie */}
-            <div className="absolute top-2 left-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                isDark ? 'bg-gray-900/80 text-white' : 'bg-white/90 text-[#007aff]'
-              } backdrop-blur-sm`}>
-                {event.category}
-              </span>
-            </div>
+            {event.category && (
+              <div className="absolute top-2 left-2">
+                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  isDark ? 'bg-gray-900/80 text-white' : 'bg-white/90 text-[#007aff]'
+                } backdrop-blur-sm`}>
+                  {event.category}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Contenu principal */}
@@ -127,12 +136,6 @@ const EventCard: React.FC<{
                     </div>
                   )}
                   <div className="flex items-center gap-1">
-                    <Users className={`h-3 w-3 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
-                    <span className={isDark ? 'text-gray-400' : 'text-[#6a90b9]'}>
-                      {event.attendees_count}{event.max_attendees && `/${event.max_attendees}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       event.status === 'À venir' ? 'bg-green-100 text-green-800' :
                       event.status === 'En cours' ? 'bg-blue-100 text-blue-800' :
@@ -146,7 +149,7 @@ const EventCard: React.FC<{
               </div>
 
               {/* Menu actions */}
-              <div className="relative ml-4">
+              <div className="relative ml-4" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -201,9 +204,12 @@ const EventCard: React.FC<{
 
   // Vue grille (style original)
   return (
-    <Card className={`border-2 rounded-[18px] overflow-hidden hover:shadow-xl transition-all duration-300 group ${
-      isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
-    }`}>
+    <Card 
+      onClick={() => onView(event.id)}
+      className={`border-2 rounded-[18px] overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer ${
+        isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
+      }`}
+    >
       {/* Image de l'événement */}
       <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500">
         {event.image_url ? (
@@ -217,16 +223,18 @@ const EventCard: React.FC<{
         )}
         
         {/* Badge de catégorie */}
-        <div className="absolute top-4 left-4">
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            isDark ? 'bg-gray-900/80 text-white' : 'bg-white/90 text-[#007aff]'
-          } backdrop-blur-sm`}>
-            {event.category}
-          </span>
-        </div>
+        {event.category && (
+          <div className="absolute top-4 left-4">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+              isDark ? 'bg-gray-900/80 text-white' : 'bg-white/90 text-[#007aff]'
+            } backdrop-blur-sm`}>
+              {event.category}
+            </span>
+          </div>
+        )}
 
         {/* Menu actions */}
-        <div className="absolute top-4 right-4">
+        <div className="absolute top-4 right-4" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
             size="icon"
@@ -291,12 +299,14 @@ const EventCard: React.FC<{
 
         {/* Titre et catégorie */}
         <div className="mb-3">
-          <span className={`text-xs font-semibold uppercase tracking-wide ${
-            isDark ? 'text-blue-400' : 'text-[#007aff]'
-          }`}>
-            {event.category}
-          </span>
-          <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-lg mt-1 line-clamp-2 ${
+          {event.category && (
+            <span className={`text-xs font-semibold uppercase tracking-wide ${
+              isDark ? 'text-blue-400' : 'text-[#007aff]'
+            }`}>
+              {event.category}
+            </span>
+          )}
+          <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-lg ${event.category ? 'mt-1' : ''} line-clamp-2 ${
             isDark ? 'text-white' : 'text-[#19294a]'
           }`}>
             {event.title}
@@ -311,48 +321,14 @@ const EventCard: React.FC<{
         </p>
 
         {/* Informations supplémentaires */}
-        <div className="space-y-2 mb-4">
-          {event.location && (
-            <div className="flex items-center gap-2">
-              <MapPin className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
-              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
-                {event.location}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <Users className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
+        {event.location && (
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className={`h-4 w-4 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
-              {event.attendees_count} participants
-              {event.max_attendees && ` / ${event.max_attendees}`}
+              {event.location}
             </span>
           </div>
-        </div>
-
-        {/* Organisateur */}
-        <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-            {event.organizer.avatar_url ? (
-              <img 
-                src={event.organizer.avatar_url} 
-                alt={event.organizer.name}
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              <span className="text-white text-xs font-semibold">
-                {(event.organizer.name?.trim() || event.organizer.email || 'O').split(' ').map(n => n[0]).join('').substring(0, 2)}
-              </span>
-            )}
-          </div>
-          <div className="flex-1">
-            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`}>
-              Organisé par
-            </p>
-            <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-              {event.organizer.name?.trim() || event.organizer.email || 'Organisateur inconnu'}
-            </p>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -368,6 +344,10 @@ export const Evenements = (): JSX.Element => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'upcoming' | 'ongoing' | 'completed'>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedOrganizer, setSelectedOrganizer] = useState<string>('');
+  const [showOrganizerDropdown, setShowOrganizerDropdown] = useState(false);
+  const organizerDropdownRef = React.useRef<HTMLDivElement>(null);
   
   // Modal de suppression
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -378,27 +358,76 @@ export const Evenements = (): JSX.Element => {
   
   const { deleteEvent: deleteEventAction } = useEventActions();
   
-  // Fonction pour appliquer les filtres
+  // Obtenir la liste unique des organisateurs
+  const organizers = React.useMemo(() => {
+    const organizerMap = new Map();
+    events.forEach(event => {
+      if (!organizerMap.has(event.organizer.id)) {
+        organizerMap.set(event.organizer.id, event.organizer);
+      }
+    });
+    return Array.from(organizerMap.values());
+  }, [events]);
+
+  // Fonction pour obtenir le nom de l'organisateur sélectionné
+  const getSelectedOrganizerName = () => {
+    if (!selectedOrganizer) return 'Ajouté Par';
+    const organizer = organizers.find(o => o.id.toString() === selectedOrganizer);
+    return organizer ? organizer.name : 'Ajouté Par';
+  };
+
+  // Fermer le dropdown organisateur quand on clique ailleurs
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (organizerDropdownRef.current && !organizerDropdownRef.current.contains(event.target as Node)) {
+        setShowOrganizerDropdown(false);
+      }
+    };
+
+    if (showOrganizerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOrganizerDropdown]);
+
+  // Filtrer les événements côté client (car l'API peut ne pas supporter tous les filtres)
+  const filteredEvents = React.useMemo(() => {
+    let filtered = events;
+
+    // Filtre par organisateur
+    if (selectedOrganizer) {
+      filtered = filtered.filter(event => event.organizer.id.toString() === selectedOrganizer);
+    }
+
+    // Tri par date de création
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [events, selectedOrganizer, sortOrder]);
+
+  // Fonction pour appliquer les filtres API
   const handleApplyFilters = React.useCallback(() => {
     refetch({
       search: searchQuery || undefined,
       category: selectedCategory || undefined,
       status: selectedStatus !== 'all' ? selectedStatus : undefined,
-      sortBy: 'date',
-      sortOrder: 'desc'
+      organizerId: selectedOrganizer || undefined,
+      sortBy: 'created_at',
+      sortOrder: sortOrder
     });
-  }, [searchQuery, selectedCategory, selectedStatus]);
+  }, [searchQuery, selectedCategory, selectedStatus, selectedOrganizer, sortOrder, refetch]);
   
-  // Debounce pour la recherche automatique
+  // Appliquer les filtres quand ils changent
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery) {
-        handleApplyFilters();
-      }
-    }, 500); // Attendre 500ms après la dernière frappe
-    
-    return () => clearTimeout(timer);
-  }, [searchQuery]); // Seulement pour searchQuery
+    handleApplyFilters();
+  }, [searchQuery, selectedCategory, selectedStatus, selectedOrganizer, sortOrder, handleApplyFilters]);
 
 
   const handleCreateEvent = () => {
@@ -443,8 +472,8 @@ export const Evenements = (): JSX.Element => {
     navigateToRoute(`/evenements/${id}`);
   };
 
-  // Utiliser uniquement les données de l'API
-  const displayEvents = events;
+  // Utiliser les événements filtrés
+  const displayEvents = filteredEvents;
 
   // État de chargement
   if (loading && events.length === 0) {
@@ -530,30 +559,98 @@ export const Evenements = (): JSX.Element => {
 
         {/* Filtres */}
         <div className="flex items-center gap-3">
-          {/* Tri */}
-          <div className="flex items-center gap-2">
-        <Button
-              variant="outline"
-              className={`rounded-[12px] flex items-center gap-2 ${
-                isDark ? 'border-gray-700 hover:bg-gray-800' : 'border-[#e2e2ea] hover:bg-gray-50'
-              }`}
-            >
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm">Date De Création</span>
-              <Filter className="h-4 w-4" />
-        </Button>
+          {/* Filtre Date De Création */}
+          <button
+            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+            className={`inline-flex items-center gap-2 px-4 py-3 rounded-[12px] h-[52px] border transition-colors ${
+              isDark
+                ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white'
+                : 'bg-white border-[#e2e8f0] hover:bg-gray-50 text-[#64748b]'
+            }`}
+            style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}
+          >
+            <Calendar className="w-4 h-4" />
+            <span className="text-[15px] font-medium">Date De Création</span>
+            <ArrowUpDown className={`w-4 h-4 ${sortOrder === 'asc' ? 'rotate-180' : ''} transition-transform`} />
+          </button>
 
-        <Button
-              variant="outline"
-              className={`rounded-[12px] flex items-center gap-2 ${
-                isDark ? 'border-gray-700 hover:bg-gray-800' : 'border-[#e2e2ea] hover:bg-gray-50'
-              }`}
+          {/* Filtre Ajouté Par */}
+          <div className="relative" ref={organizerDropdownRef}>
+            <button
+              onClick={() => setShowOrganizerDropdown(!showOrganizerDropdown)}
+              className={`inline-flex items-center gap-2 px-4 py-3 rounded-[12px] h-[52px] border transition-colors ${
+                isDark
+                  ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white'
+                  : 'bg-white border-[#e2e8f0] hover:bg-gray-50 text-[#64748b]'
+              } ${selectedOrganizer ? (isDark ? 'border-blue-500' : 'border-blue-500 bg-blue-50') : ''}`}
+              style={{ 
+                fontFamily: 'Inter, -apple-system, sans-serif',
+                ...(selectedOrganizer && !isDark ? { backgroundColor: '#eff6ff', borderColor: '#3b82f6', color: '#3b82f6' } : {})
+              }}
             >
-              <Users className="h-4 w-4" />
-              <span className="text-sm">Ajouté Par</span>
-              <Filter className="h-4 w-4" />
-        </Button>
-      </div>
+              <User className="w-5 h-5" />
+              <span className="text-[15px] font-medium">{getSelectedOrganizerName()}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showOrganizerDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showOrganizerDropdown && (
+              <div 
+                className={`absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-[100] max-h-64 overflow-y-auto ${
+                  isDark 
+                    ? 'bg-gray-800 border border-gray-700' 
+                    : 'bg-white border border-gray-200'
+                }`}
+                style={{ 
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setSelectedOrganizer('');
+                    setShowOrganizerDropdown(false);
+                  }}
+                  className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                    !selectedOrganizer
+                      ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                      : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                  }`}
+                >
+                  <span>Tous les organisateurs</span>
+                </button>
+                {organizers.map((organizer) => (
+                  <button
+                    key={organizer.id}
+                    onClick={() => {
+                      setSelectedOrganizer(organizer.id.toString());
+                      setShowOrganizerDropdown(false);
+                    }}
+                    className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                      selectedOrganizer === organizer.id.toString()
+                        ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                        : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                    }`}
+                  >
+                    <Avatar className="w-6 h-6">
+                      {organizer.avatar_url ? (
+                        <AvatarImage 
+                          src={organizer.avatar_url} 
+                          alt={organizer.name}
+                          className="object-cover"
+                        />
+                      ) : null}
+                      <AvatarFallback 
+                        className="text-white text-xs font-semibold"
+                        style={{ backgroundColor: organization?.primary_color || '#3b82f6' }}
+                      >
+                        {organizer.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'O'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{organizer.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Toggle view mode */}
           <div className="flex items-center gap-1 p-1 rounded-[12px] border-2 border-[#e2e2ea] dark:border-gray-700">

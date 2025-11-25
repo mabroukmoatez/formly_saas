@@ -48,6 +48,12 @@ export interface CourseCreationFormData {
   learningOutcomes: string[];
   methods: string;
   specifics: string;
+  evaluation_modalities?: string;
+  access_modalities?: string;
+  accessibility?: string;
+  contacts?: string;
+  update_date?: string;
+  formation_practice_ids?: number[];
   courseUuid?: string;
 }
 
@@ -124,7 +130,7 @@ export interface CourseCreationContextType {
   clearError: () => void;
   
   // Step 1: Course Information
-  categories: Array<{ id: number; name: string }>;
+  categories: Array<{ id: number; name: string; is_custom?: boolean }>;
   subcategories: Array<{ id: number; name: string; category_id: number }>;
   languages: Array<{ id: number; name: string; code: string }>;
   difficultyLevels: Array<{ id: number; name: string; level: number }>;
@@ -420,9 +426,20 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
   // Step 1 Actions
   const loadCategories = useCallback(async () => {
     try {
+      // Load categories including custom ones
+      const categoriesResponse = await courseCreationApi.getCategories({ include_custom: true });
+      if (categoriesResponse.success) {
+        const categoriesData = categoriesResponse.data || [];
+        setCategories(categoriesData.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          is_custom: cat.is_custom || false
+        })));
+      }
+      
+      // Load other metadata
       const meta = await courseCreationApi.getCreationMetadata();
       if (meta.success) {
-        setCategories(meta.data.categories || []);
         // Keep existing shape; if backend lacks code/level, preserve initial defaults
         if (meta.data.course_languages?.length) {
           setLanguages(meta.data.course_languages.map((l: any, i: number) => ({ id: l.id, name: l.name, code: ['fr','en','es'][i % 3] })));
@@ -433,6 +450,7 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
       }
     } catch (e) {
       // Failed to load creation metadata
+      console.error('Error loading categories:', e);
     }
   }, []);
 
@@ -2300,6 +2318,12 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
         category_id: formData.category_id || 1,
         subcategory_id: formData.subcategory_id,
         course_language_id: formData.course_language_id,
+        evaluation_modalities: formData.evaluation_modalities,
+        access_modalities: formData.access_modalities,
+        accessibility: formData.accessibility,
+        contacts: formData.contacts,
+        update_date: formData.update_date,
+        formation_practice_ids: formData.formation_practice_ids,
         difficulty_level_id: formData.difficulty_level_id,
         intro_video_url: formData.intro_video_url || '',
         intro_image_url: formData.intro_image_url || '',
@@ -2361,6 +2385,23 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
         promises.push(updateCourseSpecifics({
           specifics: formData.specifics
         }));
+      }
+      
+      // 8. Additional info (evaluation_modalities, access_modalities, accessibility, contacts, update_date)
+      if (formData.evaluation_modalities !== undefined || formData.access_modalities !== undefined || 
+          formData.accessibility !== undefined || formData.contacts !== undefined || formData.update_date !== undefined) {
+        promises.push(courseCreationApi.updateCourseAdditionalInfo(formData.courseUuid, {
+          evaluation_modalities: formData.evaluation_modalities,
+          access_modalities: formData.access_modalities,
+          accessibility: formData.accessibility,
+          contacts: formData.contacts,
+          update_date: formData.update_date
+        }));
+      }
+      
+      // 9. Formation practices
+      if (formData.formation_practice_ids !== undefined && Array.isArray(formData.formation_practice_ids)) {
+        promises.push(courseCreationApi.updateCourseFormationPractices(formData.courseUuid, formData.formation_practice_ids));
       }
       
       // 8. YouTube video
@@ -2434,6 +2475,17 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
           const courseResult = await courseCreationApi.getCourse(courseUuid);
           if (courseResult.success) {
             const course = courseResult.data;
+            // Load formation practices
+            let practiceIds: number[] = [];
+            try {
+              const practicesRes = await courseCreationApi.getCourseFormationPractices(courseUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } };
+              if (practicesRes.success && practicesRes.data?.practices) {
+                practiceIds = practicesRes.data.practices.map((p: { id: number }) => p.id);
+              }
+            } catch (error) {
+              console.error('Error loading formation practices:', error);
+            }
+
             updateFormData({
               title: course.title || '',
               subtitle: course.subtitle || 'Sous-titre du cours',
@@ -2458,6 +2510,12 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
               learningOutcomes: course.learning_outcomes || [],
               methods: course.methods || '',
               specifics: course.specifics || '',
+              evaluation_modalities: course.evaluation_modalities || '',
+              access_modalities: course.access_modalities || '',
+              accessibility: course.accessibility || '',
+              contacts: course.contacts || '',
+              update_date: course.update_date || '',
+              formation_practice_ids: practiceIds,
             });
           }
         } catch (error) {

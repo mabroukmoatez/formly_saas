@@ -14,6 +14,7 @@ import { CreateTaskCategoryModal } from './CreateTaskCategoryModal';
 import { RenameTaskCategoryModal } from './RenameTaskCategoryModal';
 import { deleteTaskCategory, QualityTaskCategory } from '../../services/qualityManagement';
 import { useToast } from '../ui/toast';
+import { fixImageUrl } from '../../lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,7 +134,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
   // Get organization logo URL
   const getOrganizationLogo = (): string => {
     if (organization?.organization_logo_url) {
-      return organization.organization_logo_url;
+      return fixImageUrl(organization.organization_logo_url);
     }
     return '/assets/logos/formly-logo.png';
   };

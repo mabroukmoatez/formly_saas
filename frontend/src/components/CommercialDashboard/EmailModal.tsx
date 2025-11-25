@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card, CardContent } from '../ui/card';
 import { Textarea } from '../ui/textarea';
+import { RichTextEditorAdvanced } from '../ui/rich-text-editor-advanced';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -65,11 +66,33 @@ export const EmailModal: React.FC<EmailModalProps> = ({
         : `Devis ${documentNumber}`;
       setSubject(defaultSubject);
       
-      // Generate default message
-      const defaultMessage = documentType === 'invoice'
+      // Generate default message (convert plain text to HTML for TipTap)
+      const defaultMessageText = documentType === 'invoice'
         ? `Bonjour${clientName ? ' ' + clientName : ''},\n\nVeuillez trouver ci-joint votre facture.\n\nCordialement,\n${organization?.organization_name || ''}`
         : `Bonjour${clientName ? ' ' + clientName : ''},\n\nNous vous remercions de votre intérêt et vous prions de trouver ci-joint notre devis.\n\nCordialement,\n${organization?.organization_name || ''}`;
-      setMessage(defaultMessage);
+      // Convert plain text to HTML (TipTap format with proper paragraphs)
+      const lines = defaultMessageText.split('\n').filter(line => line.trim() !== '' || line === '');
+      let defaultMessage = '';
+      let currentParagraph = '';
+      
+      lines.forEach((line, index) => {
+        const trimmed = line.trim();
+        if (trimmed) {
+          currentParagraph += (currentParagraph ? ' ' : '') + trimmed;
+        } else if (currentParagraph) {
+          defaultMessage += `<p>${currentParagraph}</p>`;
+          currentParagraph = '';
+        } else if (index > 0 && index < lines.length - 1) {
+          // Empty line between paragraphs
+          defaultMessage += '<p></p>';
+        }
+      });
+      
+      if (currentParagraph) {
+        defaultMessage += `<p>${currentParagraph}</p>`;
+      }
+      
+      setMessage(defaultMessage || '<p></p>');
     }
   }, [isOpen, clientEmail, clientName, documentNumber, documentType, organization]);
 
@@ -129,9 +152,16 @@ export const EmailModal: React.FC<EmailModalProps> = ({
         emailData.subject = subject.trim();
       }
 
-      // Add message if provided
+      // Add message if provided (keep as HTML)
       if (message && message.trim()) {
-        emailData.message = message.trim();
+        // Remove empty paragraphs and clean up HTML
+        const cleanedMessage = message
+          .replace(/<p><\/p>/g, '')
+          .replace(/<br\s*\/?>/g, '<br>')
+          .trim();
+        if (cleanedMessage) {
+          emailData.message = cleanedMessage;
+        }
       }
 
       await onSend(emailData);
@@ -335,13 +365,14 @@ export const EmailModal: React.FC<EmailModalProps> = ({
               <Label className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
                 Message personnalisé
               </Label>
-              <Textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Écrivez votre message ici..."
-                rows={8}
-                className={`mt-1 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-              />
+              <div className="mt-1">
+                <RichTextEditorAdvanced
+                  value={message}
+                  onChange={setMessage}
+                  placeholder="Écrivez votre message ici..."
+                  minHeight="250px"
+                />
+              </div>
               <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 Les détails du document seront automatiquement ajoutés après votre message
               </p>

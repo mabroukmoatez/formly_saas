@@ -75,7 +75,7 @@ export const Stepper: React.FC<StepperProps> = ({
                     }}
                   >
                     <span
-                      className="[font-family:'Poppins',Helvetica] font-semibold text-[14.4px]"
+                      className="[font-family:'Poppins',Helvetica] font-semibold text-[12.4px]"
                       style={{
                         color: status === 'current' ? primaryColor : secondaryColor
                       }}
@@ -86,7 +86,7 @@ export const Stepper: React.FC<StepperProps> = ({
                 )}
               </div>
               <span
-                className="[font-family:'Poppins',Helvetica] font-semibold text-[14.4px] tracking-[0] leading-[normal]"
+                className="[font-family:'Poppins',Helvetica] font-semibold text-[12.4px] tracking-[0] leading-[normal]"
                 style={{
                   color: status === 'completed' ? 'white' : status === 'current' ? primaryColor : secondaryColor
                 }}
@@ -128,11 +128,11 @@ export const ProgressBars: React.FC<ProgressBarsProps> = ({
   
   return (
     <div className={`inline-flex flex-col items-end justify-center gap-px ${className}`}>
-      <div className={`[font-family:'Poppins',Helvetica] font-normal text-[19px] tracking-[0] leading-[normal] ${
+      <div className={`[font-family:'Poppins',Helvetica] font-normal text-[17px] tracking-[0] leading-[normal] ${
         isDark ? 'text-white' : 'text-[#19294a]'
       }`}>
         <span className="font-bold">{displayPercentage}</span>
-        <span className={`[font-family:'Poppins',Helvetica] font-normal text-[19px] tracking-[0] ${
+        <span className={`[font-family:'Poppins',Helvetica] font-normal text-[17px] tracking-[0] ${
           isDark ? 'text-white' : 'text-[#19294a]'
         }`}>
           /100%

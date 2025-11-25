@@ -8,7 +8,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
 import { Article } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
-import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, Menu, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import {
@@ -46,7 +46,6 @@ export const MesArticles = (): JSX.Element => {
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [allExpanded, setAllExpanded] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -444,12 +443,6 @@ export const MesArticles = (): JSX.Element => {
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
                   <TableHead className="w-[50px] px-4">
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setAllExpanded(!allExpanded)}
-                        className={`p-1 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                      >
-                        <Menu className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-                      </button>
                       <Checkbox
                         checked={allSelected}
                         onCheckedChange={(checked) => handleSelectAll(checked as boolean)}

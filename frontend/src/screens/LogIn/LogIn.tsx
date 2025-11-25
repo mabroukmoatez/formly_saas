@@ -110,32 +110,37 @@ export const LogIn = (): JSX.Element => {
         
         // Check if user is super admin or if we used super admin login
         const user = authResponse.data.user;
-        const isSuperAdmin = isSuperAdminLogin ||
-                             user?.role_name?.toLowerCase().includes('super admin') ||
+        const isSuperAdmin = isSuperAdminLogin || 
+                             user?.role_name?.toLowerCase().includes('super admin') || 
                              user?.role_name?.toLowerCase().includes('superadmin') ||
                              user?.role_name?.toLowerCase() === 'super admin';
-
+        
         if (isSuperAdmin) {
           navigate('/superadmin/dashboard');
           return;
         }
-
-        // Check if user is a student and redirect to student dashboard
-        const isStudent = user?.role_name?.toLowerCase() === 'student' ||
-                         user?.role_name?.toLowerCase() === 'apprenant' ||
-                         user?.role_name?.toLowerCase() === 'étudiant';
-
-        if (isStudent) {
+        
+        // Check if user is a learner/apprenant
+        // Note: user.role is a number, user.role_name is a string
+        const roleName = user?.role_name;
+        const roleNameStr = typeof roleName === 'string' ? roleName.toLowerCase() : '';
+        const isLearner = roleNameStr.includes('learner') || 
+                         roleNameStr.includes('apprenant') ||
+                         roleNameStr === 'learner' ||
+                         roleNameStr === 'apprenant';
+        
+        if (isLearner) {
+          // Redirect learner to learner dashboard
           if (organization?.custom_domain) {
-            navigate(`/${organization.custom_domain}/student/dashboard`);
+            navigate(`/${organization.custom_domain}/learner/dashboard`);
           } else {
-            navigate('/student/dashboard');
+            navigate('/learner/dashboard');
           }
           return;
         }
       }
-
-      // Navigate to dashboard after successful login (for non-super-admin, non-student users)
+      
+      // Navigate to dashboard after successful login (for non-super-admin and non-learner users)
       if (organization?.custom_domain) {
         navigate(`/${organization.custom_domain}/dashboard`);
       } else {

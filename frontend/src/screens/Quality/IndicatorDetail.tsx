@@ -149,7 +149,7 @@ export const IndicatorDetail = (): JSX.Element => {
       const evidences = extractDocuments(evidencesRes, 'evidence');
       
       console.log(`📊 Final document counts - Procedures: ${procedures.length}, Models: ${models.length}, Evidences: ${evidences.length}`);
-      
+
       setDocuments({
         procedures,
         models,

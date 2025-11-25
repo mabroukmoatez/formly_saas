@@ -633,7 +633,7 @@ export const QuoteCreationContent: React.FC = () => {
         <div className={`w-full rounded-[29.41px] border-0 shadow-none ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="flex flex-col gap-6 p-6">
             {/* Table Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-7">
               <div className="inline-flex items-center gap-[29px]">
                 <div className={`font-semibold text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   Référence
@@ -674,27 +674,13 @@ export const QuoteCreationContent: React.FC = () => {
                       key={item.id}
                       className={`flex w-full items-center justify-between px-7 py-4 rounded-[30px] border ${isDark ? 'border-gray-600 bg-gray-700' : 'border-[#ebeff6] bg-white'}`}
                     >
-                      <div className="flex w-[167px] items-center justify-between">
-                        <Input
-                          value={item.reference}
-                          onChange={(e) => {
-                            const updated = [...items];
-                            updated[index] = { ...item, reference: e.target.value };
-                            setItems(updated);
-                          }}
-                          className={`font-semibold text-xs text-right border-0 p-1 ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-                          placeholder="Réf."
-                        />
-                        <Input
-                          value={item.designation}
-                          onChange={(e) => {
-                            const updated = [...items];
-                            updated[index] = { ...item, designation: e.target.value };
-                            setItems(updated);
-                          }}
-                          className={`font-semibold text-xs border-0 p-1 ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-                          placeholder="Désignation"
-                        />
+                      <div className="flex items-center gap-[29px]">
+                        <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                          {item.reference || '-'}
+                        </div>
+                        <div className={`font-semibold text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {item.designation || '-'}
+                        </div>
                       </div>
                       <div className="flex w-[354px] items-center justify-center gap-[22px] pl-6 pr-0">
                         <Input
@@ -824,15 +810,15 @@ export const QuoteCreationContent: React.FC = () => {
 
         {/* Payment Terms - Clickable */}
         <div 
-          className={`h-[62px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
+          className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >
           <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-          <Input
+          <Textarea
             placeholder="Condition de paiement..."
             value={paymentTerms}
             readOnly
-            className={`border-none cursor-pointer ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent'}`}
+            className={`min-h-[100px] border-none cursor-pointer resize-none ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent'}`}
           />
         </div>
       </div>

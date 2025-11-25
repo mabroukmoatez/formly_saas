@@ -2,12 +2,12 @@ import React from 'react';
 import { Card, CardContent } from '../ui/card';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LegacyCollapsible } from '../ui/collapsible';
 import { FormField } from './FormField';
 import { SelectField } from './SelectField';
 import { DurationField } from './DurationField';
 import { MediaUpload } from './MediaUpload';
 import { RichTextField } from './RichTextField';
+import { CategoryButtons } from './CategoryButtons';
 
 interface CourseInformationFormProps {
   formData: {
@@ -38,6 +38,10 @@ interface CourseInformationFormProps {
   // Context upload functions
   uploadIntroVideo?: (file: File) => Promise<boolean>;
   uploadIntroImage?: (file: File) => Promise<boolean>;
+  onCategoryCreated?: () => void;
+  onSubcategoryCreated?: () => void;
+  selectedPracticeIds?: number[];
+  onPracticesChanged?: (practiceIds: number[]) => void;
 }
 
 export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
@@ -48,41 +52,14 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
   onFileUpload,
   onFileUrlUpdate,
   uploadIntroVideo,
-  uploadIntroImage
+  uploadIntroImage,
+  onCategoryCreated,
+  onSubcategoryCreated,
+  selectedPracticeIds = [],
+  onPracticesChanged
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
-
-  // Helper function to check if a section has data
-  const hasSectionData = (section: string) => {
-    switch (section) {
-      case 'title':
-        return formData.title && formData.title.trim().length > 0;
-      case 'subtitle':
-        return formData.subtitle && formData.subtitle.trim().length > 0;
-      case 'description':
-        return formData.description && formData.description.trim().length > 0;
-      case 'category':
-        return formData.category_id !== null;
-      case 'subcategory':
-        return formData.subcategory_id !== null;
-      case 'language':
-        return formData.course_language_id !== null;
-      case 'difficulty':
-        return formData.difficulty_level_id !== null;
-      case 'duration':
-        return formData.duration > 0;
-      case 'duration_days':
-        return formData.duration_days > 0;
-      case 'tags':
-        return formData.tags && formData.tags.length > 0;
-      case 'media':
-        return formData.intro_video !== null || formData.intro_image !== null || 
-               formData.intro_video_url !== '' || formData.intro_image_url !== '';
-      default:
-        return false;
-    }
-  };
 
   const handleVideoUpload = (file: File, url: string) => {
     onFileUpload('intro_video', file);
@@ -104,85 +81,78 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
 
   return (
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
-      <div className="w-full max-w-[1396px] flex flex-col gap-6">
+      <div className="w-full max-w-[1396px] flex flex-col gap-6 bg-white">
         {/* Course Basic Information */}
-        <LegacyCollapsible
-          id="basic-info"
-          title={t('courseCreation.form.basicInformation')}
-          hasData={hasSectionData('title') || hasSectionData('category') || hasSectionData('description')}
-          showCheckmark={true}
-        >
-          <div className="space-y-4">
-            <FormField
-              label={t('courseCreation.form.title')}
-                  value={formData.title}
-              onChange={(value) => onInputChange('title', value)}
-                  placeholder={t('courseCreation.form.titlePlaceholder')}
-              maxLength={110}
-            />
-
-            <SelectField
-              label={t('courseCreation.form.category')}
-              value={formData.category_id}
-              onChange={(value) => onInputChange('category_id', value)}
-              options={categories}
-              placeholder={t('courseCreation.form.selectCategory')}
-            />
-
-            {formData.category_id && (
-              <SelectField
-                label={t('courseCreation.form.subcategory')}
-                value={formData.subcategory_id}
-                onChange={(value) => onInputChange('subcategory_id', value)}
-                options={subcategories.filter(sc => sc.category_id === formData.category_id)}
-                placeholder={t('courseCreation.form.selectSubcategory')}
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <FormField
+                label={t('courseCreation.form.title')}
+                value={formData.title}
+                onChange={(value) => onInputChange('title', value)}
+                placeholder="Your Course Title"
+                maxLength={110}
               />
-            )}
 
-            <RichTextField
-              label={t('courseCreation.form.description')}
-              value={formData.description}
-                  onChange={(content) => onInputChange('description', content)}
-                  placeholder={t('courseCreation.form.descriptionPlaceholder')}
-              minHeight="200px"
-                />
-              </div>
-        </LegacyCollapsible>
+              <CategoryButtons
+                selectedCategory={formData.category_id ? categories.find(c => c.id === formData.category_id) || null : null}
+                selectedSubcategory={formData.subcategory_id ? subcategories.find(s => s.id === formData.subcategory_id) || null : null}
+                categories={categories}
+                subcategories={subcategories}
+                onCategorySelected={(category) => onInputChange('category_id', category?.id || null)}
+                onSubcategorySelected={(subcategory) => onInputChange('subcategory_id', subcategory?.id || null)}
+                onCategoryCreated={onCategoryCreated}
+                onSubcategoryCreated={onSubcategoryCreated}
+                courseUuid={formData.courseUuid}
+                selectedPracticeIds={selectedPracticeIds}
+                onPracticesChanged={onPracticesChanged}
+              />
+
+              <RichTextField
+                label={t('courseCreation.form.description')}
+                value={formData.description}
+                onChange={(content) => onInputChange('description', content)}
+                placeholder="Text Comes Here.."
+                minHeight="200px"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Media Upload */}
-        <LegacyCollapsible
-          id="media-upload"
-          title={t('courseCreation.form.addIntroMedia')}
-          hasData={hasSectionData('media')}
-          showCheckmark={true}
-        >
-          <MediaUpload
-            introVideo={formData.intro_video}
-            introImage={formData.intro_image}
-            introVideoUrl={formData.intro_video_url}
-            introImageUrl={formData.intro_image_url}
-            courseUuid={formData.courseUuid}
-            uploadIntroVideo={uploadIntroVideo}
-            uploadIntroImage={uploadIntroImage}
-            onVideoUpload={handleVideoUpload}
-            onImageUpload={handleImageUpload}
-            onVideoRemove={handleVideoRemove}
-            onImageRemove={handleImageRemove}
-          />
-        </LegacyCollapsible>
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-[#19294a] mb-4">
+              {t('courseCreation.form.addIntroMedia')}
+            </h3>
+            <MediaUpload
+              introVideo={formData.intro_video}
+              introImage={formData.intro_image}
+              introVideoUrl={formData.intro_video_url}
+              introImageUrl={formData.intro_image_url}
+              courseUuid={formData.courseUuid}
+              uploadIntroVideo={uploadIntroVideo}
+              uploadIntroImage={uploadIntroImage}
+              onVideoUpload={handleVideoUpload}
+              onImageUpload={handleImageUpload}
+              onVideoRemove={handleVideoRemove}
+              onImageRemove={handleImageRemove}
+            />
+          </CardContent>
+        </Card>
 
         {/* Course Duration */}
-        <LegacyCollapsible
-          id="duration"
-          title={t('courseCreation.form.duration')}
-          hasData={hasSectionData('duration')}
-          showCheckmark={true}
-        >
-          <DurationField
-            duration={formData.duration}
-            onDurationChange={(value) => onInputChange('duration', value)}
-          />
-        </LegacyCollapsible>
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-[#19294a] mb-4">
+              {t('courseCreation.form.duration')}
+            </h3>
+            <DurationField
+              duration={formData.duration}
+              onDurationChange={(value) => onInputChange('duration', value)}
+            />
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

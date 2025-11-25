@@ -12,9 +12,6 @@ import { useToast } from '../../components/ui/toast';
 import { 
   Upload,
   Calendar,
-  MapPin,
-  Users,
-  FileText,
   Bold,
   Italic,
   Underline,
@@ -40,8 +37,7 @@ export const EvenementsCreation = (): JSX.Element => {
     category: '',
     description: '',
     short_description: '',
-    start_date: '',
-    end_date: '',
+    event_date: '',
     location: '',
     location_type: 'physical' as 'physical' | 'online' | 'hybrid',
     meeting_link: '',
@@ -56,7 +52,6 @@ export const EvenementsCreation = (): JSX.Element => {
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [tagInput, setTagInput] = useState('');
 
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -95,22 +90,6 @@ export const EvenementsCreation = (): JSX.Element => {
     }
   };
 
-  const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()]
-      }));
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
-  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -120,9 +99,7 @@ export const EvenementsCreation = (): JSX.Element => {
       newErrors.title = 'Le titre est obligatoire';
     }
 
-    if (!formData.category.trim()) {
-      newErrors.category = 'La catégorie est obligatoire';
-    }
+    // Catégorie n'est plus obligatoire
 
     if (!formData.description.trim()) {
       newErrors.description = 'La description est obligatoire';
@@ -132,47 +109,18 @@ export const EvenementsCreation = (): JSX.Element => {
       newErrors.short_description = 'La description courte est obligatoire';
     }
 
-    if (!formData.start_date) {
-      newErrors.start_date = 'La date de début est obligatoire';
+    if (!formData.event_date) {
+      newErrors.event_date = 'La date de l\'événement est obligatoire';
     }
 
-    if (!formData.end_date) {
-      newErrors.end_date = 'La date de fin est obligatoire';
-    }
-
-    // Validation des dates
-    if (formData.start_date && formData.end_date) {
-      const startDate = new Date(formData.start_date);
-      const endDate = new Date(formData.end_date);
-      
-      if (endDate <= startDate) {
-        newErrors.end_date = 'La date de fin doit être postérieure à la date de début';
-      }
-      
-      if (startDate <= new Date()) {
-        newErrors.start_date = 'La date de début doit être dans le futur';
+    // Validation de la date
+    if (formData.event_date) {
+      const eventDate = new Date(formData.event_date);
+      if (eventDate <= new Date()) {
+        newErrors.event_date = 'La date de l\'événement doit être dans le futur';
       }
     }
     
-    // Validation du lien de réunion si type online
-    if (formData.location_type === 'online' && !formData.meeting_link.trim()) {
-      newErrors.meeting_link = 'Le lien de réunion est obligatoire pour les événements en ligne';
-    }
-
-    // Validation de la date limite d'inscription
-    if (formData.registration_deadline && formData.start_date) {
-      const registrationDeadline = new Date(formData.registration_deadline);
-      const startDate = new Date(formData.start_date);
-      
-      if (registrationDeadline >= startDate) {
-        newErrors.registration_deadline = 'La date limite d\'inscription doit être antérieure à la date de début';
-      }
-    }
-
-    // Validation du statut
-    if (!formData.status) {
-      newErrors.status = 'Le statut est obligatoire';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -180,7 +128,17 @@ export const EvenementsCreation = (): JSX.Element => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      showError('Erreur de validation', 'Veuillez corriger les erreurs avant de continuer');
+      const errorFields = Object.keys(errors).filter(key => errors[key]);
+      const errorMessages = errorFields.map(field => {
+        const fieldNames: Record<string, string> = {
+          title: 'Titre',
+          description: 'Description',
+          short_description: 'Description courte',
+          event_date: 'Date de l\'événement'
+        };
+        return fieldNames[field] || field;
+      });
+      showError('Erreur de validation', `Veuillez remplir les champs obligatoires : ${errorMessages.join(', ')}`);
       return;
     }
 
@@ -192,13 +150,20 @@ export const EvenementsCreation = (): JSX.Element => {
         // ... autres champs
       });
       
+      // Utiliser event_date pour start_date et ajouter un jour pour end_date
+      // Le backend exige que end_date soit après start_date
+      const startDate = formData.event_date;
+      const endDateObj = new Date(startDate);
+      endDateObj.setDate(endDateObj.getDate() + 1);
+      const endDate = endDateObj.toISOString().split('T')[0];
+      
       const result = await createEvent({
         title: formData.title,
-        category: formData.category,
+        category: formData.category || undefined,
         description: formData.description,
         short_description: formData.short_description,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
+        start_date: startDate,
+        end_date: endDate,
         location: formData.location || undefined,
         location_type: formData.location_type,
         meeting_link: formData.meeting_link || undefined,
@@ -236,13 +201,23 @@ export const EvenementsCreation = (): JSX.Element => {
     }
 
     try {
+      const defaultDate = new Date().toISOString().split('T')[0];
+      const defaultEndDate = new Date(defaultDate);
+      defaultEndDate.setDate(defaultEndDate.getDate() + 1);
+      const defaultEndDateStr = defaultEndDate.toISOString().split('T')[0];
+      
+      const startDate = formData.event_date || defaultDate;
+      const endDateObj = new Date(startDate);
+      endDateObj.setDate(endDateObj.getDate() + 1);
+      const endDate = formData.event_date ? endDateObj.toISOString().split('T')[0] : defaultEndDateStr;
+      
       const result = await createEvent({
         title: formData.title,
         category: formData.category || 'Brouillon',
         description: formData.description || 'En cours de rédaction',
         short_description: formData.short_description || 'En cours de rédaction',
-        start_date: formData.start_date || `${new Date().toISOString().split('T')[0]}T09:00:00`,
-        end_date: formData.end_date || `${new Date().toISOString().split('T')[0]}T17:00:00`,
+        start_date: startDate,
+        end_date: endDate,
         location: formData.location || undefined,
         location_type: formData.location_type,
         event_type: formData.event_type,
@@ -361,7 +336,7 @@ export const EvenementsCreation = (): JSX.Element => {
                 </Label>
                 <Input
                   type="text"
-                  placeholder="Saisissez le titre de l'actualité"
+                  placeholder="Saisissez le titre de l'événement"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
                   className={`rounded-[12px] border-2 ${
@@ -387,9 +362,9 @@ export const EvenementsCreation = (): JSX.Element => {
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
               <div className={`mt-1 h-6 w-6 rounded-full flex items-center justify-center ${
-                formData.start_date ? 'bg-[#007aff]' : isDark ? 'bg-gray-700' : 'bg-gray-300'
+                formData.event_date ? 'bg-[#007aff]' : isDark ? 'bg-gray-700' : 'bg-gray-300'
               }`}>
-                {formData.start_date ? (
+                {formData.event_date ? (
                   <div className="h-3 w-3 bg-white rounded-full" />
                 ) : (
                   <div className={`h-3 w-3 rounded-full border-2 ${
@@ -407,42 +382,27 @@ export const EvenementsCreation = (): JSX.Element => {
                   <Button
                     variant="link"
                     className="text-[#007aff] text-sm p-0 h-auto"
+                    type="button"
                   >
                     <Calendar className="h-4 w-4 mr-1" />
                     Ajouter La Date De L'événement
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => handleInputChange('start_date', e.target.value)}
-                      className={`rounded-[12px] border-2 ${
-                        errors.start_date
-                          ? 'border-red-500'
-                          : isDark 
-                            ? 'border-gray-700 bg-gray-900 text-white' 
-                            : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                      }`}
-                    />
-                    {errors.start_date && (
-                      <p className="text-red-500 text-xs mt-1">{errors.start_date}</p>
-                    )}
-                  </div>
-                  <div>
-                    <Input
-                      type="date"
-                      value={formData.end_date}
-                      onChange={(e) => handleInputChange('end_date', e.target.value)}
-                      className={`rounded-[12px] border-2 ${
-                        isDark 
-                          ? 'border-gray-700 bg-gray-900 text-white' 
-                          : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                      }`}
-                    />
-                  </div>
-                </div>
+                <Input
+                  type="date"
+                  value={formData.event_date}
+                  onChange={(e) => handleInputChange('event_date', e.target.value)}
+                  className={`rounded-[12px] border-2 ${
+                    errors.event_date
+                      ? 'border-red-500'
+                      : isDark 
+                        ? 'border-gray-700 bg-gray-900 text-white' 
+                        : 'border-[#e2e2ea] bg-white text-[#19294a]'
+                  }`}
+                />
+                {errors.event_date && (
+                  <p className="text-red-500 text-xs mt-1">{errors.event_date}</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -552,7 +512,7 @@ export const EvenementsCreation = (): JSX.Element => {
                   Description Courte
                 </Label>
                 <Textarea
-                  placeholder="Résumez en quelques lignes le contenu de l'actualité"
+                  placeholder="Résumez en quelques lignes le contenu de l'événement"
                   value={formData.short_description}
                   onChange={(e) => handleInputChange('short_description', e.target.value)}
                   rows={4}
@@ -634,329 +594,6 @@ export const EvenementsCreation = (): JSX.Element => {
           </CardContent>
         </Card>
 
-        {/* Informations supplémentaires */}
-        <Card className={`border-2 rounded-[18px] mb-6 ${
-          isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'
-        }`}>
-          <CardContent className="p-6">
-            <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-lg mb-4 ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              Informations supplémentaires
-            </h3>
-            
-            <div className="space-y-4">
-              {/* Lieu */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <MapPin className="h-4 w-4 inline mr-2" />
-                  Lieu de l'événement
-                </Label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Paris, France"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className={`rounded-[12px] border-2 ${
-                    isDark 
-                      ? 'border-gray-700 bg-gray-900 text-white' 
-                      : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                />
-              </div>
-
-              {/* Nombre maximum de participants */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <Users className="h-4 w-4 inline mr-2" />
-                  Nombre maximum de participants
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="Ex: 100"
-                  value={formData.max_attendees}
-                  onChange={(e) => handleInputChange('max_attendees', e.target.value)}
-                  className={`rounded-[12px] border-2 ${
-                    isDark 
-                      ? 'border-gray-700 bg-gray-900 text-white' 
-                      : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                />
-              </div>
-
-              {/* Catégorie */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <FileText className="h-4 w-4 inline mr-2" />
-                  Catégorie <span className="text-red-500">*</span>
-                </Label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  className={`w-full rounded-[12px] border-2 px-3 py-2 text-sm ${
-                    errors.category 
-                      ? 'border-red-500' 
-                      : isDark 
-                        ? 'border-gray-700 bg-gray-900 text-white' 
-                        : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                >
-                  <option value="">Sélectionner une catégorie</option>
-                  {categoriesLoading ? (
-                    <option disabled>Chargement des catégories...</option>
-                  ) : (
-                    categories.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {errors.category && (
-                  <p className="text-red-500 text-xs mt-1">{errors.category}</p>
-                )}
-                {!categoriesLoading && categories.length === 0 && (
-                  <p className="text-orange-500 text-xs mt-1">Aucune catégorie disponible</p>
-                )}
-              </div>
-
-              {/* Type d'événement */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <FileText className="h-4 w-4 inline mr-2" />
-                  Type d'événement
-                </Label>
-                <select
-                  value={formData.event_type}
-                  onChange={(e) => handleInputChange('event_type', e.target.value)}
-                  className={`w-full rounded-[12px] border-2 px-3 py-2 text-sm ${
-                    isDark 
-                      ? 'border-gray-700 bg-gray-900 text-white' 
-                      : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                >
-                  {categoriesLoading ? (
-                    <option disabled>Chargement des types...</option>
-                  ) : (
-                    eventTypes.map((type) => (
-                      <option key={type.key} value={type.key}>
-                        {type.value}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {!categoriesLoading && eventTypes.length === 0 && (
-                  <p className="text-orange-500 text-xs mt-1">Aucun type d'événement disponible</p>
-                )}
-              </div>
-
-              {/* Type de localisation */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <MapPin className="h-4 w-4 inline mr-2" />
-                  Type de localisation
-                </Label>
-                <select
-                  value={formData.location_type}
-                  onChange={(e) => handleInputChange('location_type', e.target.value)}
-                  className={`w-full rounded-[12px] border-2 px-3 py-2 text-sm ${
-                    isDark 
-                      ? 'border-gray-700 bg-gray-900 text-white' 
-                      : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                >
-                  {categoriesLoading ? (
-                    <option disabled>Chargement des types...</option>
-                  ) : (
-                    locationTypes.map((type) => (
-                      <option key={type.key} value={type.key}>
-                        {type.value}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {!categoriesLoading && locationTypes.length === 0 && (
-                  <p className="text-orange-500 text-xs mt-1">Aucun type de localisation disponible</p>
-                )}
-              </div>
-
-              {/* Lien de réunion (si en ligne) */}
-              {formData.location_type === 'online' && (
-                <div>
-                  <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                    isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                  }`}>
-                    <Users className="h-4 w-4 inline mr-2" />
-                    Lien de réunion <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    type="url"
-                    placeholder="Ex: https://meet.google.com/abc-defg-hij"
-                    value={formData.meeting_link}
-                    onChange={(e) => handleInputChange('meeting_link', e.target.value)}
-                    className={`rounded-[12px] border-2 ${
-                      errors.meeting_link 
-                        ? 'border-red-500' 
-                        : isDark 
-                          ? 'border-gray-700 bg-gray-900 text-white' 
-                          : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                    }`}
-                  />
-                  {errors.meeting_link && (
-                    <p className="text-red-500 text-xs mt-1">{errors.meeting_link}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Statut */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <FileText className="h-4 w-4 inline mr-2" />
-                  Statut
-                </Label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className={`w-full rounded-[12px] border-2 px-3 py-2 text-sm ${
-                    errors.status
-                      ? 'border-red-500'
-                      : isDark 
-                        ? 'border-gray-700 bg-gray-900 text-white' 
-                        : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                >
-                  {categoriesLoading ? (
-                    <option disabled>Chargement des statuts...</option>
-                  ) : (
-                    statuses.map((status) => (
-                      <option key={status.key} value={status.key}>
-                        {status.value}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {errors.status && (
-                  <p className="text-red-500 text-xs mt-1">{errors.status}</p>
-                )}
-                {!categoriesLoading && statuses.length === 0 && (
-                  <p className="text-orange-500 text-xs mt-1">Aucun statut disponible</p>
-                )}
-              </div>
-
-              {/* Date limite d'inscription */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <Calendar className="h-4 w-4 inline mr-2" />
-                  Date limite d'inscription
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={formData.registration_deadline}
-                  onChange={(e) => handleInputChange('registration_deadline', e.target.value)}
-                  className={`rounded-[12px] border-2 ${
-                    errors.registration_deadline
-                      ? 'border-red-500'
-                      : isDark 
-                        ? 'border-gray-700 bg-gray-900 text-white' 
-                        : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                  }`}
-                />
-                {errors.registration_deadline && (
-                  <p className="text-red-500 text-xs mt-1">{errors.registration_deadline}</p>
-                )}
-              </div>
-
-              {/* Tags */}
-              <div>
-                <Label className={`[font-family:'Poppins',Helvetica] text-sm mb-2 block ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  <FileText className="h-4 w-4 inline mr-2" />
-                  Tags
-                </Label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {formData.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className={`px-3 py-1 rounded-full text-sm ${
-                        isDark 
-                          ? 'bg-blue-900 text-blue-200' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(tag)}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Ajouter un tag"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addTag();
-                      }
-                    }}
-                    className={`rounded-[12px] border-2 ${
-                      isDark 
-                        ? 'border-gray-700 bg-gray-900 text-white' 
-                        : 'border-[#e2e2ea] bg-white text-[#19294a]'
-                    }`}
-                  />
-                  <Button
-                    type="button"
-                    onClick={addTag}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-[12px]"
-                  >
-                    Ajouter
-                  </Button>
-                </div>
-              </div>
-
-              {/* Visibilité aux étudiants */}
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="is_visible_to_students"
-                  checked={formData.is_visible_to_students}
-                  onChange={(e) => handleInputChange('is_visible_to_students', e.target.checked)}
-                  className="rounded border-2 border-gray-300"
-                />
-                <Label htmlFor="is_visible_to_students" className={`[font-family:'Poppins',Helvetica] text-sm ${
-                  isDark ? 'text-gray-300' : 'text-[#6a90b9]'
-                }`}>
-                  Visible aux étudiants
-                </Label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
     </div>
   );
 };

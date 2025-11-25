@@ -37,12 +37,22 @@ class CommercialService {
     per_page?: number;
     search?: string;
     status?: string;
+    min_amount?: number;
+    max_amount?: number;
+    date_from?: string;
+    date_to?: string;
+    client_type?: string;
   }): Promise<InvoiceListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.min_amount) queryParams.append('min_amount', params.min_amount.toString());
+    if (params?.max_amount) queryParams.append('max_amount', params.max_amount.toString());
+    if (params?.date_from) queryParams.append('date_from', params.date_from);
+    if (params?.date_to) queryParams.append('date_to', params.date_to);
+    if (params?.client_type) queryParams.append('client_type', params.client_type);
 
     const endpoint = '/api/organization/commercial/invoices' + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     return await apiService.get<InvoiceListResponse>(endpoint);
@@ -94,12 +104,22 @@ class CommercialService {
     per_page?: number;
     search?: string;
     status?: string;
+    min_amount?: number;
+    max_amount?: number;
+    date_from?: string;
+    date_to?: string;
+    client_type?: string;
   }): Promise<QuoteListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.min_amount) queryParams.append('min_amount', params.min_amount.toString());
+    if (params?.max_amount) queryParams.append('max_amount', params.max_amount.toString());
+    if (params?.date_from) queryParams.append('date_from', params.date_from);
+    if (params?.date_to) queryParams.append('date_to', params.date_to);
+    if (params?.client_type) queryParams.append('client_type', params.client_type);
 
     const endpoint = '/api/organization/commercial/quotes' + (queryParams.toString() ? `?${queryParams.toString()}` : '');
     return await apiService.get<QuoteListResponse>(endpoint);

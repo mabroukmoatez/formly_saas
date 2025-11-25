@@ -82,7 +82,7 @@ export const QuizCreationHeader: React.FC<QuizCreationHeaderProps> = ({
             variant="outline"
             onClick={onAutoSave}
             disabled={isAutoSaving}
-            className={`h-8 inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full hover:opacity-80 transition-colors ${
+            className={`h-8 inline-flex items-center justify-center gap-2 px-3 py-5 rounded-full hover:opacity-80 transition-colors ${
               isDark ? 'bg-gray-800 border-gray-600 hover:bg-gray-700' : 'bg-transparent'
             }`}
             style={{ 
@@ -106,7 +106,7 @@ export const QuizCreationHeader: React.FC<QuizCreationHeaderProps> = ({
           <Button
             onClick={onSaveDraft}
             disabled={isSavingDraft}
-            className="h-8 gap-2 px-3 py-1.5 rounded-full transition-colors hover:opacity-90"
+            className="h-8 gap-2 px-3 py-5 rounded-full transition-colors hover:opacity-90"
             style={{ 
               backgroundColor: primaryColor,
               color: 'white',
@@ -128,7 +128,7 @@ export const QuizCreationHeader: React.FC<QuizCreationHeaderProps> = ({
         </div>
 
         {/* Stepper and Progress */}
-        <nav className="flex items-center justify-between w-full flex-[0_0_auto] translate-y-[-1rem] animate-fade-in opacity-0 [--animation-delay:400ms]">
+        <nav className="flex items-center justify-between w-full flex-[0_0_auto] translate-y-[-1rem] animate-fade-in opacity-0 [--animation-delay:400ms] mt-8">
           <Stepper
             steps={steps.map(step => ({
               ...step,

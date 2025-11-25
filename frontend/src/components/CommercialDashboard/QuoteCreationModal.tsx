@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
+import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
 import { Textarea } from '../ui/textarea';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
@@ -39,6 +40,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
   const { isDark } = useTheme();
   const { t } = useLanguage();
   const { organization } = useOrganization();
+  const { settings } = useOrganizationSettings();
   const { success, error: showError } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
 
@@ -288,6 +290,23 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
     success('Article ajouté');
   };
 
+  const handleSelectArticles = (articles: Article[]) => {
+    const newItems: QuoteItem[] = articles.map((article) => {
+      const unitPrice = article.unit_price || parseFloat(article.price_ht || '0');
+      return {
+        id: Date.now().toString() + '-' + article.id,
+        reference: article.reference || '',
+        designation: article.designation || article.name || article.description || article.reference || 'Article',
+        quantity: 1,
+        unit_price: unitPrice,
+        tax_rate: article.tax_rate || 20,
+        total: unitPrice,
+      };
+    });
+    setItems([...items, ...newItems]);
+    success(`${articles.length} article(s) ajouté(s)`);
+  };
+
   const handleAddNewArticle = () => {
     // Open article creation modal
     setShowArticleCreation(true);
@@ -476,10 +495,32 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
               {/* From Company */}
               <div className={`flex-1 bg-white rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
                 <div className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                  {organization?.organization_name || 'Formaly'}
+                  {(settings as any)?.organization_name || settings?.name || organization?.organization_name || 'Formaly'}
                 </div>
                 <div className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} whitespace-pre-line`}>
-                  {organization?.description || 'Adresse\nN° TVA\nSIRET'}
+                  {(() => {
+                    if (settings) {
+                      const addressParts = [];
+                      if ((settings as any).address) addressParts.push((settings as any).address);
+                      if ((settings as any).postal_code && (settings as any).city) {
+                        addressParts.push(`${(settings as any).postal_code} ${(settings as any).city}`);
+                      } else if ((settings as any).city) {
+                        addressParts.push((settings as any).city);
+                      }
+                      if ((settings as any).country && (settings as any).country !== 'France') {
+                        addressParts.push((settings as any).country);
+                      }
+                      const address = addressParts.join('\n');
+                      
+                      const infoParts = [];
+                      if ((settings as any).tva_number) infoParts.push(`N° TVA: ${(settings as any).tva_number}`);
+                      if (settings.siret) infoParts.push(`SIRET: ${settings.siret}`);
+                      if ((settings as any).rcs) infoParts.push(`RCS: ${(settings as any).rcs}`);
+                      
+                      return [address, ...infoParts].filter(Boolean).join('\n') || 'Adresse\nN° TVA\nSIRET';
+                    }
+                    return organization?.description || 'Adresse\nN° TVA\nSIRET';
+                  })()}
                 </div>
               </div>
 
@@ -700,6 +741,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         isOpen={showArticleSearch}
         onClose={() => setShowArticleSearch(false)}
         onSelectArticle={handleSelectArticle}
+        onSelectArticles={handleSelectArticles}
       />
 
       {/* Article Creation Modal */}

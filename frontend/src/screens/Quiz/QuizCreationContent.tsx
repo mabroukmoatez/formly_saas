@@ -172,7 +172,7 @@ export const QuizCreationContent: React.FC = () => {
           }}
         />
         
-        <main className="w-full flex justify-center py-7 px-4">
+        <main className="w-full flex justify-center pb-7 px-4">
           <div className="w-full max-w-[1396px] space-y-6">
             {currentStep === 1 && (
               <QuizInformationForm

@@ -39,13 +39,18 @@ export const FormField: React.FC<FormFieldProps> = ({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
+          placeholder={placeholder || "Your Course Title"}
           maxLength={maxLength}
-          className={`flex-1 border-none shadow-none text-[17px] font-medium ${
+          className={`flex-1 border-none shadow-none text-[17px] font-medium border-b ${
             isDark 
-              ? 'text-white placeholder:text-gray-400 bg-transparent' 
-              : 'text-[#6a90b9] placeholder:text-[#6a90b9]'
-          }`}
+              ? 'text-white placeholder:text-gray-400 bg-transparent border-gray-600 focus:border-gray-400' 
+              : 'text-[#2D3748] placeholder:text-[#718096] bg-transparent border-[#E2E8F0] focus:border-[#0066FF]'
+          } rounded-none px-0`}
+          style={{ 
+            borderBottom: isDark ? '1px solid #4B5563' : '1px solid #E2E8F0',
+            outline: 'none',
+            boxShadow: 'none'
+          }}
         />
       </div>
       {maxLength && (

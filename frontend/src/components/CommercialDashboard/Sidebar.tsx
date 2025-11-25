@@ -8,6 +8,7 @@ import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { useLocation } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 import { COMMERCIAL_SIDEBAR_PERMISSIONS, shouldShowMenuItem } from '../../utils/permissionMappings';
+import { fixImageUrl } from '../../lib/utils';
 import { 
   BarChart3, 
   FileText, 
@@ -397,7 +398,7 @@ export const CommercialSidebar: React.FC<SidebarProps> = ({ className = '', isMo
   // Get organization logo URL
   const getOrganizationLogo = (): string => {
     if (organization?.organization_logo_url) {
-      return organization.organization_logo_url;
+      return fixImageUrl(organization.organization_logo_url);
     }
     return '/assets/logos/formly-logo.png'; // Fallback to Formly logo
   };

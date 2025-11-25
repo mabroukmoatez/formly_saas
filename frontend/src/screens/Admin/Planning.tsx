@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar'
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../components/ui/toast';
+import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import {
   getCalendarData,
   getPlanningOverview,
@@ -32,7 +33,9 @@ import {
   BookOpen,
   GraduationCap,
   Monitor,
-  Laptop
+  Laptop,
+  Plus,
+  List
 } from 'lucide-react';
 
 interface Filters {
@@ -41,6 +44,10 @@ interface Filters {
   instance_type: 'all' | 'presentiel' | 'distanciel' | 'hybride' | 'e-learning';
   instructor: string;
   status: 'all' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  formation: string;
+  formateur: string;
+  dateFrom: string;
+  dateTo: string;
 }
 
 interface Course {
@@ -71,6 +78,7 @@ export const Planning = (): JSX.Element => {
   const { organization } = useOrganization();
   const { isDark } = useTheme();
   const { success, error: showError } = useToast();
+  const { navigateToRoute } = useSubdomainNavigation();
 
   // State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -79,12 +87,19 @@ export const Planning = (): JSX.Element => {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<CalendarItem | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [viewType, setViewType] = useState<'all' | 'sessions' | 'events'>('all');
+  const [showListView, setShowListView] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: '',
     type: 'all',
     instance_type: 'all',
     instructor: '',
-    status: 'all'
+    status: 'all',
+    formation: '',
+    formateur: '',
+    dateFrom: '',
+    dateTo: ''
   });
 
   // Get organization colors
@@ -94,7 +109,7 @@ export const Planning = (): JSX.Element => {
   // Fetch calendar data
   useEffect(() => {
     fetchData();
-  }, [currentDate, filters.type, filters.instance_type, filters.status]);
+  }, [currentDate, filters.type, filters.instance_type, filters.status, viewType]);
 
   const fetchData = async () => {
     try {
@@ -189,6 +204,14 @@ export const Planning = (): JSX.Element => {
   const getFilteredItems = (): CalendarItem[] => {
     let items = getAllItems();
 
+    // Filtrer par type (Sessions/Événements/Tout)
+    if (viewType === 'sessions') {
+      items = items.filter(item => item.type === 'session_instance' || item.type === 'course');
+    } else if (viewType === 'events') {
+      items = items.filter(item => item.type === 'event');
+    }
+    // viewType === 'all' : pas de filtre
+
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       items = items.filter(item =>
@@ -199,10 +222,22 @@ export const Planning = (): JSX.Element => {
       );
     }
 
-    if (filters.instructor) {
+    if (filters.instructor || filters.formateur) {
+      const instructorFilter = filters.instructor || filters.formateur;
       items = items.filter(item =>
-        item.trainers?.some(t => t.name.toLowerCase().includes(filters.instructor.toLowerCase()))
+        item.trainers?.some(t => t.name.toLowerCase().includes(instructorFilter.toLowerCase()))
       );
+    }
+
+    // Filtrer par date range
+    if (filters.dateFrom) {
+      const fromDate = new Date(filters.dateFrom);
+      items = items.filter(item => new Date(item.start) >= fromDate);
+    }
+    if (filters.dateTo) {
+      const toDate = new Date(filters.dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      items = items.filter(item => new Date(item.start) <= toDate);
     }
 
     return items;
@@ -392,55 +427,98 @@ export const Planning = (): JSX.Element => {
   const totalCourses = planningOverview?.courses?.length || 0;
 
   return (
-    <div className="flex flex-col min-h-0 p-6 gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className={`[font-family:'Poppins',Helvetica] font-bold text-3xl ${
-            isDark ? 'text-white' : 'text-[#19294a]'
-          }`}>
-            Planning
-          </h1>
-          <p className={`[font-family:'Poppins',Helvetica] text-sm mt-1 ${
-            isDark ? 'text-gray-400' : 'text-[#6a90b9]'
-          }`}>
-            Calendrier des cours, sessions et événements
-          </p>
-        </div>
+    <div className="flex flex-col min-h-0 px-[27px] py-8 gap-6">
+      {/* Titre du mois et contrôles - selon Figma */}
+      <div className="flex items-center justify-between mb-4">
+        <h1 className={`[font-family:'Poppins',Helvetica] font-bold text-3xl ${
+          isDark ? 'text-white' : 'text-[#19294a]'
+        }`}>
+          {currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+        </h1>
 
-        {/* Navigation */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          {/* Bouton Créer Une Nouvelle Session */}
+          <Button
+            className="h-[42px] px-6 rounded-[12px] text-white flex items-center gap-2"
+            style={{ backgroundColor: primaryColor }}
+            onClick={() => navigateToRoute('/session-creation')}
+          >
+            <Plus className="w-5 h-5" />
+            Créer Une Nouvelle Session
+          </Button>
+          
+          {/* Bouton View List */}
           <Button
             variant="outline"
-            onClick={goToToday}
-            className={`h-10 px-4 rounded-[10px] ${
-              isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'
+            onClick={() => setShowListView(!showListView)}
+            className={`h-[42px] px-4 rounded-[12px] ${
+              isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-[#e2e2ea] hover:bg-gray-50'
             }`}
           >
-            Aujourd'hui
+            <List className="w-5 h-5 mr-2" />
+            View List
           </Button>
+          {/* Onglets Sessions/Événements/Tout */}
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-[12px] p-1">
+            {[
+              { value: 'sessions' as const, label: 'Sessions' },
+              { value: 'events' as const, label: 'Événements' },
+              { value: 'all' as const, label: 'Tout' }
+            ].map((tab) => (
+              <Button
+                key={tab.value}
+                variant="ghost"
+                onClick={() => setViewType(tab.value)}
+                className={`h-8 px-4 rounded-[10px] ${
+                  viewType === tab.value
+                    ? 'bg-white dark:bg-gray-700 text-[#007aff] font-semibold'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Vues Month/Week */}
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-[12px] p-1">
+            {[
+              { value: 'month' as const, label: 'Month' },
+              { value: 'week' as const, label: 'week' }
+            ].map((view) => (
+              <Button
+                key={view.value}
+                variant="ghost"
+                onClick={() => setViewMode(view.value)}
+                className={`h-8 px-4 rounded-[10px] ${
+                  viewMode === view.value
+                    ? 'bg-white dark:bg-gray-700 text-[#007aff] font-semibold'
+                    : 'text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {view.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Navigation mois */}
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={previousMonth}
-              className={`h-10 w-10 rounded-[10px] ${
-                isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'
+              className={`h-10 w-10 rounded-[12px] ${
+                isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-[#e2e2ea] hover:bg-gray-50'
               }`}
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
-            <span className={`[font-family:'Poppins',Helvetica] font-semibold text-lg min-w-[180px] text-center ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              {currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
-            </span>
             <Button
               variant="outline"
               size="icon"
               onClick={nextMonth}
-              className={`h-10 w-10 rounded-[10px] ${
-                isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'
+              className={`h-10 w-10 rounded-[12px] ${
+                isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-[#e2e2ea] hover:bg-gray-50'
               }`}
             >
               <ChevronRight className="h-5 w-5" />
@@ -449,156 +527,274 @@ export const Planning = (): JSX.Element => {
         </div>
       </div>
 
-      {/* Stats & Filters */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Stats */}
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-[10px] ${
-            isDark ? 'bg-gray-800' : 'bg-[#f8f9fa]'
-          }`}>
-            <CalendarIcon className="w-5 h-5" style={{ color: primaryColor }} />
-            <span className={`[font-family:'Inter',Helvetica] font-semibold text-sm ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              {stats.total} événements
-            </span>
-          </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-[10px] ${
-            isDark ? 'bg-gray-800' : 'bg-[#f8f9fa]'
-          }`}>
-            <Users className="w-5 h-5" style={{ color: secondaryColor }} />
-            <span className={`[font-family:'Inter',Helvetica] font-semibold text-sm ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              {stats.participants} participants
-            </span>
-          </div>
-        </div>
-
-        {/* Search & Filters */}
-        <div className="flex items-center gap-3">
-          <div className="relative w-[300px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              placeholder="Rechercher..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className={`pl-10 rounded-[10px] ${
-                isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'
-              }`}
-            />
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-            className={`h-10 px-4 rounded-[10px] ${
-              isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300'
+      {/* Barre de recherche et filtre */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative w-[300px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            placeholder="Recherche Une Formation"
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+            className={`pl-10 h-[42px] rounded-[12px] ${
+              isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#e2e2ea]'
             }`}
-          >
-            <Filter className="w-5 h-5 mr-2" />
-            Filtres
-            {(filters.type !== 'all' || filters.instance_type !== 'all' || filters.status !== 'all' || filters.instructor) && (
-              <Badge className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center" style={{ backgroundColor: primaryColor }}>
-                <span className="text-xs text-white">!</span>
-              </Badge>
-            )}
-          </Button>
+          />
         </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`h-[42px] px-4 rounded-[12px] flex items-center gap-2 ${
+            isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-[#e2e2ea] hover:bg-gray-50'
+          }`}
+        >
+          <Filter className="w-5 h-5" />
+          Filtre
+          <ChevronRight className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-90' : ''}`} />
+        </Button>
       </div>
 
-      {/* Filters Panel */}
+      {/* Modal de filtres conforme au Figma */}
       {showFilters && (
-        <div className={`flex flex-col gap-4 p-4 rounded-[10px] ${
-          isDark ? 'bg-gray-800' : 'bg-[#f8f9fa]'
-        }`}>
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Type:
-              </span>
-               <div className="flex gap-2">
-                 {[
-                   { value: 'all', label: 'Tous' },
-                   { value: 'course', label: 'Cours' },
-                   { value: 'event', label: 'Événements' },
-                   { value: 'session_instance', label: 'Sessions' }
-                 ].map((type) => (
-                  <Button
-                    key={type.value}
-                    variant={filters.type === type.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilters({ ...filters, type: type.value as any })}
-                    className="h-8 rounded-[8px]"
-                    style={filters.type === type.value ? { backgroundColor: primaryColor } : {}}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className={`rounded-[18px] max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
+            isDark ? 'bg-gray-800' : 'bg-white'
+          }`}>
+            <div className="p-6 space-y-6">
+              {/* Formation */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Formation
+                  </label>
+                  <select
+                    value={filters.formation}
+                    onChange={(e) => setFilters({ ...filters, formation: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-[12px] border-2 ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                    }`}
                   >
-                    {type.label}
-                  </Button>
-                ))}
+                    <option value="">Sélectionner</option>
+                    {/* Options de formations à charger depuis l'API */}
+                  </select>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ ...filters, formation: '' })}
+                  className="ml-2"
+                >
+                  Reset
+                </Button>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Format:
-              </span>
-              <div className="flex gap-2">
-                {[
-                  { value: 'all', label: 'Tous', icon: null },
-                  { value: 'presentiel', label: 'Présentiel', icon: MapPin },
-                  { value: 'distanciel', label: 'Distanciel', icon: Video },
-                  { value: 'hybride', label: 'Hybride', icon: Monitor },
-                  { value: 'e-learning', label: 'E-learning', icon: Laptop }
-                ].map((format) => (
-                  <Button
-                    key={format.value}
-                    variant={filters.instance_type === format.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilters({ ...filters, instance_type: format.value as any })}
-                    className="h-8 rounded-[8px] flex items-center gap-1"
-                    style={filters.instance_type === format.value ? { backgroundColor: primaryColor } : {}}
+              {/* Formateur */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Formateur
+                  </label>
+                  <select
+                    value={filters.formateur}
+                    onChange={(e) => setFilters({ ...filters, formateur: e.target.value })}
+                    className={`w-full px-3 py-2 rounded-[12px] border-2 ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                    }`}
                   >
-                    {format.icon && <format.icon className="w-3 h-3" />}
-                    {format.label}
-                  </Button>
-                ))}
+                    <option value="">Sélectionner</option>
+                    {/* Options de formateurs à charger depuis l'API */}
+                  </select>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ ...filters, formateur: '' })}
+                  className="ml-2"
+                >
+                  Reset
+                </Button>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Statut:
-              </span>
-              <div className="flex gap-2">
-                {[
-                  { value: 'all', label: 'Tous' },
-                  { value: 'scheduled', label: 'Programmée' },
-                  { value: 'ongoing', label: 'En cours' },
-                  { value: 'completed', label: 'Terminée' }
-                ].map((status) => (
-                  <Button
-                    key={status.value}
-                    variant={filters.status === status.value ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setFilters({ ...filters, status: status.value as any })}
-                    className="h-8 rounded-[8px]"
-                    style={filters.status === status.value ? { backgroundColor: primaryColor } : {}}
+              {/* Status avec radio buttons */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Status
+                  </label>
+                  <select
+                    value={filters.status === 'all' ? 'ALL' : filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value === 'ALL' ? 'all' : e.target.value as any })}
+                    className={`w-full px-3 py-2 rounded-[12px] border-2 mb-3 ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                    }`}
                   >
-                    {status.label}
-                  </Button>
-                ))}
+                    <option value="ALL">ALL</option>
+                  </select>
+                  <div className="flex gap-3">
+                    {[
+                      { value: 'scheduled', label: 'à venir', color: '#3b82f6', bgColor: '#dbeafe' },
+                      { value: 'ongoing', label: 'en cours', color: '#f97316', bgColor: '#fed7aa' },
+                      { value: 'completed', label: 'terminée', color: '#10b981', bgColor: '#d1fae5' }
+                    ].map((status) => (
+                      <button
+                        key={status.value}
+                        onClick={() => setFilters({ ...filters, status: status.value as any })}
+                        className={`flex-1 px-4 py-3 rounded-[12px] font-medium text-sm ${
+                          filters.status === status.value
+                            ? 'ring-2 ring-offset-2'
+                            : ''
+                        }`}
+                        style={{
+                          backgroundColor: filters.status === status.value ? status.bgColor : (isDark ? '#374151' : '#f3f4f6'),
+                          color: status.color,
+                          ringColor: status.color
+                        }}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ ...filters, status: 'all' })}
+                  className="ml-2"
+                >
+                  Reset
+                </Button>
+              </div>
+
+              {/* Date Range */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Date Range
+                  </label>
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <Input
+                        type="date"
+                        value={filters.dateFrom}
+                        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                        placeholder="09-10-2025"
+                        className={`w-full rounded-[12px] border-2 pr-10 ${
+                          isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                        }`}
+                      />
+                      <CalendarIcon className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                        isDark ? 'text-gray-400' : 'text-gray-500'
+                      }`} />
+                    </div>
+                    <div className="flex-1 relative">
+                      <Input
+                        type="date"
+                        value={filters.dateTo}
+                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                        placeholder="09-11-2025"
+                        className={`w-full rounded-[12px] border-2 pr-10 ${
+                          isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                        }`}
+                      />
+                      <CalendarIcon className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${
+                        isDark ? 'text-gray-400' : 'text-gray-500'
+                      }`} />
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ ...filters, dateFrom: '', dateTo: '' })}
+                  className="ml-2"
+                >
+                  Reset
+                </Button>
+              </div>
+
+              {/* Type De Formation */}
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Type De Formation
+                  </label>
+                  <select
+                    value={filters.instance_type === 'all' ? '' : filters.instance_type}
+                    onChange={(e) => setFilters({ ...filters, instance_type: e.target.value === '' ? 'all' : e.target.value as any })}
+                    className={`w-full px-3 py-2 rounded-[12px] border-2 mb-3 ${
+                      isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-[#e2e2ea] text-gray-900'
+                    }`}
+                  >
+                    <option value="">Sélectionner</option>
+                  </select>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { value: 'distanciel', label: 'Distanciel', color: '#a855f7', dotColor: '#a855f7' },
+                      { value: 'presentiel', label: 'Présentiel', color: '#10b981', dotColor: '#10b981' },
+                      { value: 'e-learning', label: 'E-Learning', color: '#ec4899', dotColor: '#ec4899' },
+                      { value: 'hybride', label: 'Hybride', color: '#f97316', dotColor: '#f97316' }
+                    ].map((type) => (
+                      <button
+                        key={type.value}
+                        onClick={() => setFilters({ ...filters, instance_type: type.value as any })}
+                        className={`px-4 py-2 rounded-[12px] font-medium text-sm flex items-center gap-2 ${
+                          filters.instance_type === type.value
+                            ? 'ring-2 ring-offset-2'
+                            : ''
+                        }`}
+                        style={{
+                          backgroundColor: filters.instance_type === type.value 
+                            ? (isDark ? '#374151' : '#f3f4f6')
+                            : (isDark ? '#1f2937' : '#ffffff'),
+                          color: type.color,
+                          borderColor: type.color,
+                          borderWidth: filters.instance_type === type.value ? '2px' : '1px',
+                          ringColor: type.color
+                        }}
+                      >
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: type.dotColor }}
+                        />
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ ...filters, instance_type: 'all' })}
+                  className="ml-2"
+                >
+                  Reset
+                </Button>
+              </div>
+
+              {/* Bouton Appliquer les filtres */}
+              <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button
+                  className="px-6 rounded-[12px] text-white"
+                  style={{ backgroundColor: primaryColor }}
+                  onClick={() => {
+                    setShowFilters(false);
+                    fetchData();
+                  }}
+                >
+                  Appliquer les filtres
+                </Button>
               </div>
             </div>
           </div>
-
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilters({ search: '', type: 'all', instance_type: 'all', instructor: '', status: 'all' })}
-            className="self-end"
-          >
-            <X className="w-4 h-4 mr-1" />
-            Réinitialiser
-          </Button>
         </div>
       )}
 

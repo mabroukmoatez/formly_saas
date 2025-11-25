@@ -74,12 +74,14 @@ export const Actualites = (): JSX.Element => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedAuthor, setSelectedAuthor] = useState('');
   const [showAuthorDropdown, setShowAuthorDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newsToDelete, setNewsToDelete] = useState<NewsItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const authorDropdownRef = useRef<HTMLDivElement>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
@@ -123,22 +125,25 @@ export const Actualites = (): JSX.Element => {
     }
   };
 
-  // Fermer le dropdown auteur quand on clique ailleurs
+  // Fermer les dropdowns quand on clique ailleurs
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (authorDropdownRef.current && !authorDropdownRef.current.contains(event.target as Node)) {
         setShowAuthorDropdown(false);
       }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
     };
 
-    if (showAuthorDropdown) {
+    if (showAuthorDropdown || showStatusDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showAuthorDropdown]);
+  }, [showAuthorDropdown, showStatusDropdown]);
 
   const handleSelectAuthor = (authorId: string) => {
     setSelectedAuthor(authorId === selectedAuthor ? '' : authorId);
@@ -218,7 +223,17 @@ export const Actualites = (): JSX.Element => {
     }
 
     if (selectedStatus) {
-      filtered = filtered.filter(item => item.status === selectedStatus);
+      if (selectedStatus === 'upcoming') {
+        // Filtrer les actualités à venir (publiées avec published_at dans le futur)
+        filtered = filtered.filter(item => {
+          if (item.status !== 'published' || !item.published_at) return false;
+          const publishedDate = new Date(item.published_at);
+          const now = new Date();
+          return publishedDate > now;
+        });
+      } else {
+        filtered = filtered.filter(item => item.status === selectedStatus);
+      }
     }
 
     if (selectedAuthor) {
@@ -252,25 +267,41 @@ export const Actualites = (): JSX.Element => {
       <div className="max-w-[1600px] mx-auto px-6 lg:px-8 py-8">
         {/* En-tête de Page */}
         <div className="mb-8">
-          <div className="flex items-center gap-4 mb-8">
-            <div 
-              className="w-12 h-12 rounded-[12px] flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: `${primaryColor}15` }}
-            >
-              <Newspaper className="w-6 h-6" style={{ color: primaryColor }} />
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div 
+                className="w-12 h-12 rounded-[12px] flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${primaryColor}15` }}
+              >
+                <Newspaper className="w-6 h-6" style={{ color: primaryColor }} />
+              </div>
+              <div>
+                <h1 
+                  className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+                  style={{ fontFamily: 'Poppins, Helvetica' }}
+                >
+                  Actualités
+                </h1>
+                <p 
+                  className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
+                >
+                  Gérez vos actualités et articles
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 
-                className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-                style={{ fontFamily: 'Poppins, Helvetica' }}
+            
+            {/* Bouton Nouvelle Actualités - Même style que les évènements */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => navigateToRoute('/actualites/create')}
+                className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#ecf1fd] hover:bg-[#d9e4fb]'} shadow-md hover:shadow-lg transition-all`}
+                style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
               >
-                Actualités
-              </h1>
-              <p 
-                className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-              >
-                Gérez vos actualités et articles
-              </p>
+                <Plus className="w-4 h-4" style={{ color: primaryColor }} />
+                <span className="font-medium text-[17px]" style={{ color: primaryColor }}>
+                  Nouvelle Actualités
+                </span>
+              </Button>
             </div>
           </div>
 
@@ -394,6 +425,110 @@ export const Actualites = (): JSX.Element => {
                 )}
               </div>
 
+              {/* Filtre Statut */}
+              <div className="relative" ref={statusDropdownRef}>
+                <button
+                  onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                  className={`inline-flex items-center gap-2 px-4 py-3 rounded-[12px] h-[52px] border transition-colors ${
+                    isDark
+                      ? 'bg-gray-800 border-gray-700 hover:bg-gray-700 text-white'
+                      : 'bg-white border-[#e2e8f0] hover:bg-gray-50 text-[#64748b]'
+                  } ${selectedStatus ? (isDark ? 'border-blue-500' : 'border-blue-500 bg-blue-50') : ''}`}
+                  style={{ 
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    ...(selectedStatus && !isDark ? { backgroundColor: '#eff6ff', borderColor: '#3b82f6', color: '#3b82f6' } : {})
+                  }}
+                >
+                  <span className="text-[15px] font-medium">
+                    {selectedStatus === 'published' ? 'Publiées' :
+                     selectedStatus === 'draft' ? 'Brouillons' :
+                     selectedStatus === 'archived' ? 'Passées' :
+                     selectedStatus === 'upcoming' ? 'À venir' :
+                     'Statut'}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showStatusDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showStatusDropdown && (
+                  <div 
+                    className={`absolute right-0 mt-2 w-48 rounded-lg shadow-xl z-[100] ${
+                      isDark 
+                        ? 'bg-gray-800 border border-gray-700' 
+                        : 'bg-white border border-gray-200'
+                    }`}
+                    style={{ 
+                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedStatus('');
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        !selectedStatus
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>Tous les statuts</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedStatus('upcoming');
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        selectedStatus === 'upcoming'
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>À venir</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedStatus('published');
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        selectedStatus === 'published'
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>Publiées</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedStatus('draft');
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        selectedStatus === 'draft'
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>Brouillons</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedStatus('archived');
+                        setShowStatusDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                        selectedStatus === 'archived'
+                          ? (isDark ? 'bg-gray-700 text-white' : 'bg-blue-50 text-blue-600')
+                          : (isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700')
+                      }`}
+                    >
+                      <span>Passées</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Toggle Vue Grid/List */}
               <div className={`inline-flex items-center rounded-[12px] border p-1 h-[52px] ${
                 isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e8f0]'
@@ -435,24 +570,6 @@ export const Actualites = (): JSX.Element => {
                   />
                 </button>
               </div>
-
-              {/* Bouton Nouvelle Actualités */}
-              <Button
-                onClick={() => navigateToRoute('/actualites/create')}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-[12px] h-[52px] border-2 transition-all ${
-                  isDark
-                    ? 'bg-white border-white hover:bg-gray-100 text-gray-900'
-                    : 'bg-white border-[#3b82f6] hover:bg-[#eff6ff] text-[#3b82f6]'
-                }`}
-                style={{ 
-                  borderColor: primaryColor,
-                  color: primaryColor,
-                  fontFamily: 'Inter, -apple-system, sans-serif'
-                }}
-              >
-                <Plus className="w-5 h-5" />
-                <span className="text-[15px] font-semibold">Nouvelle Actualités</span>
-              </Button>
             </div>
           </div>
         </div>

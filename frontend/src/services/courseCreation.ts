@@ -33,6 +33,51 @@ class CourseCreationService {
     return apiService.get(`${this.orgCoursesBase}/subcategories/${categoryId}`);
   }
 
+  createSubcategory(categoryId: number, data: { name: string; description?: string }) {
+    return apiService.post(`${this.orgCoursesBase}/subcategories`, {
+      category_id: categoryId,
+      name: data.name,
+      description: data.description
+    });
+  }
+
+  // Custom categories management
+  getCategories(params?: { include_custom?: boolean }) {
+    const queryParams = new URLSearchParams();
+    if (params?.include_custom !== undefined) {
+      queryParams.append('include_custom', params.include_custom.toString());
+    }
+    const qs = queryParams.toString();
+    return apiService.get(`${this.orgCoursesBase}/categories${qs ? `?${qs}` : ''}`);
+  }
+
+  createCustomCategory(data: { name: string; description?: string }) {
+    return apiService.post(`${this.orgCoursesBase}/categories/custom`, data);
+  }
+
+  updateCustomCategory(categoryId: number, data: { name: string; description?: string }) {
+    return apiService.put(`${this.orgCoursesBase}/categories/custom/${categoryId}`, data);
+  }
+
+  deleteCustomCategory(categoryId: number) {
+    return apiService.delete(`${this.orgCoursesBase}/categories/custom/${categoryId}`);
+  }
+
+  // Formation practices management
+  getFormationPractices() {
+    return apiService.get('/api/courses/formation-practices');
+  }
+
+  getCourseFormationPractices(courseUuid: UUID) {
+    return apiService.get(`${this.orgCoursesBase}/${courseUuid}/formation-practices`);
+  }
+
+  updateCourseFormationPractices(courseUuid: UUID, practiceIds: number[]) {
+    return apiService.put(`${this.orgCoursesBase}/${courseUuid}/formation-practices`, {
+      practice_ids: practiceIds
+    });
+  }
+
   getCourses(params?: { per_page?: number; page?: number; search?: string; status?: number; category?: number }) {
     const queryParams = new URLSearchParams();
     if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
@@ -176,6 +221,16 @@ class CourseCreationService {
 
   updateCourseSpecifics(courseUuid: UUID, data: { specifics?: string }) {
     return apiService.put(`${this.orgCoursesBase}/${courseUuid}/specifics`, data);
+  }
+
+  updateCourseAdditionalInfo(courseUuid: UUID, data: { 
+    evaluation_modalities?: string; 
+    access_modalities?: string; 
+    accessibility?: string; 
+    contacts?: string; 
+    update_date?: string;
+  }) {
+    return apiService.put(`${this.orgCoursesBase}/${courseUuid}/additional-info`, data);
   }
 
   updateCourseYouTubeVideo(courseUuid: UUID, data: { youtube_video_id?: string }) {

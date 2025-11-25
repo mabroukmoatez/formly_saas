@@ -36,6 +36,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     formData,
     updateFormField,
     loadSubcategories,
+    loadCategories,
     modules,
     objectives,
     additionalFees,
@@ -67,6 +68,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const [moduleDurations, setModuleDurations] = useState<{[key: string]: number}>({});
   const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
   const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
+  const [selectedPracticeIds, setSelectedPracticeIds] = useState<number[]>(formData.formation_practice_ids || []);
 
   // Load module durations from localStorage
   useEffect(() => {
@@ -214,6 +216,11 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     }
   };
 
+  const handlePracticesChanged = (practiceIds: number[]) => {
+    setSelectedPracticeIds(practiceIds);
+    updateFormField('formation_practice_ids', practiceIds);
+  };
+
   const handleAutoSave = () => {
     autoSave();
   };
@@ -276,7 +283,12 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
       vat_applied: false, // Default value since not in interface
       unit: 'EUR' // Default value since not in interface
     })),
-    specifics: formData.specifics || ''
+    specifics: formData.specifics || '',
+    evaluationModalities: formData.evaluation_modalities || '',
+    accessModalities: formData.access_modalities || '',
+    accessibility: formData.accessibility || '',
+    contacts: formData.contacts || '',
+    updateDate: formData.update_date || ''
   };
 
   // Handlers for CollapsibleSections
@@ -578,13 +590,13 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         formData={headerFormData}
       />
       
-      <main className="w-full flex justify-center py-7 px-4">
+      <main className="w-full flex justify-center pb-7 px-4">
         <div className="w-full max-w-[1396px] space-y-6">
           {/* Render content based on current step */}
           {currentStep === 1 && (
             <>
             <CourseInformationForm
-                formData={transformedFormData}
+              formData={transformedFormData}
               categories={categories}
               subcategories={subcategories}
               onInputChange={handleInputChange}
@@ -592,6 +604,12 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
               onFileUrlUpdate={handleFileUrlUpdate}
               uploadIntroVideo={uploadIntroVideo}
               uploadIntroImage={uploadIntroImage}
+              onCategoryCreated={loadCategories}
+              onSubcategoryCreated={() => {
+                if (formData.category_id) {
+                  loadSubcategories(formData.category_id);
+                }
+              }}
             />
 
               <CollapsibleSections
@@ -625,6 +643,16 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
                 onUpdateAdditionalFee={handleUpdateAdditionalFee}
                 onRemoveAdditionalFee={handleRemoveAdditionalFee}
                 onUpdateSpecifics={handleUpdateSpecifics}
+                evaluationModalities={collapsibleSectionsData.evaluationModalities}
+                accessModalities={collapsibleSectionsData.accessModalities}
+                accessibility={collapsibleSectionsData.accessibility}
+                contacts={collapsibleSectionsData.contacts}
+                updateDate={collapsibleSectionsData.updateDate}
+                onUpdateEvaluationModalities={(content) => updateFormField('evaluation_modalities', content)}
+                onUpdateAccessModalities={(content) => updateFormField('access_modalities', content)}
+                onUpdateAccessibility={(content) => updateFormField('accessibility', content)}
+                onUpdateContacts={(content) => updateFormField('contacts', content)}
+                onUpdateUpdateDate={(content) => updateFormField('update_date', content)}
                     />
             </>
           )}
@@ -655,17 +683,19 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
             
             <button
               onClick={handleNextStep}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${
                 currentStep === 6
                   ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'text-white'
               }`}
-                            style={{ 
-                backgroundColor: currentStep === 6 ? '#16a34a' : (organization?.primary_color || '#2563eb'),
-                color: 'white'
+              style={{ 
+                backgroundColor: currentStep === 6 ? '#16a34a' : (organization?.primary_color || '#0066FF'),
+                color: 'white',
+                fontSize: '16px',
+                padding: '12px 32px'
               }}
             >
-              {currentStep === 6 ? 'Terminer' : t('common.next')}
+              {currentStep === 6 ? 'Soumettre' : t('common.next')}
             </button>
                       </div>
                     </div>

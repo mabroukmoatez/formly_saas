@@ -37,10 +37,10 @@ export const RichTextField: React.FC<RichTextFieldProps> = ({
         </div>
 
         <RichTextEditor
-          content={value}
+          value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className={`min-h-[${minHeight}]`}
+          minHeight={minHeight}
         />
       </div>
     </div>

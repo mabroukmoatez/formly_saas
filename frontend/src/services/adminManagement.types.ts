@@ -4,23 +4,59 @@
 export interface OrganizationSettings {
   id: number;
   name: string;
+  organization_name?: string;
   siret: string;
+  naf_code?: string;
+  rcs?: string;
+  nda?: string;
+  declaration_region?: string;
+  nda_attribution_date?: string;
+  attribution_date?: string;
+  uai_number?: string;
   legal_name: string;
   address: string;
+  address_complement?: string;
   postal_code: string;
+  zip_code?: string;
   city: string;
   country: string;
   phone: string;
+  phone_number?: string;
   fax?: string;
   email: string;
+  organization_email?: string;
   website?: string;
   welcome_booklet_path?: string;
+  welcome_booklet_url?: string;
   internal_regulations_path?: string;
+  internal_regulations_url?: string;
+  cgv_path?: string;
+  cgv_url?: string;
   logo_path?: string;
   director_name: string;
   training_license_number?: string;
   qualiopi_certification_date?: string;
   qualiopi_certificate_path?: string;
+  qualiopi_certificate_url?: string;
+  custom_documents?: OrganizationDocument[];
+}
+
+// 1.1. Organization Documents
+export interface OrganizationDocument {
+  id: number;
+  name: string;
+  path?: string;
+  url?: string;
+  size?: number;
+  mime_type?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrganizationDocumentsResponse {
+  cgv: OrganizationDocument | null;
+  internal_regulations: OrganizationDocument | null;
+  custom_documents: OrganizationDocument[];
 }
 
 // 2. Messaging

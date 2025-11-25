@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -6,6 +6,8 @@ import { Label } from '../ui/label';
 import { Card, CardContent } from '../ui/card';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
+import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
+import { fixImageUrl } from '../../lib/utils';
 
 interface CompanyInformationModalProps {
   isOpen: boolean;
@@ -20,6 +22,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
+  const { settings } = useOrganizationSettings();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [formData, setFormData] = useState({
@@ -44,6 +47,34 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     legal_form: '',
     director_name: '',
   });
+
+  // Load settings data when modal opens and settings are available
+  useEffect(() => {
+    if (settings && isOpen) {
+      setFormData({
+        company_name: (settings as any)?.organization_name || settings?.name || organization?.organization_name || '',
+        legal_name: (settings as any)?.legal_name || '',
+        address: (settings as any)?.address || settings?.address || '',
+        address_complement: (settings as any)?.address_complement || '',
+        zip_code: (settings as any)?.postal_code || (settings as any)?.zip_code || settings?.postal_code || '',
+        city: (settings as any)?.city || settings?.city || '',
+        country: (settings as any)?.country || settings?.country || 'France',
+        phone_fixed: (settings as any)?.phone_fixed || (settings as any)?.phone || settings?.phone || '',
+        phone_mobile: (settings as any)?.phone_mobile || '',
+        email: (settings as any)?.email || settings?.email || (settings as any)?.organization_email || '',
+        website: (settings as any)?.website || settings?.website || '',
+        fax: (settings as any)?.fax || settings?.fax || '',
+        vat_number: (settings as any)?.tva_number || (settings as any)?.vat_number || '',
+        siret: (settings as any)?.siret || settings?.siret || '',
+        siren: (settings as any)?.siren || '',
+        rcs: (settings as any)?.rcs || '',
+        naf_code: (settings as any)?.naf_code || '',
+        capital: (settings as any)?.capital || '',
+        legal_form: (settings as any)?.legal_form || '',
+        director_name: (settings as any)?.director_name || settings?.director_name || '',
+      });
+    }
+  }, [settings, isOpen, organization]);
 
   const handleSave = () => {
     onSave(formData);
@@ -73,7 +104,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
               <Label>Logo de l'entreprise</Label>
               <div className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                 {organization?.organization_logo_url ? (
-                  <img src={organization.organization_logo_url} alt="Logo" className="h-20 mx-auto" />
+                  <img src={fixImageUrl(organization.organization_logo_url)} alt="Logo" className="h-20 mx-auto" />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <Upload className="w-8 h-8 text-gray-400" />

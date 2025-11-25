@@ -23,10 +23,16 @@ import {
   FileUp, 
   ChevronDown,
   ChevronUp,
-  Menu,
   ArrowUpDown,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Calendar,
+  X,
+  FileDown,
+  FileText,
+  RotateCw
 } from 'lucide-react';
+import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -62,28 +68,40 @@ export const MesFactures = (): JSX.Element => {
   const [deleting, setDeleting] = useState(false);
   const [sortField, setSortField] = useState<SortField>('issue_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [allExpanded, setAllExpanded] = useState(false);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  
+  // Filter states
+  const [minAmount, setMinAmount] = useState<string>('');
+  const [maxAmount, setMaxAmount] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailModalInvoice, setEmailModalInvoice] = useState<Invoice | null>(null);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
-      }
-    };
-    if (showSortDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showSortDropdown]);
+  // Format date for input (DD-MM-YYYY)
+  const formatDateForInput = (date: Date): string => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  // Parse date from input (DD-MM-YYYY)
+  const parseDateFromInput = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return null;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  };
 
   useEffect(() => {
     fetchInvoices();
-  }, [page, selectedStatus, searchTerm]);
+  }, [page, selectedStatus, searchTerm, minAmount, maxAmount, dateFrom, dateTo, filterType, filterStatus]);
 
   const confirmDeleteInvoice = async () => {
     if (!invoiceToDelete) return;
@@ -119,11 +137,32 @@ export const MesFactures = (): JSX.Element => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
+      
+      // Parse amount values
+      const minAmountValue = minAmount ? parseFloat(minAmount.replace(/[^\d.,]/g, '').replace(',', '.')) : undefined;
+      const maxAmountValue = maxAmount ? parseFloat(maxAmount.replace(/[^\d.,]/g, '').replace(',', '.')) : undefined;
+      
+      // Format dates for API (YYYY-MM-DD)
+      const formatDateForAPI = (dateString: string): string | undefined => {
+        if (!dateString) return undefined;
+        const parsed = parseDateFromInput(dateString);
+        if (!parsed) return undefined;
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
       const response = await commercialService.getInvoices({
         page,
         per_page: 12,
         search: searchTerm || undefined,
-        status: selectedStatus || undefined,
+        status: filterStatus || selectedStatus || undefined,
+        min_amount: minAmountValue,
+        max_amount: maxAmountValue,
+        date_from: formatDateForAPI(dateFrom),
+        date_to: formatDateForAPI(dateTo),
+        client_type: filterType || undefined,
       });
       if (response.success && response.data) {
         const responseData = response.data as any;
@@ -142,14 +181,6 @@ export const MesFactures = (): JSX.Element => {
       setInvoices([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedInvoices(new Set(invoices.map(inv => inv.id)));
-    } else {
-      setSelectedInvoices(new Set());
     }
   };
 
@@ -172,8 +203,54 @@ export const MesFactures = (): JSX.Element => {
     }
   };
 
+  // Note: Filters are now applied on the backend, but we keep client-side filtering as fallback
+  // if backend doesn't support all filters yet
+  const filteredInvoices = useMemo(() => {
+    // If backend supports all filters, return invoices as-is
+    // Otherwise, apply client-side filtering as fallback
+    let filtered = [...invoices];
+
+    // Only apply client-side filtering if backend doesn't support it
+    // (This is a fallback - ideally all filtering should be done on backend)
+    const needsClientSideFilter = false; // Set to true if backend doesn't support all filters yet
+
+    if (needsClientSideFilter) {
+      // Filter by amount
+      if (minAmount || maxAmount) {
+        const min = minAmount ? parseFloat(minAmount.replace(/[^\d.,]/g, '').replace(',', '.')) : 0;
+        const max = maxAmount ? parseFloat(maxAmount.replace(/[^\d.,]/g, '').replace(',', '.')) : Infinity;
+        filtered = filtered.filter(inv => {
+          const amount = parseFloat(String(inv.total_ttc || inv.total_amount || 0));
+          return amount >= min && amount <= max;
+        });
+      }
+
+      // Filter by date
+      if (dateFrom || dateTo) {
+        const fromDate = dateFrom ? parseDateFromInput(dateFrom) : null;
+        const toDate = dateTo ? parseDateFromInput(dateTo) : null;
+        filtered = filtered.filter(inv => {
+          const invDate = new Date(inv.issue_date);
+          if (fromDate && invDate < fromDate) return false;
+          if (toDate && invDate > toDate) return false;
+          return true;
+        });
+      }
+
+      // Filter by type
+      if (filterType) {
+        filtered = filtered.filter(inv => {
+          const type = inv.client?.type || 'particulier';
+          return type === filterType;
+        });
+      }
+    }
+
+    return filtered;
+  }, [invoices, minAmount, maxAmount, dateFrom, dateTo, filterType]);
+
   const sortedInvoices = useMemo(() => {
-    const sorted = [...invoices];
+    const sorted = [...filteredInvoices];
     sorted.sort((a, b) => {
       let aValue: any;
       let bValue: any;
@@ -228,7 +305,75 @@ export const MesFactures = (): JSX.Element => {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     return sorted;
-  }, [invoices, sortField, sortDirection]);
+  }, [filteredInvoices, sortField, sortDirection]);
+
+  // Reset filters
+  const resetFilters = () => {
+    setMinAmount('');
+    setMaxAmount('');
+    setDateFrom('');
+    setDateTo('');
+    setFilterType('');
+    setFilterStatus('');
+  };
+
+  // Reset specific section
+  const resetAmountFilter = () => {
+    setMinAmount('');
+    setMaxAmount('');
+  };
+
+  const resetPeriodFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  const resetTypeFilter = () => {
+    setFilterType('');
+  };
+
+  const resetStatusFilter = () => {
+    setFilterStatus('');
+  };
+
+  // Quick date selections
+  const setToday = () => {
+    const today = new Date();
+    setDateFrom(formatDateForInput(today));
+    setDateTo(formatDateForInput(today));
+  };
+
+  const setThisWeek = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday
+    const monday = new Date(today.setDate(diff));
+    setDateFrom(formatDateForInput(monday));
+    setDateTo(formatDateForInput(new Date()));
+  };
+
+  const setThisMonth = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    setDateFrom(formatDateForInput(firstDay));
+    setDateTo(formatDateForInput(today));
+  };
+
+  // Apply filters
+  const applyFilters = () => {
+    setShowFilterModal(false);
+    setPage(1); // Reset to first page when applying filters
+    fetchInvoices();
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Sélectionner toutes les factures de la page actuelle
+      setSelectedInvoices(new Set(sortedInvoices.map(inv => String(inv.id))));
+    } else {
+      setSelectedInvoices(new Set());
+    }
+  };
 
   const getStatusColor = (status: string): { bg: string; text: string } => {
     const colors: Record<string, { bg: string; text: string }> = {
@@ -277,7 +422,12 @@ export const MesFactures = (): JSX.Element => {
 
   const handleExportExcel = async () => {
     try {
-      const csvData = invoices.map(inv => ({
+      // Si des factures sont sélectionnées, exporter seulement celles-ci
+      const invoicesToExport = selectedInvoices.size > 0
+        ? invoices.filter(inv => selectedInvoices.has(String(inv.id)))
+        : invoices;
+
+      const csvData = invoicesToExport.map(inv => ({
         'N°': inv.invoice_number,
         'Date': formatDate(inv.issue_date),
         'Type': getClientType(inv),
@@ -302,14 +452,83 @@ export const MesFactures = (): JSX.Element => {
       a.download = `factures_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      success('Factures exportées avec succès');
+      success(`${invoicesToExport.length} facture(s) exportée(s) avec succès`);
     } catch (err) {
       showError('Erreur', 'Impossible d\'exporter les factures');
     }
   };
 
-  const allSelected = selectedInvoices.size === invoices.length && invoices.length > 0;
-  const someSelected = selectedInvoices.size > 0 && selectedInvoices.size < invoices.length;
+  const handleExportSelectedExcel = async () => {
+    if (selectedInvoices.size === 0) {
+      showError('Erreur', 'Veuillez sélectionner au moins une facture');
+      return;
+    }
+    await handleExportExcel();
+  };
+
+  const handleExportSelectedPDF = async () => {
+    if (selectedInvoices.size === 0) {
+      showError('Erreur', 'Veuillez sélectionner au moins une facture');
+      return;
+    }
+    try {
+      const invoiceIds = Array.from(selectedInvoices);
+      // Générer un PDF pour chaque facture sélectionnée
+      for (const id of invoiceIds) {
+        const blob = await commercialService.generateInvoicePdf(id);
+        const invoice = invoices.find(inv => String(inv.id) === id);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Facture-${invoice?.invoice_number || id}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        // Petit délai entre chaque téléchargement
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      success(`${selectedInvoices.size} facture(s) exportée(s) en PDF avec succès`);
+    } catch (err: any) {
+      showError('Erreur', err.message || 'Impossible d\'exporter les factures en PDF');
+    }
+  };
+
+  const handleRelancerSelected = async () => {
+    if (selectedInvoices.size === 0) {
+      showError('Erreur', 'Veuillez sélectionner au moins une facture');
+      return;
+    }
+    // Ouvrir le modal d'email pour la première facture sélectionnée
+    const firstInvoiceId = Array.from(selectedInvoices)[0];
+    const firstInvoice = invoices.find(inv => String(inv.id) === firstInvoiceId);
+    if (firstInvoice) {
+      setEmailModalInvoice(firstInvoice);
+      setShowEmailModal(true);
+    }
+  };
+
+  const handleSendEmailConfirm = async (emailData: EmailData) => {
+    if (!emailModalInvoice) return;
+    
+    try {
+      // Envoyer l'email pour toutes les factures sélectionnées
+      const invoiceIds = Array.from(selectedInvoices);
+      for (const id of invoiceIds) {
+        await commercialService.sendInvoiceEmail(id, emailData);
+      }
+      success(`${selectedInvoices.size} facture(s) relancée(s) avec succès`);
+      setShowEmailModal(false);
+      setEmailModalInvoice(null);
+      setSelectedInvoices(new Set());
+      fetchInvoices();
+    } catch (err: any) {
+      showError('Erreur', err.message || 'Impossible de relancer les factures');
+      throw err;
+    }
+  };
+
+  // Calculer si toutes les factures affichées sont sélectionnées
+  const allSelected = sortedInvoices.length > 0 && sortedInvoices.every(inv => selectedInvoices.has(String(inv.id)));
+  const someSelected = sortedInvoices.some(inv => selectedInvoices.has(String(inv.id))) && !allSelected;
 
   if (loading && invoices.length === 0) {
     return (
@@ -381,12 +600,12 @@ export const MesFactures = (): JSX.Element => {
       {/* Filters and Table Card */}
       <div className={`flex flex-col gap-[18px] w-full ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-6`}>
         {/* Top Action Bar */}
-        <div className="flex items-center justify-between w-full">
-          {/* Left: Search */}
-          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
+        <div className="flex items-center justify-between w-full gap-3">
+          {/* Left: Search Bar - Position fixe, toujours au même endroit */}
+          <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px', flexShrink: 0 }}>
             <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
             <Input
-              placeholder="Rechercher Par Client"
+              placeholder="Rechercher Un Document"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -402,13 +621,112 @@ export const MesFactures = (): JSX.Element => {
             />
           </div>
 
-          {/* Right: Sort and Export */}
-          <div className="flex items-center gap-3">
-            {/* Sort Button */}
-            <div className="relative" ref={sortDropdownRef}>
+          {/* Middle: Action Buttons (shown when invoices are selected) */}
+          {selectedInvoices.size > 0 && (
+            <div className="flex items-center gap-3 flex-1 justify-start" style={{ marginLeft: '16px' }}>
               <Button
                 variant="outline"
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                onClick={handleExportSelectedExcel}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{ 
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <FileDown className="w-4 h-4" />
+                <FileSpreadsheet className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Export Excel
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleExportSelectedPDF}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{ 
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <FileDown className="w-4 h-4" />
+                <FileText className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Export PDF
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setInvoiceToDelete('bulk');
+                  setShowDeleteModal(true);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{ 
+                  borderColor: '#ef4444',
+                  backgroundColor: '#ef4444',
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <FileDown className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Supprimer
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleRelancerSelected}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{ 
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <RotateCw className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Relancer
+                </span>
+              </Button>
+            </div>
+          )}
+
+          {/* Right: Filter and Export (shown when no invoices are selected) */}
+          {selectedInvoices.size === 0 && (
+            <div className="flex items-center gap-3">
+              {/* Filter Button */}
+              <Button
+                variant="outline"
+                onClick={() => setShowFilterModal(true)}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
               >
                 <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
@@ -417,46 +735,24 @@ export const MesFactures = (): JSX.Element => {
                 </span>
                 <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               </Button>
-              {showSortDropdown && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                  <div className="p-2">
-                    {(['invoice_number', 'issue_date', 'client_name', 'total_ttc', 'status'] as SortField[]).map((field) => (
-                      <button
-                        key={field}
-                        onClick={() => {
-                          handleSort(field);
-                          setShowSortDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        {field === 'invoice_number' && 'N°'}
-                        {field === 'issue_date' && 'Date'}
-                        {field === 'client_name' && 'Client'}
-                        {field === 'total_ttc' && 'Montant TTC'}
-                        {field === 'status' && 'Statut'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
 
-            {/* Export Excel Button */}
-            <Button
-              variant="outline"
-              onClick={handleExportExcel}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
-              style={{ 
-                borderColor: isDark ? undefined : primaryColor,
-                borderStyle: 'dashed',
-              }}
-            >
-              <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
-              <span className="font-medium text-sm" style={{ color: primaryColor }}>
-                Export Excel
-              </span>
-            </Button>
-          </div>
+              {/* Export Excel Button */}
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+                style={{ 
+                  borderColor: isDark ? undefined : primaryColor,
+                  borderStyle: 'dashed',
+                }}
+              >
+                <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
+                <span className="font-medium text-sm" style={{ color: primaryColor }}>
+                  Export Excel
+                </span>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -472,19 +768,12 @@ export const MesFactures = (): JSX.Element => {
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
                   <TableHead className="w-[50px] px-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setAllExpanded(!allExpanded)}
-                        className={`p-1 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                      >
-                        <Menu className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-                      </button>
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
-                      />
-                    </div>
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                      className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
+                      style={someSelected && !allSelected ? { opacity: 0.7 } : {}}
+                    />
                   </TableHead>
                   <TableHead 
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
@@ -780,6 +1069,201 @@ export const MesFactures = (): JSX.Element => {
       </div>
 
 
+      {/* Filter Modal */}
+      <Dialog open={showFilterModal} onOpenChange={setShowFilterModal}>
+        <DialogContent className={`sm:max-w-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+          <DialogHeader>
+            <DialogTitle className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+              Filtrer les factures
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex flex-col gap-6 mt-4">
+            {/* Montant TTC Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                    Montant TTC
+                  </label>
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Min</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Max</span>
+                  </div>
+                </div>
+                <button
+                  onClick={resetAmountFilter}
+                  className="text-sm font-medium"
+                  style={{ color: primaryColor }}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="text"
+                  placeholder="1000 €"
+                  value={minAmount}
+                  onChange={(e) => setMinAmount(e.target.value)}
+                  className={`flex-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white`}
+                />
+                <Input
+                  type="text"
+                  placeholder="2000 €"
+                  value={maxAmount}
+                  onChange={(e) => setMaxAmount(e.target.value)}
+                  className={`flex-1 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white`}
+                />
+              </div>
+            </div>
+
+            {/* Période Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                  <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                    Période
+                  </label>
+                  <div className="flex items-center gap-4 mt-1">
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>De</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>À</span>
+                  </div>
+                </div>
+                <button
+                  onClick={resetPeriodFilter}
+                  className="text-sm font-medium"
+                  style={{ color: primaryColor }}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 relative">
+                  <Input
+                    type="text"
+                    placeholder="09-10-2025"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white pr-10`}
+                  />
+                  <Calendar className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+                <div className="flex-1 relative">
+                  <Input
+                    type="text"
+                    placeholder="09-11-2025"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white pr-10`}
+                  />
+                  <Calendar className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={setToday}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Aujourd'hui
+                </button>
+                <button
+                  onClick={setThisWeek}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Cette Semaine
+                </button>
+                <button
+                  onClick={setThisMonth}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    isDark 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Ce Mois
+                </button>
+              </div>
+            </div>
+
+            {/* Type Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                  Type
+                </label>
+                <button
+                  onClick={resetTypeFilter}
+                  className="text-sm font-medium"
+                  style={{ color: primaryColor }}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="relative">
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white px-4 py-2 appearance-none pr-10`}
+                >
+                  <option value="">Tous</option>
+                  <option value="particulier">Particulier</option>
+                  <option value="company">Entreprise</option>
+                </select>
+                <ChevronDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              </div>
+            </div>
+
+            {/* Status Section */}
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                  Status
+                </label>
+                <button
+                  onClick={resetStatusFilter}
+                  className="text-sm font-medium"
+                  style={{ color: primaryColor }}
+                >
+                  Reset
+                </button>
+              </div>
+              <div className="relative">
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white px-4 py-2 appearance-none pr-10`}
+                >
+                  <option value="">Tous</option>
+                  <option value="paid">Payée</option>
+                  <option value="sent">Envoyée</option>
+                  <option value="draft">Brouillon</option>
+                  <option value="overdue">Impayée</option>
+                  <option value="cancelled">Annulée</option>
+                </select>
+                <ChevronDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <Button
+              onClick={applyFilters}
+              className="w-full py-3 rounded-lg text-white font-medium"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Appliquer les filtres
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Invoice View Modal */}
       <InvoiceViewModal
         isOpen={isViewModalOpen}
@@ -818,6 +1302,24 @@ export const MesFactures = (): JSX.Element => {
           }
         }}
       />
+
+      {/* Email Modal for Relance */}
+      {emailModalInvoice && (
+        <EmailModal
+          isOpen={showEmailModal}
+          onClose={() => {
+            setShowEmailModal(false);
+            setEmailModalInvoice(null);
+          }}
+          onSend={handleSendEmailConfirm}
+          documentType="invoice"
+          documentNumber={emailModalInvoice.invoice_number || ''}
+          clientEmail={emailModalInvoice.client?.email || emailModalInvoice.client_email || ''}
+          clientName={emailModalInvoice.client?.company_name || 
+            `${emailModalInvoice.client?.first_name || ''} ${emailModalInvoice.client?.last_name || ''}`.trim() ||
+            emailModalInvoice.client_name || ''}
+        />
+      )}
     </div>
   );
 };

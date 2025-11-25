@@ -11,7 +11,12 @@ import {
   PrerequisitesSection, 
   MethodsSection, 
   PricingSection, 
-  SpecificsSection 
+  SpecificsSection,
+  EvaluationModalitiesSection,
+  AccessModalitiesSection,
+  AccessibilitySection,
+  ContactsSection,
+  UpdateDateSection
 } from './SectionContent';
 
 interface CollapsibleSection {
@@ -50,6 +55,11 @@ interface CollapsibleSectionsProps {
     unit: string;
   }>;
   specifics: string;
+  evaluationModalities: string;
+  accessModalities: string;
+  accessibility: string;
+  contacts: string;
+  updateDate: string;
   // Handler props
   onAddModule: () => void;
   onUpdateModule: (id: string, field: string, value: any) => void;
@@ -67,6 +77,11 @@ interface CollapsibleSectionsProps {
   onUpdateAdditionalFee: (id: string, field: string, value: any) => void;
   onRemoveAdditionalFee: (id: string) => void;
   onUpdateSpecifics: (content: string) => void;
+  onUpdateEvaluationModalities: (content: string) => void;
+  onUpdateAccessModalities: (content: string) => void;
+  onUpdateAccessibility: (content: string) => void;
+  onUpdateContacts: (content: string) => void;
+  onUpdateUpdateDate: (content: string) => void;
 }
 
 export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
@@ -81,6 +96,11 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   vatPercentage,
   additionalFees,
   specifics,
+  evaluationModalities,
+  accessModalities,
+  accessibility,
+  contacts,
+  updateDate,
   onAddModule,
   onUpdateModule,
   onRemoveModule,
@@ -97,6 +117,11 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   onUpdateAdditionalFee,
   onRemoveAdditionalFee,
   onUpdateSpecifics,
+  onUpdateEvaluationModalities,
+  onUpdateAccessModalities,
+  onUpdateAccessibility,
+  onUpdateContacts,
+  onUpdateUpdateDate,
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
@@ -150,6 +175,31 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
       id: 6,
       title: t('courseCreation.sections.specifics'),
       icon: '/assets/icons/expand-specifics.png',
+    },
+    {
+      id: 7,
+      title: "Modalités D'évaluation",
+      icon: '/assets/icons/expand-method.png',
+    },
+    {
+      id: 8,
+      title: "Modalités Et Délais D'accès",
+      icon: '/assets/icons/expand-method.png',
+    },
+    {
+      id: 9,
+      title: "Accessibilité Aux Personnes Handicapées",
+      icon: '/assets/icons/expand-method.png',
+    },
+    {
+      id: 10,
+      title: "Contacts",
+      icon: '/assets/icons/expand-method.png',
+    },
+    {
+      id: 11,
+      title: "Date De MAJ",
+      icon: '/assets/icons/expand-method.png',
     },
   ];
 
@@ -212,6 +262,41 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onUpdateSpecifics={onUpdateSpecifics}
           />
         );
+      case 7: // Evaluation Modalities
+        return (
+          <EvaluationModalitiesSection
+            evaluationModalities={evaluationModalities}
+            onUpdateEvaluationModalities={onUpdateEvaluationModalities}
+          />
+        );
+      case 8: // Access Modalities
+        return (
+          <AccessModalitiesSection
+            accessModalities={accessModalities}
+            onUpdateAccessModalities={onUpdateAccessModalities}
+          />
+        );
+      case 9: // Accessibility
+        return (
+          <AccessibilitySection
+            accessibility={accessibility}
+            onUpdateAccessibility={onUpdateAccessibility}
+          />
+        );
+      case 10: // Contacts
+        return (
+          <ContactsSection
+            contacts={contacts}
+            onUpdateContacts={onUpdateContacts}
+          />
+        );
+      case 11: // Update Date
+        return (
+          <UpdateDateSection
+            updateDate={updateDate}
+            onUpdateUpdateDate={onUpdateUpdateDate}
+          />
+        );
       default:
         return (
           <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -233,56 +318,29 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
         <Card
           key={section.id}
           data-section-id={section.id}
-          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative cursor-pointer transition-all duration-200 hover:shadow-lg ${
+          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative transition-all duration-200 hover:shadow-lg ${
             isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#dbd8d8]'
           }`}
-          onClick={(e) => {
-            // Check if the click target is any interactive element
-            const target = e.target as HTMLElement;
-            
-            // Basic interactive elements
-            const isButton = target.tagName === 'BUTTON' || target.closest('button');
-            const isInput = target.tagName === 'INPUT' || target.closest('input');
-            const isTextarea = target.tagName === 'TEXTAREA' || target.closest('textarea');
-            const isSelect = target.tagName === 'SELECT' || target.closest('select');
-            const isLink = target.tagName === 'A' || target.closest('a');
-            
-            // Rich text editor elements
-            const isProseMirror = target.closest('.ProseMirror');
-            const isProseMirrorEditor = target.closest('.ProseMirror-focused');
-            const isRichTextToolbar = target.closest('[data-tippy-root]') || target.closest('.tippy-box');
-            const isRichTextContainer = target.closest('.rich-text-editor') || target.closest('[class*="rich-text"]');
-            
-            // Content editable elements
-            const isEditable = target.contentEditable === 'true' || target.closest('[contenteditable="true"]');
-            const isEditableDiv = target.closest('div[contenteditable]');
-            
-            // Form elements and interactive containers
-            const isFormElement = target.closest('form') || target.closest('[role="form"]');
-            const isInteractiveContainer = target.closest('[role="textbox"]') || target.closest('[role="combobox"]');
-            
-            // Check for data-action attributes
-            const hasDataAction = target.hasAttribute('data-action') || target.closest('[data-action]');
-            
-            // Check for data-interactive attributes
-            const hasDataInteractive = target.hasAttribute('data-interactive') || target.closest('[data-interactive]');
-            
-            // Check for specific classes that indicate interactive content
-            const isInteractiveClass = target.closest('.interactive') || target.closest('[class*="editor"]') || target.closest('[class*="input"]');
-            
-            const isInteractive = isButton || isInput || isTextarea || isSelect || isLink || 
-                                isEditable || isEditableDiv || isProseMirror || isProseMirrorEditor || 
-                                isRichTextToolbar || isRichTextContainer || isFormElement || 
-                                isInteractiveContainer || hasDataAction || hasDataInteractive || isInteractiveClass;
-            
-            if (isInteractive) {
-              return;
-            }
-            
-            toggleSection(section.id);
-          }}
         >
-          <CardContent className="p-5 flex items-center justify-between">
+          <CardContent 
+            className="p-5 flex items-center justify-between cursor-pointer"
+            onClick={(e) => {
+              // Only toggle when clicking on the header
+              const target = e.target as HTMLElement;
+              
+              // Check if clicking on interactive elements in header
+              const isButton = target.tagName === 'BUTTON' || target.closest('button');
+              const isLink = target.tagName === 'A' || target.closest('a');
+              
+              // Don't toggle if clicking on buttons or links in header
+              if (isButton || isLink) {
+                return;
+              }
+              
+              // Toggle the section
+              toggleSection(section.id);
+            }}
+          >
             <div className="inline-flex items-center gap-3">
               <div className="inline-flex items-center gap-2">
                 <div 
@@ -325,7 +383,18 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
           </CardContent>
           
           {expandedSections.has(section.id) && (
-            <div className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}>
+            <div 
+              className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}
+              onClick={(e) => {
+                // Always stop propagation for section content
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => {
+                // Stop propagation on mousedown as well
+                e.stopPropagation();
+              }}
+              data-section-content="true"
+            >
               <div className="pt-4">
                 {section.content || getSectionContent(section.id)}
               </div>

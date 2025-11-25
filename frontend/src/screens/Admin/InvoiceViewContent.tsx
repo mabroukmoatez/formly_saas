@@ -16,6 +16,7 @@ import { CompanyInformationModal } from '../../components/CommercialDashboard/Co
 import { ClientInformationModal } from '../../components/CommercialDashboard/ClientInformationModal';
 import { PaymentConditionsModal } from '../../components/CommercialDashboard/PaymentConditionsModal';
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
+import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { Article, InvoiceClient, Invoice } from '../../services/commercial.types';
 
 interface InvoiceItem {
@@ -62,6 +63,8 @@ export const InvoiceViewContent: React.FC = () => {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Load invoice and company details
   useEffect(() => {
@@ -367,6 +370,34 @@ export const InvoiceViewContent: React.FC = () => {
     }
   };
 
+  const handleDelete = () => {
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!id) {
+      showError('Erreur', 'ID de facture manquant');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await commercialService.deleteInvoice(id);
+      success('Facture supprimée avec succès');
+      if (subdomain) {
+        navigate(`/${subdomain}/mes-factures`);
+      } else {
+        navigate('/mes-factures');
+      }
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      showError('Erreur', err.message || 'Impossible de supprimer la facture');
+    } finally {
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   const handleSelectArticle = (article: Article) => {
     const unitPrice = article.unit_price || parseFloat(article.price_ht || '0');
     const newItem: InvoiceItem = {
@@ -437,6 +468,20 @@ export const InvoiceViewContent: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            onClick={handleDelete}
+            disabled={deleting || saving}
+            className={`h-auto inline-flex items-center justify-center w-10 h-10 p-0 ${isDark ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400' : 'bg-red-50 hover:bg-red-100 text-red-500'} rounded-full`}
+            title="Supprimer la facture"
+          >
+            {deleting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Trash2 className="w-5 h-5" />
+            )}
+          </Button>
+
           {/* Status Change Button */}
           {currentInvoice && (
             <div className="relative">
@@ -692,7 +737,7 @@ export const InvoiceViewContent: React.FC = () => {
         <div className={`w-full rounded-[29.41px] border-0 shadow-none ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <div className="flex flex-col gap-6 p-6">
             {/* Table Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between px-7">
               <div className="inline-flex items-center gap-[29px]">
                 <div className={`font-semibold text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   Référence
@@ -733,27 +778,13 @@ export const InvoiceViewContent: React.FC = () => {
                       key={item.id}
                       className={`flex w-full items-center justify-between px-7 py-4 rounded-[30px] border ${isDark ? 'border-gray-600 bg-gray-700' : 'border-[#ebeff6] bg-white'}`}
                     >
-                      <div className="flex w-[167px] items-center justify-between">
-                        <Input
-                          value={item.reference}
-                          onChange={(e) => {
-                            const updated = [...items];
-                            updated[index] = { ...item, reference: e.target.value };
-                            setItems(updated);
-                          }}
-                          className={`font-semibold text-xs text-right border-0 p-1 ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-                          placeholder="Réf."
-                        />
-                        <Input
-                          value={item.designation}
-                          onChange={(e) => {
-                            const updated = [...items];
-                            updated[index] = { ...item, designation: e.target.value };
-                            setItems(updated);
-                          }}
-                          className={`font-semibold text-xs border-0 p-1 ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-                          placeholder="Désignation"
-                        />
+                      <div className="flex items-center gap-[29px]">
+                        <div className={`font-semibold text-xs ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                          {item.reference || '-'}
+                        </div>
+                        <div className={`font-semibold text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {item.designation || '-'}
+                        </div>
                       </div>
                       <div className="flex w-[354px] items-center justify-center gap-[22px] pl-6 pr-0">
                         <Input
@@ -883,15 +914,15 @@ export const InvoiceViewContent: React.FC = () => {
 
         {/* Payment Terms - Clickable */}
         <div 
-          className={`h-[62px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
+          className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >
           <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-          <Input
+          <Textarea
             placeholder="Condition de paiement..."
             value={paymentConditions}
             readOnly
-            className={`border-none cursor-pointer ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent'}`}
+            className={`min-h-[100px] border-none cursor-pointer resize-none ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent'}`}
           />
         </div>
       </div>
@@ -953,6 +984,18 @@ export const InvoiceViewContent: React.FC = () => {
         documentNumber={invoiceNumber}
         clientEmail={clientInfo.email || client?.email || ''}
         clientName={clientInfo.name || client?.company_name || (client?.first_name && client?.last_name ? `${client.first_name} ${client.last_name}` : '') || ''}
+      />
+
+      <ConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Voulez-vous vraiment supprimer cette facture ?"
+        message="Cette action est irréversible. La facture sera définitivement supprimée."
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+        isLoading={deleting}
       />
     </div>
   );

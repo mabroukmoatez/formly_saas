@@ -3,13 +3,16 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
+import { Switch } from '../../components/ui/switch';
+import { Label } from '../../components/ui/label';
+import { fixImageUrl } from '../../lib/utils';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useToast } from '../../components/ui/toast';
 import { pusherService } from '../../services/pusher';
 import { useConversations, useConversationMessages, useConversationFiles, useUserSearch } from '../../hooks/useChat';
-import { createConversation as createConversationAPI, getConversations } from '../../services/chat';
+import { createConversation as createConversationAPI, getConversations, getChatUsers } from '../../services/chat';
 import { 
   Loader2, 
   Search, 
@@ -21,9 +24,15 @@ import {
   FileText,
   MoreVertical,
   MessageSquare,
-  X
+  X,
+  Trash2,
+  Upload,
+  Users,
+  User
 } from 'lucide-react';
 import type { Conversation, ChatMessage, ChatUser } from '../../services/chat';
+import { deleteConversation } from '../../services/chat';
+import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 
 export const Messagerie = (): JSX.Element => {
   const { organization } = useOrganization();
@@ -44,7 +53,15 @@ export const Messagerie = (): JSX.Element => {
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState<ChatUser[]>([]);
+  const [selectedInstructors, setSelectedInstructors] = useState<ChatUser[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<ChatUser[]>([]);
   const [groupName, setGroupName] = useState('');
+  const [groupAvatar, setGroupAvatar] = useState<File | null>(null);
+  const [groupAvatarPreview, setGroupAvatarPreview] = useState<string | null>(null);
+  const [studentsCanReply, setStudentsCanReply] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Get organization colors
   const primaryColor = organization?.primary_color || '#007aff';
@@ -76,6 +93,12 @@ export const Messagerie = (): JSX.Element => {
     search: searchUsers,
     createConversation
   } = useUserSearch();
+
+  // Separate state for instructors and students in group creation
+  const [instructorResults, setInstructorResults] = useState<ChatUser[]>([]);
+  const [studentResults, setStudentResults] = useState<ChatUser[]>([]);
+  const [loadingInstructors, setLoadingInstructors] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -251,9 +274,127 @@ export const Messagerie = (): JSX.Element => {
     setSelectedUsers([]);
     setUserSearchQuery('');
     setGroupName('');
-    // Load users immediately when opening modal
-    if (searchResults.length === 0) {
-      searchUsers('');
+    setSelectedInstructors([]);
+    setSelectedStudents([]);
+    // Load instructors and students separately
+    loadGroupUsers('');
+  };
+
+  const loadGroupUsers = async (query: string) => {
+    try {
+      setLoadingInstructors(true);
+      setLoadingStudents(true);
+      
+      // Helper function to extract role string
+      const getRoleString = (role: any): string => {
+        if (typeof role === 'string') return role;
+        if (typeof role === 'number') return String(role);
+        if (role && typeof role === 'object') {
+          return role.name || role.slug || role.type || String(role);
+        }
+        return String(role || '');
+      };
+      
+      // Helper function to check if user is instructor
+      const isInstructor = (user: ChatUser): boolean => {
+        const roleStr = getRoleString(user.role);
+        const roleLower = roleStr.toLowerCase().trim();
+        return roleLower.includes('formateur') || 
+               roleLower.includes('instructor') || 
+               roleLower.includes('admin') ||
+               roleLower.includes('trainer') ||
+               roleLower.includes('enseignant') ||
+               roleLower.includes('teacher');
+      };
+      
+      // Load instructors
+      let instructors: ChatUser[] = [];
+      try {
+        instructors = await getChatUsers({ 
+          query: query || '', 
+          type: 'instructor' 
+        });
+        console.log('📚 Instructors (type=instructor) loaded:', instructors);
+      } catch (e) {
+        console.warn('Failed to load instructors with type=instructor:', e);
+      }
+      
+      // Also try with 'formateur' if no results
+      if (instructors.length === 0) {
+        try {
+          const formateurs = await getChatUsers({ 
+            query: query || '', 
+            type: 'formateur' 
+          });
+          instructors = formateurs;
+          console.log('📚 Formateurs (type=formateur) loaded:', formateurs);
+        } catch (e) {
+          console.warn('Failed to load instructors with type=formateur:', e);
+        }
+      }
+      
+      // Load students
+      let students: ChatUser[] = [];
+      try {
+        students = await getChatUsers({ 
+          query: query || '', 
+          type: 'student' 
+        });
+        console.log('👥 Students (type=student) loaded:', students);
+      } catch (e) {
+        console.warn('Failed to load students with type=student:', e);
+      }
+      
+      // Also try with 'apprenant' if no results
+      if (students.length === 0) {
+        try {
+          const apprenants = await getChatUsers({ 
+            query: query || '', 
+            type: 'apprenant' 
+          });
+          students = apprenants;
+          console.log('👥 Apprenants (type=apprenant) loaded:', apprenants);
+        } catch (e) {
+          console.warn('Failed to load students with type=apprenant:', e);
+        }
+      }
+      
+      // If still no results, load all users and filter client-side
+      if (instructors.length === 0 && students.length === 0) {
+        try {
+          const allUsers = await getChatUsers({ query: query || '' });
+          console.log('🔍 All users loaded (fallback):', allUsers);
+          
+          // Filter client-side - IMPORTANT: separate instructors and students
+          const instructorsFiltered = allUsers.filter(user => isInstructor(user));
+          const studentsFiltered = allUsers.filter(user => !isInstructor(user));
+          
+          setInstructorResults(instructorsFiltered);
+          setStudentResults(studentsFiltered);
+          console.log('📊 Filtered instructors:', instructorsFiltered.length, instructorsFiltered);
+          console.log('📊 Filtered students:', studentsFiltered.length, studentsFiltered);
+        } catch (e) {
+          console.error('Failed to load all users:', e);
+          setInstructorResults([]);
+          setStudentResults([]);
+        }
+      } else {
+        // Use API results directly, but also filter to ensure correctness
+        const instructorsFiltered = instructors.filter(user => isInstructor(user));
+        const studentsFiltered = students.filter(user => !isInstructor(user));
+        
+        setInstructorResults(instructorsFiltered);
+        setStudentResults(studentsFiltered);
+        console.log('✅ Final instructors:', instructorsFiltered.length, instructorsFiltered);
+        console.log('✅ Final students:', studentsFiltered.length, studentsFiltered);
+      }
+    } catch (error) {
+      console.error('Error loading group users:', error);
+      setInstructorResults([]);
+      setStudentResults([]);
+    } finally {
+      setLoadingInstructors(false);
+      setLoadingStudents(false);
     }
   };
 
@@ -267,15 +408,76 @@ export const Messagerie = (): JSX.Element => {
     }
   };
 
-  const handleUserSelect = (user: ChatUser) => {
-    if (!selectedUsers.find(u => u.id === user.id)) {
-      setSelectedUsers(prev => [...prev, user]);
+  const handleUserSelect = (user: ChatUser, isGroupModal: boolean = false) => {
+    // Si c'est pour le modal "Nouvelle Discussion", utiliser selectedUsers
+    if (!isGroupModal) {
+      // Pour "Nouvelle Discussion", on peut sélectionner un seul utilisateur
+      if (!selectedUsers.find(u => u.id === user.id)) {
+        setSelectedUsers([user]); // Remplacer au lieu d'ajouter pour une discussion individuelle
+      }
+      return;
     }
-    setUserSearchQuery('');
+    
+    // Pour le modal "Nouveau Groupe", séparer formateurs et apprenants
+    // Helper function to extract role string
+    const getRoleString = (role: any): string => {
+      if (typeof role === 'string') return role;
+      if (typeof role === 'number') return String(role);
+      if (role && typeof role === 'object') {
+        return role.name || role.slug || role.type || String(role);
+      }
+      return String(role || '');
+    };
+    
+    // Déterminer le rôle de l'utilisateur
+    const roleStr = getRoleString(user.role);
+    const roleLower = roleStr.toLowerCase().trim();
+    const isInstructor = 
+      roleLower.includes('formateur') || 
+      roleLower.includes('instructor') || 
+      roleLower.includes('admin') ||
+      roleLower.includes('trainer') ||
+      roleLower.includes('enseignant') ||
+      roleLower.includes('teacher');
+    
+    if (isInstructor) {
+      // Ajouter aux formateurs si pas déjà sélectionné
+      if (!selectedInstructors.find(u => u.id === user.id)) {
+        setSelectedInstructors(prev => [...prev, user]);
+      }
+    } else {
+      // Ajouter aux apprenants si pas déjà sélectionné
+      if (!selectedStudents.find(u => u.id === user.id)) {
+        setSelectedStudents(prev => [...prev, user]);
+      }
+    }
   };
 
-  const handleUserRemove = (userId: number) => {
-    setSelectedUsers(prev => prev.filter(u => u.id !== userId));
+  const handleUserRemove = (userId: number, category?: 'instructor' | 'student' | 'discussion') => {
+    // Si category est fourni, utiliser directement
+    if (category === 'instructor') {
+      setSelectedInstructors(prev => prev.filter(u => u.id !== userId));
+    } else if (category === 'student') {
+      setSelectedStudents(prev => prev.filter(u => u.id !== userId));
+    } else if (category === 'discussion') {
+      // Pour le modal "Nouvelle Discussion"
+      setSelectedUsers(prev => prev.filter(u => u.id !== userId));
+    } else {
+      // Sinon, chercher dans toutes les listes
+      // D'abord dans selectedUsers (modal "Nouvelle Discussion")
+      const inUsers = selectedUsers.find(u => u.id === userId);
+      if (inUsers) {
+        setSelectedUsers(prev => prev.filter(u => u.id !== userId));
+      } else {
+        // Sinon, chercher dans les deux listes du modal "Nouveau Groupe"
+        const inInstructors = selectedInstructors.find(u => u.id === userId);
+        if (inInstructors) {
+          setSelectedInstructors(prev => prev.filter(u => u.id !== userId));
+        } else {
+          setSelectedStudents(prev => prev.filter(u => u.id !== userId));
+        }
+      }
+    }
   };
 
   const handleCreateConversation = async () => {
@@ -539,7 +741,8 @@ export const Messagerie = (): JSX.Element => {
   };
 
   const handleCreateGroup = async () => {
-    if (selectedUsers.length === 0 || !groupName.trim()) {
+    const allSelectedUsers = [...selectedInstructors, ...selectedStudents];
+    if (allSelectedUsers.length === 0 || !groupName.trim()) {
       showError('Erreur', 'Veuillez sélectionner au moins un utilisateur et donner un nom au groupe');
       return;
     }
@@ -548,18 +751,63 @@ export const Messagerie = (): JSX.Element => {
       const conversation = await createConversationAPI({
         type: 'group',
         group_name: groupName.trim(),
-        participant_ids: selectedUsers.map(u => u.id),
-        initial_message: `Groupe "${groupName.trim()}" créé avec ${selectedUsers.length} participant(s)`
+        participant_ids: allSelectedUsers.map(u => u.id),
+        initial_message: `Groupe "${groupName.trim()}" créé avec ${allSelectedUsers.length} participant(s)`
       });
       setSelectedConversation(conversation);
       setShowNewGroupModal(false);
       setSelectedUsers([]);
+      setSelectedInstructors([]);
+      setSelectedStudents([]);
       setUserSearchQuery('');
       setGroupName('');
+      setGroupAvatar(null);
+      setGroupAvatarPreview(null);
+      setStudentsCanReply(true);
       refreshConversations();
       success('Groupe créé avec succès');
     } catch (err: any) {
       showError('Erreur', err.message || 'Erreur lors de la création du groupe');
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteConversation(conversationToDelete.id);
+      if (selectedConversation?.id === conversationToDelete.id) {
+        setSelectedConversation(null);
+      }
+      setShowDeleteConfirm(false);
+      setConversationToDelete(null);
+      refreshConversations();
+      success('Conversation supprimée avec succès');
+    } catch (err: any) {
+      showError('Erreur', err.message || 'Erreur lors de la suppression de la conversation');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleGroupAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showError('Erreur', 'L\'image ne doit pas dépasser 5MB');
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        showError('Erreur', 'Le fichier doit être une image');
+        return;
+      }
+      setGroupAvatar(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setGroupAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -628,7 +876,7 @@ export const Messagerie = (): JSX.Element => {
   }
 
   return (
-    <div className="px-[27px] py-8 flex flex-col min-h-0">
+    <div className="px-[27px] py-8 flex flex-col min-h-0 overflow-hidden" style={{ maxHeight: 'calc(100vh - 80px - 64px)', height: 'calc(100vh - 80px - 64px)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -683,7 +931,7 @@ export const Messagerie = (): JSX.Element => {
       </div>
 
       {/* Messaging Content */}
-      <div className={`flex flex-1 rounded-[18px] overflow-hidden border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} shadow-sm`}>
+      <div className={`flex flex-1 rounded-[18px] overflow-hidden border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} shadow-sm`} style={{ maxHeight: '100%', height: '100%' }}>
         {/* Left Sidebar - Conversations */}
         <aside className={`w-[380px] border-r flex flex-col transition-colors ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#dbd8d8]'}`}>
           <div className="flex flex-col gap-[18px] p-6">
@@ -799,7 +1047,7 @@ export const Messagerie = (): JSX.Element => {
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, maxHeight: '100%' }}>
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-8 px-4">
               <MessageSquare className={`w-12 h-12 mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
@@ -827,32 +1075,36 @@ export const Messagerie = (): JSX.Element => {
               const displayRole = participant?.role || 'Groupe';
               
               return (
-                <button
+                <div
                   key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation)}
                   className={`flex items-start gap-4 p-3 rounded-xl transition-colors ${
                     selectedConversation?.id === conversation.id
                       ? isDark ? 'bg-gray-700' : 'bg-[#615ef00f]'
                       : isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                  } relative`}
+                  } relative group`}
                 >
+                  <button
+                    onClick={() => setSelectedConversation(conversation)}
+                    className="flex items-start gap-4 flex-1"
+                  >
                   <div className="relative flex-shrink-0">
                     <Avatar className="w-12 h-12 rounded-xl">
                       {(() => {
                         const avatarUrl = getAvatarUrl(participant || group);
                         if (avatarUrl) {
+                          const fixedUrl = fixImageUrl(avatarUrl);
                           return (
                             <AvatarImage 
-                              src={avatarUrl} 
+                              src={fixedUrl} 
                               alt={displayName}
                               className="object-cover"
                               onError={(e) => {
                                 // En cas d'erreur de chargement, masquer l'image pour afficher les initiales
-                                console.warn(`Failed to load avatar for ${displayName}:`, avatarUrl);
+                                console.warn(`Failed to load avatar for ${displayName}:`, fixedUrl);
                                 e.currentTarget.style.display = 'none';
                               }}
                               onLoad={() => {
-                                console.log(`✅ Avatar loaded successfully for ${displayName}:`, avatarUrl);
+                                console.log(`✅ Avatar loaded successfully for ${displayName}:`, fixedUrl);
                               }}
                             />
                           );
@@ -898,7 +1150,21 @@ export const Messagerie = (): JSX.Element => {
                       {displayRole}
                     </Badge>
                   </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConversationToDelete(conversation);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 ${
+                      isDark ? 'text-red-400' : 'text-red-500'
+                    }`}
+                    title="Supprimer la conversation"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -917,17 +1183,18 @@ export const Messagerie = (): JSX.Element => {
                   const avatarUrl = getAvatarUrl(selectedConversation.participant || selectedConversation.group);
                   const displayName = selectedConversation.participant?.name || selectedConversation.group?.name || 'U';
                   if (avatarUrl) {
+                    const fixedUrl = fixImageUrl(avatarUrl);
                     return (
                       <AvatarImage 
-                        src={avatarUrl} 
+                        src={fixedUrl} 
                         alt={displayName}
                         className="object-cover"
                         onError={(e) => {
-                          console.warn(`Failed to load avatar in header for ${displayName}:`, avatarUrl);
+                          console.warn(`Failed to load avatar in header for ${displayName}:`, fixedUrl);
                           e.currentTarget.style.display = 'none';
                         }}
                         onLoad={() => {
-                          console.log(`✅ Avatar loaded in header for ${displayName}:`, avatarUrl);
+                          console.log(`✅ Avatar loaded in header for ${displayName}:`, fixedUrl);
                         }}
                       />
                     );
@@ -969,7 +1236,7 @@ export const Messagerie = (): JSX.Element => {
             </header>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6" style={{ minHeight: 0, maxHeight: '100%' }}>
               <div className="flex flex-col gap-8">
                 {groupedMessages.map((messageGroup, groupIndex) => (
                   <div
@@ -980,15 +1247,26 @@ export const Messagerie = (): JSX.Element => {
                   >
                     {messageGroup.type === 'received' && (
                       <Avatar className="w-10 h-10 rounded-[8.33px]">
-                        {getAvatarUrl(messageGroup.sender) ? (
-                          <AvatarImage 
-                            src={getAvatarUrl(messageGroup.sender)!} 
-                            alt={messageGroup.sender?.name || 'U'}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        ) : null}
+                        {(() => {
+                          const avatarUrl = getAvatarUrl(messageGroup.sender);
+                          if (avatarUrl) {
+                            const fixedUrl = fixImageUrl(avatarUrl);
+                            return (
+                              <AvatarImage 
+                                src={fixedUrl} 
+                                alt={messageGroup.sender?.name || 'U'}
+                                onError={(e) => {
+                                  console.warn(`Failed to load avatar for message sender:`, fixedUrl);
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                                onLoad={() => {
+                                  console.log(`✅ Avatar loaded successfully for message sender:`, fixedUrl);
+                                }}
+                              />
+                            );
+                          }
+                          return null;
+                        })()}
                         <AvatarFallback 
                           className="rounded-[8.33px] text-white font-semibold text-sm"
                           style={{ backgroundColor: primaryColor }}
@@ -1215,7 +1493,7 @@ export const Messagerie = (): JSX.Element => {
               </Badge>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" style={{ minHeight: 0, maxHeight: '100%' }}>
               <div className="flex flex-col gap-2.5">
                 {files.map((file) => (
                   <div
@@ -1321,22 +1599,36 @@ export const Messagerie = (): JSX.Element => {
               </div>
             ) : searchResults.length > 0 ? (
               <div className="mb-4 max-h-40 overflow-y-auto">
-                {searchResults.map((user) => (
+                {searchResults.map((user) => {
+                  const isSelected = selectedUsers.find(u => u.id === user.id);
+                  return (
                   <div
                     key={user.id}
-                    onClick={() => handleUserSelect(user)}
-                    className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
+                    onClick={() => handleUserSelect(user, false)}
+                    className={`flex items-center gap-3 p-2 rounded cursor-pointer ${
+                      isSelected 
+                        ? 'bg-blue-100 dark:bg-blue-900/20' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
                   >
                     <Avatar className="w-8 h-8">
-                      {getAvatarUrl(user) ? (
-                        <AvatarImage 
-                          src={getAvatarUrl(user)!} 
-                          alt={user.name}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : null}
+                      {(() => {
+                        const avatarUrl = getAvatarUrl(user);
+                        if (avatarUrl) {
+                          const fixedUrl = fixImageUrl(avatarUrl);
+                          return (
+                            <AvatarImage 
+                              src={fixedUrl} 
+                              alt={user.name}
+                              onError={(e) => {
+                                console.warn(`Failed to load avatar for ${user.name}:`, fixedUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
                       <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
                         {getInitials(user.name)}
                       </AvatarFallback>
@@ -1345,11 +1637,12 @@ export const Messagerie = (): JSX.Element => {
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-gray-500">{user.email}</p>
                     </div>
-                    {selectedUsers.find(u => u.id === user.id) && (
-                      <div className="text-green-500">✓</div>
+                    {isSelected && (
+                      <div className="text-blue-500">✓</div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : userSearchQuery.length >= 2 ? (
               <div className="mb-4 text-sm text-gray-500 text-center py-4">
@@ -1364,9 +1657,21 @@ export const Messagerie = (): JSX.Element => {
                   <div key={user.id} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded">
                     <div className="flex items-center gap-2">
                       <Avatar className="w-6 h-6">
-                        {getAvatarUrl(user.avatar) ? (
-                          <AvatarImage src={getAvatarUrl(user.avatar)!} />
-                        ) : null}
+                        {(() => {
+                          const avatarUrl = getAvatarUrl(user);
+                          if (avatarUrl) {
+                            const fixedUrl = fixImageUrl(avatarUrl);
+                            return (
+                              <AvatarImage 
+                                src={fixedUrl}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            );
+                          }
+                          return null;
+                        })()}
                         <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
                           {getInitials(user.name)}
                         </AvatarFallback>
@@ -1374,7 +1679,7 @@ export const Messagerie = (): JSX.Element => {
                       <span className="text-sm">{user.name}</span>
                     </div>
                     <button 
-                      onClick={() => handleUserRemove(user.id)} 
+                      onClick={() => handleUserRemove(user.id, 'discussion')} 
                       className="text-red-500 hover:text-red-700"
                     >
                       <X className="w-4 h-4" />
@@ -1409,99 +1714,318 @@ export const Messagerie = (): JSX.Element => {
 
       {/* Modal Nouveau Groupe */}
       {showNewGroupModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 w-[500px] max-h-[600px] flex flex-col ${isDark ? 'text-white' : 'text-black'}`}>
-            <h3 className="text-xl font-semibold mb-4">Nouveau Groupe</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            setShowNewGroupModal(false);
+            setSelectedUsers([]);
+            setSelectedInstructors([]);
+            setSelectedStudents([]);
+            setUserSearchQuery('');
+            setGroupName('');
+            setGroupAvatar(null);
+            setGroupAvatarPreview(null);
+            setStudentsCanReply(true);
+          }
+        }}>
+          <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 w-[600px] max-h-[90vh] flex flex-col overflow-hidden ${isDark ? 'text-white' : 'text-black'}`} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold">Nouveau Groupe</h3>
+              <button
+                onClick={() => {
+                  setShowNewGroupModal(false);
+                  setSelectedUsers([]);
+                  setSelectedInstructors([]);
+                  setSelectedStudents([]);
+                  setUserSearchQuery('');
+                  setGroupName('');
+                  setGroupAvatar(null);
+                  setGroupAvatarPreview(null);
+                  setStudentsCanReply(true);
+                }}
+                className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Nom du groupe</label>
-              <Input
-                placeholder="Entrez le nom du groupe..."
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="w-full"
-              />
-            </div>
-
-            <div className="mb-4">
-              <Input
-                placeholder="Rechercher des utilisateurs..."
-                value={userSearchQuery}
-                onChange={(e) => handleUserSearch(e.target.value)}
-                className="w-full"
-              />
-            </div>
-
-            {searchLoading ? (
-              <div className="mb-4 flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 animate-spin" style={{ color: primaryColor }} />
-              </div>
-            ) : searchResults.length > 0 ? (
-              <div className="mb-4 max-h-40 overflow-y-auto">
-                {searchResults.map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => handleUserSelect(user)}
-                    className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer"
-                  >
-                    <Avatar className="w-8 h-8">
-                      {getAvatarUrl(user) ? (
-                        <AvatarImage 
-                          src={getAvatarUrl(user)!} 
-                          alt={user.name}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : null}
-                      <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-sm text-gray-500">{user.email}</p>
-                    </div>
-                    {selectedUsers.find(u => u.id === user.id) && (
-                      <div className="text-green-500">✓</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : userSearchQuery.length >= 2 ? (
-              <div className="mb-4 text-sm text-gray-500 text-center py-4">
-                Aucun utilisateur trouvé
-              </div>
-            ) : null}
-
-            {selectedUsers.length > 0 && (
-              <div className="mb-4 flex-1 overflow-y-auto">
-                <p className="text-sm mb-2 font-medium">Participants sélectionnés ({selectedUsers.length}) :</p>
-                <div className="space-y-2">
-                  {selectedUsers.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-6 h-6">
-                          {getAvatarUrl(user.avatar) ? (
-                            <AvatarImage src={getAvatarUrl(user.avatar)!} />
-                          ) : null}
-                          <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
-                            {getInitials(user.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{user.name}</span>
-                      </div>
-                      <button 
-                        onClick={() => handleUserRemove(user.id)} 
-                        className="text-red-500 hover:text-red-700"
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              {/* Avatar du groupe */}
+              <div>
+                <Label className="mb-2 block">Image du groupe (optionnel)</Label>
+                <div className={`border-2 border-dashed rounded-lg p-4 text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                  {groupAvatarPreview ? (
+                    <div className="relative inline-block">
+                      <img src={groupAvatarPreview} alt="Preview" className="h-24 w-24 rounded-lg object-cover" />
+                      <button
+                        onClick={() => {
+                          setGroupAvatar(null);
+                          setGroupAvatarPreview(null);
+                        }}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Upload className="w-8 h-8 text-gray-400" />
+                      <label className="cursor-pointer">
+                        <span className="text-sm text-blue-500 hover:text-blue-700">Cliquez pour ajouter une image</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleGroupAvatarChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+
+              {/* Nom du groupe */}
+              <div>
+                <Label className="mb-2 block">Nom du groupe</Label>
+                <Input
+                  placeholder="Entrez le nom du groupe..."
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Toggle students_can_reply */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex-1">
+                  <Label className="text-sm font-medium">Les apprenants peuvent répondre aux messages</Label>
+                  <p className="text-xs text-gray-500 mt-1">Si désactivé, seuls les formateurs peuvent envoyer des messages</p>
+                </div>
+                <Switch
+                  checked={studentsCanReply}
+                  onCheckedChange={setStudentsCanReply}
+                />
+              </div>
+
+              {/* Recherche d'utilisateurs */}
+              <div>
+                <Input
+                  placeholder="Rechercher des utilisateurs..."
+                  value={userSearchQuery}
+                  onChange={(e) => {
+                    setUserSearchQuery(e.target.value);
+                    loadGroupUsers(e.target.value);
+                  }}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Section Formateurs */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <User className="w-4 h-4 text-blue-500" />
+                  <Label className="text-sm font-medium">Formateurs</Label>
+                  {loadingInstructors && <Loader2 className="w-3 h-3 animate-spin" style={{ color: primaryColor }} />}
+                </div>
+                {loadingInstructors ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: primaryColor }} />
+                  </div>
+                ) : instructorResults.length > 0 ? (
+                  <div className="max-h-32 overflow-y-auto border rounded-lg p-2 space-y-1 mb-4">
+                    {instructorResults.map((user) => {
+                      const isSelected = selectedInstructors.find(u => u.id === user.id);
+                      return (
+                        <div
+                          key={user.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isSelected) {
+                              handleUserSelect(user, true);
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-2 rounded ${
+                            isSelected 
+                              ? 'bg-blue-100 dark:bg-blue-900/20 opacity-60 cursor-not-allowed' 
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'
+                          }`}
+                        >
+                          <Avatar className="w-8 h-8">
+                            {(() => {
+                              const avatarUrl = getAvatarUrl(user);
+                              if (avatarUrl) {
+                                const fixedUrl = fixImageUrl(avatarUrl);
+                                return (
+                                  <AvatarImage 
+                                    src={fixedUrl} 
+                                    alt={user.name}
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
+                            <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
+                              {getInitials(user.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{user.name}</p>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          </div>
+                          {isSelected && (
+                            <div className="text-blue-500">✓</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4 mb-4 border rounded-lg">
+                    Aucun formateur trouvé
+                  </div>
+                )}
+              </div>
+
+              {/* Section Apprenants */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-4 h-4 text-green-500" />
+                  <Label className="text-sm font-medium">Apprenants</Label>
+                  {loadingStudents && <Loader2 className="w-3 h-3 animate-spin" style={{ color: primaryColor }} />}
+                </div>
+                {loadingStudents ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: primaryColor }} />
+                  </div>
+                ) : studentResults.length > 0 ? (
+                  <div className="max-h-32 overflow-y-auto border rounded-lg p-2 space-y-1">
+                    {studentResults.map((user) => {
+                      const isSelected = selectedStudents.find(u => u.id === user.id);
+                      return (
+                        <div
+                          key={user.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isSelected) {
+                              handleUserSelect(user, true);
+                            }
+                          }}
+                          className={`flex items-center gap-3 p-2 rounded ${
+                            isSelected 
+                              ? 'bg-green-100 dark:bg-green-900/20 opacity-60 cursor-not-allowed' 
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'
+                          }`}
+                        >
+                          <Avatar className="w-8 h-8">
+                            {(() => {
+                              const avatarUrl = getAvatarUrl(user);
+                              if (avatarUrl) {
+                                const fixedUrl = fixImageUrl(avatarUrl);
+                                return (
+                                  <AvatarImage 
+                                    src={fixedUrl} 
+                                    alt={user.name}
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                );
+                              }
+                              return null;
+                            })()}
+                            <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
+                              {getInitials(user.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{user.name}</p>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          </div>
+                          {isSelected && (
+                            <div className="text-green-500">✓</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center py-4 border rounded-lg">
+                    Aucun apprenant trouvé
+                  </div>
+                )}
+              </div>
+
+
+              {/* Participants sélectionnés - Formateurs */}
+              {selectedInstructors.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-blue-500" />
+                    <Label className="text-sm font-medium">Formateurs ({selectedInstructors.length})</Label>
+                  </div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {selectedInstructors.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            {getAvatarUrl(user) ? (
+                              <AvatarImage src={fixImageUrl(getAvatarUrl(user)!)} />
+                            ) : null}
+                            <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
+                              {getInitials(user.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{user.name}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleUserRemove(user.id, 'instructor')} 
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Participants sélectionnés - Apprenants */}
+              {selectedStudents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-green-500" />
+                    <Label className="text-sm font-medium">Apprenants ({selectedStudents.length})</Label>
+                  </div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {selectedStudents.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            {getAvatarUrl(user) ? (
+                              <AvatarImage src={fixImageUrl(getAvatarUrl(user)!)} />
+                            ) : null}
+                            <AvatarFallback className="text-xs" style={{ backgroundColor: primaryColor }}>
+                              {getInitials(user.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{user.name}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleUserRemove(user.id, 'student')} 
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex gap-2 justify-end mt-4">
               <Button
@@ -1526,6 +2050,22 @@ export const Messagerie = (): JSX.Element => {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmation de suppression */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setConversationToDelete(null);
+        }}
+        onConfirm={handleDeleteConversation}
+        title="Supprimer la conversation"
+        message={`Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

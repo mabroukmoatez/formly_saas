@@ -32,26 +32,126 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
   const innerWidth = chartWidth - padding.left - padding.right;
   const innerHeight = chartHeight - padding.top - padding.bottom;
 
+  // Noms des mois en français
+  const monthNames = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+  const fullMonthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
+  // Calculer une échelle dynamique basée sur les valeurs
+  const calculateScale = (values: number[]): { step: number; maxScale: number } => {
+    if (values.length === 0) return { step: 2000, maxScale: 10000 };
+    
+    const maxValue = Math.max(...values);
+    if (maxValue === 0) return { step: 2000, maxScale: 10000 };
+
+    let step: number;
+    
+    // Exemples:
+    // Si les CA sont 5k, 8k, 10k → mettre une échelle de 2k
+    // Si les CA sont 88k, 120k, 177k → mettre une échelle plus grande (20k ou 10k)
+    
+    if (maxValue < 20000) {
+      // Pour les valeurs < 20k, utiliser 2k
+      step = 2000;
+    } else if (maxValue < 50000) {
+      // Pour les valeurs entre 20k et 50k, utiliser 5k ou 10k
+      step = 10000;
+    } else if (maxValue < 100000) {
+      // Pour les valeurs entre 50k et 100k, utiliser 10k ou 20k
+      if (maxValue < 80000) {
+        step = 10000;
+      } else {
+        step = 20000;
+      }
+    } else if (maxValue < 200000) {
+      // Pour les valeurs entre 100k et 200k, utiliser 20k
+      step = 20000;
+    } else if (maxValue < 500000) {
+      // Pour les valeurs entre 200k et 500k, utiliser 50k
+      step = 50000;
+    } else if (maxValue < 1000000) {
+      // Pour les valeurs entre 500k et 1M, utiliser 100k
+      step = 100000;
+    } else {
+      // Pour les valeurs >= 1M, utiliser 200k ou 500k
+      if (maxValue < 5000000) {
+        step = 200000;
+      } else {
+        step = 500000;
+      }
+    }
+
+    // Calculer le maxScale (arrondi au step supérieur)
+    const maxScale = Math.ceil(maxValue / step) * step;
+    
+    return { step, maxScale };
+  };
+
   // Préparer les données pour le graphique
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) return null;
+    // Créer un tableau de 12 mois avec des valeurs par défaut à 0
+    const monthsData: Array<{ value: number; month: string; fullMonth: string }> = [];
+    
+    for (let i = 0; i < 12; i++) {
+      monthsData.push({
+        value: 0,
+        month: monthNames[i],
+        fullMonth: fullMonthNames[i],
+      });
+    }
 
-    const values = data.map((d) => d.value || 0);
-    const maxValue = Math.max(...values, 1);
+    // Remplir avec les données réelles si disponibles
+    if (data && data.length > 0) {
+      data.forEach((point) => {
+        // Extraire le numéro du mois depuis point.month (format peut être "YYYY-MM" ou "MM" ou nom du mois)
+        let monthIndex = -1;
+        
+        if (point.month) {
+          // Si le format est "YYYY-MM" ou "MM"
+          if (point.month.includes('-')) {
+            const parts = point.month.split('-');
+            if (parts.length >= 2) {
+              monthIndex = parseInt(parts[1]) - 1; // MM est le mois (1-12), on soustrait 1 pour l'index (0-11)
+            }
+          } else if (/^\d+$/.test(point.month)) {
+            // Si c'est juste un nombre
+            monthIndex = parseInt(point.month) - 1;
+          } else {
+            // Si c'est un nom de mois, chercher l'index
+            const monthLower = point.month.toLowerCase();
+            monthIndex = fullMonthNames.findIndex(m => m.toLowerCase().includes(monthLower));
+            if (monthIndex === -1) {
+              monthIndex = monthNames.findIndex(m => m.toLowerCase().includes(monthLower));
+            }
+          }
+        }
+        
+        // Si on a trouvé un mois valide (0-11), mettre à jour la valeur
+        if (monthIndex >= 0 && monthIndex < 12) {
+          monthsData[monthIndex].value = point.value || 0;
+        }
+      });
+    }
+
+    const values = monthsData.map((d) => d.value);
     const minValue = Math.min(...values, 0);
+    
+    // Calculer l'échelle dynamique
+    const { step, maxScale } = calculateScale(values);
+    const maxValue = maxScale;
 
-    // Calculer les positions X et Y pour chaque point
-    const points = data.map((point, index) => {
-      const x = padding.left + (index / (data.length - 1 || 1)) * innerWidth;
+    // Calculer les positions X et Y pour chaque point (12 mois)
+    const points = monthsData.map((point, index) => {
+      const x = padding.left + (index / 11) * innerWidth; // 11 car on a 12 points (0-11)
       const y =
         padding.top +
         innerHeight -
-        ((point.value || 0) - minValue) / (maxValue - minValue || 1) * innerHeight;
+        ((point.value - minValue) / (maxValue - minValue || 1)) * innerHeight;
       return {
         x,
         y,
-        value: point.value || 0,
-        month: point.month || '',
+        value: point.value,
+        month: point.month,
+        fullMonth: point.fullMonth,
         originalIndex: index,
       };
     });
@@ -64,12 +164,20 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
     // Créer le path pour l'area (ligne + bas)
     const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding.top + innerHeight} L ${points[0].x} ${padding.top + innerHeight} Z`;
 
+    // Générer les labels de l'échelle pour l'axe Y
+    const scaleLabels: number[] = [];
+    for (let i = 0; i <= maxValue; i += step) {
+      scaleLabels.push(i);
+    }
+
     return {
       points,
       linePath,
       areaPath,
       maxValue,
       minValue,
+      scaleStep: step,
+      scaleLabels,
     };
   }, [data, innerWidth, innerHeight, padding]);
 
@@ -149,22 +257,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
             fill={`url(#bg-gradient-${gradientId})`}
           />
 
-          {/* Grille horizontale (lignes de référence) */}
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-            const y = padding.top + innerHeight - ratio * innerHeight;
-            return (
-              <line
-                key={ratio}
-                x1={padding.left}
-                y1={y}
-                x2={padding.left + innerWidth}
-                y2={y}
-                stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}
-                strokeWidth="1"
-                strokeDasharray="3,3"
-              />
-            );
-          })}
+          {/* Grille horizontale sera générée avec les labels de l'échelle */}
 
           {/* Area Chart (remplissage sous la courbe) */}
           <path
@@ -263,18 +356,18 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
                 fontSize="11"
                 className="font-sans"
               >
-                {chartData.points[hoveredIndex].month}
+                {chartData.points[hoveredIndex].fullMonth || chartData.points[hoveredIndex].month}
               </text>
             </g>
           )}
 
-          {/* Labels des axes Y */}
-          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          {/* Labels des axes Y avec échelle dynamique */}
+          {chartData.scaleLabels.map((scaleValue, index) => {
+            const ratio = scaleValue / chartData.maxValue;
             const y = padding.top + innerHeight - ratio * innerHeight;
-            const value = chartData.minValue + ratio * (chartData.maxValue - chartData.minValue);
             return (
               <text
-                key={ratio}
+                key={`scale-${scaleValue}`}
                 x={padding.left - 15}
                 y={y + 4}
                 textAnchor="end"
@@ -284,20 +377,31 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
                 className="font-sans"
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
-                {formatCurrency(value)}
+                {formatCurrency(scaleValue)}
               </text>
             );
           })}
+          
+          {/* Lignes de grille correspondant aux labels de l'échelle */}
+          {chartData.scaleLabels.map((scaleValue) => {
+            const ratio = scaleValue / chartData.maxValue;
+            const y = padding.top + innerHeight - ratio * innerHeight;
+            return (
+              <line
+                key={`grid-${scaleValue}`}
+                x1={padding.left}
+                y1={y}
+                x2={padding.left + innerWidth}
+                y2={y}
+                stroke={isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}
+                strokeWidth="1"
+                strokeDasharray="3,3"
+              />
+            );
+          })}
 
-          {/* Labels des axes X (mois) */}
+          {/* Labels des axes X (mois) - Afficher tous les 12 mois */}
           {chartData.points.map((point, index) => {
-            // Afficher seulement certains mois pour éviter la surcharge
-            // Si moins de 12 mois, afficher tous, sinon afficher environ 6 labels
-            const maxLabels = data.length <= 12 ? data.length : 6;
-            const step = Math.max(1, Math.floor(data.length / maxLabels));
-            const shouldShowLabel = index % step === 0 || index === data.length - 1;
-            if (!shouldShowLabel) return null;
-            
             return (
               <text
                 key={index}
@@ -310,7 +414,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
                 className="font-sans"
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
-                {point.month?.substring(0, 3) || `${index + 1}`}
+                {point.month}
               </text>
             );
           })}

@@ -338,7 +338,7 @@ export const PrerequisitesSection: React.FC<{
         <RichTextEditor
           content={targetAudience}
           onChange={onUpdateTargetAudience}
-          placeholder={t('courseCreation.form.targetAudiencePlaceholder')}
+          placeholder="Aucun"
           className="min-h-[150px]"
         />
       </div>
@@ -350,7 +350,7 @@ export const PrerequisitesSection: React.FC<{
         <RichTextEditor
           content={prerequisites}
           onChange={onUpdatePrerequisites}
-          placeholder={t('courseCreation.form.prerequisitesPlaceholder')}
+          placeholder="Aucun"
           className="min-h-[150px]"
         />
       </div>
@@ -729,7 +729,127 @@ export const SpecificsSection: React.FC<{
       <RichTextEditor
         content={specifics}
         onChange={onUpdateSpecifics}
-        placeholder={t('courseCreation.form.specificsPlaceholder')}
+        placeholder="Text Field"
+        className="min-h-[200px]"
+      />
+    </div>
+  );
+};
+
+// Evaluation Modalities Section
+export const EvaluationModalitiesSection: React.FC<{
+  evaluationModalities: string;
+  onUpdateEvaluationModalities: (content: string) => void;
+}> = ({ evaluationModalities, onUpdateEvaluationModalities }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Modalités D'évaluation
+      </h3>
+      
+      <RichTextEditor
+        content={evaluationModalities}
+        onChange={onUpdateEvaluationModalities}
+        placeholder="Text Field"
+        className="min-h-[200px]"
+      />
+    </div>
+  );
+};
+
+// Access Modalities Section
+export const AccessModalitiesSection: React.FC<{
+  accessModalities: string;
+  onUpdateAccessModalities: (content: string) => void;
+}> = ({ accessModalities, onUpdateAccessModalities }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Modalités Et Délais D'accès
+      </h3>
+      
+      <RichTextEditor
+        content={accessModalities}
+        onChange={onUpdateAccessModalities}
+        placeholder="Text Field"
+        className="min-h-[200px]"
+      />
+    </div>
+  );
+};
+
+// Accessibility Section
+export const AccessibilitySection: React.FC<{
+  accessibility: string;
+  onUpdateAccessibility: (content: string) => void;
+}> = ({ accessibility, onUpdateAccessibility }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Accessibilité Aux Personnes Handicapées
+      </h3>
+      
+      <RichTextEditor
+        content={accessibility}
+        onChange={onUpdateAccessibility}
+        placeholder="Text Field"
+        className="min-h-[200px]"
+      />
+    </div>
+  );
+};
+
+// Contacts Section
+export const ContactsSection: React.FC<{
+  contacts: string;
+  onUpdateContacts: (content: string) => void;
+}> = ({ contacts, onUpdateContacts }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Contacts
+      </h3>
+      
+      <RichTextEditor
+        content={contacts}
+        onChange={onUpdateContacts}
+        placeholder="Text Field"
+        className="min-h-[200px]"
+      />
+    </div>
+  );
+};
+
+// Update Date Section
+export const UpdateDateSection: React.FC<{
+  updateDate: string;
+  onUpdateUpdateDate: (content: string) => void;
+}> = ({ updateDate, onUpdateUpdateDate }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Date De MAJ
+      </h3>
+      
+      <RichTextEditor
+        content={updateDate}
+        onChange={onUpdateUpdateDate}
+        placeholder="Text Field"
         className="min-h-[200px]"
       />
     </div>

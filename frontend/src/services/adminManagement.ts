@@ -31,15 +31,34 @@ export const getOrganizationSettings = async (): Promise<OrganizationSettings> =
  * Update organization settings
  */
 export const updateOrganizationSettings = async (data: FormData): Promise<OrganizationSettings> => {
-  // Add _method for Laravel method spoofing
-  data.append('_method', 'PUT');
+  // Check if _method is already appended
+  let hasMethod = false;
+  for (const [key] of data.entries()) {
+    if (key === '_method') {
+      hasMethod = true;
+      break;
+    }
+  }
+  if (!hasMethod) {
+    data.append('_method', 'PUT');
+  }
   
-  const response = await apiService.post<OrganizationSettings>(
+  // Log FormData for debugging
+  console.log('📤 Sending FormData to updateOrganizationSettings:');
+  for (const [key, value] of data.entries()) {
+    if (value instanceof File) {
+      console.log(`  ${key}: [File] ${value.name} (${value.size} bytes, type: ${value.type})`);
+    } else {
+      console.log(`  ${key}: ${value}`);
+    }
+  }
+  
+  const response = await apiService.post<{ success: boolean; data: OrganizationSettings }>(
     '/api/admin/organization/settings',
     data,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        // Don't set Content-Type for FormData - browser will set it with boundary automatically
       },
     }
   );
@@ -47,7 +66,92 @@ export const updateOrganizationSettings = async (data: FormData): Promise<Organi
   console.log('🔍 Backend response:', response);
   
   // Backend returns the organization object directly
-  return response.data;
+  return response.data.data;
+};
+
+// ===================================
+// ORGANIZATION DOCUMENTS
+// ===================================
+
+export interface OrganizationDocument {
+  id?: number;
+  name: string;
+  path?: string;
+  url?: string;
+  size?: number;
+  mime_type?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface OrganizationDocumentsResponse {
+  cgv: OrganizationDocument | null;
+  internal_regulations: OrganizationDocument | null;
+  custom_documents: OrganizationDocument[];
+}
+
+/**
+ * Get all organization documents
+ */
+export const getOrganizationDocuments = async (): Promise<OrganizationDocumentsResponse> => {
+  const response = await apiService.get<{ success: boolean; data: OrganizationDocumentsResponse }>('/api/admin/organization/documents');
+  // Handle both wrapped and direct responses
+  const responseData = response.data?.data || response.data;
+  return responseData || {
+    cgv: null,
+    internal_regulations: null,
+    custom_documents: [],
+  };
+};
+
+/**
+ * Rename a custom document
+ */
+export const renameOrganizationDocument = async (documentId: number, name: string): Promise<OrganizationDocument> => {
+  const response = await apiService.patch<{ success: boolean; data: OrganizationDocument }>(
+    `/api/admin/organization/documents/${documentId}/rename`,
+    { name }
+  );
+  return response.data.data;
+};
+
+/**
+ * Delete a custom document
+ */
+export const deleteOrganizationDocument = async (documentId: number): Promise<void> => {
+  await apiService.delete(`/api/admin/organization/documents/${documentId}`);
+};
+
+/**
+ * Get document view URL
+ */
+export const getOrganizationDocumentViewUrl = async (documentId: number): Promise<string> => {
+  const response = await apiService.get<{ success: boolean; data: { url: string; mime_type: string } }>(
+    `/api/admin/organization/documents/${documentId}/view`
+  );
+  return response.data.data.url;
+};
+
+/**
+ * Download a document
+ */
+export const downloadOrganizationDocument = async (documentId: number, filename: string): Promise<void> => {
+  const response = await apiService.get(
+    `/api/admin/organization/documents/${documentId}/download`,
+    {
+      responseType: 'blob',
+    }
+  );
+  
+  // Create blob and download
+  const url = window.URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };
 
 // ===================================

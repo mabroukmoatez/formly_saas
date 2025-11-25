@@ -1,0 +1,12 @@
+export { LearnerDashboard } from './Dashboard';
+export { Learning } from './Learning';
+export { CourseDetails } from './CourseDetails';
+export { Documents } from './Documents';
+export { Attendance } from './Attendance';
+export { Absences } from './Absences';
+export { Calendar } from './Calendar';
+export { Catalog } from './Catalog';
+export { Messaging } from './Messaging';
+export { SharedFolders } from './SharedFolders';
+export { Results } from './Results';
+export { Profile } from './Profile';

@@ -28,7 +28,8 @@ import {
   FileIcon,
   DollarSign,
   TrendingUp,
-  Target
+  Target,
+  Eye
 } from 'lucide-react';
 import {
   Table,
@@ -50,6 +51,7 @@ interface ExpenseStatCardProps {
   type: 'total' | 'environnement' | 'humains';
   isDark: boolean;
   primaryColor: string;
+  categoryData?: Array<{ name: string; value: number }>; // For circular chart categories
 }
 
 const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
@@ -58,8 +60,11 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
   monthlyData,
   type,
   isDark,
-  primaryColor
+  primaryColor,
+  categoryData = []
 }) => {
+  const [viewType, setViewType] = useState<'default' | 'alternative'>('default');
+
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
@@ -111,6 +116,495 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
 
   const currentColors = colors[type];
 
+  // Calculate data for circular chart (for total expenses)
+  const calculateCircularData = () => {
+    // Use categoryData if available, otherwise calculate from monthlyData
+    if (categoryData && categoryData.length > 0) {
+      const grandTotal = categoryData.reduce((sum, item) => sum + item.value, 0);
+      if (grandTotal === 0) return [];
+
+      // Color mapping for categories
+      const colorMap: Record<string, string> = {
+        'RH': '#2196F3',
+        'Humains': '#2196F3',
+        'Moyens Humains': '#2196F3',
+        'Logiciel': '#25C9B5',
+        'Software': '#25C9B5',
+        'Awake': '#FF9800',
+        'Quality': '#4CAF50',
+        'Environnementaux': '#25C9B5',
+        'Moyens Environnementaux': '#25C9B5',
+      };
+
+      return categoryData
+        .map(item => ({
+          name: item.name,
+          value: item.value,
+          percentage: Math.round((item.value / grandTotal) * 100),
+          color: colorMap[item.name] || '#9C27B0'
+        }))
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value); // Sort by value descending
+    }
+
+    // Fallback: Calculate from monthlyData
+    const totalEnv = monthlyData.reduce((sum, d) => sum + d.environnement, 0);
+    const totalHumains = monthlyData.reduce((sum, d) => sum + d.humains, 0);
+    const totalOther = monthlyData.reduce((sum, d) => sum + (d.total - d.environnement - d.humains), 0);
+    const grandTotal = totalEnv + totalHumains + totalOther;
+
+    if (grandTotal === 0) return [];
+
+    return [
+      { name: 'Environnementaux', value: totalEnv, percentage: Math.round((totalEnv / grandTotal) * 100), color: '#25C9B5' },
+      { name: 'Humains', value: totalHumains, percentage: Math.round((totalHumains / grandTotal) * 100), color: '#9C27B0' },
+      { name: 'Autre', value: totalOther, percentage: Math.round((totalOther / grandTotal) * 100), color: '#FF9800' },
+    ].filter(item => item.value > 0);
+  };
+
+  // Render circular chart
+  const renderCircularChart = () => {
+    const data = calculateCircularData();
+    if (data.length === 0) return null;
+
+    const centerX = chartWidth / 2;
+    const centerY = chartHeight / 2;
+    const maxRadius = Math.min(chartWidth, chartHeight) / 2 - 20;
+    const radiusStep = maxRadius / (data.length + 1);
+
+    return (
+      <g>
+        {data.map((item, index) => {
+          const radius = maxRadius - (index * radiusStep);
+          const circumference = 2 * Math.PI * radius;
+          const strokeDasharray = circumference;
+          const strokeDashoffset = circumference - (circumference * item.percentage / 100);
+          
+          return (
+            <g key={index}>
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke={isDark ? '#374151' : '#E5E7EB'}
+                strokeWidth="8"
+              />
+              <circle
+                cx={centerX}
+                cy={centerY}
+                r={radius}
+                fill="none"
+                stroke={item.color}
+                strokeWidth="8"
+                strokeDasharray={strokeDasharray}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                transform={`rotate(-90 ${centerX} ${centerY})`}
+                className="transition-all duration-500 ease-in-out"
+              />
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
+  // Render line chart with area (for environnement)
+  const renderLineChart = () => {
+    const values = monthlyData.map(d => type === 'environnement' ? d.environnement : d.humains);
+    const maxVal = Math.max(...values, 1);
+    
+    // Find the maximum value and its index
+    const maxIndex = values.indexOf(maxVal);
+    
+    const points = monthlyData.map((data, index) => {
+      const value = type === 'environnement' ? data.environnement : data.humains;
+      const barSpacing = innerWidth / 12;
+      const x = padding.left + index * barSpacing + barSpacing / 2;
+      const y = padding.top + innerHeight - ((value / maxVal) * innerHeight);
+      return { x, y, value, month: data.month };
+    });
+
+    // Create path for line
+    const linePath = points.map((point, index) => 
+      `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+    ).join(' ');
+
+    // Create path for area
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding.top + innerHeight} L ${points[0].x} ${padding.top + innerHeight} Z`;
+
+    // Grid lines (horizontal dashed lines)
+    const gridLines = [];
+    const numGridLines = 4;
+    for (let i = 0; i <= numGridLines; i++) {
+      const y = padding.top + (innerHeight / numGridLines) * i;
+      gridLines.push(y);
+    }
+
+    return (
+      <g>
+        {/* Grid lines */}
+        {gridLines.map((y, index) => (
+          <line
+            key={index}
+            x1={padding.left}
+            y1={y}
+            x2={padding.left + innerWidth}
+            y2={y}
+            stroke={isDark ? '#374151' : '#E5E7EB'}
+            strokeWidth="1"
+            strokeDasharray="2 2"
+            opacity="0.5"
+          />
+        ))}
+        {/* Area */}
+        <path
+          d={areaPath}
+          fill={currentColors.bar1}
+          fillOpacity="0.2"
+          className="transition-all duration-500 ease-in-out"
+        />
+        {/* Line */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke={currentColors.bar1}
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="transition-all duration-500 ease-in-out"
+        />
+        {/* Points */}
+        {points.map((point, index) => {
+          const isHighlighted = index === maxIndex;
+          return (
+            <g key={index}>
+              {/* Regular point */}
+              {!isHighlighted && (
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r="3"
+                  fill={currentColors.bar1}
+                  className="transition-all duration-500 ease-in-out"
+                />
+              )}
+              {/* Highlighted point with tooltip */}
+              {isHighlighted && (
+                <g>
+                  {/* White circle background */}
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="6"
+                    fill="white"
+                    stroke={currentColors.bar1}
+                    strokeWidth="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  {/* Colored circle */}
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="4"
+                    fill={currentColors.bar1}
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  {/* Tooltip */}
+                  <g>
+                    <rect
+                      x={point.x - 35}
+                      y={point.y - 25}
+                      width="70"
+                      height="18"
+                      fill={isDark ? '#1f2937' : '#374151'}
+                      rx="4"
+                      opacity="0.9"
+                    />
+                    <text
+                      x={point.x}
+                      y={point.y - 12}
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="10"
+                      fontWeight="600"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      {formatCurrency(point.value)}
+                    </text>
+                  </g>
+                </g>
+              )}
+            </g>
+          );
+        })}
+        {/* Month labels */}
+        {monthlyData.map((data, index) => {
+          const barSpacing = innerWidth / 12;
+          const x = padding.left + index * barSpacing + barSpacing / 2;
+          return (
+            <text
+              key={index}
+              x={x}
+              y={chartHeight - 5}
+              textAnchor="middle"
+              fill={isDark ? '#94a3b8' : '#6a90b9'}
+              fontSize="10"
+              fontWeight="500"
+              style={{ fontFamily: 'Poppins, Helvetica' }}
+            >
+              {data.month}
+            </text>
+          );
+        })}
+      </g>
+    );
+  };
+
+  // Render bar chart (for humains)
+  const renderBarChart = () => {
+    return (
+      <g>
+        {monthlyData.map((data, index) => {
+          const barSpacing = innerWidth / 12;
+          const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+          const value = type === 'humains' ? data.humains : data.environnement;
+          const barHeight = (value / maxValue) * innerHeight;
+          const y = padding.top + innerHeight - barHeight;
+          const isMax = value === maxValue;
+
+          return (
+            <g key={index}>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                fill={isMax ? currentColors.bar2 : currentColors.bar1}
+                rx="2"
+                className="transition-all duration-500 ease-in-out"
+              />
+              <text
+                x={x + barWidth / 2}
+                y={chartHeight - 5}
+                textAnchor="middle"
+                fill={isDark ? '#94a3b8' : '#6a90b9'}
+                fontSize="10"
+                fontWeight="500"
+                style={{ fontFamily: 'Poppins, Helvetica' }}
+              >
+                {data.month}
+              </text>
+            </g>
+          );
+        })}
+        {/* MAX line */}
+        <line
+          x1={padding.left}
+          y1={padding.top}
+          x2={padding.left + innerWidth}
+          y2={padding.top}
+          stroke={currentColors.bar2}
+          strokeWidth="1"
+          strokeDasharray="4 4"
+          opacity="0.5"
+        />
+        <text
+          x={padding.left + innerWidth - 5}
+          y={padding.top - 5}
+          textAnchor="end"
+          fill={currentColors.bar2}
+          fontSize="9"
+          fontWeight="500"
+          style={{ fontFamily: 'Poppins, Helvetica' }}
+        >
+          MAX
+        </text>
+      </g>
+    );
+  };
+
+  const toggleView = () => {
+    setViewType(prev => prev === 'default' ? 'alternative' : 'default');
+  };
+
+  // Determine which chart to render based on type and viewType
+  const renderChart = () => {
+    if (viewType === 'alternative') {
+      if (type === 'total') {
+        // Circular chart for total
+        return renderCircularChart();
+      } else if (type === 'humains') {
+        // Bar chart for humains
+        return renderBarChart();
+      } else {
+        // Line chart for environnement
+        return renderLineChart();
+      }
+    } else {
+      // Default stacked bar chart
+      return (
+        <>
+          {monthlyData.map((data, index) => {
+            const barSpacing = innerWidth / 12;
+            const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+            const value = type === 'total' ? data.total : (type === 'humains' ? data.humains : data.environnement);
+            const barHeight = (value / maxValue) * innerHeight;
+            const y = padding.top + innerHeight - barHeight;
+
+            if (type === 'total') {
+              // Stacked: environnement (bottom) + humains (top)
+              const envHeight = (data.environnement / maxValue) * innerHeight;
+              const humainsHeight = (data.humains / maxValue) * innerHeight;
+              const envY = padding.top + innerHeight - envHeight;
+              const humainsY = envY - humainsHeight;
+
+              return (
+                <g key={index}>
+                  {/* Environnement (bottom - turquoise) */}
+                  {data.environnement > 0 && (
+                    <rect
+                      x={x}
+                      y={envY}
+                      width={barWidth}
+                      height={envHeight}
+                      fill={currentColors.bar1}
+                      rx="2"
+                      className="transition-all duration-500 ease-in-out"
+                    />
+                  )}
+                  {/* Humains (top - violet) */}
+                  {data.humains > 0 && (
+                    <rect
+                      x={x}
+                      y={humainsY}
+                      width={barWidth}
+                      height={humainsHeight}
+                      fill={currentColors.bar2}
+                      rx="2"
+                      className="transition-all duration-500 ease-in-out"
+                    />
+                  )}
+                  {/* Month label */}
+                  <text
+                    x={x + barWidth / 2}
+                    y={chartHeight - 5}
+                    textAnchor="middle"
+                    fill={isDark ? '#94a3b8' : '#6a90b9'}
+                    fontSize="10"
+                    fontWeight="500"
+                    style={{ fontFamily: 'Poppins, Helvetica' }}
+                  >
+                    {data.month}
+                  </text>
+                </g>
+              );
+            } else if (type === 'environnement') {
+              // Stacked: violet clair (bottom) + violet foncé (top)
+              const part1 = value * 0.6;
+              const part2 = value * 0.4;
+              const height1 = (part1 / maxValue) * innerHeight;
+              const height2 = (part2 / maxValue) * innerHeight;
+              const y1 = padding.top + innerHeight - height1;
+              const y2 = y1 - height2;
+
+              return (
+                <g key={index}>
+                  <rect
+                    x={x}
+                    y={y1}
+                    width={barWidth}
+                    height={height1}
+                    fill={currentColors.bar1}
+                    rx="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  <rect
+                    x={x}
+                    y={y2}
+                    width={barWidth}
+                    height={height2}
+                    fill={currentColors.bar2}
+                    rx="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  <text
+                    x={x + barWidth / 2}
+                    y={chartHeight - 5}
+                    textAnchor="middle"
+                    fill={isDark ? '#94a3b8' : '#6a90b9'}
+                    fontSize="10"
+                    fontWeight="500"
+                    style={{ fontFamily: 'Poppins, Helvetica' }}
+                  >
+                    {data.month}
+                  </text>
+                </g>
+              );
+            } else {
+              // Stacked: turquoise clair (bottom) + moyen (middle) + foncé (top)
+              const part1 = value * 0.5;
+              const part2 = value * 0.3;
+              const part3 = value * 0.2;
+              const height1 = (part1 / maxValue) * innerHeight;
+              const height2 = (part2 / maxValue) * innerHeight;
+              const height3 = (part3 / maxValue) * innerHeight;
+              const y1 = padding.top + innerHeight - height1;
+              const y2 = y1 - height2;
+              const y3 = y2 - height3;
+
+              return (
+                <g key={index}>
+                  <rect
+                    x={x}
+                    y={y1}
+                    width={barWidth}
+                    height={height1}
+                    fill={currentColors.bar1}
+                    rx="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  <rect
+                    x={x}
+                    y={y2}
+                    width={barWidth}
+                    height={height2}
+                    fill={currentColors.bar2}
+                    rx="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  <rect
+                    x={x}
+                    y={y3}
+                    width={barWidth}
+                    height={height3}
+                    fill={currentColors.bar3}
+                    rx="2"
+                    className="transition-all duration-500 ease-in-out"
+                  />
+                  <text
+                    x={x + barWidth / 2}
+                    y={chartHeight - 5}
+                    textAnchor="middle"
+                    fill={isDark ? '#94a3b8' : '#6a90b9'}
+                    fontSize="10"
+                    fontWeight="500"
+                    style={{ fontFamily: 'Poppins, Helvetica' }}
+                  >
+                    {data.month}
+                  </text>
+                </g>
+              );
+            }
+          })}
+        </>
+      );
+    }
+  };
+
+  const circularData = calculateCircularData();
+
   return (
     <Card className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border-0`}>
       <CardContent className="p-4">
@@ -119,166 +613,51 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
           <div className={`font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-sm`}>
             {title}
           </div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentColors.iconBg}`}>
-            <Target className={`w-4 h-4 ${currentColors.iconColor}`} />
+          {/* Amount and Eye icon on the same line, aligned to the right */}
+          <div className="flex items-center gap-2">
+            <div className={`font-bold ${currentColors.amountColor} text-2xl`}>
+              {formatCurrency(amount)}
+            </div>
+            <button
+              onClick={toggleView}
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${currentColors.iconBg} hover:opacity-80 transition-all duration-300 cursor-pointer`}
+              title="Changer la vue du graphique"
+            >
+              <Eye className={`w-4 h-4 ${currentColors.iconColor} transition-transform duration-300 ${viewType === 'alternative' ? 'scale-110' : ''}`} />
+            </button>
           </div>
         </div>
 
-        {/* Amount */}
-        <div className={`font-bold ${currentColors.amountColor} text-2xl mb-4`}>
-          {formatCurrency(amount)}
+        {/* Chart Container with Animation */}
+        <div className="w-full overflow-x-auto relative" style={{ height: `${chartHeight}px` }}>
+          <div className="transition-opacity duration-500 ease-in-out">
+            <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet">
+              {renderChart()}
+            </svg>
+          </div>
         </div>
 
-        {/* Stacked Bar Chart */}
-        <div className="w-full overflow-x-auto" style={{ height: `${chartHeight}px` }}>
-          <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet">
-            {monthlyData.map((data, index) => {
-              const barSpacing = innerWidth / 12;
-              const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
-              const value = type === 'total' ? data.total : (type === 'humains' ? data.humains : data.environnement);
-              const barHeight = (value / maxValue) * innerHeight;
-              const y = padding.top + innerHeight - barHeight;
-
-              if (type === 'total') {
-                // Stacked: environnement (bottom) + humains (top)
-                const envHeight = (data.environnement / maxValue) * innerHeight;
-                const humainsHeight = (data.humains / maxValue) * innerHeight;
-                const envY = padding.top + innerHeight - envHeight;
-                const humainsY = envY - humainsHeight;
-
-                return (
-                  <g key={index}>
-                    {/* Environnement (bottom - turquoise) */}
-                    {data.environnement > 0 && (
-                      <rect
-                        x={x}
-                        y={envY}
-                        width={barWidth}
-                        height={envHeight}
-                        fill={currentColors.bar1}
-                        rx="2"
-                      />
-                    )}
-                    {/* Humains (top - violet) */}
-                    {data.humains > 0 && (
-                      <rect
-                        x={x}
-                        y={humainsY}
-                        width={barWidth}
-                        height={humainsHeight}
-                        fill={currentColors.bar2}
-                        rx="2"
-                      />
-                    )}
-                    {/* Month label */}
-                    <text
-                      x={x + barWidth / 2}
-                      y={chartHeight - 5}
-                      textAnchor="middle"
-                      fill={isDark ? '#94a3b8' : '#6a90b9'}
-                      fontSize="10"
-                      fontWeight="500"
-                      style={{ fontFamily: 'Poppins, Helvetica' }}
-                    >
-                      {data.month}
-                    </text>
-                  </g>
-                );
-              } else if (type === 'environnement') {
-                // Stacked: violet clair (bottom) + violet foncé (top)
-                const part1 = value * 0.6;
-                const part2 = value * 0.4;
-                const height1 = (part1 / maxValue) * innerHeight;
-                const height2 = (part2 / maxValue) * innerHeight;
-                const y1 = padding.top + innerHeight - height1;
-                const y2 = y1 - height2;
-
-                return (
-                  <g key={index}>
-                    <rect
-                      x={x}
-                      y={y1}
-                      width={barWidth}
-                      height={height1}
-                      fill={currentColors.bar1}
-                      rx="2"
-                    />
-                    <rect
-                      x={x}
-                      y={y2}
-                      width={barWidth}
-                      height={height2}
-                      fill={currentColors.bar2}
-                      rx="2"
-                    />
-                    <text
-                      x={x + barWidth / 2}
-                      y={chartHeight - 5}
-                      textAnchor="middle"
-                      fill={isDark ? '#94a3b8' : '#6a90b9'}
-                      fontSize="10"
-                      fontWeight="500"
-                      style={{ fontFamily: 'Poppins, Helvetica' }}
-                    >
-                      {data.month}
-                    </text>
-                  </g>
-                );
-              } else {
-                // Stacked: turquoise clair (bottom) + moyen (middle) + foncé (top)
-                const part1 = value * 0.5;
-                const part2 = value * 0.3;
-                const part3 = value * 0.2;
-                const height1 = (part1 / maxValue) * innerHeight;
-                const height2 = (part2 / maxValue) * innerHeight;
-                const height3 = (part3 / maxValue) * innerHeight;
-                const y1 = padding.top + innerHeight - height1;
-                const y2 = y1 - height2;
-                const y3 = y2 - height3;
-
-                return (
-                  <g key={index}>
-                    <rect
-                      x={x}
-                      y={y1}
-                      width={barWidth}
-                      height={height1}
-                      fill={currentColors.bar1}
-                      rx="2"
-                    />
-                    <rect
-                      x={x}
-                      y={y2}
-                      width={barWidth}
-                      height={height2}
-                      fill={currentColors.bar2}
-                      rx="2"
-                    />
-                    <rect
-                      x={x}
-                      y={y3}
-                      width={barWidth}
-                      height={height3}
-                      fill={currentColors.bar3}
-                      rx="2"
-                    />
-                    <text
-                      x={x + barWidth / 2}
-                      y={chartHeight - 5}
-                      textAnchor="middle"
-                      fill={isDark ? '#94a3b8' : '#6a90b9'}
-                      fontSize="10"
-                      fontWeight="500"
-                      style={{ fontFamily: 'Poppins, Helvetica' }}
-                    >
-                      {data.month}
-                    </text>
-                  </g>
-                );
-              }
-            })}
-          </svg>
-        </div>
+        {/* Legend for circular chart */}
+        {viewType === 'alternative' && type === 'total' && circularData.length > 0 && (
+          <div className="mt-3 flex flex-col gap-1">
+            {circularData.map((item, index) => (
+              <div key={index} className="flex items-center justify-end gap-2 text-xs">
+                <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {item.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  <div 
+                    className="w-2 h-2 rounded-full" 
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {item.percentage}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -410,7 +789,8 @@ export const ChargesDepenses = (): JSX.Element => {
     // First pass: categorize charges
     chargesList.forEach(charge => {
       const date = charge.date ? new Date(charge.date) : new Date(charge.created_at);
-      const monthKey = `${date.getMonth() + 1}`.padStart(2, '0');
+      const monthIndex = date.getMonth(); // 0-11 (0 = Jan, 11 = Dec)
+      const monthKey = `${monthIndex + 1}`.padStart(2, '0');
       const amount = parseFloat(String(charge.amount || 0));
       const category = (charge.category || '').toLowerCase();
       
@@ -450,6 +830,7 @@ export const ChargesDepenses = (): JSX.Element => {
       };
     });
 
+    // Convert byCategory to array format (must be before using it in logs)
     const byCategoryArray = Object.keys(byCategory).map(name => ({
       name: getCategoryLabel(name),
       value: byCategory[name]
@@ -458,6 +839,11 @@ export const ChargesDepenses = (): JSX.Element => {
     // Calculate totals by category
     const humainsTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.humains, 0);
     const environnementTotal = Object.values(monthlyByCategory).reduce((sum, m) => sum + m.environnement, 0);
+
+    // Debug log to verify data
+    console.log('📊 Monthly Evolution Data:', monthlyEvolution);
+    console.log('📊 By Category Data:', byCategoryArray);
+    console.log('📊 Totals - Humains:', humainsTotal, 'Environnement:', environnementTotal, 'Total:', totalExpenses);
 
     const dashboardData: ExpensesDashboardResponse = {
       success: true,
@@ -814,6 +1200,7 @@ export const ChargesDepenses = (): JSX.Element => {
             type="total"
             isDark={isDark}
             primaryColor={primaryColor}
+            categoryData={(dashboardStats.data as any).charts?.by_category || []}
           />
 
           {/* Moyens Environnementaux Card */}
@@ -884,8 +1271,9 @@ export const ChargesDepenses = (): JSX.Element => {
             </Button>
           </div>
 
-          {/* Center: Date Sort */}
+          {/* Right: All Action Buttons */}
           <div className="flex items-center gap-3">
+            {/* Date Sort Button */}
             <Button
               variant="outline"
               onClick={handleDateSortToggle}
@@ -897,10 +1285,8 @@ export const ChargesDepenses = (): JSX.Element => {
                 Date De Création
               </span>
             </Button>
-          </div>
 
-          {/* Center-Right: Filter */}
-          <div className="flex items-center gap-3">
+            {/* Filter Button */}
             <div className="relative" ref={filterDropdownRef}>
               <Button
                 variant="outline"
@@ -948,10 +1334,7 @@ export const ChargesDepenses = (): JSX.Element => {
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Right: Export Buttons */}
-          <div className="flex items-center gap-3">
             {/* Export Excel Button */}
             <Button
               variant="outline"

@@ -58,6 +58,11 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
             </div>
           </div>
 
+          {/* Optional label */}
+          <p className={`text-sm italic ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>
+            Ajouter (Produ Vde Video (Optionnel))
+          </p>
+
           {/* Upload Buttons */}
           <div className="flex justify-center items-center gap-4">
             <FileUpload
@@ -71,13 +76,13 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
               <Button 
                 className="h-auto inline-flex items-center gap-2.5 px-[19px] py-[26px] rounded-[15px] border hover:opacity-90 cursor-pointer"
                 style={{ 
-                  backgroundColor: primaryColor,
-                  color: 'white',
-                  border: 'none'
+                  backgroundColor: '#FFD7B5',
+                  color: '#2D3748',
+                  border: '1px solid #FFD7B5'
                 }}
               >
-                <span className="[font-family:'Poppins',Helvetica] font-semibold text-white text-[17px]">
-                  {t('courseCreation.form.introVideo')}
+                <span className="[font-family:'Poppins',Helvetica] font-semibold text-[17px]">
+                  Vidéo D'introduction
                 </span>
                 <img
                   className="w-[38.89px] h-[26.39px]"
@@ -99,13 +104,13 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
                 variant="outline"
                 className="h-auto inline-flex items-center gap-2.5 px-[19px] py-[26px] rounded-[15px] hover:opacity-90 cursor-pointer"
                 style={{ 
-                  borderColor: primaryColor, 
-                  color: primaryColor,
-                  backgroundColor: 'transparent'
+                  borderColor: '#E6D7FF', 
+                  color: '#2D3748',
+                  backgroundColor: '#E6D7FF'
                 }}
               >
                 <span className="[font-family:'Poppins',Helvetica] font-semibold text-[17px]">
-                  {t('courseCreation.form.introImage')}
+                  Image D'introduction
                 </span>
                 <img
                   className="w-[25.53px] h-[27px]"
