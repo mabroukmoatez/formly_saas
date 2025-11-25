@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { ChevronDownIcon, ChevronUpIcon, InfoIcon } from 'lucide-react';
+import { InfoIcon } from 'lucide-react';
 import {
   ModulesSection,
   ObjectivesSection,
@@ -129,25 +129,8 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const { organization } = useOrganization();
-  // Initialize with all section IDs expanded by default
-  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]));
 
   const primaryColor = organization?.primary_color || '#007aff';
-  const secondaryColor = organization?.secondary_color || '#6a90b9';
-
-  const toggleSection = (sectionId: number) => {
-    // ('toggleSection called for section:', sectionId);
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(sectionId)) {
-      newExpanded.delete(sectionId);
-      // ('Collapsing section:', sectionId);
-    } else {
-      newExpanded.add(sectionId);
-      // ('Expanding section:', sectionId);
-    }
-    setExpandedSections(newExpanded);
-    onSectionClick?.(sectionId);
-  };
 
   const defaultSections: CollapsibleSection[] = [
     {
@@ -341,81 +324,46 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
         <Card
           key={section.id}
           data-section-id={section.id}
-          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative transition-all duration-200 hover:shadow-lg border ${
+          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative border ${
             isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#e2e2ea]'
           }`}
         >
-          <CardContent
-            className="p-5 flex items-center justify-between cursor-pointer"
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              const isButton = target.tagName === 'BUTTON' || target.closest('button');
-              const isLink = target.tagName === 'A' || target.closest('a');
-              if (isButton || isLink) {
-                return;
-              }
-              toggleSection(section.id);
-            }}
-          >
-            <div className="inline-flex items-center gap-3">
+          {/* Section Header - Always visible */}
+          <CardContent className="p-5 pb-0">
+            <div className="inline-flex items-center gap-3 mb-4">
               <div className="inline-flex items-center gap-2">
                 <div
-                  className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid transition-colors ${
-                    isDark ? 'border-gray-500' : 'border-[#e2e2ea]'
-                  }`}
+                  className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid`}
                   style={{
-                    borderColor: expandedSections.has(section.id) ? primaryColor : (isDark ? '#6b7280' : '#e2e2ea'),
-                    backgroundColor: expandedSections.has(section.id) ? primaryColor : 'transparent'
+                    borderColor: primaryColor,
+                    backgroundColor: primaryColor
                   }}
                 />
                 <span
-                  className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] transition-colors ${
+                  className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${
                     isDark ? 'text-white' : 'text-[#19294a]'
                   }`}
-                  style={{
-                    color: expandedSections.has(section.id) ? primaryColor : (isDark ? 'white' : '#19294a')
-                  }}
+                  style={{ color: primaryColor }}
                 >
                   {section.title}
                 </span>
                 <InfoIcon
-                  className={`w-4 h-4 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
-                  style={{
-                    color: expandedSections.has(section.id) ? primaryColor : (isDark ? '#9ca3af' : '#6b7280')
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {expandedSections.has(section.id) ? (
-                <ChevronUpIcon
-                  className={`w-6 h-6 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  className="w-4 h-4"
                   style={{ color: primaryColor }}
                 />
-              ) : (
-                <ChevronDownIcon
-                  className={`w-6 h-6 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
-                />
-              )}
+              </div>
             </div>
           </CardContent>
 
-          {expandedSections.has(section.id) && (
-            <div
-              className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-              }}
-              data-section-content="true"
-            >
-              <div className="pt-4">
-                {section.content || getSectionContent(section.id)}
-              </div>
+          {/* Section Content - Always visible */}
+          <div
+            className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}
+            data-section-content="true"
+          >
+            <div className="pt-4">
+              {section.content || getSectionContent(section.id)}
             </div>
-          )}
+          </div>
         </Card>
       ))}
     </div>
