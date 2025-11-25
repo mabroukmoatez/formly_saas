@@ -357,7 +357,7 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
                   <span className={`[font-family:'Poppins',Helvetica] font-medium text-[17px] ${
                     isDark ? 'text-white' : 'text-[#19294a]'
                   }`}>
-                    Course Description:
+                    Course Description
                   </span>
                 </div>
                 <RichTextField

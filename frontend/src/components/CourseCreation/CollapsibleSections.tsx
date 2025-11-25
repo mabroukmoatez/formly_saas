@@ -129,7 +129,8 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const { organization } = useOrganization();
-  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+  // Initialize with all section IDs expanded by default
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]));
 
   const primaryColor = organization?.primary_color || '#007aff';
   const secondaryColor = organization?.secondary_color || '#6a90b9';
