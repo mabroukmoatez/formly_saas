@@ -368,6 +368,98 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
                   minHeight="150px"
                 />
               </div>
+
+              {/* Durée De La Formation - Always Visible */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid`}
+                    style={{
+                      borderColor: primaryColor,
+                      backgroundColor: primaryColor
+                    }}
+                  />
+                  <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px]`}
+                    style={{ color: primaryColor }}
+                  >
+                    Durée De La Formation
+                  </span>
+                  <InfoIcon className="w-4 h-4" style={{ color: primaryColor }} />
+                </div>
+                <div className={`flex items-center gap-6 px-4 py-3 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                  {/* Hours (HH) */}
+                  <div className="flex items-center gap-2">
+                    <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+                      isDark ? 'text-gray-400' : 'text-[#718096]'
+                    }`}>
+                      -
+                    </span>
+                    <div className={`flex items-center px-3 py-2 rounded-full border ${
+                      isDark ? 'bg-gray-600 border-gray-500' : 'bg-[#E8F3FF] border-[#E8F3FF]'
+                    }`}>
+                      <Input
+                        type="number"
+                        value={formData.duration || ''}
+                        onChange={(e) => onInputChange('duration', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={`w-[40px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                          isDark
+                            ? 'text-white placeholder:text-gray-400 bg-transparent'
+                            : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+                        }`}
+                      />
+                      <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ml-1 ${
+                        isDark ? 'text-white' : 'text-[#19294a]'
+                      }`}>
+                        H(s)
+                      </span>
+                    </div>
+                    <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] mx-2 ${
+                      isDark ? 'text-gray-400' : 'text-[#718096]'
+                    }`}>
+                      SOIT
+                    </span>
+                  </div>
+
+                  {/* Days (JJ) */}
+                  <div className="flex items-center gap-2">
+                    <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+                      isDark ? 'text-gray-400' : 'text-[#718096]'
+                    }`}>
+                      -
+                    </span>
+                    <div className={`flex items-center px-3 py-2 rounded-full border ${
+                      isDark ? 'bg-gray-600 border-gray-500' : 'bg-[#E8F3FF] border-[#E8F3FF]'
+                    }`}>
+                      <Input
+                        type="number"
+                        value={formData.duration_days || ''}
+                        onChange={(e) => onInputChange('duration_days', parseInt(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={`w-[40px] border-none shadow-none text-[17px] font-semibold text-center p-0 h-auto ${
+                          isDark
+                            ? 'text-white placeholder:text-gray-400 bg-transparent'
+                            : 'text-[#19294a] placeholder:text-[#718096] bg-transparent'
+                        }`}
+                      />
+                      <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ml-1 ${
+                        isDark ? 'text-white' : 'text-[#19294a]'
+                      }`}>
+                        J/J
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* De Formation label */}
+                  <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+                    isDark ? 'text-gray-300' : 'text-[#19294a]'
+                  }`}>
+                    De Formation
+                  </span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

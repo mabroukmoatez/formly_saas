@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { InfoIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronUpIcon, InfoIcon } from 'lucide-react';
 import {
   ModulesSection,
   ObjectivesSection,
@@ -17,7 +17,6 @@ import {
   AccessibilitySection,
   ContactsSection,
   UpdateDateSection,
-  DurationSection,
   PublicViseSection,
   PrerequisSection
 } from './SectionContent';
@@ -129,72 +128,82 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const { organization } = useOrganization();
+  // Start with empty set - all sections collapsed by default
+  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
 
   const primaryColor = organization?.primary_color || '#007aff';
+  const secondaryColor = organization?.secondary_color || '#6a90b9';
 
+  const toggleSection = (sectionId: number) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(sectionId)) {
+      newExpanded.delete(sectionId);
+    } else {
+      newExpanded.add(sectionId);
+    }
+    setExpandedSections(newExpanded);
+    onSectionClick?.(sectionId);
+  };
+
+  // Sections starting from Public Visé (Durée is now in CourseInformationForm)
   const defaultSections: CollapsibleSection[] = [
     {
       id: 1,
-      title: "Durée De La Formation",
-      icon: '/assets/icons/expand-module.png',
-    },
-    {
-      id: 2,
       title: "Public Visé",
       icon: '/assets/icons/expand-public.png',
     },
     {
-      id: 3,
+      id: 2,
       title: "Prérequis",
       icon: '/assets/icons/expand-public.png',
     },
     {
-      id: 4,
+      id: 3,
       title: "Tarification",
       icon: '/assets/icons/expand-pricing.png',
     },
     {
-      id: 5,
+      id: 4,
       title: "Objectif Pédagogique",
       icon: '/assets/icons/expand-objective.png',
     },
     {
-      id: 6,
+      id: 5,
       title: "Méthodes Mobilisées",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 7,
+      id: 6,
       title: "Modalité D'évaluation",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 8,
+      id: 7,
       title: "Modalités Et Délais D'accès",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 9,
+      id: 8,
       title: "Accessibilité Aux Personnes Handicapées",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 10,
+      id: 9,
       title: "Contacts",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 11,
+      id: 10,
       title: "Date De MAJ",
       icon: '/assets/icons/expand-method.png',
     },
     {
-      id: 12,
+      id: 11,
       title: "Modules",
       icon: '/assets/icons/expand-module.png',
     },
     {
-      id: 13,
+      id: 12,
       title: "Spécificités De La Formation",
       icon: '/assets/icons/expand-specifics.png',
     },
@@ -204,25 +213,21 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
 
   const getSectionContent = (sectionId: number) => {
     switch (sectionId) {
-      case 1: // Duration - Custom content for duration
-        return (
-          <DurationSection />
-        );
-      case 2: // Public Visé
+      case 1: // Public Visé
         return (
           <PublicViseSection
             targetAudience={targetAudience}
             onUpdateTargetAudience={onUpdateTargetAudience}
           />
         );
-      case 3: // Prerequisites
+      case 2: // Prerequisites
         return (
           <PrerequisSection
             prerequisites={prerequisites}
             onUpdatePrerequisites={onUpdatePrerequisites}
           />
         );
-      case 4: // Pricing (Tarification)
+      case 3: // Pricing (Tarification)
         return (
           <PricingSection
             priceHT={priceHT}
@@ -235,7 +240,7 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onRemoveAdditionalFee={onRemoveAdditionalFee}
           />
         );
-      case 5: // Objectif Pédagogique
+      case 4: // Objectif Pédagogique
         return (
           <ObjectivesSection
             objectives={objectives}
@@ -244,49 +249,49 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onRemoveObjective={onRemoveObjective}
           />
         );
-      case 6: // Méthodes Mobilisées
+      case 5: // Méthodes Mobilisées
         return (
           <MethodsSection
             methods={methods}
             onUpdateMethods={onUpdateMethods}
           />
         );
-      case 7: // Modalité D'évaluation
+      case 6: // Modalité D'évaluation
         return (
           <EvaluationModalitiesSection
             evaluationModalities={evaluationModalities}
             onUpdateEvaluationModalities={onUpdateEvaluationModalities}
           />
         );
-      case 8: // Modalités Et Délais D'accès
+      case 7: // Modalités Et Délais D'accès
         return (
           <AccessModalitiesSection
             accessModalities={accessModalities}
             onUpdateAccessModalities={onUpdateAccessModalities}
           />
         );
-      case 9: // Accessibilité Aux Personnes Handicapées
+      case 8: // Accessibilité Aux Personnes Handicapées
         return (
           <AccessibilitySection
             accessibility={accessibility}
             onUpdateAccessibility={onUpdateAccessibility}
           />
         );
-      case 10: // Contacts
+      case 9: // Contacts
         return (
           <ContactsSection
             contacts={contacts}
             onUpdateContacts={onUpdateContacts}
           />
         );
-      case 11: // Date De MAJ
+      case 10: // Date De MAJ
         return (
           <UpdateDateSection
             updateDate={updateDate}
             onUpdateUpdateDate={onUpdateUpdateDate}
           />
         );
-      case 12: // Modules
+      case 11: // Modules
         return (
           <ModulesSection
             modules={modules}
@@ -296,7 +301,7 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onReorderModules={onReorderModules}
           />
         );
-      case 13: // Spécificités De La Formation
+      case 12: // Spécificités De La Formation
         return (
           <SpecificsSection
             specifics={specifics}
@@ -324,46 +329,81 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
         <Card
           key={section.id}
           data-section-id={section.id}
-          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative border ${
+          className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] relative transition-all duration-200 hover:shadow-lg border ${
             isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#e2e2ea]'
           }`}
         >
-          {/* Section Header - Always visible */}
-          <CardContent className="p-5 pb-0">
-            <div className="inline-flex items-center gap-3 mb-4">
+          <CardContent
+            className="p-5 flex items-center justify-between cursor-pointer"
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              const isButton = target.tagName === 'BUTTON' || target.closest('button');
+              const isLink = target.tagName === 'A' || target.closest('a');
+              if (isButton || isLink) {
+                return;
+              }
+              toggleSection(section.id);
+            }}
+          >
+            <div className="inline-flex items-center gap-3">
               <div className="inline-flex items-center gap-2">
                 <div
-                  className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid`}
+                  className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid transition-colors ${
+                    isDark ? 'border-gray-500' : 'border-[#e2e2ea]'
+                  }`}
                   style={{
-                    borderColor: primaryColor,
-                    backgroundColor: primaryColor
+                    borderColor: expandedSections.has(section.id) ? primaryColor : (isDark ? '#6b7280' : '#e2e2ea'),
+                    backgroundColor: expandedSections.has(section.id) ? primaryColor : 'transparent'
                   }}
                 />
                 <span
-                  className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${
+                  className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] transition-colors ${
                     isDark ? 'text-white' : 'text-[#19294a]'
                   }`}
-                  style={{ color: primaryColor }}
+                  style={{
+                    color: expandedSections.has(section.id) ? primaryColor : (isDark ? 'white' : '#19294a')
+                  }}
                 >
                   {section.title}
                 </span>
                 <InfoIcon
-                  className="w-4 h-4"
-                  style={{ color: primaryColor }}
+                  className={`w-4 h-4 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  style={{
+                    color: expandedSections.has(section.id) ? primaryColor : (isDark ? '#9ca3af' : '#6b7280')
+                  }}
                 />
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              {expandedSections.has(section.id) ? (
+                <ChevronUpIcon
+                  className={`w-6 h-6 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                  style={{ color: primaryColor }}
+                />
+              ) : (
+                <ChevronDownIcon
+                  className={`w-6 h-6 transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
+                />
+              )}
+            </div>
           </CardContent>
 
-          {/* Section Content - Always visible */}
-          <div
-            className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}
-            data-section-content="true"
-          >
-            <div className="pt-4">
-              {section.content || getSectionContent(section.id)}
+          {expandedSections.has(section.id) && (
+            <div
+              className={`px-5 pb-5 border-t ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+              }}
+              data-section-content="true"
+            >
+              <div className="pt-4">
+                {section.content || getSectionContent(section.id)}
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       ))}
     </div>
