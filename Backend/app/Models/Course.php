@@ -57,6 +57,11 @@ class Course extends Model
         'learning_outcomes',
         'methods',
         'specifics',
+        'evaluation_modalities',
+        'access_modalities',
+        'accessibility',
+        'contacts',
+        'update_date',
         'learner_accessibility',
         'image',
         'video',
@@ -167,6 +172,18 @@ class Course extends Model
     public function tags()
     {
         return $this->belongsToMany(Tag::class, 'course_tags', 'course_id', 'tag_id');
+    }
+
+    public function formationPractices()
+    {
+        return $this->belongsToMany(
+            FormationPractice::class,
+            'course_formation_practices',
+            'course_uuid',
+            'practice_id',
+            'uuid',
+            'id'
+        )->withTimestamps();
     }
 
     public function lessons()

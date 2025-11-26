@@ -1037,6 +1037,10 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
         Route::post('/{id}/participants', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'addParticipants']);
         Route::delete('/{id}/participants/{participantId}', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'removeParticipant']);
         Route::post('/{id}/leave', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'leaveGroup']);
+        Route::delete('/{id}', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'destroy']);
+        Route::patch('/{id}/group/avatar', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'updateAvatar']);
+        Route::delete('/{id}/group/avatar', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'deleteAvatar']);
+        Route::patch('/{id}/group/settings', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'updateGroupSettings']);
     });
     
     // Liste des utilisateurs disponibles pour le chat
@@ -1135,6 +1139,17 @@ Route::middleware(['auth:api', 'organization.api'])->group(function () {
     Route::patch('courses/{uuid}/status', [CourseManagementApiController::class, 'updateStatus']);
     Route::delete('courses/{uuid}', [CourseManagementApiController::class, 'destroy']);
 });
+
+// Categories routes
+Route::get('courses/categories', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'index']);
+Route::middleware(['auth:api', 'organization.api'])->group(function () {
+    Route::post('courses/categories/custom', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'storeCustom']);
+    Route::put('courses/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'updateCustom']);
+    Route::delete('courses/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'destroyCustom']);
+});
+
+// Formation practices routes
+Route::get('courses/formation-practices', [\App\Http\Controllers\Api\Organization\FormationPracticeController::class, 'index']);
 
 Route::get('bundle-list', [CourseController::class, 'getBundleCourseList']);
 Route::get('bundle-details/{slug}', [CourseController::class, 'bundleDetails']);
@@ -1477,6 +1492,15 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/', [CourseManagementApiController::class, 'index']);
         Route::get('/metadata', [CourseManagementApiController::class, 'getMetadata']);
         Route::get('/subcategories/{categoryId}', [CourseManagementApiController::class, 'getSubcategories']);
+        Route::post('/subcategories', [CourseManagementApiController::class, 'storeSubcategory']);
+        
+        // Categories routes (must be before /{uuid} to avoid route conflicts)
+        Route::get('/categories', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'index']);
+        Route::post('/categories/custom', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'storeCustom']);
+        Route::put('/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'updateCustom']);
+        Route::delete('/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'destroyCustom']);
+        
+        // Course routes with UUID
         Route::get('/{uuid}', [CourseManagementApiController::class, 'show']);
         Route::get('/{uuid}/creation-data', [CourseManagementApiController::class, 'getCreationData']);
         Route::put('/{uuid}', [CourseManagementApiController::class, 'update']);
@@ -1490,6 +1514,8 @@ Route::middleware('auth:api')->group(function () {
         Route::put('/{uuid}/methods', [CourseManagementApiController::class, 'updateMethods']);
         Route::put('/{uuid}/specifics', [CourseManagementApiController::class, 'updateSpecifics']);
         Route::put('/{uuid}/youtube-video', [CourseManagementApiController::class, 'updateYouTubeVideo']);
+        Route::put('/{uuid}/formation-practices', [CourseManagementApiController::class, 'updateFormationPractices']);
+        Route::get('/{uuid}/formation-practices', [CourseManagementApiController::class, 'getFormationPractices']);
         Route::patch('/{uuid}/status', [CourseManagementApiController::class, 'updateStatus']);
         Route::delete('/{uuid}', [CourseManagementApiController::class, 'destroy']);
     });
@@ -1702,6 +1728,13 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
     Route::get('/settings', [OrganizationSettingsController::class, 'show']);
     Route::put('/settings', [OrganizationSettingsController::class, 'update']);
     Route::post('/settings', [OrganizationSettingsController::class, 'update']); // Alternative POST method
+    
+    // 2. Organization Documents
+    Route::get('/documents', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'index']);
+    Route::patch('/documents/{document_id}/rename', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'rename']);
+    Route::delete('/documents/{document_id}', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'destroy']);
+    Route::get('/documents/{document_id}/view', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'view']);
+    Route::get('/documents/{document_id}/download', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'download']);
     
     // 2. Messagerie
     Route::get('/messages', [MessageController::class, 'index']);
@@ -2062,6 +2095,52 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
 });
 
 // ============================================================================
+// LEARNER API ROUTES (Espace Apprenant)
+// ============================================================================
+Route::middleware(['auth:api'])->prefix('learner')->group(function () {
+    // Profile routes
+    Route::get('/profile', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'getProfile']);
+    Route::put('/profile', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateProfile']);
+    Route::post('/profile/request-password-change-code', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'requestPasswordChangeCode']);
+    Route::post('/profile/change-password', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'changePassword']);
+    Route::put('/profile/notification-preferences', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateNotificationPreferences']);
+    
+    // Dashboard routes
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getStats']);
+    Route::get('/dashboard/stats/detailed', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getDetailedStats']);
+    Route::get('/dashboard/upcoming-events', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getUpcomingEvents']);
+    Route::get('/dashboard/news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getNews']);
+    Route::get('/dashboard/events-and-news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getEventsAndNews']);
+    Route::get('/dashboard/recent-activities', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getRecentActivities']);
+    
+    // Courses routes
+    Route::get('/courses', [\App\Http\Controllers\Api\Learner\LearnerCoursesController::class, 'index']);
+    
+    // Documents routes
+    Route::get('/documents', [\App\Http\Controllers\Api\Learner\LearnerDocumentsController::class, 'index']);
+    
+    // Notifications routes
+    Route::get('/notifications', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'index']);
+    Route::get('/notifications/count', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'count']);
+    Route::put('/notifications/{id}/read', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'markAsRead']);
+    Route::put('/notifications/read-all', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'markAllAsRead']);
+    
+    // Conversations/Messaging routes
+    Route::prefix('conversations')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'show']);
+        Route::get('/{id}/messages', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'getMessages']);
+        Route::post('/{id}/messages', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'sendMessage']);
+        Route::put('/{id}/mark-read', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'markAsRead']);
+        Route::get('/{id}/participants', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'getParticipants']);
+    });
+    
+    // Liste des utilisateurs disponibles pour le chat
+    Route::get('/chat/users', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'getAvailableUsers']);
+});
+
+// ============================================================================
 // ORGANIZATION STUDENT MANAGEMENT ROUTES (REST API)
 // ============================================================================
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization/students')->group(function () {
@@ -2195,4 +2274,26 @@ require __DIR__.'/organization.php';
 
 // Include Super Admin routes
 require __DIR__.'/superadmin.php';
+
+// ============================================================================
+// LEARNER API ROUTES (Espace Apprenant)
+// ============================================================================
+Route::middleware(['auth:api'])->prefix('learner')->group(function () {
+    // Profile routes
+    Route::get('/profile', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'getProfile']);
+    Route::put('/profile', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateProfile']);
+    Route::post('/profile/request-password-change-code', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'requestPasswordChangeCode']);
+    Route::post('/profile/change-password', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'changePassword']);
+    Route::put('/profile/notification-preferences', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateNotificationPreferences']);
+    
+    // Dashboard routes
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getStats']);
+    Route::get('/dashboard/stats/detailed', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getDetailedStats']);
+    Route::get('/dashboard/upcoming-events', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getUpcomingEvents']);
+    Route::get('/dashboard/news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getNews']);
+    Route::get('/dashboard/recent-activities', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getRecentActivities']);
+    
+    // Note: Other routes (courses, documents, questionnaires, attendance, etc.) 
+    // will be added as we create the corresponding controllers
+});
 

@@ -80,7 +80,7 @@ class StudentController extends Controller
                     'email' => $student->user->email ?? null,
                     'phone' => $student->phone_number,
                     'phone_number' => $student->phone_number,
-                    'avatar_url' => $student->avatar_url,
+                    'avatar_url' => $student->user->image_url ?? null,
                     'status' => $student->status == 1 ? 'active' : 'inactive',
                     'status_label' => $student->status == 1 ? 'Actif' : 'En attente',
                     'registration_date' => $student->created_at->format('Y-m-d'),
@@ -183,9 +183,16 @@ class StudentController extends Controller
             $organizationId = auth()->user()->organization_id;
 
             $student = Student::where('uuid', $uuid)
-                ->byOrganization($organizationId)
-                ->with(['user', 'company', 'organization', 'administrativeFolder.documents', 'certificates'])
-                ->firstOrFail();
+                ->where('organization_id', $organizationId)
+                ->with(['user', 'company', 'organization', 'city', 'administrativeFolder.documents', 'certificates'])
+                ->first();
+            
+            if (!$student) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Apprenant non trouvé',
+                ], 404);
+            }
 
             // Préparer les documents
             $documents = [];
@@ -223,7 +230,7 @@ class StudentController extends Controller
                     'last_name' => $student->last_name,
                     'email' => $student->user->email ?? null,
                     'phone' => $student->phone_number,
-                    'avatar_url' => $student->avatar_url,
+                    'avatar_url' => $student->user->image_url ?? null,
                     'company' => $student->company->name ?? null,
                     'gender' => $student->gender,
                     'address' => $student->address,
@@ -254,21 +261,17 @@ class StudentController extends Controller
                 'data' => $data,
             ]);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Apprenant non trouvé',
-            ], 404);
-
         } catch (\Exception $e) {
             Log::error('Erreur récupération apprenant', [
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
                 'uuid' => $uuid,
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la récupération de l\'apprenant',
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -684,7 +687,7 @@ class StudentController extends Controller
                     'last_name' => $student->last_name,
                     'email' => $student->user->email ?? null,
                     'phone_number' => $student->phone_number,
-                    'avatar_url' => $student->avatar_url,
+                    'avatar_url' => $student->user->image_url ?? null,
                     'company' => $student->company->name ?? null,
                     'gender' => $student->gender,
                     'address' => $student->address,

@@ -14,6 +14,7 @@ class Category extends Model
     protected $appends = ['image_url'];
     protected $fillable = [
         'name',
+        'description',
         'image',
         'is_feature',
         'slug',
@@ -21,6 +22,8 @@ class Category extends Model
         'meta_description',
         'meta_keywords',
         'og_image',
+        'is_custom',
+        'organization_id',
     ];
 
     public function getImageUrlAttribute()
@@ -55,6 +58,32 @@ class Category extends Model
     public function subcategories()
     {
         return $this->hasMany(Subcategory::class);
+    }
+
+    public function organization()
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    public function scopeCustom($query)
+    {
+        return $query->where('is_custom', true);
+    }
+
+    public function scopeStandard($query)
+    {
+        return $query->where('is_custom', false);
+    }
+
+    public function scopeForOrganization($query, $organizationId)
+    {
+        return $query->where(function($q) use ($organizationId) {
+            $q->where('is_custom', false)
+              ->orWhere(function($subQ) use ($organizationId) {
+                  $subQ->where('is_custom', true)
+                       ->where('organization_id', $organizationId);
+              });
+        });
     }
 
     public function scopeActive($query)

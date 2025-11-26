@@ -117,48 +117,45 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <div className="w-full max-w-[1396px] flex flex-col gap-6">
         {/* Session Basic Information */}
-        <LegacyCollapsible
-          id="basic-info"
-          title={t('sessionCreation.form.basicInformation')}
-          hasData={hasSectionData('title') || hasSectionData('category') || hasSectionData('description')}
-          showCheckmark={true}
-        >
-          <div className="space-y-4">
-            <FormField
-              label={t('sessionCreation.form.title')}
-              value={formData.title}
-              onChange={(value) => onInputChange('title', value)}
-              placeholder={t('sessionCreation.form.titlePlaceholder')}
-              maxLength={110}
-            />
-
-            <SelectField
-              label={t('sessionCreation.form.category')}
-              value={formData.category_id}
-              onChange={(value) => onInputChange('category_id', value)}
-              options={categories}
-              placeholder={t('sessionCreation.form.selectCategory')}
-            />
-
-            {formData.category_id && (
-              <SelectField
-                label={t('sessionCreation.form.subcategory')}
-                value={formData.subcategory_id}
-                onChange={(value) => onInputChange('subcategory_id', value)}
-                options={subcategories.filter(sc => sc.category_id === formData.category_id)}
-                placeholder={t('sessionCreation.form.selectSubcategory')}
+        <div className='border text-card-foreground rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] transition-all duration-200 bg-white border-[#dbd8d8]'>
+          <div className='p-5 flex flex-col gap-4'>
+            <div className="space-y-4">
+              <FormField
+                label={t('sessionCreation.form.title')}
+                value={formData.title}
+                onChange={(value) => onInputChange('title', value)}
+                placeholder={t('sessionCreation.form.titlePlaceholder')}
+                maxLength={110}
               />
-            )}
 
-            <RichTextField
-              label={t('sessionCreation.form.description')}
-              value={formData.description}
-              onChange={(content) => onInputChange('description', content)}
-              placeholder={t('sessionCreation.form.descriptionPlaceholder')}
-              minHeight="200px"
-            />
+              <SelectField
+                label={t('sessionCreation.form.category')}
+                value={formData.category_id}
+                onChange={(value) => onInputChange('category_id', value)}
+                options={categories}
+                placeholder={t('sessionCreation.form.selectCategory')}
+              />
+
+              {formData.category_id && (
+                <SelectField
+                  label={t('sessionCreation.form.subcategory')}
+                  value={formData.subcategory_id}
+                  onChange={(value) => onInputChange('subcategory_id', value)}
+                  options={subcategories.filter(sc => sc.category_id === formData.category_id)}
+                  placeholder={t('sessionCreation.form.selectSubcategory')}
+                />
+              )}
+
+              <RichTextField
+                label={t('sessionCreation.form.description')}
+                value={formData.description}
+                onChange={(content) => onInputChange('description', content)}
+                placeholder={t('sessionCreation.form.descriptionPlaceholder')}
+                minHeight="200px"
+              />
+            </div>
           </div>
-        </LegacyCollapsible>
+        </div>
 
         {/* Session Dates and Times */}
         <LegacyCollapsible

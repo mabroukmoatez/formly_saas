@@ -27,6 +27,15 @@ class CompanyManagementController extends Controller
     }
 
     /**
+     * Liste des entreprises (alias pour /list)
+     * GET /api/organization/companies/list
+     */
+    public function list(Request $request)
+    {
+        return $this->index($request);
+    }
+
+    /**
      * Liste des entreprises avec tri
      * GET /api/organization/companies
      */

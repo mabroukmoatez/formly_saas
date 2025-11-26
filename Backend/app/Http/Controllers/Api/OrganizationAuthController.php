@@ -48,17 +48,50 @@ class OrganizationAuthController extends Controller
 
             if (Auth::attempt($credentials)) {
                 $user = Auth::user();
-
-                // Check if user is organization user (role 4) or student (role 3)
-                if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
+                
+                // Check if user is organization user (role 4) OR student/learner (role 3) belonging to an organization
+                $allowedRoles = [USER_ROLE_ORGANIZATION, USER_ROLE_STUDENT, USER_ROLE_INSTRUCTOR];
+                
+                if (!in_array($user->role, $allowedRoles)) {
                     Auth::logout();
-                    return $this->failed([], 'Access denied. Organization or student role required.');
+                    return $this->failed([], 'Access denied. Organization role or learner role required.');
                 }
 
-                // Check if user has organization_id
-                if (!$user->organization_id) {
-                    Auth::logout();
-                    return $this->failed([], 'User is not associated with any organization.');
+                // For students, check if they belong to an organization
+                if ($user->role == USER_ROLE_STUDENT) {
+                    // Get student record to check organization_id
+                    $student = \App\Models\Student::where('user_id', $user->id)->first();
+                    
+                    if (!$student) {
+                        Auth::logout();
+                        return $this->failed([], 'Student profile not found.');
+                    }
+                    
+                    // Check student status
+                    // Check student status (0=pending, 1=approved, 2=blocked)
+                    if ($student->status == STATUS_REJECTED || $student->status == 2) {
+                        Auth::logout();
+                        return $this->failed([], 'Your account has been blocked!');
+                    }
+                    
+                    if ($student->status == STATUS_PENDING || $student->status == 0) {
+                        Auth::logout();
+                        return $this->failed([], 'Your account is pending approval. Please wait until approval.');
+                    }
+                    
+                    if (!$student->organization_id) {
+                        Auth::logout();
+                        return $this->failed([], 'Student is not associated with any organization.');
+                    }
+                    
+                    // Set organization_id from student record
+                    $user->organization_id = $student->organization_id;
+                } else {
+                    // For organization users, check if they have organization_id
+                    if (!$user->organization_id) {
+                        Auth::logout();
+                        return $this->failed([], 'User is not associated with any organization.');
+                    }
                 }
 
                 // Optional: Verify organization subdomain
@@ -73,8 +106,12 @@ class OrganizationAuthController extends Controller
                     }
                 }
 
-                // Load user relationships
-                $user->load(['organizationBelongsTo', 'organizationRoles']);
+                // Load user relationships based on role
+                if ($user->role == USER_ROLE_STUDENT) {
+                    $user->load(['student', 'organizationBelongsTo']);
+                } else {
+                    $user->load(['organizationBelongsTo', 'organizationRoles']);
+                }
 
                 // Get organization details
                 $organization = $user->organizationBelongsTo;
@@ -86,28 +123,44 @@ class OrganizationAuthController extends Controller
                 // Generate token
                 $token = $user->createToken(Str::random(32))->plainTextToken;
 
-                // Determine role name
-                $roleName = 'Organization';
+                // Prepare user data based on role
                 if ($user->role == USER_ROLE_STUDENT) {
-                    $roleName = 'Student';
+                    $student = $user->student;
+                    $userData = [
+                        'id' => $user->id,
+                        'uuid' => $user->uuid,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'mobile_number' => $user->mobile_number,
+                        'role' => $user->role,
+                        'role_name' => 'Learner',
+                        'organization_id' => $student->organization_id ?? $user->organization_id,
+                        'student_id' => $student->id ?? null,
+                        'student_uuid' => $student->uuid ?? null,
+                        'first_name' => $student->first_name ?? null,
+                        'last_name' => $student->last_name ?? null,
+                        'image_url' => $user->image_url ?? null,
+                        'email_verified_at' => $user->email_verified_at,
+                        'created_at' => $user->created_at,
+                        'updated_at' => $user->updated_at,
+                    ];
+                } else {
+                    $userData = [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'mobile_number' => $user->mobile_number,
+                        'role' => $user->role,
+                        'role_name' => 'Organization',
+                        'organization_id' => $user->organization_id,
+                        'is_organization_admin' => $user->isOrganizationAdmin(),
+                        'organization_roles' => $user->organizationRoles->pluck('name')->toArray(),
+                        'permissions' => $this->getUserPermissions($user),
+                        'email_verified_at' => $user->email_verified_at,
+                        'created_at' => $user->created_at,
+                        'updated_at' => $user->updated_at,
+                    ];
                 }
-
-                // Prepare user data
-                $userData = [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'mobile_number' => $user->mobile_number,
-                    'role' => $user->role,
-                    'role_name' => $roleName,
-                    'organization_id' => $user->organization_id,
-                    'is_organization_admin' => $user->isOrganizationAdmin(),
-                    'organization_roles' => $user->organizationRoles->pluck('name')->toArray(),
-                    'permissions' => $this->getUserPermissions($user),
-                    'email_verified_at' => $user->email_verified_at,
-                    'created_at' => $user->created_at,
-                    'updated_at' => $user->updated_at,
-                ];
 
                 // Prepare organization data
                 $organizationData = [
@@ -254,9 +307,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user or student
-            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
-                return $this->failed([], 'Access denied. Organization or student role required.');
+            // Check if user is organization user
+            if ($user->role != USER_ROLE_ORGANIZATION) {
+                return $this->failed([], 'Access denied. Organization role required.');
             }
 
             // Load relationships
@@ -268,12 +321,6 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'Organization not found.');
             }
 
-            // Determine role name
-            $roleName = 'Organization';
-            if ($user->role == USER_ROLE_STUDENT) {
-                $roleName = 'Student';
-            }
-
             // Prepare user data
             $userData = [
                 'id' => $user->id,
@@ -281,7 +328,7 @@ class OrganizationAuthController extends Controller
                 'email' => $user->email,
                 'mobile_number' => $user->mobile_number,
                 'role' => $user->role,
-                'role_name' => $roleName,
+                'role_name' => 'Organization',
                 'organization_id' => $user->organization_id,
                 'is_organization_admin' => $user->isOrganizationAdmin(),
                 'organization_roles' => $user->organizationRoles->pluck('name')->toArray(),
@@ -365,9 +412,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user or student
-            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
-                return $this->failed([], 'Access denied. Organization or student role required.');
+            // Check if user is organization user
+            if ($user->role != USER_ROLE_ORGANIZATION) {
+                return $this->failed([], 'Access denied. Organization role required.');
             }
 
             $validator = Validator::make($request->all(), [
@@ -407,9 +454,9 @@ class OrganizationAuthController extends Controller
                 return $this->failed([], 'User not authenticated');
             }
 
-            // Check if user is organization user or student
-            if ($user->role != USER_ROLE_ORGANIZATION && $user->role != USER_ROLE_STUDENT) {
-                return $this->failed([], 'Access denied. Organization or student role required.');
+            // Check if user is organization user
+            if ($user->role != USER_ROLE_ORGANIZATION) {
+                return $this->failed([], 'Access denied. Organization role required.');
             }
 
             // Load organization roles

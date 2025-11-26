@@ -15,6 +15,7 @@ use App\Models\LearnKeyPoint;
 use App\Models\Subcategory;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\FormationPractice;
 use App\Traits\General;
 use App\Traits\ImageSaveTrait;
 use Illuminate\Http\Request;
@@ -168,7 +169,8 @@ class CourseManagementApiController extends Controller
                     'course_instructors.user',
                     'trainers',
                     'lessons.lectures',
-                    'key_points'
+                    'key_points',
+                    'formationPractices'
                 ])
                 ->first();
 
@@ -292,7 +294,19 @@ class CourseManagementApiController extends Controller
                 'learning_outcomes' => $course->learning_outcomes,
                 'methods' => $course->methods,
                 'specifics' => $course->specifics,
+                'evaluation_modalities' => $course->evaluation_modalities,
+                'access_modalities' => $course->access_modalities,
+                'accessibility' => $course->accessibility,
+                'contacts' => $course->contacts,
+                'update_date' => $course->update_date,
                 'learner_accessibility' => $course->learner_accessibility,
+                'formation_practices' => $course->formationPractices->map(function($practice) {
+                    return [
+                        'id' => $practice->id,
+                        'code' => $practice->code,
+                        'name' => $practice->name,
+                    ];
+                }),
                 'is_featured' => $course->is_featured,
                 'drip_content' => $course->drip_content,
                 'access_period' => $course->access_period,
@@ -666,6 +680,18 @@ class CourseManagementApiController extends Controller
                 if ($request->has('specifics')) $updateData['specifics'] = $request->specifics;
                 if ($request->has('feature_details')) $updateData['feature_details'] = $request->feature_details;
                 
+                // Additional fields
+                if ($request->has('evaluation_modalities')) $updateData['evaluation_modalities'] = $request->evaluation_modalities;
+                if ($request->has('access_modalities')) $updateData['access_modalities'] = $request->access_modalities;
+                if ($request->has('accessibility')) $updateData['accessibility'] = $request->accessibility;
+                if ($request->has('contacts')) $updateData['contacts'] = $request->contacts;
+                if ($request->has('update_date')) $updateData['update_date'] = $request->update_date;
+                
+                // Formation practices
+                if ($request->has('formation_practice_ids')) {
+                    $course->formationPractices()->sync($request->formation_practice_ids);
+                }
+                
                 // Media handling
                 if ($request->hasFile('image')) {
                     $imagePath = $this->saveImage($request->file('image'), 'course');
@@ -822,6 +848,11 @@ class CourseManagementApiController extends Controller
                     'learning_outcomes' => $request->get('learningOutcomes'),
                     'methods' => $request->get('methods'),
                     'specifics' => $request->get('specifics'),
+                    'evaluation_modalities' => $request->get('evaluation_modalities'),
+                    'access_modalities' => $request->get('access_modalities'),
+                    'accessibility' => $request->get('accessibility'),
+                    'contacts' => $request->get('contacts'),
+                    'update_date' => $request->get('update_date'),
                     'course_language_id' => $request->get('course_language_id'),
                     'difficulty_level_id' => $request->get('difficulty_level_id'),
                     'learner_accessibility' => $request->get('learner_accessibility', 1),
@@ -867,6 +898,11 @@ class CourseManagementApiController extends Controller
                 // Add tags
                 if ($request->tags) {
                     $course->tags()->sync($request->tags);
+                }
+
+                // Add formation practices
+                if ($request->has('formation_practice_ids')) {
+                    $course->formationPractices()->sync($request->formation_practice_ids);
                 }
 
                 DB::commit();
@@ -946,7 +982,14 @@ class CourseManagementApiController extends Controller
                 'category_id' => 'nullable|exists:categories,id',
                 'subcategory_id' => 'nullable|exists:subcategories,id',
                 'key_points' => 'nullable|array',
-                'key_points.*.name' => 'required_with:key_points|string|max:255'
+                'key_points.*.name' => 'required_with:key_points|string|max:255',
+                'evaluation_modalities' => 'nullable|string',
+                'access_modalities' => 'nullable|string',
+                'accessibility' => 'nullable|string',
+                'contacts' => 'nullable|string',
+                'update_date' => 'nullable|string|max:255',
+                'formation_practice_ids' => 'nullable|array',
+                'formation_practice_ids.*' => 'integer|exists:formation_practices,id',
             ]);
 
             if ($validator->fails()) {
@@ -980,6 +1023,11 @@ class CourseManagementApiController extends Controller
                     'is_subscription_enable' => $request->get('is_subscription_enable', $course->is_subscription_enable),
                     'category_id' => $request->category_id,
                     'subcategory_id' => $request->subcategory_id,
+                    'evaluation_modalities' => $request->get('evaluation_modalities'),
+                    'access_modalities' => $request->get('access_modalities'),
+                    'accessibility' => $request->get('accessibility'),
+                    'contacts' => $request->get('contacts'),
+                    'update_date' => $request->get('update_date'),
                 ];
 
                 // Handle OG image upload
@@ -989,6 +1037,11 @@ class CourseManagementApiController extends Controller
 
                 // Update course
                 $course->update($data);
+
+                // Update formation practices
+                if ($request->has('formation_practice_ids')) {
+                    $course->formationPractices()->sync($request->formation_practice_ids);
+                }
 
                 // Update key points
                 if ($request->key_points) {
@@ -1024,7 +1077,7 @@ class CourseManagementApiController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Course overview updated successfully',
-                    'data' => $course->load(['key_points'])
+                    'data' => $course->load(['key_points', 'formationPractices'])
                 ]);
 
             } catch (\Exception $e) {
@@ -1295,8 +1348,22 @@ class CourseManagementApiController extends Controller
                 ], 403);
             }
 
+            // Get categories: standard + custom for this organization
+            $organizationId = $user->organization_id ?? null;
+            $categoriesQuery = Category::where('is_custom', false);
+            if ($organizationId) {
+                $customCategories = Category::where('is_custom', true)
+                    ->where('organization_id', $organizationId)
+                    ->select('id', 'name', 'is_custom')
+                    ->get();
+            } else {
+                $customCategories = collect();
+            }
+            $standardCategories = $categoriesQuery->active()->orderBy('name', 'asc')->select('id', 'name')->get();
+            $allCategories = $standardCategories->merge($customCategories);
+
             $metadata = [
-                'categories' => Category::active()->orderBy('name', 'asc')->select('id', 'name')->get(),
+                'categories' => $allCategories,
                 'course_languages' => Course_language::orderBy('name', 'asc')->select('id', 'name')->get(),
                 'difficulty_levels' => Difficulty_level::orderBy('name', 'asc')->select('id', 'name')->get(),
                 'tags' => Tag::orderBy('name', 'asc')->select('id', 'name')->get(),
@@ -1363,6 +1430,109 @@ class CourseManagementApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while fetching subcategories',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create a subcategory
+     * POST /api/organization/courses/subcategories
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeSubcategory(Request $request)
+    {
+        try {
+            // Check permission
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage courses'
+                ], 403);
+            }
+
+            // Get organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            // Validate request
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required|integer|exists:categories,id',
+                'name' => 'required|string|min:2|max:255',
+                'meta_title' => 'nullable|string|max:255',
+                'meta_description' => 'nullable|string|max:500',
+                'meta_keywords' => 'nullable|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Check if category belongs to organization (for custom categories)
+            $category = Category::find($request->category_id);
+            if ($category && $category->is_custom && $category->organization_id != $organization->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This category does not belong to your organization'
+                ], 403);
+            }
+
+            // Check if subcategory name already exists for this category
+            $existing = Subcategory::where('category_id', $request->category_id)
+                ->whereRaw('LOWER(name) = ?', [strtolower($request->name)])
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A subcategory with this name already exists for this category',
+                    'errors' => [
+                        'name' => ['This subcategory name is already used for this category.']
+                    ]
+                ], 422);
+            }
+
+            // Create subcategory
+            $subcategory = Subcategory::create([
+                'category_id' => $request->category_id,
+                'name' => $request->name,
+                'slug' => Str::slug($request->name) . '-' . time(),
+                'meta_title' => $request->meta_title,
+                'meta_description' => $request->meta_description,
+                'meta_keywords' => $request->meta_keywords,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Subcategory created successfully',
+                'data' => [
+                    'id' => $subcategory->id,
+                    'name' => $subcategory->name,
+                    'slug' => $subcategory->slug,
+                    'category_id' => $subcategory->category_id,
+                    'meta_title' => $subcategory->meta_title,
+                    'meta_description' => $subcategory->meta_description,
+                    'meta_keywords' => $subcategory->meta_keywords,
+                    'created_at' => $subcategory->created_at->toIso8601String(),
+                    'updated_at' => $subcategory->updated_at->toIso8601String(),
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error creating subcategory',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -1996,5 +2166,146 @@ class CourseManagementApiController extends Controller
         ];
 
         return $statuses[$status] ?? 'Unknown';
+    }
+
+    /**
+     * Update formation practices for a course
+     * PUT /api/organization/courses/{uuid}/formation-practices
+     */
+    public function updateFormationPractices(Request $request, $uuid)
+    {
+        try {
+            // Check permission
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage courses'
+                ], 403);
+            }
+
+            // Get organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            // Get course
+            $course = Course::where('uuid', $uuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$course) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course not found'
+                ], 404);
+            }
+
+            // Validation
+            $validator = Validator::make($request->all(), [
+                'practice_ids' => 'nullable|array',
+                'practice_ids.*' => 'integer|exists:formation_practices,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Sync practices
+            $practiceIds = $request->get('practice_ids', []);
+            $course->formationPractices()->sync($practiceIds);
+
+            // Reload course with practices
+            $course->load('formationPractices');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pratiques de formation mises à jour',
+                'data' => [
+                    'course_uuid' => $course->uuid,
+                    'practices' => $course->formationPractices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                            'code' => $practice->code,
+                            'name' => $practice->name,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating formation practices',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get formation practices for a course
+     * GET /api/organization/courses/{uuid}/formation-practices
+     */
+    public function getFormationPractices($uuid)
+    {
+        try {
+            // Check permission
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage courses'
+                ], 403);
+            }
+
+            // Get organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            // Get course
+            $course = Course::where('uuid', $uuid)
+                ->where('organization_id', $organization->id)
+                ->with('formationPractices')
+                ->first();
+
+            if (!$course) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'course_uuid' => $course->uuid,
+                    'practices' => $course->formationPractices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                            'code' => $practice->code,
+                            'name' => $practice->name,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching formation practices',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

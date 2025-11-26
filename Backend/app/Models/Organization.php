@@ -74,6 +74,7 @@ class Organization extends Model
         'qualiopi_certification_date',
         'welcome_booklet_path',
         'internal_regulations_path',
+        'cgv_path',
         'logo_path',
         'qualiopi_certificate_path',
         // Company/Commercial fields
@@ -370,6 +371,11 @@ class Organization extends Model
             ->where('status', 'active')
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now());
+    }
+
+    public function customDocuments()
+    {
+        return $this->hasMany(OrganizationCustomDocument::class);
     }
 
 }

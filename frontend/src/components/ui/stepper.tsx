@@ -96,7 +96,7 @@ export const Stepper: React.FC<StepperProps> = ({
             </button>
             {index < steps.length - 1 && (
               <img
-                className="w-[25.24px] h-0.5"
+                className="w-[12.24px] h-0.5"
                 alt="Step separator"
                 src="/assets/icons/separator.svg"
               />
@@ -128,11 +128,11 @@ export const ProgressBars: React.FC<ProgressBarsProps> = ({
   
   return (
     <div className={`inline-flex flex-col items-end justify-center gap-px ${className}`}>
-      <div className={`[font-family:'Poppins',Helvetica] font-normal text-[17px] tracking-[0] leading-[normal] ${
+      <div className={`[font-family:'Poppins',Helvetica] font-normal text-[15px] tracking-[0] leading-[normal] ${
         isDark ? 'text-white' : 'text-[#19294a]'
       }`}>
         <span className="font-bold">{displayPercentage}</span>
-        <span className={`[font-family:'Poppins',Helvetica] font-normal text-[17px] tracking-[0] ${
+        <span className={`[font-family:'Poppins',Helvetica] font-normal text-[15px] tracking-[0] ${
           isDark ? 'text-white' : 'text-[#19294a]'
         }`}>
           /100%

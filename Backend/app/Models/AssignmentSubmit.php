@@ -26,6 +26,16 @@ class AssignmentSubmit extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function assignment()
+    {
+        return $this->belongsTo(Assignment::class, 'assignment_id');
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class, 'course_id');
+    }
+
     protected static function boot()
     {
         parent::boot();

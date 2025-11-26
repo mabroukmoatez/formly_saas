@@ -65,7 +65,7 @@ export const QuizCreationHeader: React.FC<QuizCreationHeaderProps> = ({
   const progressPercentage = calculateProgress();
 
   return (
-    <section className="relative w-full">
+    <section className="relative w-full border-b">
       <div 
         className={`flex flex-col w-full items-end justify-between px-[43px] py-5 translate-y-[-1rem] animate-fade-in opacity-0 ${
           isDark ? 'bg-gradient-to-br from-gray-800/20 to-gray-900/30' : 'bg-gradient-to-br from-transparent to-gray-50/20'

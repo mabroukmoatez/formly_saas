@@ -66,27 +66,29 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
 
   return (
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
-      <div className="w-full max-w-[1396px] flex flex-col gap-[42px]">
+      <div className="w-full max-w-[1396px] flex flex-col gap-[15px] p-5 bg-white">
         {/* Quiz Title */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
-          <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-3 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-            {t('quiz.information.title')} <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={props.title}
-            onChange={(e) => props.setTitle(e.target.value)}
-            placeholder={t('quiz.information.titlePlaceholder')}
-            maxLength={110}
-            className={`w-full font-semibold text-sm border-0 p-0 bg-transparent ${isDark ? 'text-white' : 'text-gray-800'} focus:outline-none`}
-          />
-          <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-            {props.title.length}/110
-          </p>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+          <div className="flex items-center gap-4">
+            <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold ${isDark ? 'text-gray-300' : 'text-gray-700'} whitespace-nowrap`}>
+              {t('quiz.information.title')} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={props.title}
+              onChange={(e) => props.setTitle(e.target.value)}
+              placeholder={t('quiz.information.titlePlaceholder')}
+              maxLength={110}
+              className={`flex-1 font-semibold text-sm border-0 p-0 bg-transparent ${isDark ? 'text-white' : 'text-gray-800'} focus:outline-none`}
+            />
+            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} whitespace-nowrap`}>
+              {props.title.length}/110
+            </p>
+          </div>
         </div>
 
         {/* Thumbnail */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
           <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-3 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             {t('quiz.information.thumbnail')}
           </label>
@@ -103,7 +105,7 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-[10px] cursor-pointer hover:bg-gray-50 transition-colors">
+            <label className="flex flex-col items-center justify-center h-64 border-2 border-dotted rounded-[10px] cursor-pointer hover:bg-gray-50 transition-colors">
               <div className="text-center">
                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Upload className="w-8 h-8 text-orange-500" />
@@ -128,7 +130,7 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
         </div>
 
         {/* Quiz Category */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
           <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-3 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             {t('quiz.information.category')}
           </label>
@@ -197,7 +199,7 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
         </div>
 
         {/* Description */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
           <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-3 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             {t('quiz.information.description')}
           </label>
@@ -211,7 +213,7 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
         </div>
 
         {/* Duration */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
           <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-3 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             {t('quiz.information.duration')}
           </label>
@@ -227,7 +229,7 @@ export const QuizInformationForm: React.FC<QuizInformationFormProps> = (props) =
         </div>
 
         {/* Parameters */}
-        <div className={`flex-1 rounded-[5px] border border-dashed p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+        <div className={`flex-1 rounded-[5px] border border-dotted p-6 ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
           <label className={`[font-family:'Poppins',Helvetica] text-base font-semibold mb-4 block ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
             {t('quiz.information.parameters')}
           </label>

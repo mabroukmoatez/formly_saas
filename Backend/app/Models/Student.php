@@ -22,24 +22,14 @@ class Student extends Model
         'first_name',
         'last_name',
         'phone_number',
-        'mobile_number',
         'postal_code',
         'address',
-        'banner_image',
         'about_me',
         'gender',
         'status',
         'organization_id',
         'company_id',
         'funder_id',
-        'birth_date',
-        'birth_place',
-        'nationality',
-        'employee_number',
-        'job_title',
-        'social_security_number',
-        'has_disability',
-        'disability_type',
     ];
 
     public function user()
@@ -67,19 +57,67 @@ class Student extends Model
         return $this->belongsTo(City::class, 'city_id');
     }
 
+    /**
+     * Get company relationship
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    /**
+     * Get funder relationship
+     */
+    public function funder()
+    {
+        return $this->belongsTo(Funder::class, 'funder_id');
+    }
+
     public function getNameAttribute()
     {
         return $this->first_name .' '. $this->last_name;
     }
 
-    public function getStudentNumberAttribute()
+    /**
+     * Get full name attribute (alias for name)
+     */
+    public function getFullNameAttribute()
     {
-        return $this->employee_number;
+        return $this->first_name .' '. $this->last_name;
     }
 
-    public function getDateOfBirthAttribute()
+    /**
+     * Get enrollments through user
+     */
+    public function enrollments()
     {
-        return $this->birth_date;
+        return $this->hasMany(Enrollment::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Get connection logs through user
+     */
+    public function connectionLogs()
+    {
+        return $this->hasMany(UserConnectionLog::class, 'user_id', 'user_id');
+    }
+
+    /**
+     * Get administrative folder
+     */
+    public function administrativeFolder()
+    {
+        return $this->hasOne(DocumentFolder::class, 'user_id', 'user_id')
+            ->where('is_system', true)
+            ->where('name', 'like', '%Administratif%');
+    }
+
+    /**
+     * Get student certificates through user
+     */
+    public function certificates()
+    {
+        return $this->hasMany(Student_certificate::class, 'user_id', 'user_id');
     }
 
     public function scopeApproved($query)
@@ -90,6 +128,14 @@ class Student extends Model
     public function scopePending($query)
     {
         return $query->where('status', 0);
+    }
+
+    /**
+     * Scope to filter by organization
+     */
+    public function scopeByOrganization($query, $organizationId)
+    {
+        return $query->where('organization_id', $organizationId);
     }
 
 

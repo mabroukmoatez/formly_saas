@@ -96,7 +96,7 @@ class ConversationController extends Controller
                             'name' => $otherParticipant->name ?: ($otherParticipant->first_name . ' ' . $otherParticipant->last_name),
                             'email' => $otherParticipant->email,
                             'role' => $otherParticipant->role,
-                            'avatar' => $otherParticipant->avatar ? Storage::disk('public')->url($otherParticipant->avatar) : null,
+                            'avatar' => $otherParticipant->image ? ($otherParticipant->image_url ?? asset('storage/' . $otherParticipant->image)) : null,
                             'is_online' => $presence ? $presence->is_online : false,
                             'last_seen' => $presence ? $presence->last_seen : null,
                             'status_text' => $presence ? $presence->getStatusText() : 'Hors ligne'
@@ -120,8 +120,13 @@ class ConversationController extends Controller
                         'group' => [
                             'id' => $conversation->id,
                             'name' => $conversation->name,
-                            'avatar' => $conversation->avatar ? Storage::disk('public')->url($conversation->avatar) : null,
-                            'participants_count' => $conversation->participants()->count()
+                            'avatar' => $conversation->avatar,
+                            'avatar_url' => $conversation->avatar ? Storage::disk('public')->url($conversation->avatar) : null,
+                            'participants_count' => $conversation->participants()->count(),
+                            'instructors_count' => $conversation->participants()->wherePivot('participant_type', 'instructor')->count(),
+                            'students_count' => $conversation->participants()->wherePivot('participant_type', 'student')->count(),
+                            'students_can_reply' => $conversation->students_can_reply ?? true,
+                            'created_by_id' => $conversation->created_by
                         ],
                         'last_message' => $conversation->lastMessage ? [
                             'id' => $conversation->lastMessage->id,
@@ -185,6 +190,12 @@ class ConversationController extends Controller
                 'group_name' => 'required_if:type,group|string|max:255',
                 'participant_ids' => 'required_if:type,group|array|min:2',
                 'participant_ids.*' => 'integer',
+                'instructor_ids' => 'nullable|array',
+                'instructor_ids.*' => 'integer',
+                'student_ids' => 'nullable|array',
+                'student_ids.*' => 'integer',
+                'avatar' => 'nullable|file|image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+                'students_can_reply' => 'nullable|boolean',
                 'initial_message' => 'nullable|string|max:5000'
             ]);
 
@@ -224,17 +235,70 @@ class ConversationController extends Controller
                 $conversation->addParticipant($request->participant_id, 'member');
 
             } else {
+                // Gérer l'avatar si fourni
+                $avatarPath = null;
+                if ($request->hasFile('avatar')) {
+                    $avatarPath = $request->file('avatar')->store('conversations/groups', 'public');
+                }
+
+                // Déterminer les participants avec segmentation
+                $participantIds = [];
+                $instructorIds = [];
+                $studentIds = [];
+
+                // Si instructor_ids et student_ids sont fournis, les utiliser
+                if ($request->filled('instructor_ids') || $request->filled('student_ids')) {
+                    $instructorIds = $request->instructor_ids ?? [];
+                    $studentIds = $request->student_ids ?? [];
+                    $participantIds = array_unique(array_merge($instructorIds, $studentIds));
+                } elseif ($request->filled('participant_ids')) {
+                    // Si seulement participant_ids est fourni, déterminer automatiquement les rôles
+                    $participantIds = $request->participant_ids;
+                    foreach ($participantIds as $participantId) {
+                        $user = User::find($participantId);
+                        if ($user) {
+                            // Déterminer si c'est un formateur ou un apprenant selon le rôle
+                            if (in_array($user->role, [USER_ROLE_INSTRUCTOR, USER_ROLE_ORGANIZATION])) {
+                                $instructorIds[] = $participantId;
+                            } else {
+                                $studentIds[] = $participantId;
+                            }
+                        }
+                    }
+                }
+
+                // S'assurer que le créateur est dans la liste des participants
+                if (!in_array($userId, $participantIds)) {
+                    $participantIds[] = $userId;
+                    // Le créateur est considéré comme formateur par défaut
+                    if (!in_array($userId, $instructorIds)) {
+                        $instructorIds[] = $userId;
+                    }
+                }
+
                 // Créer groupe
                 $conversation = Conversation::create([
                     'type' => 'group',
                     'name' => $request->group_name,
+                    'avatar' => $avatarPath,
                     'created_by' => $userId,
-                    'organization_id' => $organizationId
+                    'organization_id' => $organizationId,
+                    'students_can_reply' => $request->filled('students_can_reply') ? $request->students_can_reply : true
                 ]);
 
-                $conversation->addParticipant($userId, 'admin');
-                foreach ($request->participant_ids as $participantId) {
-                    $conversation->addParticipant($participantId, 'member');
+                // Ajouter le créateur comme admin
+                $conversation->addParticipant($userId, 'admin', 'instructor');
+
+                // Ajouter les formateurs
+                foreach ($instructorIds as $instructorId) {
+                    if ($instructorId != $userId) {
+                        $conversation->addParticipant($instructorId, 'member', 'instructor');
+                    }
+                }
+
+                // Ajouter les apprenants
+                foreach ($studentIds as $studentId) {
+                    $conversation->addParticipant($studentId, 'member', 'student');
                 }
             }
 
@@ -345,7 +409,7 @@ class ConversationController extends Controller
                     'sender' => [
                         'id' => $message->sender->id,
                         'name' => $message->sender->name ?: ($message->sender->first_name . ' ' . $message->sender->last_name),
-                        'avatar' => $message->sender->avatar ? Storage::disk('public')->url($message->sender->avatar) : null
+                        'avatar' => $message->sender->image ? ($message->sender->image_url ?? asset('storage/' . $message->sender->image)) : null
                     ],
                     'is_from_me' => $message->isFromUser($userId),
                     'created_at' => $message->created_at->toIso8601String(),
@@ -392,6 +456,22 @@ class ConversationController extends Controller
             $conversation = Conversation::byOrganization($organizationId)
                 ->forUser($userId)
                 ->findOrFail($id);
+
+            // Vérifier si les apprenants peuvent répondre
+            if ($conversation->type === 'group' && !$conversation->students_can_reply) {
+                $user = Auth::user();
+                $participant = $conversation->participants()->where('user_id', $userId)->first();
+                $participantType = $participant ? $participant->pivot->participant_type : null;
+                
+                // Seuls les formateurs et admins peuvent envoyer des messages
+                $allowedRoles = [USER_ROLE_INSTRUCTOR, USER_ROLE_ORGANIZATION];
+                if (!in_array($user->role, $allowedRoles) && $participantType !== 'instructor') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Les apprenants ne peuvent pas répondre dans ce groupe'
+                    ], 403);
+                }
+            }
 
             $request->validate([
                 'message' => 'required|string|max:5000',
@@ -471,7 +551,7 @@ class ConversationController extends Controller
                     'sender' => [
                         'id' => $message->sender->id,
                         'name' => $message->sender->name ?: ($message->sender->first_name . ' ' . $message->sender->last_name),
-                        'avatar' => $message->sender->avatar ? Storage::disk('public')->url($message->sender->avatar) : null
+                        'avatar' => $message->sender->image ? ($message->sender->image_url ?? asset('storage/' . $message->sender->image)) : null
                     ],
                     'is_from_me' => true,
                     'created_at' => $message->created_at->toIso8601String(),
@@ -526,7 +606,7 @@ class ConversationController extends Controller
                             'uploaded_by' => [
                                 'id' => $message->sender->id,
                                 'name' => $message->sender->name ?: ($message->sender->first_name . ' ' . $message->sender->last_name),
-                                'avatar' => $message->sender->avatar ? Storage::disk('public')->url($message->sender->avatar) : null
+                                'avatar' => $message->sender->image ? ($message->sender->image_url ?? asset('storage/' . $message->sender->image)) : null
                             ],
                             'message_id' => $message->id,
                             'message_content' => $message->content
@@ -640,7 +720,7 @@ class ConversationController extends Controller
                             'name' => $student->first_name . ' ' . $student->last_name,
                             'email' => $student->email,
                             'type' => 'student',
-                            'avatar' => $user->avatar ? Storage::disk('public')->url($user->avatar) : null,
+                            'avatar' => $user->image ? ($user->image_url ?? asset('storage/' . $user->image)) : null,
                             'is_online' => $presence ? $presence->is_online : false,
                             'status_text' => $presence ? $presence->getStatusText() : 'Hors ligne'
                         ];
@@ -801,16 +881,49 @@ class ConversationController extends Controller
             }
 
             $request->validate([
-                'participant_ids' => 'required|array|min:1',
-                'participant_ids.*' => 'integer|exists:users,id'
+                'participant_ids' => 'nullable|array|min:1',
+                'participant_ids.*' => 'integer|exists:users,id',
+                'instructor_ids' => 'nullable|array',
+                'instructor_ids.*' => 'integer|exists:users,id',
+                'student_ids' => 'nullable|array',
+                'student_ids.*' => 'integer|exists:users,id'
             ]);
 
             $added = [];
-            foreach ($request->participant_ids as $participantId) {
-                // Vérifier si le participant n'est pas déjà dans le groupe
-                if (!$conversation->participants()->where('user_id', $participantId)->exists()) {
-                    $conversation->addParticipant($participantId, 'member');
-                    $added[] = $participantId;
+            $instructorIds = $request->instructor_ids ?? [];
+            $studentIds = $request->student_ids ?? [];
+            $participantIds = $request->participant_ids ?? [];
+
+            // Si instructor_ids et student_ids sont fournis, les utiliser
+            if (!empty($instructorIds) || !empty($studentIds)) {
+                foreach ($instructorIds as $instructorId) {
+                    if (!$conversation->participants()->where('user_id', $instructorId)->exists()) {
+                        $conversation->addParticipant($instructorId, 'member', 'instructor');
+                        $added[] = $instructorId;
+                    }
+                }
+                foreach ($studentIds as $studentId) {
+                    if (!$conversation->participants()->where('user_id', $studentId)->exists()) {
+                        $conversation->addParticipant($studentId, 'member', 'student');
+                        $added[] = $studentId;
+                    }
+                }
+            } elseif (!empty($participantIds)) {
+                // Si seulement participant_ids est fourni, déterminer automatiquement les rôles
+                foreach ($participantIds as $participantId) {
+                    if (!$conversation->participants()->where('user_id', $participantId)->exists()) {
+                        $user = User::find($participantId);
+                        $participantType = null;
+                        if ($user) {
+                            if (in_array($user->role, [USER_ROLE_INSTRUCTOR, USER_ROLE_ORGANIZATION])) {
+                                $participantType = 'instructor';
+                            } else {
+                                $participantType = 'student';
+                            }
+                        }
+                        $conversation->addParticipant($participantId, 'member', $participantType);
+                        $added[] = $participantId;
+                    }
                 }
             }
 
@@ -965,8 +1078,10 @@ class ConversationController extends Controller
                     'id' => $participant->id,
                     'name' => $participant->name ?: ($participant->first_name . ' ' . $participant->last_name),
                     'email' => $participant->email,
-                    'role' => $participant->pivot->role,
-                    'avatar' => $participant->avatar ? Storage::disk('public')->url($participant->avatar) : null,
+                    'role' => $participant->pivot->participant_type ?? ($participant->role == USER_ROLE_INSTRUCTOR || $participant->role == USER_ROLE_ORGANIZATION ? 'instructor' : 'student'),
+                    'conversation_role' => $participant->pivot->role,
+                    'avatar' => $participant->image ? ($participant->image_url ?? asset('storage/' . $participant->image)) : null,
+                    'avatar_url' => $participant->image ? ($participant->image_url ?? asset('storage/' . $participant->image)) : null,
                     'is_online' => $presence ? $presence->is_online : false,
                     'status_text' => $presence ? $presence->getStatusText() : 'Hors ligne',
                     'joined_at' => $participant->pivot->joined_at ? $participant->pivot->joined_at->toIso8601String() : null,
@@ -974,9 +1089,24 @@ class ConversationController extends Controller
                 ];
             });
 
+            // Séparer les formateurs et apprenants
+            $instructors = $participants->filter(function($p) {
+                return ($p['role'] ?? 'student') === 'instructor';
+            })->values();
+            
+            $students = $participants->filter(function($p) {
+                return ($p['role'] ?? 'student') === 'student';
+            })->values();
+
             return $this->success([
                 'participants' => $participants,
-                'total' => $participants->count()
+                'instructors' => $instructors,
+                'students' => $students,
+                'counts' => [
+                    'total' => $participants->count(),
+                    'instructors' => $instructors->count(),
+                    'students' => $students->count()
+                ]
             ]);
         } catch (\Exception $e) {
             return $this->failed([], 'Erreur lors de la récupération des participants: ' . $e->getMessage());
@@ -1126,6 +1256,176 @@ class ConversationController extends Controller
     }
 
     /**
+     * Supprimer une conversation
+     * DELETE /api/organization/conversations/{id}
+     */
+    public function destroy($id)
+    {
+        try {
+            $organizationId = $this->getOrganizationId();
+            if (!$organizationId) {
+                return $this->failed([], 'User is not associated with an organization.');
+            }
+
+            $userId = Auth::id();
+
+            $conversation = Conversation::byOrganization($organizationId)
+                ->forUser($userId)
+                ->findOrFail($id);
+
+            // Vérifier les permissions
+            if ($conversation->type === 'group') {
+                // Seul le créateur ou un admin peut supprimer un groupe
+                $participant = $conversation->participants()->where('user_id', $userId)->first();
+                if ($conversation->created_by != $userId && (!$participant || $participant->pivot->role !== 'admin')) {
+                    return $this->failed([], 'Vous n\'avez pas le droit de supprimer ce groupe.');
+                }
+            }
+
+            // Soft delete
+            $conversation->delete();
+
+            return $this->success([], 'Conversation supprimée avec succès');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la suppression de la conversation: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mettre à jour l'avatar d'un groupe
+     * PATCH /api/organization/conversations/{id}/group/avatar
+     */
+    public function updateAvatar(Request $request, $id)
+    {
+        try {
+            $organizationId = $this->getOrganizationId();
+            if (!$organizationId) {
+                return $this->failed([], 'User is not associated with an organization.');
+            }
+
+            $userId = Auth::id();
+
+            $conversation = Conversation::byOrganization($organizationId)
+                ->forUser($userId)
+                ->findOrFail($id);
+
+            if ($conversation->type !== 'group') {
+                return $this->failed([], 'Only group conversations can have avatars.');
+            }
+
+            // Vérifier les permissions
+            $participant = $conversation->participants()->where('user_id', $userId)->first();
+            if ($conversation->created_by != $userId && (!$participant || $participant->pivot->role !== 'admin')) {
+                return $this->failed([], 'Seul le créateur ou un admin peut modifier l\'avatar.');
+            }
+
+            $request->validate([
+                'avatar' => 'required|file|image|mimes:jpg,jpeg,png,gif,webp|max:5120'
+            ]);
+
+            // Supprimer l'ancien avatar si existe
+            if ($conversation->avatar) {
+                Storage::disk('public')->delete($conversation->avatar);
+            }
+
+            // Uploader le nouvel avatar
+            $avatarPath = $request->file('avatar')->store('conversations/groups', 'public');
+            $conversation->avatar = $avatarPath;
+            $conversation->save();
+
+            return $this->success([
+                'avatar' => $conversation->avatar,
+                'avatar_url' => Storage::disk('public')->url($conversation->avatar)
+            ], 'Avatar mis à jour avec succès');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la mise à jour de l\'avatar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Supprimer l'avatar d'un groupe
+     * DELETE /api/organization/conversations/{id}/group/avatar
+     */
+    public function deleteAvatar($id)
+    {
+        try {
+            $organizationId = $this->getOrganizationId();
+            if (!$organizationId) {
+                return $this->failed([], 'User is not associated with an organization.');
+            }
+
+            $userId = Auth::id();
+
+            $conversation = Conversation::byOrganization($organizationId)
+                ->forUser($userId)
+                ->findOrFail($id);
+
+            if ($conversation->type !== 'group') {
+                return $this->failed([], 'Only group conversations can have avatars.');
+            }
+
+            // Vérifier les permissions
+            $participant = $conversation->participants()->where('user_id', $userId)->first();
+            if ($conversation->created_by != $userId && (!$participant || $participant->pivot->role !== 'admin')) {
+                return $this->failed([], 'Seul le créateur ou un admin peut supprimer l\'avatar.');
+            }
+
+            if ($conversation->avatar) {
+                Storage::disk('public')->delete($conversation->avatar);
+                $conversation->avatar = null;
+                $conversation->save();
+            }
+
+            return $this->success([], 'Avatar supprimé avec succès');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la suppression de l\'avatar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mettre à jour les paramètres d'un groupe
+     * PATCH /api/organization/conversations/{id}/group/settings
+     */
+    public function updateGroupSettings(Request $request, $id)
+    {
+        try {
+            $organizationId = $this->getOrganizationId();
+            if (!$organizationId) {
+                return $this->failed([], 'User is not associated with an organization.');
+            }
+
+            $userId = Auth::id();
+
+            $conversation = Conversation::byOrganization($organizationId)
+                ->forUser($userId)
+                ->findOrFail($id);
+
+            if ($conversation->type !== 'group') {
+                return $this->failed([], 'Only group conversations have settings.');
+            }
+
+            // Vérifier les permissions
+            $participant = $conversation->participants()->where('user_id', $userId)->first();
+            if ($conversation->created_by != $userId && (!$participant || $participant->pivot->role !== 'admin')) {
+                return $this->failed([], 'Seul le créateur ou un admin peut modifier les paramètres.');
+            }
+
+            $request->validate([
+                'students_can_reply' => 'required|boolean'
+            ]);
+
+            $conversation->students_can_reply = $request->students_can_reply;
+            $conversation->save();
+
+            return $this->success([
+                'conversation' => $this->formatConversation($conversation->fresh(), $userId)
+            ], 'Paramètres mis à jour avec succès');
+        } catch (\Exception $e) {
+            return $this->failed([], 'Erreur lors de la mise à jour des paramètres: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Formater une conversation pour la réponse
      */
     private function formatConversation($conversation, $userId)
@@ -1144,7 +1444,7 @@ class ConversationController extends Controller
                     'id' => $otherParticipant->id,
                     'name' => $otherParticipant->name ?: ($otherParticipant->first_name . ' ' . $otherParticipant->last_name),
                     'role' => $otherParticipant->role,
-                    'avatar' => $otherParticipant->avatar ? Storage::disk('public')->url($otherParticipant->avatar) : null,
+                    'avatar' => $otherParticipant->image ? ($otherParticipant->image_url ?? asset('storage/' . $otherParticipant->image)) : null,
                     'is_online' => $presence ? $presence->is_online : false,
                     'status_text' => $presence ? $presence->getStatusText() : 'Hors ligne'
                 ] : null,
@@ -1164,8 +1464,13 @@ class ConversationController extends Controller
                 'group' => [
                     'id' => $conversation->id,
                     'name' => $conversation->name,
-                    'avatar' => $conversation->avatar ? Storage::disk('public')->url($conversation->avatar) : null,
-                    'participants_count' => $conversation->participants()->count()
+                    'avatar' => $conversation->avatar,
+                    'avatar_url' => $conversation->avatar ? Storage::disk('public')->url($conversation->avatar) : null,
+                    'participants_count' => $conversation->participants()->count(),
+                    'instructors_count' => $conversation->participants()->wherePivot('participant_type', 'instructor')->count(),
+                    'students_count' => $conversation->participants()->wherePivot('participant_type', 'student')->count(),
+                    'students_can_reply' => $conversation->students_can_reply ?? true,
+                    'created_by_id' => $conversation->created_by
                 ],
                 'last_message' => $conversation->lastMessage ? [
                     'id' => $conversation->lastMessage->id,

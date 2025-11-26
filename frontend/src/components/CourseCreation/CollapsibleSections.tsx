@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { RichTextEditor } from '../ui/rich-text-editor';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { ChevronDownIcon, InfoIcon } from 'lucide-react';
-import {
-  ModulesSection,
-  ObjectivesSection,
-  MethodsSection,
-  PricingSection,
+import { 
+  ModulesSection, 
+  ObjectivesSection, 
+  PrerequisitesSection, 
+  MethodsSection, 
+  PricingSection, 
   SpecificsSection,
   EvaluationModalitiesSection,
   AccessModalitiesSection,
@@ -148,63 +148,58 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
   const defaultSections: CollapsibleSection[] = [
     {
       id: 1,
-      title: "Public Visé",
-      icon: '/assets/icons/expand-public.png',
+      title: t('courseCreation.sections.modules'),
+      icon: '/assets/icons/expand-module.png',
     },
     {
       id: 2,
-      title: "Prérequis",
-      icon: '/assets/icons/expand-public.png',
-    },
-    {
-      id: 3,
-      title: "Tarification",
-      icon: '/assets/icons/expand-pricing.png',
-    },
-    {
-      id: 4,
-      title: "Objectif Pédagogique",
+      title: t('courseCreation.sections.objectives'),
       icon: '/assets/icons/expand-objective.png',
     },
     {
-      id: 5,
-      title: "Méthodes Mobilisées",
+      id: 3,
+      title: t('courseCreation.sections.prerequisites'),
+      icon: '/assets/icons/expand-public.png',
+    },
+    {
+      id: 4,
+      title: t('courseCreation.sections.methods'),
       icon: '/assets/icons/expand-method.png',
+    },
+    {
+      id: 5,
+      title: t('courseCreation.sections.pricing'),
+      icon: '/assets/icons/expand-pricing.png',
     },
     {
       id: 6,
-      title: "Modalité D'évaluation",
-      icon: '/assets/icons/expand-method.png',
+      title: t('courseCreation.sections.specifics'),
+      icon: '/assets/icons/expand-specifics.png',
     },
     {
       id: 7,
-      title: "Modalités Et Délais D'accès",
+      title: "Modalités D'évaluation",
       icon: '/assets/icons/expand-method.png',
     },
     {
       id: 8,
-      title: "Accessibilité Aux Personnes Handicapées",
+      title: "Modalités Et Délais D'accès",
       icon: '/assets/icons/expand-method.png',
     },
     {
       id: 9,
-      title: "Contacts",
+      title: "Accessibilité Aux Personnes Handicapées",
       icon: '/assets/icons/expand-method.png',
     },
     {
       id: 10,
-      title: "Date De MAJ",
+      title: "Contacts",
       icon: '/assets/icons/expand-method.png',
     },
     {
       id: 11,
-      title: "Modules",
-      icon: '/assets/icons/expand-module.png',
-    },
-    {
-      id: 12,
-      title: "Spécificités De La Formation",
-      icon: '/assets/icons/expand-specifics.png',
+      title: "Date De MAJ",
+      icon: '/assets/icons/expand-method.png',
     },
   ];
 
@@ -212,29 +207,42 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
 
   const getSectionContent = (sectionId: number) => {
     switch (sectionId) {
-      case 1: // Public Visé
+      case 1: // Modules
         return (
-          <div className="space-y-4">
-            <RichTextEditor
-              value={targetAudience}
-              onChange={onUpdateTargetAudience}
-              placeholder="Aucun"
-              minHeight="150px"
-            />
-          </div>
+          <ModulesSection
+            modules={modules}
+            onAddModule={onAddModule}
+            onUpdateModule={onUpdateModule}
+            onRemoveModule={onRemoveModule}
+            onReorderModules={onReorderModules}
+          />
         );
-      case 2: // Prérequis
+      case 2: // Objectives
         return (
-          <div className="space-y-4">
-            <RichTextEditor
-              value={prerequisites}
-              onChange={onUpdatePrerequisites}
-              placeholder="Aucun"
-              minHeight="150px"
-            />
-          </div>
+          <ObjectivesSection
+            objectives={objectives}
+            onAddObjective={onAddObjective}
+            onUpdateObjective={onUpdateObjective}
+            onRemoveObjective={onRemoveObjective}
+          />
         );
-      case 3: // Tarification
+      case 3: // Prerequisites
+        return (
+          <PrerequisitesSection
+            targetAudience={targetAudience}
+            prerequisites={prerequisites}
+            onUpdateTargetAudience={onUpdateTargetAudience}
+            onUpdatePrerequisites={onUpdatePrerequisites}
+          />
+        );
+      case 4: // Methods
+        return (
+          <MethodsSection
+            methods={methods}
+            onUpdateMethods={onUpdateMethods}
+          />
+        );
+      case 5: // Pricing
         return (
           <PricingSection
             priceHT={priceHT}
@@ -247,79 +255,53 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onRemoveAdditionalFee={onRemoveAdditionalFee}
           />
         );
-      case 4: // Objectif Pédagogique
-        return (
-          <ObjectivesSection
-            objectives={objectives}
-            onAddObjective={onAddObjective}
-            onUpdateObjective={onUpdateObjective}
-            onRemoveObjective={onRemoveObjective}
-          />
-        );
-      case 5: // Méthodes Mobilisées
-        return (
-          <MethodsSection
-            methods={methods}
-            onUpdateMethods={onUpdateMethods}
-          />
-        );
-      case 6: // Modalité D'évaluation
-        return (
-          <EvaluationModalitiesSection
-            evaluationModalities={evaluationModalities}
-            onUpdateEvaluationModalities={onUpdateEvaluationModalities}
-          />
-        );
-      case 7: // Modalités Et Délais D'accès
-        return (
-          <AccessModalitiesSection
-            accessModalities={accessModalities}
-            onUpdateAccessModalities={onUpdateAccessModalities}
-          />
-        );
-      case 8: // Accessibilité Aux Personnes Handicapées
-        return (
-          <AccessibilitySection
-            accessibility={accessibility}
-            onUpdateAccessibility={onUpdateAccessibility}
-          />
-        );
-      case 9: // Contacts
-        return (
-          <ContactsSection
-            contacts={contacts}
-            onUpdateContacts={onUpdateContacts}
-          />
-        );
-      case 10: // Date De MAJ
-        return (
-          <UpdateDateSection
-            updateDate={updateDate}
-            onUpdateUpdateDate={onUpdateUpdateDate}
-          />
-        );
-      case 11: // Modules
-        return (
-          <ModulesSection
-            modules={modules}
-            onAddModule={onAddModule}
-            onUpdateModule={onUpdateModule}
-            onRemoveModule={onRemoveModule}
-            onReorderModules={onReorderModules}
-          />
-        );
-      case 12: // Spécificités De La Formation
+      case 6: // Specifics
         return (
           <SpecificsSection
             specifics={specifics}
             onUpdateSpecifics={onUpdateSpecifics}
           />
         );
+      case 7: // Evaluation Modalities
+        return (
+          <EvaluationModalitiesSection
+            evaluationModalities={evaluationModalities}
+            onUpdateEvaluationModalities={onUpdateEvaluationModalities}
+          />
+        );
+      case 8: // Access Modalities
+        return (
+          <AccessModalitiesSection
+            accessModalities={accessModalities}
+            onUpdateAccessModalities={onUpdateAccessModalities}
+          />
+        );
+      case 9: // Accessibility
+        return (
+          <AccessibilitySection
+            accessibility={accessibility}
+            onUpdateAccessibility={onUpdateAccessibility}
+          />
+        );
+      case 10: // Contacts
+        return (
+          <ContactsSection
+            contacts={contacts}
+            onUpdateContacts={onUpdateContacts}
+          />
+        );
+      case 11: // Update Date
+        return (
+          <UpdateDateSection
+            updateDate={updateDate}
+            onUpdateUpdateDate={onUpdateUpdateDate}
+          />
+        );
       default:
         return (
           <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             <p>{t('courseCreation.sections.comingSoon')}</p>
-            <Button
+            <Button 
               className="mt-4"
               style={{ backgroundColor: primaryColor }}
             >

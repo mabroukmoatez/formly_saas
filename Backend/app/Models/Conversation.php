@@ -19,7 +19,8 @@ class Conversation extends Model
         'name',
         'avatar',
         'created_by',
-        'organization_id'
+        'organization_id',
+        'students_can_reply'
     ];
 
     protected $casts = [
@@ -53,7 +54,7 @@ class Conversation extends Model
     public function participants(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'conversation_participants')
-            ->withPivot(['role', 'joined_at', 'last_read_at', 'is_muted'])
+            ->withPivot(['role', 'participant_type', 'joined_at', 'last_read_at', 'is_muted'])
             ->withTimestamps();
     }
 
@@ -91,21 +92,26 @@ class Conversation extends Model
     }
 
     // Methods
-    public function addParticipant($userId, $role = 'member')
+    public function addParticipant($userId, $role = 'member', $participantType = null)
     {
         // Vérifier si le participant existe déjà
         if ($this->participants()->where('user_id', $userId)->exists()) {
-            // Mettre à jour le rôle si nécessaire
-            $this->participants()->updateExistingPivot($userId, [
+            // Mettre à jour le rôle et le type si nécessaire
+            $updateData = [
                 'role' => $role,
                 'updated_at' => now()
-            ]);
+            ];
+            if ($participantType !== null) {
+                $updateData['participant_type'] = $participantType;
+            }
+            $this->participants()->updateExistingPivot($userId, $updateData);
             return;
         }
 
         // Ajouter le participant s'il n'existe pas
         $this->participants()->attach($userId, [
             'role' => $role,
+            'participant_type' => $participantType,
             'joined_at' => now(),
             'last_read_at' => null,
             'is_muted' => false

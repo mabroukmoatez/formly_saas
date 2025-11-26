@@ -477,8 +477,13 @@
 <style>
     /* Compact sidebar styling to match the image */
     .sidebar {
-        width: 240px !important;
-        min-width: 240px !important;
+        width: 280px !important;
+        min-width: 280px !important;
+    }
+    
+    .sidebar__area {
+        width: 280px !important;
+        min-width: 280px !important;
     }
 
     .sidebar__menu.compact-sidebar {

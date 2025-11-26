@@ -49,6 +49,12 @@ class AppServiceProvider extends ServiceProvider
         // Register model observers for automatic mailing list updates
         \App\Models\Enrollment::observe(\App\Observers\EnrollmentObserver::class);
         \App\Models\SessionParticipant::observe(\App\Observers\SessionParticipantObserver::class);
+        \App\Models\OrganizationEvent::observe(\App\Observers\OrganizationEventObserver::class);
+        
+        // Register notification observers for students
+        \App\Models\Enrollment::observe(\App\Observers\EnrollmentNotificationObserver::class);
+        \App\Models\OrganizationNews::observe(\App\Observers\OrganizationNewsNotificationObserver::class);
+        \App\Models\Student_certificate::observe(\App\Observers\StudentCertificateNotificationObserver::class);
 
         // $this->commands([
         //     InstallCommand::class,

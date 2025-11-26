@@ -224,9 +224,29 @@ class OrganizationSettingsController extends Controller
              if ($organization->internal_regulations_path) {
                  $organization->internal_regulations_url = Storage::disk('public')->url($organization->internal_regulations_path);
              }
+             if ($organization->cgv_path) {
+                 $organization->cgv_url = Storage::disk('public')->url($organization->cgv_path);
+             }
              if ($organization->qualiopi_certificate_path) {
                  $organization->qualiopi_certificate_url = Storage::disk('public')->url($organization->qualiopi_certificate_path);
              }
+
+             // Load custom documents
+             $organization->load('customDocuments');
+             
+             // Format custom documents for response
+             $organization->custom_documents = $organization->customDocuments->map(function($doc) {
+                 return [
+                     'id' => $doc->id,
+                     'name' => $doc->name,
+                     'path' => $doc->file_path,
+                     'url' => $doc->url,
+                     'size' => $doc->file_size,
+                     'mime_type' => $doc->mime_type,
+                     'created_at' => $doc->created_at,
+                     'updated_at' => $doc->updated_at,
+                 ];
+             });
 
              return response()->json([
                  'success' => true,
@@ -334,11 +354,14 @@ class OrganizationSettingsController extends Controller
                 'qualiopi_certification_date' => 'sometimes|date',
                 
                 // Documents (files)
-                'welcome_booklet' => 'sometimes|file|mimes:pdf|max:10240',
-                'internal_regulations' => 'sometimes|file|mimes:pdf|max:10240',
+                'welcome_booklet' => 'sometimes|file|mimes:pdf,doc,docx|max:5120',
+                'internal_regulations' => 'sometimes|file|mimes:pdf,doc,docx|max:5120',
+                'cgv_file' => 'sometimes|file|mimes:pdf,doc,docx|max:5120',
                 'logo' => 'sometimes|file|max:5120',
                 'login_background_image' => 'sometimes|file|max:5120',
                 'qualiopi_certificate' => 'sometimes|file|mimes:pdf|max:10240',
+                'custom_documents' => 'sometimes|array',
+                'custom_documents.*' => 'file|mimes:pdf,doc,docx|max:5120',
                 
                 // Whitelabel
                 'primary_color' => 'nullable|string|max:7',
@@ -360,7 +383,9 @@ class OrganizationSettingsController extends Controller
             // Get only the fields we want to update (exclude files and internal fields)
             $data = $request->except([
                 'welcome_booklet', 
-                'internal_regulations', 
+                'internal_regulations',
+                'cgv_file',
+                'custom_documents',
                 'logo', 
                 'qualiopi_certificate',
                 '_organization_id', // Added by middleware, not a real field
@@ -424,6 +449,31 @@ class OrganizationSettingsController extends Controller
                 $data['internal_regulations_path'] = $request->file('internal_regulations')->store('organization/documents', 'public');
             }
 
+            if ($request->hasFile('cgv_file')) {
+                if ($organization->cgv_path) {
+                    Storage::disk('public')->delete($organization->cgv_path);
+                }
+                $data['cgv_path'] = $request->file('cgv_file')->store('organization/documents', 'public');
+            }
+
+            // Handle custom documents upload
+            if ($request->hasFile('custom_documents')) {
+                foreach ($request->file('custom_documents') as $file) {
+                    $filePath = $file->store('organization/documents', 'public');
+                    $fileName = $file->getClientOriginalName();
+                    // Remove extension from name for display
+                    $nameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
+                    
+                    \App\Models\OrganizationCustomDocument::create([
+                        'organization_id' => $organizationId,
+                        'name' => $nameWithoutExt,
+                        'file_path' => $filePath,
+                        'file_size' => $file->getSize(),
+                        'mime_type' => $file->getMimeType(),
+                    ]);
+                }
+            }
+
              if ($request->hasFile('logo')) {
                  if ($organization->organization_logo) {
                      Storage::disk('public')->delete($organization->organization_logo);
@@ -464,9 +514,29 @@ class OrganizationSettingsController extends Controller
              if ($organization->internal_regulations_path) {
                  $organization->internal_regulations_url = Storage::disk('public')->url($organization->internal_regulations_path);
              }
+             if ($organization->cgv_path) {
+                 $organization->cgv_url = Storage::disk('public')->url($organization->cgv_path);
+             }
              if ($organization->qualiopi_certificate_path) {
                  $organization->qualiopi_certificate_url = Storage::disk('public')->url($organization->qualiopi_certificate_path);
              }
+
+             // Load custom documents
+             $organization->load('customDocuments');
+             
+             // Format custom documents for response
+             $organization->custom_documents = $organization->customDocuments->map(function($doc) {
+                 return [
+                     'id' => $doc->id,
+                     'name' => $doc->name,
+                     'path' => $doc->file_path,
+                     'url' => $doc->url,
+                     'size' => $doc->file_size,
+                     'mime_type' => $doc->mime_type,
+                     'created_at' => $doc->created_at,
+                     'updated_at' => $doc->updated_at,
+                 ];
+             });
 
              return response()->json([
                  'success' => true,

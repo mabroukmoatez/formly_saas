@@ -28,8 +28,46 @@ class InvoiceManagementController extends Controller
     public function index(Request $request)
     {
         $organization_id = $this->getOrganizationId();
+        
+        // Validate request parameters
+        $validator = Validator::make($request->all(), [
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'search' => 'nullable|string|max:255',
+            'status' => 'nullable|string',
+            'min_amount' => 'nullable|numeric|min:0',
+            'max_amount' => 'nullable|numeric|min:0',
+            'date_from' => 'nullable|date|date_format:Y-m-d',
+            'date_to' => 'nullable|date|date_format:Y-m-d',
+            'client_type' => 'nullable|in:particulier,company',
+            // Backward compatibility
+            'price_from' => 'nullable|numeric|min:0',
+            'price_to' => 'nullable|numeric|min:0',
+            'client_id' => 'nullable|integer|exists:clients,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->failed([], 'Validation error: ' . $validator->errors()->first());
+        }
+
+        // Validate amount range
+        $minAmount = $request->filled('min_amount') ? $request->min_amount : ($request->filled('price_from') ? $request->price_from : null);
+        $maxAmount = $request->filled('max_amount') ? $request->max_amount : ($request->filled('price_to') ? $request->price_to : null);
+        
+        if ($minAmount !== null && $maxAmount !== null && $minAmount > $maxAmount) {
+            return $this->failed([], 'Validation error: min_amount (' . $minAmount . ') cannot be greater than max_amount (' . $maxAmount . ')');
+        }
+
+        // Validate date range
+        if ($request->filled('date_from') && $request->filled('date_to')) {
+            if ($request->date_from > $request->date_to) {
+                return $this->failed([], 'Validation error: date_from cannot be greater than date_to');
+            }
+        }
+
         $query = Invoice::where('organization_id', $organization_id)->with('client');
 
+        // Search filter
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
@@ -40,17 +78,44 @@ class InvoiceManagementController extends Controller
                   });
             });
         }
-        if ($request->filled('date_from')) $query->whereDate('issue_date', '>=', $request->date_from);
-        if ($request->filled('date_to')) $query->whereDate('issue_date', '<=', $request->date_to);
-        if ($request->filled('status')) $query->where('status', $request->status);
-        if ($request->filled('client_id')) $query->where('client_id', $request->client_id);
-        if ($request->filled('price_from')) {
-            $query->where('total_ttc', '>=', $request->price_from);
+
+        // Status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
         }
-        if ($request->filled('price_to')) {
-            $query->where('total_ttc', '<=', $request->price_to);
+
+        // Date filters
+        if ($request->filled('date_from')) {
+            $query->whereDate('issue_date', '>=', $request->date_from);
         }
-        $invoices = $query->latest()->paginate(15);
+        if ($request->filled('date_to')) {
+            $query->whereDate('issue_date', '<=', $request->date_to);
+        }
+
+        // Amount filters (support both new and old parameter names for backward compatibility)
+        if ($minAmount !== null) {
+            $query->where('total_ttc', '>=', $minAmount);
+        }
+        if ($maxAmount !== null) {
+            $query->where('total_ttc', '<=', $maxAmount);
+        }
+
+        // Client type filter (map particulier/company to private/professional)
+        if ($request->filled('client_type')) {
+            $clientType = $request->client_type === 'particulier' ? 'private' : 'professional';
+            $query->whereHas('client', function($q) use ($clientType) {
+                $q->where('type', $clientType);
+            });
+        }
+
+        // Client ID filter (existing)
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+        }
+
+        // Pagination
+        $perPage = $request->get('per_page', 12);
+        $invoices = $query->latest()->paginate($perPage);
         
         $totals = (clone $query)->select(
             DB::raw('COALESCE(SUM(total_ttc), 0) as total_ttc'),
