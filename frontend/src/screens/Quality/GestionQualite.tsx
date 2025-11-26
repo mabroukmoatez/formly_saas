@@ -220,8 +220,7 @@ export const GestionQualite = (): JSX.Element => {
     <div style={{
       padding: 'var(--space-6)',
       fontFamily: 'var(--font-primary)',
-      minHeight: '100vh',
-      backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)'
+      minHeight: '100vh'
     }}>
       {/* Page Title Header */}
       <div className="flex items-center justify-between mb-6">

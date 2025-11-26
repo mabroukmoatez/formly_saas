@@ -23,7 +23,7 @@ export const QualityLayout: React.FC<QualityLayoutProps> = ({ children, classNam
       <div className="flex flex-col flex-1 overflow-hidden">
         <QualityHeader onMobileMenuToggle={handleMobileMenuToggle} />
         
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`} style={{ minHeight: 0 }}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden ${isDark ? 'bg-gray-900' : 'bg-[#F8FAFB]'}`} style={{ minHeight: 0 }}>
           {children}
         </main>
       </div>

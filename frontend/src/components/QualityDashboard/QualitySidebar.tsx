@@ -246,7 +246,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       )}
       
       {/* Sidebar */}
-      <aside className={`flex ${isCollapsed ? 'w-[80px]' : 'w-[287px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-[#fffbef] border-[#dadfe8]'} ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}>
+      <aside className={`flex ${isCollapsed ? 'w-[80px]' : 'w-[287px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#dadfe8]'} ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}>
         
         {/* Background decorations */}
         <img
