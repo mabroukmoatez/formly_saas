@@ -1,0 +1,27 @@
+:root {
+  --greengreen-200: rgba(198, 246, 213, 1);
+  --greengreen-600: rgba(56, 161, 105, 1);
+  --orangeorange-200: rgba(254, 235, 200, 1);
+  --orangeorange-600: rgba(221, 107, 32, 1);
+  --text-sm-semibold-font-family: "Inter", Helvetica;
+  --text-sm-semibold-font-size: 14px;
+  --text-sm-semibold-font-style: normal;
+  --text-sm-semibold-font-weight: 600;
+  --text-sm-semibold-letter-spacing: 0px;
+  --text-sm-semibold-line-height: 20px;
+  --text-xs-regular-font-family: "Inter", Helvetica;
+  --text-xs-regular-font-size: 12px;
+  --text-xs-regular-font-style: normal;
+  --text-xs-regular-font-weight: 400;
+  --text-xs-regular-letter-spacing: 0px;
+  --text-xs-regular-line-height: 18px;
+  --variable-collection-border: rgba(226, 226, 234, 1);
+  --variable-collection-bot-active: rgba(235, 241, 255, 1);
+  --variable-collection-bot-gris: rgba(232, 240, 247, 1);
+  --variable-collection-edit: rgba(255, 119, 0, 1);
+  --variable-collection-gris-for: rgba(106, 144, 186, 1);
+  --variable-collection-light-blue: rgba(229, 243, 255, 1);
+  --variable-collection-light-orange: rgba(255, 230, 202, 1);
+  --variable-collection-main-blue: rgba(0, 122, 255, 1);
+  --variable-collection-section-border: rgba(211, 211, 232, 1);
+}
