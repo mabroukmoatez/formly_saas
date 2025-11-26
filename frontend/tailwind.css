@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import Design System Tokens */
-@import './src/styles/tokens.css';
-
 @layer base {
   html, body {
     overflow-x: hidden;
