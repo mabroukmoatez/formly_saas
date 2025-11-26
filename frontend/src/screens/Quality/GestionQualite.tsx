@@ -217,25 +217,38 @@ export const GestionQualite = (): JSX.Element => {
 
 
   return (
-    <div className="px-[27px] py-8">
+    <div style={{
+      padding: 'var(--space-6)',
+      fontFamily: 'var(--font-primary)',
+      minHeight: '100vh',
+      backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)'
+    }}>
       {/* Page Title Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div 
+          <div
             className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
             style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
           >
             <BarChart3 className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
+            <h1
+              style={{
+                fontFamily: 'var(--font-primary)',
+                fontWeight: 'var(--font-semibold)',
+                fontSize: 'var(--text-3xl)',
+                color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+              }}
             >
               Gestion Qualité
             </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
+            <p
+              style={{
+                fontSize: 'var(--text-sm)',
+                marginTop: '4px',
+                color: isDark ? '#D1D5DB' : 'var(--color-text-secondary)'
+              }}
             >
               Tableau de bord de votre système de gestion qualité Qualiopi
             </p>
@@ -243,13 +256,27 @@ export const GestionQualite = (): JSX.Element => {
         </div>
       </div>
 
-      <div className="flex gap-7">
+      <div style={{
+        display: 'flex',
+        gap: 'var(--space-7)',
+        flexWrap: 'wrap'
+      }}>
         {/* Main Content */}
         <div className="flex flex-col gap-7 flex-1">
         {/* Quality System Card */}
-        <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
-          <CardHeader className="pb-[29px]">
-            <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+        <Card style={{
+          border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-medium)'}`,
+          backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
+          <CardHeader style={{ paddingBottom: 'var(--space-6)' }}>
+            <CardTitle style={{
+              fontFamily: 'var(--font-primary)',
+              fontWeight: 'var(--font-semibold)',
+              fontSize: 'var(--text-xl)',
+              color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+            }}>
               Système Qualité
             </CardTitle>
           </CardHeader>
@@ -449,9 +476,19 @@ export const GestionQualite = (): JSX.Element => {
         </Card>
 
         {/* Qualiopi Indicators */}
-        <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
+        <Card style={{
+          border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-medium)'}`,
+          backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+          borderRadius: 'var(--radius-xl)',
+          boxShadow: 'var(--shadow-sm)'
+        }}>
           <CardHeader>
-            <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+            <CardTitle style={{
+              fontFamily: 'var(--font-primary)',
+              fontWeight: 'var(--font-semibold)',
+              fontSize: 'var(--text-xl)',
+              color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+            }}>
               Indicateurs Qualiopi
             </CardTitle>
           </CardHeader>
@@ -513,11 +550,23 @@ export const GestionQualite = (): JSX.Element => {
         </Card>
 
         {/* Actions & Recent Files Row */}
-        <div className="flex gap-7">
+        <div style={{ display: 'flex', gap: 'var(--space-7)', flexWrap: 'wrap' }}>
           {/* Actions & Tasks */}
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] flex-1`}>
+          <Card style={{
+            border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-medium)'}`,
+            backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)',
+            flex: '1',
+            minWidth: '300px'
+          }}>
             <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-white' : 'text-slate-800'}`}>
+              <CardTitle style={{
+                fontFamily: 'var(--font-primary)',
+                fontWeight: 'var(--font-medium)',
+                fontSize: 'var(--text-base)',
+                color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+              }}>
                 Les Actions & Taches
               </CardTitle>
             </CardHeader>
@@ -596,9 +645,21 @@ export const GestionQualite = (): JSX.Element => {
           </Card>
 
           {/* Recent Files */}
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] flex-1`}>
+          <Card style={{
+            border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-medium)'}`,
+            backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)',
+            flex: '1',
+            minWidth: '300px'
+          }}>
             <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+              <CardTitle style={{
+                fontFamily: 'var(--font-primary)',
+                fontWeight: 'var(--font-semibold)',
+                fontSize: 'var(--text-xl)',
+                color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+              }}>
                 Derniers éléments ajoutés
               </CardTitle>
             </CardHeader>
@@ -675,12 +736,30 @@ export const GestionQualite = (): JSX.Element => {
       </div>
 
       {/* Right Sidebar */}
-      <aside className="w-[400px] flex flex-col gap-[29px]">
+      <aside style={{
+        width: 'var(--container-right)',
+        minWidth: '280px',
+        maxWidth: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-7)'
+      }}>
         {/* Next Audit */}
         {nextAudit ? (
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#25c9b5] bg-white'} rounded-[18px]`}>
+          <Card style={{
+            border: `2px solid ${isDark ? '#4B5563' : 'var(--color-success)'}`,
+            backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
             <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+              <CardTitle style={{
+                fontFamily: 'var(--font-primary)',
+                fontWeight: 'var(--font-semibold)',
+                fontSize: 'var(--text-xl)',
+                textAlign: 'center',
+                color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+              }}>
                 Prochain audit
               </CardTitle>
             </CardHeader>
@@ -724,9 +803,20 @@ export const GestionQualite = (): JSX.Element => {
             </CardContent>
           </Card>
         ) : (
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
+          <Card style={{
+            border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-medium)'}`,
+            backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+            borderRadius: 'var(--radius-xl)',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
             <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+              <CardTitle style={{
+                fontFamily: 'var(--font-primary)',
+                fontWeight: 'var(--font-semibold)',
+                fontSize: 'var(--text-xl)',
+                textAlign: 'center',
+                color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+              }}>
                 Prochain audit
               </CardTitle>
             </CardHeader>
@@ -738,9 +828,14 @@ export const GestionQualite = (): JSX.Element => {
         )}
 
         {/* Articles */}
-        <div className="flex flex-col gap-[17px]">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="flex items-center justify-between">
-            <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+            <h2 style={{
+              fontFamily: 'var(--font-primary)',
+              fontWeight: 'var(--font-semibold)',
+              fontSize: 'var(--text-xl)',
+              color: isDark ? '#FFFFFF' : 'var(--color-text-primary)'
+            }}>
               Article
             </h2>
             <div className="flex items-center gap-2">
@@ -754,9 +849,17 @@ export const GestionQualite = (): JSX.Element => {
           </div>
 
           {articlesLoading && articles.length === 0 ? (
-            <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
+            <Card style={{
+              border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-light)'}`,
+              backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
               <CardContent className="p-8 text-center">
-                <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Chargement des articles...</p>
+                <p style={{
+                  fontFamily: 'var(--font-primary)',
+                  color: isDark ? '#D1D5DB' : 'var(--color-text-secondary)'
+                }}>Chargement des articles...</p>
               </CardContent>
             </Card>
           ) : articles.length > 0 ? (
@@ -787,7 +890,15 @@ export const GestionQualite = (): JSX.Element => {
               return (
               <Card
                   key={article.id || article.uuid}
-                  className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px] cursor-pointer hover:shadow-md transition-shadow`}
+                  style={{
+                    border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-light)'}`,
+                    backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+                    borderRadius: 'var(--radius-xl)',
+                    boxShadow: 'var(--shadow-sm)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  className="hover:shadow-md"
                   onClick={() => {
                     if (article.url) {
                       window.open(article.url, '_blank');
@@ -910,10 +1021,24 @@ export const GestionQualite = (): JSX.Element => {
               );
             })
           ) : (
-            <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
+            <Card style={{
+              border: `2px solid ${isDark ? '#4B5563' : 'var(--color-border-light)'}`,
+              backgroundColor: isDark ? '#1F2937' : 'var(--color-bg-white)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: 'var(--shadow-sm)'
+            }}>
               <CardContent className="p-8 text-center">
-                <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucun article pour le moment</p>
-                <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>Les articles apparaîtront ici</p>
+                <p style={{
+                  fontFamily: 'var(--font-primary)',
+                  marginBottom: 'var(--space-2)',
+                  color: isDark ? '#D1D5DB' : 'var(--color-text-secondary)'
+                }}>Aucun article pour le moment</p>
+                <p style={{
+                  fontSize: 'var(--text-sm)',
+                  fontFamily: 'var(--font-primary)',
+                  color: isDark ? '#9CA3AF' : 'var(--color-text-tertiary)',
+                  opacity: '0.7'
+                }}>Les articles apparaîtront ici</p>
               </CardContent>
             </Card>
           )}
