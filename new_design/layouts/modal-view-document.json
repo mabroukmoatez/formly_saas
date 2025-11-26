@@ -1,0 +1,23 @@
+{
+  "modalName": "View Document Modal",
+  "dimensions": {
+    "width": "876px",
+    "maxWidth": "95vw",
+    "height": "719px",
+    "maxHeight": "90vh"
+  },
+  "sections": {
+    "header": {
+      "title": "Document.pdf",
+      "closeButton": true
+    },
+    "body": {
+      "type": "document-viewer",
+      "scrollable": true,
+      "height": "calc(100% - 120px)"
+    },
+    "footer": {
+      "actions": ["validate"]
+    }
+  }
+}

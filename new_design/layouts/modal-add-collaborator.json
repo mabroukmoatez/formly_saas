@@ -1,0 +1,44 @@
+{
+  "modalName": "Ajouter un Collaborateur",
+  "dimensions": {
+    "width": "770px",
+    "maxWidth": "90vw",
+    "height": "auto",
+    "maxHeight": "90vh"
+  },
+  "fields": [
+    {
+      "name": "nom",
+      "label": "Nom",
+      "type": "text",
+      "width": "50%",
+      "required": true
+    },
+    {
+      "name": "prenom",
+      "label": "Prenom",
+      "type": "text",
+      "width": "50%",
+      "required": true
+    },
+    {
+      "name": "email",
+      "label": "Email",
+      "type": "email",
+      "width": "100%",
+      "required": true
+    }
+  ],
+  "actions": {
+    "primary": {
+      "label": "Valider",
+      "color": "var(--color-primary)",
+      "action": "submit"
+    },
+    "secondary": {
+      "label": "Close",
+      "icon": "close",
+      "action": "cancel"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "pageName": "Dashboard Qualité",
+  "responsive": true,
+  "layout": {
+    "type": "three-column",
+    "desktop": {
+      "width": "1728px",
+      "sidebar": "257px",
+      "main": "1383px",
+      "gap": "28px"
+    },
+    "tablet": {
+      "width": "100%",
+      "sidebar": "collapsed",
+      "main": "100%"
+    },
+    "mobile": {
+      "width": "100%",
+      "layout": "single-column"
+    }
+  },
+  "sections": {
+    "sidebar": {
+      "position": "left",
+      "collapsible": true,
+      "components": ["logo", "navigation", "quick-actions"]
+    },
+    "mainContent": {
+      "components": [
+        {
+          "name": "systeme-qualite",
+          "height": "255.49px",
+          "responsive": true
+        },
+        {
+          "name": "indicateurs-qualiopi",
+          "height": "323px",
+          "responsive": true
+        },
+        {
+          "name": "actions-taches",
+          "height": "389.88px",
+          "responsive": true
+        }
+      ]
+    },
+    "rightSidebar": {
+      "position": "right",
+      "width": "344px",
+      "responsive": "collapse-to-bottom-on-tablet"
+    }
+  },
+  "modals": [
+    {
+      "name": "add-collaborator",
+      "size": "md",
+      "dimensions": "770x363px",
+      "responsive": true
+    },
+    {
+      "name": "view-document",
+      "size": "lg",
+      "dimensions": "876x719px",
+      "responsive": true
+    }
+  ]
+}
