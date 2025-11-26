@@ -1,1 +1,0 @@
-export { DashboardQualit } from "./DashboardQualit";
