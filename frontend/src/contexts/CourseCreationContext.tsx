@@ -24,6 +24,7 @@ export interface CourseCreationFormData {
   title: string;
   subtitle: string;
   description: string;
+  formation_action?: string;
   course_type: number; // 1 = online, 2 = offline
   category_id: number | null;
   subcategory_id: number | null;
@@ -307,6 +308,7 @@ const initialFormData: CourseCreationFormData = {
   title: '',
   subtitle: 'Sous-titre du cours',
   description: '',
+  formation_action: 'Actions de formation',
   course_type: 1, // Default to online course
   category_id: null,
   subcategory_id: null,

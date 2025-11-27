@@ -79,6 +79,7 @@ use App\Http\Controllers\Api\Organization\CertificationModelApiController;
 use App\Http\Controllers\Api\Organization\DocumentTemplateController;
 use App\Http\Controllers\Api\Organization\CourseDocumentController;
 use App\Http\Controllers\Api\Organization\OrganizationDocumentController;
+use App\Http\Controllers\Api\Organization\OrganizationQuestionnaireController;
 use App\Http\Controllers\Api\Organization\CourseSectionController;
 use App\Http\Controllers\Api\Organization\CourseChapterController as OrgCourseChapterController;
 use App\Http\Controllers\Api\Organization\CourseTrainerController as OrgCourseTrainerController;
@@ -89,6 +90,7 @@ use App\Http\Controllers\Api\Organization\CourseTrainerApiController;
 use App\Http\Controllers\Api\Organization\WorkflowApiController;
 use App\Http\Controllers\Api\Organization\QuestionnaireController;
 use App\Http\Controllers\Api\Organization\WorkflowController;
+use App\Http\Controllers\Api\Organization\FlowActionController;
 use App\Http\Controllers\Api\QualityActionController;
 use App\Http\Controllers\Api\QualityArticleController;
 use App\Http\Controllers\Api\QualityAuditController;
@@ -437,8 +439,33 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
     Route::post('/document-templates/{id}/clone', [DocumentTemplateController::class, 'clone']);
     
     // Organization-wide documents (for reusing as templates across courses)
+    Route::get('/documents', [OrganizationDocumentController::class, 'index']);
     Route::get('/documents/all', [OrganizationDocumentController::class, 'index']);
     Route::get('/documents/stats', [OrganizationDocumentController::class, 'stats']);
+    Route::post('/documents', [OrganizationDocumentController::class, 'store']);
+    Route::get('/documents/{id}', [OrganizationDocumentController::class, 'show']);
+    Route::put('/documents/{id}', [OrganizationDocumentController::class, 'update']);
+    Route::delete('/documents/{id}', [OrganizationDocumentController::class, 'destroy']);
+    
+    // Questions for organization documents
+    Route::get('/documents/{id}/questions', [OrganizationDocumentController::class, 'getQuestions']);
+    Route::post('/documents/{id}/questions', [OrganizationDocumentController::class, 'addQuestion']);
+    Route::put('/documents/{id}/questions', [OrganizationDocumentController::class, 'updateQuestions']);
+    Route::put('/documents/{id}/questions/{questionId}', [OrganizationDocumentController::class, 'updateQuestion']);
+    Route::delete('/documents/{id}/questions/{questionId}', [OrganizationDocumentController::class, 'deleteQuestion']);
+    
+    // Organization-wide questionnaires (without course)
+    Route::get('/questionnaires', [OrganizationQuestionnaireController::class, 'index']);
+    Route::post('/questionnaires', [OrganizationQuestionnaireController::class, 'store']);
+    Route::get('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'show']);
+    Route::put('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'update']);
+    Route::delete('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'destroy']);
+    
+    // Questions for organization questionnaires
+    Route::get('/questionnaires/{uuid}/questions', [OrganizationQuestionnaireController::class, 'getQuestions']);
+    Route::post('/questionnaires/{uuid}/questions', [OrganizationQuestionnaireController::class, 'storeQuestion']);
+    Route::put('/questionnaires/{uuid}/questions/{questionId}', [OrganizationQuestionnaireController::class, 'updateQuestion']);
+    Route::delete('/questionnaires/{uuid}/questions/{questionId}', [OrganizationQuestionnaireController::class, 'destroyQuestion']);
     
     // Course documents management (for course creation)
     Route::get('/course-creation/courses/{uuid}/documents', [CourseDocumentApiController::class, 'index']);
@@ -508,6 +535,23 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     Route::delete('/{uuid}/documents-enhanced/{documentId}', [CourseDocumentController::class, 'destroy']);
     Route::get('/{uuid}/documents-enhanced/{documentId}/download', [CourseDocumentController::class, 'download']);
     
+    // Documents routes (standard endpoint)
+    Route::prefix('{courseUuid}/documents')->group(function () {
+        // Specific routes first (before dynamic routes)
+        Route::get('/templates', [DocumentTemplateController::class, 'getAvailableTemplates']);
+        Route::post('/generate', [DocumentTemplateController::class, 'generateDocument']);
+        
+        // CRUD routes
+        Route::get('/', [CourseDocumentController::class, 'index']);
+        Route::post('/', [CourseDocumentController::class, 'store']);
+        
+        // Document-specific routes
+        Route::post('/{documentId}/regenerate', [CourseDocumentController::class, 'regenerate']);
+        Route::get('/{documentId}/download', [CourseDocumentController::class, 'download']);
+        Route::put('/{documentId}', [CourseDocumentController::class, 'update']);
+        Route::delete('/{documentId}', [CourseDocumentController::class, 'destroy']);
+    });
+    
     // Questionnaires management (separate from documents)
     Route::get('/{uuid}/questionnaires', [CourseQuestionnaireController::class, 'index']);
     Route::get('/{uuid}/questionnaires/{questionnaireId}', [CourseQuestionnaireController::class, 'show']);
@@ -515,6 +559,12 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     // Questionnaire responses management (Organization)
     Route::get('/{uuid}/documents/{documentId}/responses', [QuestionnaireResponseController::class, 'index']);
     Route::post('/{uuid}/documents/{documentId}/responses/{responseId}/grade', [QuestionnaireResponseController::class, 'grade']);
+    
+    // Flow Actions - New implementation according to BACKEND_ADJUSTMENTS_FLOW_ACTIONS.md
+    Route::get('/{courseUuid}/flow-actions', [FlowActionController::class, 'index']);
+    Route::post('/{courseUuid}/flow-actions', [FlowActionController::class, 'store']);
+    Route::put('/{courseUuid}/flow-actions/{actionId}', [FlowActionController::class, 'update']);
+    Route::delete('/{courseUuid}/flow-actions/{actionId}', [FlowActionController::class, 'destroy']);
     
     // Flow Actions (alias for workflow actions for backward compatibility)
     Route::get('/{uuid}/flow-actions', [WorkflowController::class, 'getActions']);
@@ -612,13 +662,6 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     
     // Trainer search and management
     Route::get('/trainers/search', [CourseTrainerApiController::class, 'search']);
-    
-    // Enhanced Course Creation API Routes - Step 3: Documents
-    Route::middleware(['auth:api', 'organization.api'])->prefix('organization/courses/{courseUuid}/documents')->group(function () {
-        Route::get('/templates', [DocumentTemplateController::class, 'getAvailableTemplates']);
-        Route::post('/generate', [DocumentTemplateController::class, 'generateDocument']);
-        Route::post('/{documentId}/regenerate', [DocumentTemplateController::class, 'regenerateDocument']);
-    });
 
     // Enhanced Course Creation API Routes - Step 4: Questionnaires
     Route::prefix('{courseUuid}/questionnaires')->group(function () {
@@ -1584,6 +1627,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     
     // Indicators
     Route::get('/indicators', [QualityIndicatorController::class, 'index']);
+    Route::post('/indicators/batch-update', [QualityIndicatorController::class, 'batchUpdate']);
     Route::get('/indicators/{id}', [QualityIndicatorController::class, 'show']);
     Route::put('/indicators/{id}', [QualityIndicatorController::class, 'update']);
     Route::get('/indicators/{id}/documents', [QualityIndicatorController::class, 'documents']);

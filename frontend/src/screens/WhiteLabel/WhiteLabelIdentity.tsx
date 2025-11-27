@@ -34,7 +34,9 @@ import {
   Copy,
   CheckCircle2,
   Info,
-  ExternalLink
+  ExternalLink,
+  FileText,
+  CloudUpload
 } from 'lucide-react';
 
 interface LoginTemplate {
@@ -88,6 +90,9 @@ export const WhiteLabelIdentity: React.FC = () => {
   const [loginTemplates, setLoginTemplates] = useState<LoginTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<string>('#007aff');
+  const [logoType, setLogoType] = useState<'square' | 'wide'>('square');
+  const [activeTab, setActiveTab] = useState<string>('visual');
   const [banners, setBanners] = useState<any[]>([]);
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<any | null>(null);
@@ -145,6 +150,9 @@ export const WhiteLabelIdentity: React.FC = () => {
           email_smtp_encryption: response.data.email_smtp_encryption || 'tls',
         });
         setSelectedTemplate(response.data.login_template || '');
+        if (response.data.primary_color) {
+          setSelectedColor(response.data.primary_color);
+        }
       }
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -426,282 +434,354 @@ export const WhiteLabelIdentity: React.FC = () => {
         </div>
         
         {/* Main Content */}
-        <Tabs defaultValue="visual" className="space-y-6">
-          <TabsList className={`rounded-[12px] ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
-            <TabsTrigger value="visual" className="rounded-[10px]">
-              <Palette className="w-4 h-4 mr-2" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className={`rounded-[12px] bg-transparent p-0 gap-0 border-0 ${isDark ? '' : ''}`}>
+            <TabsTrigger 
+              value="visual" 
+              className={`rounded-[10px] px-4 py-2 relative flex items-center gap-2 border-0 shadow-none transition-all ${
+                activeTab === 'visual'
+                  ? isDark ? 'text-white' : 'text-blue-500'
+                  : isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
+              {activeTab === 'visual' ? (
+                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`} />
+              ) : (
+                <input type="radio" className="w-4 h-4 cursor-pointer" readOnly />
+              )}
               Identité Visuelle
             </TabsTrigger>
-            <TabsTrigger value="url" className="rounded-[10px]">
-              <Globe className="w-4 h-4 mr-2" />
-              URL personnalisé
+            <TabsTrigger 
+              value="url" 
+              className={`rounded-[10px] px-4 py-2 flex items-center gap-2 border-0 shadow-none transition-all ${
+                activeTab === 'url'
+                  ? isDark ? 'text-white' : 'text-blue-500'
+                  : isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
+              {activeTab === 'url' ? (
+                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`} />
+              ) : (
+                <input type="radio" className="w-4 h-4 cursor-pointer" readOnly />
+              )}
+              Url personnalisé
             </TabsTrigger>
-            <TabsTrigger value="email" className="rounded-[10px]">
-              <Mail className="w-4 h-4 mr-2" />
+            <TabsTrigger 
+              value="email" 
+              className={`rounded-[10px] px-4 py-2 flex items-center gap-2 border-0 shadow-none transition-all ${
+                activeTab === 'email'
+                  ? isDark ? 'text-white' : 'text-blue-500'
+                  : isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
+              {activeTab === 'email' ? (
+                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`} />
+              ) : (
+                <input type="radio" className="w-4 h-4 cursor-pointer" readOnly />
+              )}
               Configuration E-mail
             </TabsTrigger>
-            <TabsTrigger value="banners" className="rounded-[10px]">
-              <Sparkles className="w-4 h-4 mr-2" />
+            <TabsTrigger 
+              value="banners" 
+              className={`rounded-[10px] px-4 py-2 flex items-center gap-2 border-0 shadow-none transition-all ${
+                activeTab === 'banners'
+                  ? isDark ? 'text-white' : 'text-blue-500'
+                  : isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
+              {activeTab === 'banners' ? (
+                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-400' : 'bg-blue-500'}`} />
+              ) : (
+                <input type="radio" className="w-4 h-4 cursor-pointer" readOnly />
+              )}
               Bannières et promotions
             </TabsTrigger>
           </TabsList>
           
           {/* Identité Visuelle Tab */}
           <TabsContent value="visual" className="space-y-6">
-            <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'}`}>
-              <CardHeader>
-                <CardTitle className={`text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                  Couleurs de l'interface
-                </CardTitle>
-              </CardHeader>
-              <Separator className={isDark ? 'bg-gray-700' : 'bg-gray-200'} />
-              <CardContent className="pt-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                      Couleur primaire
-                    </Label>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-12 h-12 rounded-[10px] border-2"
-                        style={{ backgroundColor: formData.primary_color, borderColor: isDark ? '#374151' : '#e8f0f7' }}
-                      />
-                      <Input
+            <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} p-6`}>
+              <div className="space-y-8">
+                {/* Couleur de l'interface */}
+                <div className="space-y-4">
+                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                    Couleur de l'interface
+                  </h2>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <label className="relative inline-block cursor-pointer">
+                      <input
                         type="color"
-                        value={formData.primary_color}
-                        onChange={(e) => handleInputChange('primary_color', e.target.value)}
-                        disabled={!isEditing}
-                        className={`rounded-[10px] h-12 w-full ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}
+                        value={formData.primary_color || '#007aff'}
+                        onChange={(e) => {
+                          const color = e.target.value;
+                          setSelectedColor(color);
+                          handleInputChange('primary_color', color);
+                        }}
+                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                        style={{ position: 'absolute', width: 0, height: 0, opacity: 0 }}
                       />
+                      <Button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const input = e.currentTarget.parentElement?.querySelector('input[type="color"]') as HTMLInputElement;
+                          if (input) {
+                            input.click();
+                          }
+                        }}
+                        className="rounded-[10px] px-6 h-12 flex items-center gap-2"
+                        style={{ backgroundColor: primaryColor, color: 'white' }}
+                      >
+                        <Palette className="w-4 h-4" />
+                        Choisie Une Couleur
+                      </Button>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {['#ff0000', '#ff7700', '#ffdd00', '#00ff00', '#00aaff', '#0066ff'].map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => {
+                            setSelectedColor(color);
+                            handleInputChange('primary_color', color);
+                          }}
+                          className={`w-8 h-8 rounded-full border-2 transition-all ${
+                            formData.primary_color === color ? 'border-gray-800 scale-110' : 'border-gray-300 hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Utilisée pour les boutons principaux et la signature électronique
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Info className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Le cachet de votre organisme sera repris lors de la signature électronique des documents
                     </p>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                      Couleur secondaire
-                    </Label>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-12 h-12 rounded-[10px] border-2"
-                        style={{ backgroundColor: formData.secondary_color, borderColor: isDark ? '#374151' : '#e8f0f7' }}
-                      />
-                      <Input
-                        type="color"
-                        value={formData.secondary_color}
-                        onChange={(e) => handleInputChange('secondary_color', e.target.value)}
-                        disabled={!isEditing}
-                        className={`rounded-[10px] h-12 w-full ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                      Couleur d'accent
-                    </Label>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-12 h-12 rounded-[10px] border-2"
-                        style={{ backgroundColor: formData.accent_color, borderColor: isDark ? '#374151' : '#e8f0f7' }}
-                      />
-                      <Input
-                        type="color"
-                        value={formData.accent_color}
-                        onChange={(e) => handleInputChange('accent_color', e.target.value)}
-                        disabled={!isEditing}
-                        className={`rounded-[10px] h-12 w-full ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#f7f9fc] border-[#e8f0f7]'}`}
-                      />
-                    </div>
+                </div>
+                
+                {/* Modelle de connexion */}
+                <div className="space-y-4">
+                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                    Modelle de connexion
+                  </h2>
+                  <Button
+                    onClick={() => setShowTemplateModal(true)}
+                    className="rounded-[10px] px-6 h-12 flex items-center gap-2"
+                    style={{ backgroundColor: primaryColor, color: 'white' }}
+                  >
+                    <FileText className="w-4 h-4" />
+                    Choisie Un Modelle
+                  </Button>
+                  <div className="flex items-start gap-2">
+                    <Info className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Le cachet de votre organisme sera repris lors de la signature électronique des documents
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Modèle de connexion */}
-            <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'}`}>
-              <CardHeader>
-                <CardTitle className={`text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                  Modèle de connexion
-                </CardTitle>
-              </CardHeader>
-              <Separator className={isDark ? 'bg-gray-700' : 'bg-gray-200'} />
-              <CardContent className="pt-6">
-                <Button
-                  onClick={() => setShowTemplateModal(true)}
-                  variant="outline"
-                  className="rounded-[10px]"
-                  style={{ borderColor: secondaryColor, color: secondaryColor }}
-                  disabled={!isEditing}
-                >
-                  <LayoutTemplate className="w-4 h-4 mr-2" />
-                  Choisir Un Modèle
-                </Button>
-                {selectedTemplate && (
-                  <div className="mt-4">
-                    <Badge className="px-3 py-1">
-                      Modèle sélectionné: {loginTemplates.find(t => t.id === selectedTemplate)?.name || selectedTemplate}
-                    </Badge>
-                  </div>
-                )}
-                {loadingTemplates && (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Chargement des modèles...
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
-            {/* Bannière de connexion */}
-            <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'}`}>
-              <CardHeader>
-                <CardTitle className={`text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                  Bannière de connexion
-                </CardTitle>
-              </CardHeader>
-              <Separator className={isDark ? 'bg-gray-700' : 'bg-gray-200'} />
-              <CardContent className="pt-6 space-y-4">
-                {settings?.login_banner_url && (
-                  <div className="flex justify-center">
-                    <img
-                      src={fixImageUrl(settings.login_banner_url)}
-                      alt="Bannière"
-                      className="max-h-32 max-w-full object-contain rounded-[10px] p-2 border"
-                    />
-                  </div>
-                )}
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleFileUpload(file, 'banner');
-                  }}
-                  className="hidden"
-                  disabled={!isEditing}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => bannerInputRef.current?.click()}
-                  disabled={uploading === 'banner' || !isEditing}
-                  className="w-full rounded-[10px]"
-                  style={{ borderColor: secondaryColor, color: secondaryColor }}
-                >
-                  {uploading === 'banner' ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4 mr-2" />
-                      Télécharger bannière (ICO, PNG 32x32px)
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-            
-            {/* Logos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'}`}>
-                <CardHeader>
-                  <CardTitle className={`text-lg ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                    Logo Carré
-                  </CardTitle>
-                </CardHeader>
-                <Separator className={isDark ? 'bg-gray-700' : 'bg-gray-200'} />
-                <CardContent className="pt-6 space-y-4">
-                  {settings?.logo_square_url && (
-                    <div className="flex justify-center">
-                      <img
-                        src={fixImageUrl(settings.logo_square_url)}
-                        alt="Logo carré"
-                        className="max-h-20 max-w-full object-contain rounded-[10px] p-2 border"
-                      />
-                    </div>
-                  )}
-                  <input
-                    ref={logoSquareInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file, 'logo_square');
+                
+                {/* Bannière de connexion */}
+                <div className="space-y-4">
+                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                    Bannière de connexion<span className="text-red-500">*</span>
+                  </h2>
+                  <div
+                    onClick={() => bannerInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                     }}
-                    className="hidden"
-                    disabled={!isEditing}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => logoSquareInputRef.current?.click()}
-                    disabled={uploading === 'logo_square' || !isEditing}
-                    className="w-full rounded-[10px]"
-                    style={{ borderColor: secondaryColor, color: secondaryColor }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const file = e.dataTransfer.files[0];
+                      if (file && (file.type.startsWith('image/') || file.name.endsWith('.ico'))) {
+                        handleFileUpload(file, 'banner');
+                      }
+                    }}
+                    className={`w-full border-2 border-dashed rounded-[10px] p-12 flex flex-col items-center justify-center cursor-pointer transition-colors min-h-[200px] relative ${
+                      isDark 
+                        ? 'border-gray-600 bg-gradient-to-br from-gray-800/50 to-gray-700/50 hover:from-gray-800 hover:to-gray-700' 
+                        : 'border-gray-300 bg-gradient-to-br from-pink-50 to-blue-50 hover:from-pink-100 hover:to-blue-100'
+                    }`}
                   >
-                    {uploading === 'logo_square' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                    {uploading === 'banner' ? (
+                      <>
+                        <Loader2 className="w-10 h-10 animate-spin" style={{ color: primaryColor }} />
+                        <p className={`text-sm text-center mt-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Téléchargement en cours...
+                        </p>
+                      </>
+                    ) : (settings?.login_banner_url || organization?.login_banner_url || organization?.login_background_image_url) ? (
+                      <>
+                        <img
+                          src={fixImageUrl(settings?.login_banner_url || organization?.login_banner_url || organization?.login_background_image_url || '')}
+                          alt="Bannière"
+                          className="max-h-40 max-w-full object-contain rounded-[8px]"
+                        />
+                        <p className={`text-xs text-center mt-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Cliquez pour changer l'image
+                        </p>
+                      </>
                     ) : (
                       <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Télécharger (64x64px recommandé)
+                        <CloudUpload className={`w-16 h-16 mb-3 ${isDark ? 'text-gray-400' : 'text-gray-400'}`} />
+                        <p className={`text-sm text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Cliquez pour télécharger ou glissez-déposez
+                        </p>
                       </>
                     )}
-                  </Button>
-                  <p className="text-xs text-gray-500">
-                    Utilisé en haut à gauche des questionnaires, documents et emails
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card className={`border-2 rounded-[18px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'}`}>
-                <CardHeader>
-                  <CardTitle className={`text-lg ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                    Image Large
-                  </CardTitle>
-                </CardHeader>
-                <Separator className={isDark ? 'bg-gray-700' : 'bg-gray-200'} />
-                <CardContent className="pt-6 space-y-4">
-                  {settings?.logo_wide_url && (
-                    <div className="flex justify-center">
-                      <img
-                        src={fixImageUrl(settings.logo_wide_url)}
-                        alt="Logo large"
-                        className="max-h-20 max-w-full object-contain rounded-[10px] p-2 border"
-                      />
-                    </div>
-                  )}
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Info className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      ICO, PNG 32x33px
+                    </p>
+                  </div>
                   <input
-                    ref={logoWideInputRef}
+                    ref={bannerInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.ico"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handleFileUpload(file, 'logo_wide');
+                      if (file) handleFileUpload(file, 'banner');
                     }}
                     className="hidden"
-                    disabled={!isEditing}
                   />
-                  <Button
-                    variant="outline"
-                    onClick={() => logoWideInputRef.current?.click()}
-                    disabled={uploading === 'logo_wide' || !isEditing}
-                    className="w-full rounded-[10px]"
-                    style={{ borderColor: secondaryColor, color: secondaryColor }}
-                  >
-                    {uploading === 'logo_wide' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Télécharger (64x128px recommandé)
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+                
+                {/* Logo */}
+                <div className="space-y-4">
+                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                    Logo <span className="text-red-500">*</span>
+                  </h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Logo Carre */}
+                    <div className="space-y-3">
+                      <div
+                        onClick={() => {
+                          logoSquareInputRef.current?.click();
+                          setLogoType('square');
+                        }}
+                        className={`border-2 border-dashed rounded-[10px] p-8 flex flex-col items-center justify-center cursor-pointer transition-colors min-h-[140px] relative ${
+                          isDark 
+                            ? 'border-gray-600 bg-gradient-to-br from-gray-800/50 to-gray-700/50 hover:from-gray-800 hover:to-gray-700' 
+                            : 'border-gray-300 bg-gradient-to-br from-pink-50 to-blue-50 hover:from-pink-100 hover:to-blue-100'
+                        }`}
+                      >
+                        {uploading === 'logo_square' ? (
+                          <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
+                        ) : (settings?.logo_square_url || organization?.organization_logo_url) ? (
+                          <>
+                            <img
+                              src={fixImageUrl(settings?.logo_square_url || organization?.organization_logo_url || '')}
+                              alt="Logo carré"
+                              className="max-h-24 max-w-full object-contain rounded-[8px]"
+                            />
+                            <p className={`text-xs text-center mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Cliquez pour changer
+                            </p>
+                          </>
+                        ) : (
+                          <CloudUpload className={`w-10 h-10 ${isDark ? 'text-gray-400' : 'text-gray-400'}`} />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="logo-square"
+                          name="logo-type"
+                          checked={logoType === 'square'}
+                          onChange={() => setLogoType('square')}
+                          className="w-4 h-4"
+                        />
+                        <Label htmlFor="logo-square" className={`text-sm cursor-pointer ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                          Logo Carre
+                        </Label>
+                      </div>
+                      <input
+                        ref={logoSquareInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file, 'logo_square');
+                            setLogoType('square');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                    
+                    {/* Image Large */}
+                    <div className="space-y-3">
+                      <div
+                        onClick={() => {
+                          logoWideInputRef.current?.click();
+                          setLogoType('wide');
+                        }}
+                        className={`border-2 border-dashed rounded-[10px] p-8 flex flex-col items-center justify-center cursor-pointer transition-colors min-h-[140px] relative ${
+                          isDark 
+                            ? 'border-gray-600 bg-gradient-to-br from-gray-800/50 to-gray-700/50 hover:from-gray-800 hover:to-gray-700' 
+                            : 'border-gray-300 bg-gradient-to-br from-pink-50 to-blue-50 hover:from-pink-100 hover:to-blue-100'
+                        }`}
+                      >
+                        {uploading === 'logo_wide' ? (
+                          <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
+                        ) : (settings?.logo_wide_url || organization?.organization_logo_url) ? (
+                          <>
+                            <img
+                              src={fixImageUrl(settings?.logo_wide_url || organization?.organization_logo_url || '')}
+                              alt="Logo large"
+                              className="max-h-24 max-w-full object-contain rounded-[8px]"
+                            />
+                            <p className={`text-xs text-center mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Cliquez pour changer
+                            </p>
+                          </>
+                        ) : (
+                          <CloudUpload className={`w-10 h-10 ${isDark ? 'text-gray-400' : 'text-gray-400'}`} />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          id="logo-wide"
+                          name="logo-type"
+                          checked={logoType === 'wide'}
+                          onChange={() => setLogoType('wide')}
+                          className="w-4 h-4"
+                        />
+                        <Label htmlFor="logo-wide" className={`text-sm cursor-pointer ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
+                          Image Large
+                        </Label>
+                      </div>
+                      <input
+                        ref={logoWideInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file, 'logo_wide');
+                            setLogoType('wide');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Info className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Votre logo sera placé automatiquement en haut à gauche des questionnaires, des documents et des emails (tailles optimales: 64 x 64 pour un logo carré et 64 x 128 pour un logo large)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
           </TabsContent>
           
           {/* URL personnalisé Tab */}
@@ -866,10 +946,10 @@ export const WhiteLabelIdentity: React.FC = () => {
                   <Label className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
                     Favicon
                   </Label>
-                  {settings?.favicon_url && (
+                  {(settings?.favicon_url || organization?.organization_favicon_url) && (
                     <div className="flex justify-center mb-4">
                       <img
-                        src={fixImageUrl(settings.favicon_url)}
+                        src={fixImageUrl(settings?.favicon_url || organization?.organization_favicon_url || '')}
                         alt="Favicon"
                         className="w-12 h-12 object-contain rounded-[10px] p-2 border"
                       />
@@ -1225,18 +1305,33 @@ export const WhiteLabelIdentity: React.FC = () => {
       {/* Template Selection Modal */}
       {showTemplateModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 z-50"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 z-50 overflow-y-auto"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowTemplateModal(false);
             }
           }}
         >
-          <Card className={`w-full max-w-4xl rounded-[18px] max-h-[90vh] overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
-            <CardHeader>
-              <CardTitle className={isDark ? 'text-white' : 'text-[#19294a]'}>Sélectionner un modèle de connexion</CardTitle>
+          <Card className={`w-full max-w-2xl md:max-w-3xl rounded-[18px] ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} relative my-4 md:my-0 max-h-[90vh] overflow-hidden flex flex-col`}>
+            {/* Close Button */}
+            <button
+              onClick={() => setShowTemplateModal(false)}
+              className={`absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
+                isDark 
+                  ? 'hover:bg-gray-700 text-gray-300 hover:text-white' 
+                  : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <CardHeader className="pb-4 px-4 md:px-6 flex-shrink-0">
+              <CardTitle className={`text-lg md:text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                Sélectionner un modèle de connexion
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            
+            <CardContent className="pb-6 px-4 md:px-6 overflow-y-auto flex-1">
               {loadingTemplates ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
@@ -1247,21 +1342,20 @@ export const WhiteLabelIdentity: React.FC = () => {
                   <p>Aucun modèle disponible</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
                   {loginTemplates.map((template) => (
                     <div
                       key={template.id}
                       onClick={() => {
                         setSelectedTemplate(template.id);
-                        setShowTemplateModal(false);
                       }}
-                      className={`p-4 rounded-[12px] border-2 cursor-pointer transition-all ${
+                      className={`p-3 rounded-[12px] border-2 cursor-pointer transition-all ${
                         selectedTemplate === template.id
-                          ? isDark ? 'border-blue-500 bg-blue-900/20' : 'border-blue-500 bg-blue-50'
-                          : isDark ? 'border-gray-600 hover:border-gray-500 bg-gray-700/50' : 'border-gray-200 hover:border-gray-300'
+                          ? isDark ? 'border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/50' : 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/50'
+                          : isDark ? 'border-gray-600 hover:border-gray-500 bg-gray-700/50' : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
-                      <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded mb-2 flex items-center justify-center overflow-hidden">
+                      <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-[8px] mb-2 flex items-center justify-center overflow-hidden shadow-sm">
                         {template.preview_url ? (
                           <img
                             src={fixImageUrl(template.preview_url)}
@@ -1279,30 +1373,29 @@ export const WhiteLabelIdentity: React.FC = () => {
                           <LayoutTemplate className="w-12 h-12 text-gray-400" />
                         </div>
                       </div>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{template.name}</p>
+                      <p className={`text-xs md:text-sm font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {template.name}
+                      </p>
                       {template.description && (
-                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{template.description}</p>
+                        <p className={`text-xs mt-1 text-center line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {template.description}
+                        </p>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-              <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowTemplateModal(false)}
-                  className="rounded-[10px]"
-                >
-                  Annuler
-                </Button>
+              
+              {/* Validation Button */}
+              <div className="flex justify-center mt-4 flex-shrink-0">
                 <Button
                   onClick={() => {
                     if (selectedTemplate) {
                       setShowTemplateModal(false);
                     }
                   }}
-                  className="rounded-[10px]"
-                  style={{ backgroundColor: primaryColor }}
+                  className="rounded-[10px] px-6 md:px-8 h-10 md:h-12"
+                  style={{ backgroundColor: primaryColor, color: 'white' }}
                   disabled={!selectedTemplate}
                 >
                   Valider

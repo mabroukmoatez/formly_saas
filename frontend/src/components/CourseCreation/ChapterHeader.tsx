@@ -50,14 +50,41 @@ export const EmptyChaptersState: React.FC<EmptyChaptersStateProps> = ({
   const { isDark } = useTheme();
 
   return (
-    <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'} ${className}`}>
-      <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-      <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-        {t('courseSteps.step2.sections.chapters.emptyState')}
-      </h3>
-      <p className="mb-6">
-        {t('courseSteps.step2.sections.chapters.emptyDescription')}
-      </p>
+    <div 
+      className={`relative min-h-[400px] rounded-lg overflow-hidden ${className}`}
+    >
+      {/* Blurred background image */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `url('/assets/images/step2.png')`,
+          backgroundSize: 'contain',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          filter: 'blur(2px)'
+        }}
+      />
+      {/* Overlay for better text readability */}
+      <div className={`absolute inset-0 ${
+        isDark ? 'bg-black/50' : 'bg-white/70'
+      }`} />
+      
+      {/* Content */}
+      <div className="relative z-10 text-center py-12 px-4">
+        <FileText className={`w-16 h-16 mx-auto mb-4 ${
+          isDark ? 'text-gray-300' : 'text-gray-600'
+        }`} />
+        <h3 className={`text-lg font-medium mb-2 ${
+          isDark ? 'text-gray-200' : 'text-gray-800'
+        }`}>
+          {t('courseSteps.step2.sections.chapters.emptyState')}
+        </h3>
+        <p className={`${
+          isDark ? 'text-gray-300' : 'text-gray-700'
+        }`}>
+          {t('courseSteps.step2.sections.chapters.emptyDescription')}
+        </p>
+      </div>
     </div>
   );
 };

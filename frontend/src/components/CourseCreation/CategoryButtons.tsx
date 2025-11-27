@@ -4,7 +4,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { CategoryCreationModal } from './CategoryCreationModal';
 import { SubcategoryCreationModal } from './SubcategoryCreationModal';
-import { Plus, ChevronRight } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { courseCreation } from '../../services/courseCreation';
 import { useToast } from '../ui/toast';
 
@@ -42,9 +42,6 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
-  const [isActivitiesDropdownOpen, setIsActivitiesDropdownOpen] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const activitiesDropdownRef = useRef<HTMLDivElement>(null);
   
   // Pratiques de formation avec checkboxes
   const [formationPractices, setFormationPractices] = useState<Array<{ id: number; code: string; name: string }>>([]);
@@ -120,16 +117,6 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   const customCategoriesCount = categories.filter(cat => cat.is_custom).length;
 
   // Close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (activitiesDropdownRef.current && !activitiesDropdownRef.current.contains(event.target as Node)) {
-        setIsActivitiesDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleCategoryCreated = async (newCategory: { id: number; name: string }) => {
     // Select the new category immediately (it will be in the list after refresh)
@@ -157,149 +144,13 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   return (
     <>
       <div className="flex flex-col gap-4">
-        {/* Label avec lien */}
+        {/* Label */}
         <div className="flex items-center gap-2">
           <span className={`[font-family:'Poppins',Helvetica] font-medium text-[17px] ${
             isDark ? 'text-white' : 'text-[#19294a]'
           }`}>
             Catégorie/Pratiques De Formation:
           </span>
-          <div className="relative inline-block z-10" ref={activitiesDropdownRef}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.nativeEvent.stopImmediatePropagation();
-                
-                if (activitiesDropdownRef.current) {
-                  const rect = activitiesDropdownRef.current.getBoundingClientRect();
-                  setDropdownPosition({
-                    top: rect.bottom + 8,
-                    left: rect.left
-                  });
-                }
-                
-                setIsActivitiesDropdownOpen(!isActivitiesDropdownOpen);
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                e.nativeEvent.stopImmediatePropagation();
-              }}
-              className={`text-[17px] font-medium hover:underline flex items-center gap-1 cursor-pointer ${
-                isDark ? 'text-blue-400' : 'text-[#0066FF]'
-              }`}
-              style={{ color: primaryColor }}
-            >
-              Actions de formation <ChevronRight className={`inline w-4 h-4 transition-transform ${isActivitiesDropdownOpen ? 'rotate-90' : ''}`} />
-            </button>
-            
-            {isActivitiesDropdownOpen && dropdownPosition && (
-              <div 
-                className={`fixed z-[9999] rounded-[18px] border border-solid shadow-lg min-w-[320px] ${
-                  isDark 
-                    ? 'bg-gray-800 border-gray-600' 
-                    : 'bg-white border-[#e2e2ea]'
-                }`}
-                style={{
-                  top: `${dropdownPosition.top}px`,
-                  left: `${dropdownPosition.left}px`
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.nativeEvent.stopImmediatePropagation();
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  e.nativeEvent.stopImmediatePropagation();
-                }}
-              >
-                {/* Header avec titre */}
-                <div 
-                  className={`px-4 py-3 rounded-t-[18px] ${
-                    isDark ? 'bg-blue-900/30' : 'bg-[#E8F3FF]'
-                  }`}
-                  style={!isDark ? { backgroundColor: '#E8F3FF' } : {}}
-                >
-                  <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${
-                    isDark ? 'text-blue-300' : 'text-[#19294a]'
-                  }`} style={!isDark ? { color: '#19294a' } : {}}>
-                    Actions de formation
-                  </h3>
-                </div>
-                
-                {/* Liste avec checkboxes */}
-                <div className="p-2">
-                  {formationPractices.map((practice) => {
-                    const isChecked = selectedPracticeIdsLocal.has(practice.id);
-                    return (
-                      <label
-                        key={practice.id}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                          isDark 
-                            ? 'hover:bg-gray-700' 
-                            : 'hover:bg-gray-50'
-                        }`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          togglePractice(practice.id);
-                        }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                      >
-                        <div 
-                          className="relative flex items-center justify-center"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePractice(practice.id);
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              togglePractice(practice.id);
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePractice(practice.id);
-                            }}
-                            className="sr-only"
-                          />
-                          <div 
-                            className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all cursor-pointer ${
-                              isChecked
-                                ? isDark 
-                                  ? 'bg-blue-600 border-blue-600' 
-                                  : 'bg-[#0066FF] border-[#0066FF]'
-                                : isDark
-                                  ? 'bg-transparent border-gray-500'
-                                  : 'bg-white border-gray-300'
-                            }`}
-                            style={isChecked ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
-                          >
-                            {isChecked && (
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                        </div>
-                        <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
-                          isDark ? 'text-white' : 'text-[#19294a]'
-                        }`}>
-                          {practice.name}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Deux grands boutons */}

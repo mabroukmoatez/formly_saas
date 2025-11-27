@@ -8,12 +8,14 @@ import { DurationField } from './DurationField';
 import { MediaUpload } from './MediaUpload';
 import { RichTextField } from './RichTextField';
 import { CategoryButtons } from './CategoryButtons';
+import { FormationActionBadge } from './FormationActionBadge';
 
 interface CourseInformationFormProps {
   formData: {
     title: string;
     subtitle: string;
     description: string;
+    formation_action?: string;
     category_id: number | null;
     subcategory_id: number | null;
     course_language_id: number | null;
@@ -94,6 +96,11 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
                 maxLength={110}
               />
 
+              <FormationActionBadge
+                selectedAction={formData.formation_action || "Actions de formation"}
+                onActionChange={(action) => onInputChange('formation_action', action)}
+              />
+
               <CategoryButtons
                 selectedCategory={formData.category_id ? categories.find(c => c.id === formData.category_id) || null : null}
                 selectedSubcategory={formData.subcategory_id ? subcategories.find(s => s.id === formData.subcategory_id) || null : null}
@@ -149,7 +156,26 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
             </h3>
             <DurationField
               duration={formData.duration}
-              onDurationChange={(value) => onInputChange('duration', value)}
+              durationDays={formData.duration_days || 0}
+              durationHours={Math.floor((formData.duration || 0) / 60)}
+              durationMinutes={(formData.duration || 0) % 60}
+              onDurationDaysChange={(days) => {
+                onInputChange('duration_days', days);
+                // Calculate total duration in minutes
+                const hours = Math.floor((formData.duration || 0) / 60);
+                const minutes = (formData.duration || 0) % 60;
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
+              onDurationHoursChange={(hours) => {
+                const days = formData.duration_days || 0;
+                const minutes = (formData.duration || 0) % 60;
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
+              onDurationMinutesChange={(minutes) => {
+                const days = formData.duration_days || 0;
+                const hours = Math.floor((formData.duration || 0) / 60);
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
             />
           </CardContent>
         </Card>

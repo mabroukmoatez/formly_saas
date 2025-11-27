@@ -9,6 +9,7 @@ import { useCourseCreation } from '../../contexts/CourseCreationContext';
 import { useToast } from '../ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { AdvancedDocumentCreationModal } from './AdvancedDocumentCreationModal';
+import { AttestationSelectionModal } from './AttestationSelectionModal';
 import { courseCreation } from '../../services/courseCreation';
 import { CourseDocumentEnhanced, CourseDocumentTemplateEnhanced } from '../../services/courseCreation.types';
 import { 
@@ -24,7 +25,9 @@ import {
   Edit3,
   Upload,
   LayoutTemplate,
-  Check
+  Check,
+  FolderOpen,
+  Clock
 } from 'lucide-react';
 
 interface CourseDocument {
@@ -74,6 +77,9 @@ export const Step3DocumentsNew: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplatesView, setShowTemplatesView] = useState(false);
+  const [showAttestationModal, setShowAttestationModal] = useState(false);
+  const [selectedAttestation, setSelectedAttestation] = useState<any>(null);
+  const [linkContractWithInvoice, setLinkContractWithInvoice] = useState(false);
   const [selectedAudience, setSelectedAudience] = useState<'all' | 'students' | 'instructors' | 'organization'>('all');
   const [templateFilter, setTemplateFilter] = useState<'all' | 'certificates' | 'documents'>('all');
 
@@ -292,11 +298,11 @@ export const Step3DocumentsNew: React.FC = () => {
   const getAudienceLabel = (audienceType: string) => {
     switch (audienceType) {
       case 'students':
-        return 'Étudiants';
+        return 'Apprenant';
       case 'instructors':
-        return 'Formateurs';
+        return 'Formateur';
       case 'organization':
-        return 'Organisation';
+        return 'Enterprise';
       default:
         return audienceType;
     }
@@ -315,6 +321,30 @@ export const Step3DocumentsNew: React.FC = () => {
     }
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffSecs < 60) return `Ajouter il y a ${diffSecs} seconde${diffSecs > 1 ? 's' : ''}`;
+    if (diffMins < 60) return `Ajouter il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+    if (diffHours < 24) return `Ajouter il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+    if (diffDays < 7) return `Ajouter il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    return `Ajouter le ${date.toLocaleDateString('fr-FR')}`;
+  };
+
+  // Count documents by audience
+  const countByAudience = {
+    all: documents.length,
+    students: documents.filter(d => d.audience_type === 'students').length,
+    instructors: documents.filter(d => d.audience_type === 'instructors').length,
+    organization: documents.filter(d => d.audience_type === 'organization').length
+  };
+
   const filteredDocuments = selectedAudience === 'all' 
     ? documents 
     : documents.filter(doc => doc.audience_type === selectedAudience);
@@ -325,90 +355,146 @@ export const Step3DocumentsNew: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {showTemplatesView ? 'Templates de Documents' : 'Documents du Cours'}
+            Documents du Cours
           </h2>
           <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {showTemplatesView 
-              ? 'Réutilisez des documents existants comme templates' 
-              : 'Gérez les documents, certificats et supports pédagogiques'}
+            Gérez les documents, certificats et supports pédagogiques
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowTemplatesView(!showTemplatesView)}
-            variant="outline"
-            className="gap-2"
-          >
-            {showTemplatesView ? <Plus className="w-4 h-4" /> : <LayoutTemplate className="w-4 h-4" />}
-            {showTemplatesView ? 'Créer Nouveau' : 'Templates Existants'}
-          </Button>
-          {!showTemplatesView && (
-            <Button
-              onClick={() => {
-                const url = subdomain 
-                  ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}`
-                  : `/document-creation?courseUuid=${formData.courseUuid}`;
-                window.open(url, '_blank');
-              }}
-              style={{ backgroundColor: primaryColor }}
-              className="gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Ajouter un Document
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Info Card */}
-      <Card className={`${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <FileText className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className={`font-medium mb-1 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
-                Types de Documents Disponibles
-              </h4>
-              <ul className={`text-sm space-y-1 ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                <li>• <strong>Templates</strong> : Générez des certificats, contrats, etc. avec des variables</li>
-                <li>• <strong>Upload</strong> : Importez des PDFs ou fichiers Word existants</li>
-                <li>• <strong>Audience</strong> : Ciblez étudiants, formateurs ou usage interne</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Selectionnaire Le Model D'atestation Section */}
+      {!showTemplatesView && (
+        <div className="space-y-4">
+          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Selectionnaire Le Model D'atestation
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Attestation Card */}
+            <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    isDark ? 'bg-yellow-900/20' : 'bg-yellow-50'
+                  }`}>
+                    <Award className="w-8 h-8" style={{ color: '#FFD700' }} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Atesatation De Formation
+                    </h4>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => setShowAttestationModal(true)}
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Apercu
+                      </Button>
+                      {selectedAttestation && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-500 border-red-500 hover:bg-red-50 text-xs"
+                          onClick={() => setSelectedAttestation(null)}
+                        >
+                          <Trash2 className="w-3 h-3 mr-1" />
+                          Retirer
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-      {/* Audience Filter */}
-      <div className="flex items-center gap-3">
-        <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-          Filtrer par audience:
-        </span>
-        <div className="flex gap-2">
+            {/* Contrat/Invoice Link Card */}
+            <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <CardContent className="p-5">
+                <div className="flex items-start gap-4">
+                  <div className={`w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    isDark ? 'bg-blue-900/20' : 'bg-blue-50'
+                  }`}>
+                    <FileText className="w-8 h-8" style={{ color: primaryColor }} />
+                  </div>
+                  <div className="flex-1">
+                    <div className={`text-[10px] mb-2 p-1.5 rounded ${isDark ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-50 text-blue-700'}`}>
+                      Cette facture est extraite depuis la partie commericale avec les informations de chaque apprenant
+                    </div>
+                    <h4 className={`text-xs font-medium mb-3 leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Esque Vous Voulez Relier Votr Contrat De Formation Avec Une Facture
+                    </h4>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="linkContract"
+                          checked={linkContractWithInvoice}
+                          onChange={() => setLinkContractWithInvoice(true)}
+                          className="w-3.5 h-3.5"
+                          style={{ accentColor: primaryColor }}
+                        />
+                        <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Oui</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="linkContract"
+                          checked={!linkContractWithInvoice}
+                          onChange={() => setLinkContractWithInvoice(false)}
+                          className="w-3.5 h-3.5"
+                          style={{ accentColor: primaryColor }}
+                        />
+                        <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Non</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Audience Filter - Circular Badges with Counts */}
+      {!showTemplatesView && (
+        <div className="flex items-center gap-2 flex-wrap">
           {[
-            { value: 'all', label: 'Tous', icon: FileText },
-            { value: 'students', label: 'Étudiants', icon: Users },
-            { value: 'instructors', label: 'Formateurs', icon: User },
-            { value: 'organization', label: 'Organisation', icon: Building2 }
+            { value: 'all', label: 'Tout Affichier', count: countByAudience.all },
+            { value: 'students', label: 'Apprenant', count: countByAudience.students },
+            { value: 'instructors', label: 'Formateur', count: countByAudience.instructors },
+            { value: 'organization', label: 'Enterprise', count: countByAudience.organization }
           ].map(filter => {
-            const Icon = filter.icon;
+            const isActive = selectedAudience === filter.value;
             return (
               <button
                 key={filter.value}
                 onClick={() => setSelectedAudience(filter.value as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                  selectedAudience === filter.value
-                    ? isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                    : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  isActive
+                    ? isDark 
+                      ? 'bg-blue-600 text-white border border-blue-400' 
+                      : 'bg-blue-500 text-white border border-blue-300'
+                    : isDark 
+                      ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' 
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {filter.label}
+                <span>{filter.label}</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  isActive
+                    ? 'bg-white text-blue-600'
+                    : isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                  {filter.count}
+                </span>
               </button>
             );
           })}
         </div>
-      </div>
+      )}
 
       {/* Templates View */}
       {showTemplatesView ? (
@@ -560,122 +646,97 @@ export const Step3DocumentsNew: React.FC = () => {
           </CardContent>
         </Card>
           ) : (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredDocuments.map(document => (
-            <Card key={document.uuid} className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} hover:shadow-lg transition-shadow`}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    {/* Icon */}
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                <Card key={document.uuid} className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} hover:shadow-lg transition-shadow`}>
+                  <CardContent className="p-5">
+                    {/* Document Icon */}
+                    <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-3 ${
+                      isDark ? 'bg-gray-700' : 'bg-gray-100'
+                    }`}>
                       {document.document_type === 'template' ? (
-                        <LayoutTemplate className="w-6 h-6" style={{ color: primaryColor }} />
+                        <LayoutTemplate className="w-7 h-7" style={{ color: primaryColor }} />
                       ) : (
-                        <Upload className="w-6 h-6" style={{ color: primaryColor }} />
+                        <FileText className="w-7 h-7" style={{ color: primaryColor }} />
                       )}
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {document.name}
-                        </h3>
-                        {document.is_certificate && (
-                          <Badge className="bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
-                            <Award className="w-3 h-3 mr-1" />
-                            Certificat
-                          </Badge>
-                        )}
-                      </div>
+                    {/* Document Name */}
+                    <h3 className={`text-sm font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {document.name}
+                    </h3>
 
-                      {document.description && (
-                        <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {document.description}
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-3 text-sm">
-                        {/* Audience Badge */}
-                        <Badge className={`${getAudienceColor(document.audience_type)} flex items-center gap-1`}>
-                          {getAudienceIcon(document.audience_type)}
-                          {getAudienceLabel(document.audience_type)}
-                        </Badge>
-
-                        {/* Type Badge */}
-                        <Badge variant="outline" className={isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-600'}>
-                          {document.document_type === 'template' ? 'Template' : 'Fichier Importé'}
-                        </Badge>
-
-                        {/* File Size */}
-                        {document.file_size && (
-                          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {(document.file_size / 1024 / 1024).toFixed(2)} MB
-                          </span>
-                        )}
-
-                        {/* Generated Status */}
-                        {document.is_generated && (
-                          <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">
-                            Généré
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Template Variables Preview */}
-                      {document.template_variables && Object.keys(document.template_variables).length > 0 && (
-                        <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                          <div className="flex flex-wrap gap-2">
-                            {Object.entries(document.template_variables).slice(0, 3).map(([key, value]) => (
-                              <span key={key} className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                                <strong>{key}:</strong> {value as string}
-                              </span>
-                            ))}
-                            {Object.keys(document.template_variables).length > 3 && (
-                              <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                +{Object.keys(document.template_variables).length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    {/* Timestamp */}
+                    <div className="flex items-center gap-1 mb-3">
+                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {document.created_at ? formatTimeAgo(document.created_at) : 'Ajouter il y a 32 secondes'}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadDocument(document)}
-                      className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
-                      title="Télécharger"
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadDocument(document)}
-                      className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
-                      title="Prévisualiser"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteDocument(document.uuid)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {/* Audience Badge */}
+                    <div className="mb-3">
+                      <Badge className={`${getAudienceColor(document.audience_type)} flex items-center gap-1 w-fit px-2 py-0.5 text-xs`}>
+                        {getAudienceIcon(document.audience_type)}
+                        <span>{getAudienceLabel(document.audience_type)}</span>
+                      </Badge>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-orange-500 text-orange-500 hover:bg-orange-50 text-xs"
+                        onClick={() => {
+                          const url = subdomain 
+                            ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}&documentUuid=${document.uuid}`
+                            : `/document-creation?courseUuid=${formData.courseUuid}&documentUuid=${document.uuid}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <Edit3 className="w-3 h-3 mr-1" />
+                        Modifier
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 text-red-500 border-red-500 hover:bg-red-50 text-xs"
+                        onClick={() => handleDeleteDocument(document.uuid)}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Retirer
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {!showTemplatesView && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="border-2 border-dashed h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => setShowAttestationModal(true)}
+              >
+                <FolderOpen className="w-5 h-5" />
+                <span>Choisir Un Modèle Depuis La Bibliothèque</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="border-2 border-dashed h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => {
+                  const url = subdomain 
+                    ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}`
+                    : `/document-creation?courseUuid=${formData.courseUuid}`;
+                  window.open(url, '_blank');
+                }}
+              >
+                <Upload className="w-5 h-5" />
+                <span>Importer Un Fichier</span>
+              </Button>
             </div>
           )}
         </>
@@ -689,6 +750,19 @@ export const Step3DocumentsNew: React.FC = () => {
         courseUuid={formData.courseUuid || ''}
         templates={templates}
       />
+
+      {/* Attestation Selection Modal */}
+      {formData.courseUuid && (
+        <AttestationSelectionModal
+          isOpen={showAttestationModal}
+          onClose={() => setShowAttestationModal(false)}
+          onSelect={(template) => {
+            setSelectedAttestation(template);
+            handleUseTemplate(template);
+          }}
+          courseUuid={formData.courseUuid}
+        />
+      )}
     </div>
   );
 };

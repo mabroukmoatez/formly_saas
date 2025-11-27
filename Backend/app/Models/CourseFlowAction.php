@@ -12,17 +12,21 @@ class CourseFlowAction extends Model
     protected $fillable = [
         'title',
         'course_id',
+        'type',
+        'recipient',
         'dest',
         'dest_type',
         'n_days',
         'ref_date',
         'time_type',
         'custom_time',
-        'email_id'
+        'email_id',
+        'is_active'
     ];
 
     protected $casts = [
-        'n_days' => 'integer'
+        'n_days' => 'integer',
+        'is_active' => 'boolean'
     ];
 
     public function course()
@@ -37,7 +41,19 @@ class CourseFlowAction extends Model
 
     public function files()
     {
-        return $this->hasMany(CourseFlowActionFile::class);
+        return $this->hasMany(CourseFlowActionFile::class, 'course_flow_action_id');
+    }
+
+    public function questionnaires()
+    {
+        return $this->belongsToMany(
+            CourseQuestionnaire::class,
+            'course_flow_action_questionnaires',
+            'flow_action_id',
+            'questionnaire_id',
+            'id',
+            'id'
+        )->withTimestamps();
     }
 
     protected static function boot()

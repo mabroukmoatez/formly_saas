@@ -1,11 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Separator } from '../ui/separator';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
-import { useTheme } from '../../contexts/ThemeContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useQualityTaskCategories } from '../../hooks/useQualityTaskCategories';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -21,31 +18,19 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { MoreVertical, Trash2, Edit } from 'lucide-react';
-import { 
-  Menu, 
-  X, 
-  Crown,
-  Home,
-  BarChart3,
-  FileText,
-  Award,
-  Shield,
-  UserCheck,
-  UserCog,
-  Users,
-  Briefcase,
-  Newspaper,
-  CheckCircle2
-} from 'lucide-react';
-
-// Composant personnalisé pour l'icône BPF (document avec graphique)
-const FileBarChartIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <div className={`relative ${className}`}>
-    <FileText className="w-4 h-4" />
-    <BarChart3 className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5" />
-  </div>
-);
+import { Trash2, Edit } from 'lucide-react';
+import {
+  HomeIcon,
+  IndicatorsIcon,
+  DocumentsIcon,
+  BPFIcon,
+  TrainingIcon,
+  ActionsIcon,
+  SearchIcon,
+  DotsIcon,
+  AddFamilyIcon,
+  LogoIcon
+} from '../ui/qualite/SidebarIcons';
 
 interface QualitySidebarProps {
   className?: string;
@@ -53,17 +38,15 @@ interface QualitySidebarProps {
   onMobileMenuClose?: () => void;
 }
 
-export const QualitySidebar: React.FC<QualitySidebarProps> = ({ 
-  className = '', 
-  isMobileOpen = false, 
-  onMobileMenuClose 
+export const QualitySidebar: React.FC<QualitySidebarProps> = ({
+  className = '',
+  isMobileOpen = false,
+  onMobileMenuClose
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { organization } = useOrganization();
   const { navigateToRoute } = useSubdomainNavigation();
-  const { isDark } = useTheme();
-  const { t } = useLanguage();
   const { user } = useAuth();
   const { success, error: showError } = useToast();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -72,64 +55,6 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<QualityTaskCategory | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // Function to get role icon dynamically
-  const getRoleIcon = () => {
-    const roleName = user?.role_name?.toLowerCase() || '';
-    const organizationRole = user?.organization_roles?.[0]?.toLowerCase() || '';
-
-    // Check role name
-    if (roleName.includes('admin') || roleName.includes('administrator')) {
-      return Crown;
-    }
-    if (roleName.includes('manager') || organizationRole.includes('manager')) {
-      return Briefcase;
-    }
-    if (roleName.includes('instructor') || organizationRole.includes('instructor')) {
-      return UserCheck;
-    }
-    if (roleName.includes('content') && roleName.includes('writer')) {
-      return FileText;
-    }
-    if (roleName.includes('quality')) {
-      return Award;
-    }
-    if (roleName.includes('editor')) {
-      return UserCog;
-    }
-    if (roleName.includes('staff') || roleName.includes('membre') || roleName.includes('user')) {
-      return Users;
-    }
-    
-    // Default fallback
-    return Shield;
-  };
-
-  // Function to get role color dynamically
-  const getRoleColor = () => {
-    const roleName = user?.role_name?.toLowerCase() || '';
-    const organizationRole = user?.organization_roles?.[0]?.toLowerCase() || '';
-
-    if (roleName.includes('admin') || organizationRole.includes('admin')) {
-      return 'from-amber-400 to-orange-500'; // Gold gradient
-    }
-    if (roleName.includes('manager') || organizationRole.includes('manager')) {
-      return 'from-blue-400 to-purple-500'; // Blue-purple gradient
-    }
-    if (roleName.includes('instructor') || organizationRole.includes('instructor')) {
-      return 'from-green-400 to-emerald-500'; // Green gradient
-    }
-    if (roleName.includes('content') && roleName.includes('writer')) {
-      return 'from-pink-400 to-rose-500'; // Pink gradient
-    }
-    if (roleName.includes('quality')) {
-      return 'from-cyan-400 to-blue-500'; // Cyan gradient
-    }
-    
-    // Default fallback
-    return 'from-gray-400 to-gray-500'; // Gray gradient
-  };
 
   // Get organization logo URL
   const getOrganizationLogo = (): string => {
@@ -148,43 +73,43 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
 
   const sidebarMenuItems = useMemo(() => {
     const allMenuItems = [
-      { 
-        id: 1, 
+      {
+        id: 1,
         idKey: "quality",
-        label: "Accueil", 
-        icon: Home,
+        label: "Accueil",
+        icon: HomeIcon,
         path: "/quality",
         active: location.pathname.endsWith('/quality')
       },
-      { 
-        id: 2, 
+      {
+        id: 2,
         idKey: "indicateurs",
-        label: "Indicateurs", 
-        icon: CheckCircle2, // Coche dans un cercle selon documentation ligne 50
+        label: "Indicateurs",
+        icon: IndicatorsIcon,
         path: "/quality/indicateurs",
         active: location.pathname.includes('/quality/indicateurs')
       },
-      { 
-        id: 3, 
+      {
+        id: 3,
         idKey: "documents",
-        label: "Documents", 
-        icon: FileText,
+        label: "Documents",
+        icon: DocumentsIcon,
         path: "/quality/documents",
         active: location.pathname.includes('/quality/documents')
       },
-      { 
-        id: 4, 
+      {
+        id: 4,
         idKey: "articles",
-        label: "Articles", 
-        icon: Newspaper,
+        label: "Articles",
+        icon: TrainingIcon, // Using TrainingIcon as placeholder or if it matches "Se Former" / Articles intent
         path: "/quality/articles",
         active: location.pathname.includes('/quality/articles')
       },
-      { 
-        id: 5, 
+      {
+        id: 5,
         idKey: "bpf",
-        label: "Bilan pédagogique et financier (BPF)", 
-        icon: FileBarChartIcon, // Document avec graphique selon documentation ligne 77
+        label: "Bilan pédagogique et financier (BPF)",
+        icon: BPFIcon,
         path: "/quality/bpf",
         active: location.pathname.includes('/quality/bpf')
       },
@@ -213,7 +138,6 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       return;
     }
 
-    setDeleting(true);
     try {
       const response = await deleteTaskCategory(category.id);
       if (response.success) {
@@ -225,8 +149,6 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
     } catch (err: any) {
       console.error('Error deleting category:', err);
       showError('Erreur', err.message || 'Une erreur est survenue lors de la suppression');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -239,277 +161,216 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
     <>
       {/* Mobile Overlay */}
       {isMobileOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={onMobileMenuClose}
         />
       )}
-      
-      {/* Sidebar */}
-      <aside className={`flex ${isCollapsed ? 'w-[80px]' : 'w-[287px]'} items-start justify-center gap-2.5 px-[13px] py-[17px] overflow-hidden border-r border-solid transition-all duration-300 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-[#fffbef] border-[#dadfe8]'} ${className} ${isMobileOpen ? 'fixed left-0 top-0 h-full z-50 lg:relative lg:z-auto' : 'hidden lg:flex'}`}>
-        
-        {/* Background decorations */}
-        <img
-          className="absolute left-0 bottom-[101px] w-full h-[563px] pointer-events-none opacity-30"
-          alt="Background decoration"
-          src="/assets/images/sidebar-bg.png"
-        />
 
-        <div className={`relative ${isCollapsed ? 'w-[54px]' : 'w-[259px]'} z-10 flex flex-col h-full`}>
-          {/* Header */}
-          <header className={`flex w-full items-center ${isCollapsed ? 'justify-center' : 'justify-between'} mb-4`}>
-            <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-[15px]'}`}>
-              <img
-                className="w-[31px] h-8"
-                alt={`${getOrganizationName()} logo`}
-                src={getOrganizationLogo()}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/assets/logos/formly-logo.png';
-                }}
-              />
+      {/* Sidebar */}
+      <aside className={`flex flex-col ${isCollapsed ? 'w-[70px]' : 'w-[240px]'} h-[100vh] my-[10px] ml-[10px] bg-white border border-[#d2d2e8] rounded-[18px] py-[10px] transition-all duration-300 ${className} ${isMobileOpen ? 'fixed left-0 top-0 z-50' : 'hidden lg:flex'}`}>
+
+        {/* Header */}
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-4'} py-5 shrink-0`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'gap-2.5'}`}>
+            <img
+              className="w-6 h-6 object-contain"
+              alt={`${getOrganizationName()} logo`}
+              src={getOrganizationLogo()}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/assets/logos/formly-logo.png';
+              }}
+            />
+            {!isCollapsed && (
+              <span className="font-['Urbanist'] font-bold text-[20px] text-[#6a90ba] leading-none truncate max-w-[130px]">
+                {getOrganizationName()}
+              </span>
+            )}
+          </div>
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 p-1 text-[#6a90ba] hover:bg-[#ffe6ca]/50"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <LogoIcon className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+
+        {isCollapsed && (
+          <div className="flex justify-center mb-4 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 p-1 text-[#6a90ba] hover:bg-[#ffe6ca]/50"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <LogoIcon className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex flex-col gap-1.5 px-3 shrink-0">
+          {sidebarMenuItems.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => navigateToRoute(item.path)}
+              className={`
+                group flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-3'} 
+                h-[44px] rounded-[6px] cursor-pointer transition-all duration-200
+                ${item.active
+                  ? 'bg-[#ffe6ca] shadow-[0px_4px_20px_5px_rgba(9,41,76,0.07)]'
+                  : 'bg-transparent hover:bg-[#ffe6ca]/30'}
+              `}
+            >
+              <div className={`shrink-0 ${item.active ? 'text-[#FF7700]' : 'text-[#6A90BA]'}`}>
+                <item.icon className="w-4 h-4" />
+              </div>
               {!isCollapsed && (
-                <h1 className={`[font-family:'Urbanist',Helvetica] font-bold text-[25px] ${isDark ? 'text-gray-100' : 'bg-[linear-gradient(90deg,rgba(255,119,0,1)_0%,rgba(255,225,0,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent]'}`}>
-                  Gestion Qualité
-                </h1>
+                <span className={`
+                  font-['Urbanist'] text-[14px] font-bold leading-relaxed
+                  ${item.active ? 'text-[#FF7700]' : 'text-[#6A90BA]'}
+                `}>
+                  {item.label}
+                </span>
               )}
             </div>
-            {!isCollapsed && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
-                style={{ '--focus-ring-color': organization?.primary_color || '#007aff' } as React.CSSProperties}
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                <Menu className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
-              </Button>
-            )}
-            {isCollapsed && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className={`h-8 w-8 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors ml-2 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-[#ffe5ca]'}`}
-                style={{ '--focus-ring-color': organization?.primary_color || '#007aff' } as React.CSSProperties}
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                <X className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
-              </Button>
-            )}
-          </header>
+          ))}
+        </nav>
 
-          {/* Navigation */}
-          <nav className="flex flex-col w-full items-start gap-2 flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
-            {sidebarMenuItems.map((item) => (
-              <Button
-                key={item.id}
-                variant="ghost"
-                className={`flex min-h-[52px] w-full items-center ${isCollapsed ? 'justify-center px-2' : 'justify-start gap-[18px] px-[18px]'} py-2.5 rounded-lg border-l-4 transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 ${
-                  item.active
-                    ? isDark 
-                      ? "bg-orange-900/40 shadow-sm" 
-                      : item.id === 1 
-                        ? "bg-[#FFE5CC] shadow-sm"
-                      : "bg-[#ffe5ca] shadow-sm"
-                    : isDark
-                      ? "border-l-transparent bg-gray-700 shadow-[0px_4px_20px_5px_#09294c12] hover:bg-orange-900/20"
-                      : "border-l-transparent bg-white shadow-[0px_4px_20px_5px_#09294c12] hover:bg-[#ffe5ca]/50"
-                }`}
-                style={{
-                  ...(item.active ? { 
-                    borderLeftColor: organization?.primary_color || '#007aff',
-                    ...(item.id === 1 && !isDark ? { backgroundColor: '#FFE5CC' } : {}),
-                  } : {}),
-                  '--focus-ring-color': organization?.primary_color || '#007aff',
-                } as React.CSSProperties}
-                onClick={() => navigateToRoute(item.path)}
-              >
-                <div className={`inline-flex items-center ${isCollapsed ? 'gap-0' : 'gap-[18px]'}`}>
-                  <div 
-                    className={`p-1 rounded-md ${item.active ? '' : isDark ? 'bg-gray-600' : 'bg-[#f5f5f5]'}`}
-                    style={item.active ? { backgroundColor: organization?.primary_color || '#007aff' } : undefined}
-                  >
-                    {item.id === 5 ? (
-                      // BPF icon - composant personnalisé
-                      <FileBarChartIcon className={`w-4 h-4 ${item.active ? 'text-white' : isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
-                    ) : (
-                      // Autres icônes standard
-                    <item.icon className={`w-4 h-4 ${item.active ? 'text-white' : isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`} />
-                    )}
-                  </div>
-                  {!isCollapsed && (
-                    <span
-                      className={`[font-family:'Urbanist',Helvetica] text-base tracking-[0] leading-tight transition-colors whitespace-normal break-words ${
-                        item.active
-                          ? isDark ? "font-bold" : "font-bold"
-                          : isDark ? "font-semibold text-gray-300" : "font-semibold text-[#6a90b9]"
-                      }`}
-                      style={item.active ? { color: organization?.primary_color || '#007aff' } : undefined}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-                </div>
-              </Button>
-            ))}
-          </nav>
+        {/* Flexible Spacer */}
+        <div className="flex-1 min-h-[16px]" />
 
-          {/* Actions Section */}
+        {/* Actions Section */}
+        <div className="flex flex-col shrink overflow-hidden px-3 mb-2 border-t border-[#ffe4cc] pt-3">
           {!isCollapsed && (
-            <div className="flex flex-col gap-[22px] mt-auto">
-              <Separator className={isDark ? "bg-gray-600" : "bg-[#dadfe8]"} />
-
-              <div className="flex flex-col gap-2.5">
-                {/* Actions & Tasks Button */}
-                <button 
-                  onClick={() => navigateToRoute('/quality/actions')}
-                  className={`flex items-center gap-[18px] px-[18px] py-2.5 rounded-[7px] shadow-[0px_4px_20px_5px_#09294c12] transition-colors ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-white hover:bg-[#ffe5ca]/50'} ${location.pathname.includes('/quality/actions') ? (isDark ? 'bg-gray-600' : 'bg-[#ffe5ca]') : ''}`}
-                >
-                  <div 
-                    className="w-[19.35px] h-[19.35px] rounded-sm"
-                    style={{ backgroundColor: organization?.primary_color || '#007aff' }}
-                  />
-                  <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
-                    Les Actions & Taches
-                  </span>
-                </button>
-
-                {/* Search Box */}
-                <div className={`flex items-center gap-[7.22px] px-[7px] py-[7.94px] rounded-[5.78px] border-[0.72px] ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-[#cdc1b7]'}`}>
-                  <svg 
-                    className="w-[18.71px]" 
-                    style={{ color: organization?.primary_color || '#007aff' }}
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Recherche"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`[font-family:'Poppins',Helvetica] font-medium text-[11.6px] bg-transparent border-none outline-none flex-1 ${isDark ? 'text-[#ff9500] placeholder:text-[#ff9500]/50' : 'text-[#ff7700] placeholder:text-[#ff7700]/50'}`}
-                  />
-                </div>
-
-                <Separator className={isDark ? "bg-gray-600" : "bg-[#dadfe8]"} />
-
-                {/* Action Categories */}
-                <div className="flex flex-col gap-2.5 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#dadfe8]">
-                  {categoriesLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#ff7700]"></div>
-                    </div>
-                  ) : filteredCategories.length === 0 ? (
-                    <div className="text-center py-4">
-                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
-                        {searchTerm ? 'Aucune famille trouvée' : 'Aucune famille'}
-                      </p>
-                    </div>
-                  ) : (
-                    filteredCategories.map((category) => (
-                    <div
-                      key={category.id}
-                        className={`flex items-center justify-between px-3 py-2 rounded-[10px] transition-colors ${isDark ? 'hover:bg-gray-600/50' : 'hover:bg-white/50'}`}
-                    >
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                          <div 
-                            className="w-2 h-2 rounded-sm flex-shrink-0" 
-                            style={{ backgroundColor: category.color || '#3f5ea9' }}
-                          />
-                          <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] truncate ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
-                            {category.name}
-                          </span>
-                          {category.tasks_count !== undefined && (
-                            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} ml-auto`}>
-                              {category.tasks_count}
-                            </span>
-                          )}
-                        </div>
-                        {!category.is_system && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                className={`p-1 rounded hover:bg-gray-200 ${isDark ? 'hover:bg-gray-600' : ''}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreVertical className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className={isDark ? 'bg-gray-700 border-gray-600' : ''}>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRenameCategory(category);
-                                }}
-                                className={isDark ? 'text-gray-200 hover:bg-gray-600' : ''}
-                              >
-                                <Edit className="w-4 h-4 mr-2" />
-                                Renommer
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteCategory(category);
-                                }}
-                                className={`text-red-500 ${isDark ? 'hover:bg-gray-600' : 'hover:bg-red-50'}`}
-                                disabled={deleting}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Supprimer
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Add Family Button */}
-                <button 
-                  onClick={() => setShowCreateModal(true)}
-                  className={`flex items-center justify-center gap-[7.22px] px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed border-[#ff7700] transition-colors ${isDark ? 'bg-orange-900/40 hover:bg-orange-900/60' : 'bg-[#ffe5ca] hover:bg-[#ffd9b3]'}`}
-                >
-                  <svg className="w-[11.05px] h-[11.05px] text-[#ff7700]" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
-                  </svg>
-                  <span className="[font-family:'Poppins',Helvetica] font-medium text-[#ff7700] text-[11.6px]">
-                    Ajouter Une Famille
-                  </span>
-                </button>
-              </div>
+            <div className="flex items-center gap-3 mb-3 px-2 shrink-0">
+              <ActionsIcon className="w-4 h-4 text-[#FF7700]" />
+              <span className="font-['Poppins'] font-medium text-[11px] text-slate-800 tracking-[0.2px] uppercase">
+                LES ACTIONS & TACHES
+              </span>
             </div>
           )}
 
-          {/* User Profile Section */}
-          <div className={`${isCollapsed ? 'mt-4' : 'mt-auto'} pt-4 border-t ${isDark ? 'border-gray-600' : 'border-[#dadfe8]'}`}>
-            <div className={`flex items-center ${isCollapsed ? 'justify-center px-2' : 'gap-3 px-[18px]'} py-3 rounded-lg transition-colors cursor-pointer ${isDark ? 'hover:bg-gray-700' : 'hover:bg-white/50'}`}>
-              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getRoleColor()} flex items-center justify-center ${isCollapsed ? 'mx-auto' : ''}`}>
-                {React.createElement(getRoleIcon(), { className: 'w-4 h-4 text-white' })}
+          {/* Search */}
+          {!isCollapsed ? (
+            <div className="relative shrink-0 mb-3 border-b border-[#ffe4cc] pb-3">
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#FF7700]">
+                <SearchIcon className="w-3.5 h-3.5" />
               </div>
-              {!isCollapsed && (
-                <div className="flex flex-col">
-                  <span className={`text-sm font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'}`}>
-                    {user?.role_name || t('sidebar.administrator')}
-                  </span>
-                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {user?.organization_roles?.[0] || t('sidebar.qualityAccess')}
-                  </span>
-                </div>
-              )}
+              <input
+                type="text"
+                placeholder="Recherche"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-white border border-[#cec2b7] rounded-[5px] text-[11px] text-[#FF7700] placeholder-[#FF7700] font-['Poppins'] focus:outline-none focus:border-[#FF7700]"
+              />
             </div>
+          ) : (
+            <div className="flex justify-center mb-3 shrink-0">
+              <SearchIcon className="w-4 h-4 text-[#FF7700]" />
+            </div>
+          )}
+
+          {/* Categories List */}
+          <div className="overflow-y-auto min-h-0 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+            {categoriesLoading ? (
+              <div className="flex justify-center py-3">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-[#ff7700]"></div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {filteredCategories.map((category) => (
+                  <div
+                    key={category.id}
+                    className={`
+                      group flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-2'} 
+                      py-1.5 rounded-[8px] hover:bg-[#ffe6ca]/30 transition-colors cursor-pointer
+                    `}
+                    onClick={() => {
+                      // Handle category click if needed
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-[2px] h-[16px] rounded-full shrink-0`} style={{ backgroundColor: category.color || '#ffe6ca' }} />
+                      {!isCollapsed && (
+                        <span className="font-['Poppins'] font-medium text-[12px] text-slate-800 tracking-[0.2px] truncate">
+                          {category.name}
+                        </span>
+                      )}
+                    </div>
+
+                    {!isCollapsed && !category.is_system && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-0.5 opacity-0 group-hover:opacity-100 hover:bg-gray-100 rounded transition-all">
+                            <DotsIcon className="w-3.5 h-3.5 text-[#92929D]" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRenameCategory(category); }}>
+                            <Edit className="w-3.5 h-3.5 mr-2" /> <span className="text-xs">Renommer</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category); }}
+                            className="text-red-500 focus:text-red-500"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> <span className="text-xs">Supprimer</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add Family Button */}
+          {!isCollapsed && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="shrink-0 mt-3 flex items-center justify-center gap-2 py-1.5 w-full bg-[#ffe6ca] border border-dashed border-[#FF7700] rounded-[5px] hover:bg-[#ffd9b3] transition-colors"
+            >
+              <AddFamilyIcon className="w-2.5 h-2.5 text-[#FF7700]" />
+              <span className="font-['Poppins'] font-medium text-[11px] text-[#FF7700]">
+                Ajouter une Famille
+              </span>
+            </button>
+          )}
+          {isCollapsed && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="shrink-0 mt-3 flex items-center justify-center w-full h-8 bg-[#ffe6ca] border border-dashed border-[#FF7700] rounded-[5px] hover:bg-[#ffd9b3] transition-colors"
+            >
+              <AddFamilyIcon className="w-3 h-3 text-[#FF7700]" />
+            </button>
+          )}
+        </div>
+
+        {/* User Profile - Simplified for new design */}
+        <div className="p-3 mt-auto shrink-0">
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'} p-1.5 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer`}>
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7700] to-[#FFCC00] flex items-center justify-center text-white font-bold text-[10px]">
+              {user?.name?.[0] || 'U'}
+            </div>
+            {!isCollapsed && (
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-[13px] font-bold text-slate-800 truncate">
+                  {user?.name}
+                </span>
+                <span className="text-[11px] text-gray-500 truncate">
+                  {user?.role_name || 'Utilisateur'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Bottom background decoration */}
-        <img
-          className="absolute top-[496px] left-0 w-full h-[563px] pointer-events-none opacity-30"
-          alt="Background decoration bottom"
-          src="/assets/images/sidebar-bg-bottom.png"
-        />
       </aside>
 
       {/* Modals */}

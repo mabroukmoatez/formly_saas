@@ -9,6 +9,7 @@ import { useCourseCreation } from '../../contexts/CourseCreationContext';
 import { useToast } from '../ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { QuestionnaireCreationModal } from './QuestionnaireCreationModal';
+import { QuestionnaireSelectionModal } from './QuestionnaireSelectionModal';
 import { courseCreation } from '../../services/courseCreation';
 import { 
   FileSpreadsheet, 
@@ -20,7 +21,14 @@ import {
   Calendar,
   Users,
   LayoutTemplate,
-  Check
+  Check,
+  User,
+  Building2,
+  FileText,
+  Edit3,
+  Clock,
+  FolderOpen,
+  Upload
 } from 'lucide-react';
 
 interface Questionnaire {
@@ -31,7 +39,7 @@ interface Questionnaire {
   document_type: 'template';
   template_id: number;
   file_url?: string;
-  audience_type: 'students';
+  audience_type: 'students' | 'instructors' | 'organization';
   questionnaire_type?: 'pre_course' | 'post_course' | 'mid_course' | 'custom';
   template_variables?: Record<string, any>;
   is_generated?: boolean;
@@ -63,6 +71,8 @@ export const Step4QuestionnaireNew: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplatesView, setShowTemplatesView] = useState(false);
+  const [showQuestionnaireModal, setShowQuestionnaireModal] = useState(false);
+  const [selectedAudience, setSelectedAudience] = useState<'all' | 'students' | 'instructors' | 'organization'>('all');
   const [selectedType, setSelectedType] = useState<'all' | 'pre_course' | 'post_course' | 'mid_course' | 'custom'>('all');
 
   useEffect(() => {
@@ -71,7 +81,7 @@ export const Step4QuestionnaireNew: React.FC = () => {
       loadTemplates();
       loadAllOrganizationQuestionnaires();
     }
-  }, [formData.courseUuid]);
+  }, [formData.courseUuid, selectedAudience]);
 
   const loadAllOrganizationQuestionnaires = async () => {
     try {
@@ -118,7 +128,7 @@ export const Step4QuestionnaireNew: React.FC = () => {
       formDataToSend.append('name', questionnaireData.name);
       formDataToSend.append('document_type', questionnaireData.document_type);
       formDataToSend.append('audience_type', 'students');
-      formDataToSend.append('is_certificate', '0');
+      formDataToSend.append('is_certificate', String(0));
       formDataToSend.append('is_questionnaire', '1');
       
       if (questionnaireData.description) {
@@ -152,7 +162,7 @@ export const Step4QuestionnaireNew: React.FC = () => {
       setLoading(true);
       // Use new questionnaires endpoint (separated from documents)
       const response = await courseCreation.getQuestionnaires(formData.courseUuid!, {
-        audience: 'students'
+        audience: selectedAudience === 'all' ? undefined : selectedAudience
       });
       if (response.success && response.data) {
         setQuestionnaires(response.data);
@@ -285,9 +295,74 @@ export const Step4QuestionnaireNew: React.FC = () => {
     }
   };
 
-  const filteredQuestionnaires = selectedType === 'all'
-    ? questionnaires
-    : questionnaires.filter(q => q.questionnaire_type === selectedType);
+  const getAudienceIcon = (audienceType: string) => {
+    switch (audienceType) {
+      case 'students':
+        return <Users className="w-4 h-4" />;
+      case 'instructors':
+        return <User className="w-4 h-4" />;
+      case 'organization':
+        return <Building2 className="w-4 h-4" />;
+      default:
+        return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const getAudienceLabel = (audienceType: string) => {
+    switch (audienceType) {
+      case 'students':
+        return 'Apprenant';
+      case 'instructors':
+        return 'Formateur';
+      case 'organization':
+        return 'Enterprise';
+      default:
+        return audienceType;
+    }
+  };
+
+  const getAudienceColor = (audienceType: string) => {
+    switch (audienceType) {
+      case 'students':
+        return isDark ? 'bg-blue-900/20 text-blue-300 border-blue-700' : 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'instructors':
+        return isDark ? 'bg-purple-900/20 text-purple-300 border-purple-700' : 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'organization':
+        return isDark ? 'bg-green-900/20 text-green-300 border-green-700' : 'bg-green-100 text-green-700 border-green-300';
+      default:
+        return isDark ? 'bg-gray-700 text-gray-300 border-gray-600' : 'bg-gray-100 text-gray-700 border-gray-300';
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffSecs < 60) return `Ajouter il y a ${diffSecs} seconde${diffSecs > 1 ? 's' : ''}`;
+    if (diffMins < 60) return `Ajouter il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+    if (diffHours < 24) return `Ajouter il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`;
+    if (diffDays < 7) return `Ajouter il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+    return `Ajouter le ${date.toLocaleDateString('fr-FR')}`;
+  };
+
+  // Count questionnaires by audience
+  const countByAudience = {
+    all: questionnaires.length,
+    students: questionnaires.filter(q => q.audience_type === 'students').length,
+    instructors: questionnaires.filter(q => q.audience_type === 'instructors').length,
+    organization: questionnaires.filter(q => q.audience_type === 'organization').length
+  };
+
+  const filteredQuestionnaires = selectedAudience === 'all'
+    ? (selectedType === 'all' ? questionnaires : questionnaires.filter(q => q.questionnaire_type === selectedType))
+    : (selectedType === 'all' 
+        ? questionnaires.filter(q => q.audience_type === selectedAudience)
+        : questionnaires.filter(q => q.audience_type === selectedAudience && q.questionnaire_type === selectedType));
 
   return (
     <div className="space-y-6">
@@ -295,88 +370,51 @@ export const Step4QuestionnaireNew: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {showTemplatesView ? 'Templates de Questionnaires' : 'Questionnaires d\'Évaluation'}
+            Questionnaires d'Évaluation
           </h2>
           <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {showTemplatesView 
-              ? 'Réutilisez des questionnaires existants comme templates' 
-              : 'Ajoutez des questionnaires pré/post formation pour vos étudiants'}
+            Gérez les questionnaires d'évaluation pour vos formations
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setShowTemplatesView(!showTemplatesView)}
-            variant="outline"
-            className="gap-2"
-          >
-            {showTemplatesView ? <Plus className="w-4 h-4" /> : <LayoutTemplate className="w-4 h-4" />}
-            {showTemplatesView ? 'Créer Nouveau' : 'Templates Existants'}
-          </Button>
-          {!showTemplatesView && (
-            <Button
-              onClick={() => {
-                const url = subdomain 
-                  ? `/${subdomain}/questionnaire-creation?courseUuid=${formData.courseUuid}`
-                  : `/questionnaire-creation?courseUuid=${formData.courseUuid}`;
-                window.open(url, '_blank');
-              }}
-              style={{ backgroundColor: primaryColor }}
-              className="gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Ajouter un Questionnaire
-            </Button>
-          )}
-        </div>
       </div>
 
-      {/* Info Card */}
-      <Card className={`${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <FileSpreadsheet className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className={`font-medium mb-1 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
-                Types de Questionnaires
-              </h4>
-              <ul className={`text-sm space-y-1 ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                <li>• <strong>Pré-formation</strong> : Évaluation des connaissances avant le cours</li>
-                <li>• <strong>Post-formation</strong> : Feedback et satisfaction après le cours</li>
-                <li>• <strong>Mi-parcours</strong> : Suivi et ajustements pendant la formation</li>
-                <li>• <strong>Personnalisé</strong> : Questionnaires sur mesure</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Type Filter */}
-      <div className="flex items-center gap-3">
-        <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-          Filtrer par type:
-        </span>
-        <div className="flex gap-2">
+      {/* Audience Filter - Circular Badges with Counts */}
+      {!showTemplatesView && (
+        <div className="flex items-center gap-2 flex-wrap">
           {[
-            { value: 'all', label: 'Tous' },
-            { value: 'pre_course', label: 'Pré-formation' },
-            { value: 'post_course', label: 'Post-formation' },
-            { value: 'mid_course', label: 'Mi-parcours' },
-            { value: 'custom', label: 'Personnalisé' }
-          ].map(filter => (
-            <button
-              key={filter.value}
-              onClick={() => setSelectedType(filter.value as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedType === filter.value
-                  ? isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
-                  : isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {filter.label}
-            </button>
-          ))}
+            { value: 'all', label: 'Tout Affichier', count: countByAudience.all },
+            { value: 'students', label: 'Apprenant', count: countByAudience.students },
+            { value: 'instructors', label: 'Formateur', count: countByAudience.instructors },
+            { value: 'organization', label: 'Enterprise', count: countByAudience.organization }
+          ].map(filter => {
+            const isActive = selectedAudience === filter.value;
+            return (
+              <button
+                key={filter.value}
+                onClick={() => setSelectedAudience(filter.value as any)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  isActive
+                    ? isDark 
+                      ? 'bg-blue-600 text-white border border-blue-400' 
+                      : 'bg-blue-500 text-white border border-blue-300'
+                    : isDark 
+                      ? 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' 
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <span>{filter.label}</span>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                  isActive
+                    ? 'bg-white text-blue-600'
+                    : isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'
+                }`}>
+                  {filter.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
 
       {/* Templates View */}
       {showTemplatesView ? (
@@ -469,7 +507,9 @@ export const Step4QuestionnaireNew: React.FC = () => {
                 Aucun questionnaire
               </h3>
               <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Commencez par ajouter un questionnaire d'évaluation
+                {selectedAudience === 'all' 
+                  ? 'Commencez par ajouter un questionnaire d\'évaluation'
+                  : `Aucun questionnaire pour l'audience "${getAudienceLabel(selectedAudience)}"`}
               </p>
               <Button
                 onClick={() => {
@@ -488,86 +528,94 @@ export const Step4QuestionnaireNew: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredQuestionnaires.map(questionnaire => (
             <Card key={questionnaire.uuid} className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} hover:shadow-lg transition-shadow`}>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4 flex-1">
-                    {/* Icon */}
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${isDark ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                      <FileSpreadsheet className="w-6 h-6" style={{ color: primaryColor }} />
-                    </div>
+              <CardContent className="p-5">
+                {/* Questionnaire Icon */}
+                <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-3 ${
+                  isDark ? 'bg-gray-700' : 'bg-gray-100'
+                }`}>
+                  <FileSpreadsheet className="w-7 h-7" style={{ color: primaryColor }} />
+                </div>
 
-                    {/* Info */}
-                    <div className="flex-1">
-                      <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {questionnaire.name}
-                      </h3>
+                {/* Questionnaire Name */}
+                <h3 className={`text-sm font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {questionnaire.name}
+                </h3>
 
-                      {questionnaire.description && (
-                        <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {questionnaire.description}
-                        </p>
-                      )}
+                {/* Timestamp */}
+                <div className="flex items-center gap-1 mb-3">
+                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {questionnaire.created_at ? formatTimeAgo(questionnaire.created_at) : 'Ajouter il y a 32 secondes'}
+                  </span>
+                </div>
 
-                      <div className="flex items-center gap-3 text-sm">
-                        {/* Type Badge */}
-                        <Badge className={`${getTypeColor(questionnaire.questionnaire_type)} flex items-center gap-1`}>
-                          {getTypeIcon(questionnaire.questionnaire_type)}
-                          {getTypeLabel(questionnaire.questionnaire_type)}
-                        </Badge>
+                {/* Audience Badge */}
+                <div className="mb-3">
+                  <Badge className={`${getAudienceColor(questionnaire.audience_type)} flex items-center gap-1 w-fit px-2 py-0.5 text-xs`}>
+                    {getAudienceIcon(questionnaire.audience_type)}
+                    <span>{getAudienceLabel(questionnaire.audience_type)}</span>
+                  </Badge>
+                </div>
 
-                        {/* Date */}
-                        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Créé le {new Date(questionnaire.created_at).toLocaleDateString('fr-FR')}
-                        </span>
-
-                        {/* Generated Status */}
-                        {questionnaire.is_generated && (
-                          <Badge className="bg-green-500/20 text-green-600 border-green-500/30 text-xs">
-                            Généré
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadQuestionnaire(questionnaire)}
-                      className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
-                      title="Télécharger"
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDownloadQuestionnaire(questionnaire)}
-                      className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
-                      title="Prévisualiser"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteQuestionnaire(questionnaire.uuid)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-orange-500 text-orange-500 hover:bg-orange-50 text-xs"
+                    onClick={() => {
+                      const url = subdomain 
+                        ? `/${subdomain}/questionnaire-creation?courseUuid=${formData.courseUuid}&questionnaireUuid=${questionnaire.uuid}`
+                        : `/questionnaire-creation?courseUuid=${formData.courseUuid}&questionnaireUuid=${questionnaire.uuid}`;
+                      window.open(url, '_blank');
+                    }}
+                  >
+                    <Edit3 className="w-3 h-3 mr-1" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-red-500 border-red-500 hover:bg-red-50 text-xs"
+                    onClick={() => handleDeleteQuestionnaire(questionnaire.uuid)}
+                  >
+                    <Trash2 className="w-3 h-3 mr-1" />
+                    Retirer
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+          )}
+
+          {/* Action Buttons */}
+          {!showTemplatesView && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant="outline"
+                className="border-2 border-dashed h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => setShowQuestionnaireModal(true)}
+              >
+                <FolderOpen className="w-5 h-5" />
+                <span>Choisir Un Modèle Depuis La Bibliothèque</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="border-2 border-dashed h-20 flex flex-col items-center justify-center gap-2"
+                onClick={() => {
+                  const url = subdomain 
+                    ? `/${subdomain}/questionnaire-creation?courseUuid=${formData.courseUuid}`
+                    : `/questionnaire-creation?courseUuid=${formData.courseUuid}`;
+                  window.open(url, '_blank');
+                }}
+              >
+                <Upload className="w-5 h-5" />
+                <span>Importer Un Fichier</span>
+              </Button>
+            </div>
           )}
         </>
       )}
@@ -580,6 +628,19 @@ export const Step4QuestionnaireNew: React.FC = () => {
         courseUuid={formData.courseUuid || ''}
         templates={templates}
       />
+
+      {/* Questionnaire Selection Modal */}
+      {formData.courseUuid && (
+        <QuestionnaireSelectionModal
+          isOpen={showQuestionnaireModal}
+          onClose={() => setShowQuestionnaireModal(false)}
+          onSelect={(template) => {
+            handleUseTemplate(template);
+          }}
+          courseUuid={formData.courseUuid}
+          audienceType={selectedAudience !== 'all' ? selectedAudience : undefined}
+        />
+      )}
     </div>
   );
 };

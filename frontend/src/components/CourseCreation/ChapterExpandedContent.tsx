@@ -8,6 +8,10 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Plus, FileText, Upload, Trash2, ChevronDown, ChevronRight, Video, Image, Type, Calendar, Save, X, Edit, Clock } from 'lucide-react';
+import { SubChapterPill } from './SubChapterPill';
+import { QuizPill } from './QuizPill';
+import { DevoirPill } from './DevoirPill';
+import { ExaminPill } from './ExaminPill';
 
 interface Chapter {
   id: string;
@@ -36,6 +40,9 @@ interface ChapterExpandedContentProps {
   toggleEvaluationEditor: (chapterId: string) => void;
   isEvaluationEditorOpen: (chapterId: string) => boolean;
   onAddQuiz?: (chapterId: string) => void;
+  onAddSubChapter?: (chapterId: string) => void;
+  onAddDevoir?: (chapterId: string) => void;
+  onAddExamin?: (chapterId: string) => void;
   children?: React.ReactNode; // For sub-chapters
 }
 
@@ -46,6 +53,9 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   onAddEvaluation,
   onUpdateEvaluation,
   onAddQuiz,
+  onAddSubChapter,
+  onAddDevoir,
+  onAddExamin,
   onAddSupportFile,
   onDeleteContent,
   onDeleteEvaluation,
@@ -55,6 +65,8 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   isSectionCollapsed,
   toggleEvaluationEditor,
   isEvaluationEditorOpen,
+  pendingEvaluationType,
+  onPendingEvaluationTypeHandled,
   children,
 }) => {
   const { t } = useLanguage();
@@ -64,6 +76,15 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
 
   // State for evaluation editor (local to this component)
   const [evaluationType, setEvaluationType] = useState<'devoir' | 'examen'>('devoir');
+  
+  // Handle pending evaluation type when component mounts or when it changes
+  React.useEffect(() => {
+    if (pendingEvaluationType && !isEvaluationEditorOpen(chapter.id)) {
+      setEvaluationType(pendingEvaluationType);
+      toggleEvaluationEditor(chapter.id);
+      onPendingEvaluationTypeHandled?.();
+    }
+  }, [pendingEvaluationType, chapter.id, isEvaluationEditorOpen, toggleEvaluationEditor, onPendingEvaluationTypeHandled]);
   const [editingEvaluation, setEditingEvaluation] = useState<any>(null);
   const [evaluationData, setEvaluationData] = useState({
     title: '',
@@ -262,16 +283,29 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
               ))}
 
               {/* Add Content Buttons */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium mr-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('courseSteps.step2.sections.contenus.addButtons.label')}:
+                </span>
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleContentUpload('video');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Video className="w-6 h-6" />
+                  <Video className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Vidéo</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -279,9 +313,19 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     handleContentUpload('text');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <FileText className="w-6 h-6" />
+                  <FileText className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Text</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -289,13 +333,20 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     handleContentUpload('image');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Image className="w-6 h-6" />
+                  <Image className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Image</span>
                 </Button>
-                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t('courseSteps.step2.sections.contenus.addButtons.label')}
-                </span>
               </div>
             </div>
           )}
@@ -421,20 +472,7 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('devoir');
-                    toggleEvaluationEditor(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.devoir')}
-                </Button>
-              )}
+              ) : null}
 
               {/* Examen Form */}
               {isEvaluationEditorOpen(chapter.id) && evaluationType === 'examen' ? (
@@ -488,23 +526,7 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                         onChange={(e) => setEvaluationData(prev => ({ ...prev, dueDate: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {t('courseSteps.step2.sections.evaluations.form.file')}
-                      </label>
-                      <Input
-                        type="file"
-                        className={isDark ? 'bg-gray-600 border-gray-500 text-white' : ''}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setEvaluationData(prev => ({ ...prev, file }));
-                          }
-                        }}
-                      />
-                    </div>
+                    {/* File upload removed for examen - only available in devoir */}
                     <div className="flex gap-2">
                       <Button
                         onClick={handleSaveEvaluation}
@@ -523,35 +545,40 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('examen');
-                    toggleEvaluationEditor(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.examin')}
-                </Button>
-              )}
+              ) : null}
 
-              {/* Quiz Association Button */}
-              {onAddQuiz && !isEvaluationEditorOpen(chapter.id) && (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddQuiz(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  style={{ borderColor: primaryColor, color: primaryColor }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Associer un Quiz
-                </Button>
+              {/* Add Evaluation/Quiz Buttons */}
+              {!isEvaluationEditorOpen(chapter.id) && (
+                <div className="flex items-center gap-3 mt-4">
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Ajouter un:
+                  </span>
+                  {onAddQuiz && (
+                    <QuizPill onClick={() => onAddQuiz(chapter.id)} />
+                  )}
+                  {onAddDevoir ? (
+                    <DevoirPill onClick={() => onAddDevoir(chapter.id)} />
+                  ) : (
+                    <DevoirPill 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEvaluationType('devoir');
+                        toggleEvaluationEditor(chapter.id);
+                      }} 
+                    />
+                  )}
+                  {onAddExamin ? (
+                    <ExaminPill onClick={() => onAddExamin(chapter.id)} />
+                  ) : (
+                    <ExaminPill 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEvaluationType('examen');
+                        toggleEvaluationEditor(chapter.id);
+                      }} 
+                    />
+                  )}
+                </div>
               )}
 
               {/* Existing Associated Quizzes */}
@@ -920,6 +947,12 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Zone d'Ajout Enfant - SubChapterPill et QuizPill */}
+      <div className="flex items-center gap-3 mb-4">
+        <SubChapterPill onClick={() => onAddSubChapter?.(chapter.id)} />
+        <QuizPill onClick={() => onAddQuiz?.(chapter.id)} />
+      </div>
 
       {/* Sub-chapters */}
       {children}

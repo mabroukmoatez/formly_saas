@@ -12,10 +12,12 @@ class CourseFlowActionFile extends Model
 
     protected $fillable = [
         'course_flow_action_id',
+        'document_id',
         'file_name',
         'file_path',
         'file_type',
-        'file_size'
+        'file_size',
+        'mime_type'
     ];
 
     protected $casts = [
@@ -25,6 +27,11 @@ class CourseFlowActionFile extends Model
     public function flowAction()
     {
         return $this->belongsTo(CourseFlowAction::class, 'course_flow_action_id');
+    }
+
+    public function document()
+    {
+        return $this->belongsTo(CourseDocument::class, 'document_id');
     }
 
     public function getFileUrlAttribute()

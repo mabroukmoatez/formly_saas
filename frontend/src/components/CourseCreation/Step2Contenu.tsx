@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCourseCreation } from '../../contexts/CourseCreationContext';
@@ -12,6 +13,9 @@ import { ChapterExpandedContent } from './ChapterExpandedContent';
 import { SubChapterExpandedContent } from './SubChapterExpandedContent';
 import { ChapterHeader, EmptyChaptersState } from './ChapterHeader';
 import { QuizSelectionModal } from './QuizSelectionModal';
+import { AddChapterModal } from './AddChapterModal';
+import { AddBlockModal } from './AddBlockModal';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import { courseCreation } from '../../services/courseCreation';
 import { CourseSection } from '../../services/courseCreation.types';
 
@@ -70,11 +74,13 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     updateSubChapterAdapter,
     deleteSubChapterAdapter,
     createContentAdapter,
-    updateContent,
-    deleteContent,
+    updateContentAdapter,
+    deleteContentAdapter,
     createEvaluationAdapter,
+    updateEvaluationAdapter,
+    deleteEvaluationAdapter,
     uploadSupportFilesAdapter,
-    deleteSupportFile,
+    deleteSupportFileAdapter,
   } = useCourseCreation();
 
   // Blocks state (ALWAYS USED - no choice) - renamed from sections to blocks
@@ -91,10 +97,27 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   const [subChapterCollapsedSections, setSubChapterCollapsedSections] = useState<{[key: string]: boolean}>({});
   const [chapterEvaluationEditors, setChapterEvaluationEditors] = useState<{[key: string]: boolean}>({});
   const [subChapterEvaluationEditors, setSubChapterEvaluationEditors] = useState<{[key: string]: boolean}>({});
+  // State to track which evaluation type to open when chapter expands
+  const [pendingEvaluationType, setPendingEvaluationType] = useState<{[chapterId: string]: 'devoir' | 'examen'}>({});
   
   // Quiz selection modal state
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [quizModalTarget, setQuizModalTarget] = useState<{chapterId: string; subChapterId?: string} | null>(null);
+  
+  // Chapter creation modal state
+  const [showChapterModal, setShowChapterModal] = useState(false);
+  const [chapterModalSectionId, setChapterModalSectionId] = useState<number | undefined>(undefined);
+  
+  // Block creation modal state
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  
+  // Delete confirmation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteModalConfig, setDeleteModalConfig] = useState<{
+    type: 'quiz' | 'block' | 'chapter' | 'subchapter';
+    onConfirm: () => void;
+    itemName?: string;
+  } | null>(null);
 
   // Convert context chapters to local format for compatibility
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -197,11 +220,12 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
             if (hasPendingChapterUpdate || hasPendingSubChapterUpdate) {
               return localChapter; // Keep local state for pending updates
             } else {
-              // Merge context data with local data, preserving local content/evaluations/support files
+              // Merge context data with local data, preserving local content/evaluations/support files AND expanded state
               return {
                 ...contextChapter, // Use context data for basic info INCLUDING course_section_id
                 course_section_id: contextChapter.course_section_id ?? localChapter.course_section_id, // Always use context course_section_id if available
                 section: contextChapter.section ?? localChapter.section, // Always use context section if available
+                isExpanded: localChapter.isExpanded, // PRESERVE local expanded state
                 content: localChapter.content.length > 0 ? localChapter.content : contextChapter.content,
                 evaluations: localChapter.evaluations.length > 0 ? localChapter.evaluations : contextChapter.evaluations,
                 quizzes: contextChapter.quizzes, // Always use context quizzes data to reflect latest associations
@@ -211,6 +235,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                   if (contextSubChapter) {
                     return {
                       ...contextSubChapter,
+                      isExpanded: localSubChapter.isExpanded, // PRESERVE local expanded state
                       content: localSubChapter.content.length > 0 ? localSubChapter.content : contextSubChapter.content,
                       evaluations: localSubChapter.evaluations.length > 0 ? localSubChapter.evaluations : contextSubChapter.evaluations,
                       supportFiles: localSubChapter.supportFiles.length > 0 ? localSubChapter.supportFiles : contextSubChapter.supportFiles,
@@ -276,17 +301,23 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     };
   }, [chapterUpdateTimeouts, subChapterUpdateTimeouts]);
 
-  // Chapter management
-  const handleAddChapter = async (sectionId?: number) => {
+  // Chapter management - Open modal
+  const handleAddChapter = (sectionId?: number) => {
+    setChapterModalSectionId(sectionId);
+    setShowChapterModal(true);
+  };
+
+  // Chapter creation - Called from modal
+  const handleConfirmChapter = async (title: string) => {
     if (!formData.courseUuid) return;
     try {
-      if (sectionId) {
+      const sectionId = chapterModalSectionId;
+      if (sectionId !== undefined) {
         const sectionChapters = chapters.filter(chapter => chapter.course_section_id === sectionId);
-        const newChapterTitle = `Chapitre ${sectionChapters.length + 1}`;
         
         const chapterData = {
           course_section_id: Number(sectionId), // Force conversion to number
-          title: newChapterTitle,
+          title: title || `Chapitre ${sectionChapters.length + 1}`,
           description: '',
           order_index: sectionChapters.length,
           is_published: true,
@@ -415,6 +446,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       
       setChapterUpdateTimeouts(prev => ({ ...prev, [chapterId]: timeout }));
     } catch (error) {
+      console.error('Error updating chapter title:', error);
     }
   };
 
@@ -425,11 +457,20 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   };
 
   const handleDeleteChapter = async (chapterId: string) => {
-    try {
-      await deleteChapter(chapterId);
-      setChapters(prev => prev.filter(chapter => chapter.id !== chapterId));
-    } catch (error) {
-    }
+    const chapter = chapters.find(c => c.id === chapterId);
+    setDeleteModalConfig({
+      type: 'chapter',
+      onConfirm: async () => {
+        try {
+          await deleteChapter(chapterId);
+          setChapters(prev => prev.filter(chapter => chapter.id !== chapterId));
+        } catch (error) {
+          console.error('Error deleting chapter:', error);
+        }
+      },
+      itemName: chapter?.title,
+    });
+    setShowDeleteModal(true);
   };
 
   // SubChapter management
@@ -461,9 +502,10 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
       }
-    } catch (error) {
-    }
-  };
+      } catch (error) {
+        console.error('Error updating chapter title:', error);
+      }
+    };
 
   const handleSubChapterTitleChange = async (chapterId: string, subChapterId: string, title: string) => {
     try {
@@ -497,9 +539,10 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       }, 1000); // 1 second delay
       
       setSubChapterUpdateTimeouts(prev => ({ ...prev, [subChapterId]: timeout }));
-    } catch (error) {
-    }
-  };
+      } catch (error) {
+        console.error('Error updating sub-chapter title:', error);
+      }
+    };
 
   const handleContentTitleChange = async (chapterId: string, subChapterId: string, contentId: string, title: string) => {
     try {
@@ -523,11 +566,12 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       ));
       
       // Update content via API
-      await updateContent(chapterId, contentId, { title });
+      await updateContentAdapter(chapterId, contentId, { content: title });
       
-      // Reload chapters to ensure data consistency
-      await loadChapters();
+      // Don't reload chapters to prevent collapse - data is already updated locally
+      // await loadChapters(); // REMOVED to prevent collapse
     } catch (error) {
+      console.error('Error updating content title:', error);
     }
   };
 
@@ -546,11 +590,12 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       ));
       
       // Update content via API
-      await updateContent(chapterId, contentId, { title });
+      await updateContentAdapter(chapterId, contentId, { content: title });
       
-      // Reload chapters to ensure data consistency
-      await loadChapters();
+      // Don't reload chapters to prevent collapse - data is already updated locally
+      // await loadChapters(); // REMOVED to prevent collapse
     } catch (error) {
+      console.error('Error updating content title:', error);
     }
   };
 
@@ -617,18 +662,28 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   };
 
   const handleDeleteSubChapter = async (chapterId: string, subChapterId: string) => {
-    try {
-      await deleteSubChapterAdapter(chapterId, subChapterId);
-      setChapters(prev => prev.map(chapter => 
-        chapter.id === chapterId 
-          ? {
-              ...chapter,
-              subChapters: chapter.subChapters.filter(subChapter => subChapter.id !== subChapterId)
-            }
-          : chapter
-      ));
-    } catch (error) {
-    }
+    const chapter = chapters.find(c => c.id === chapterId);
+    const subChapter = chapter?.subChapters.find(sc => sc.id === subChapterId);
+    setDeleteModalConfig({
+      type: 'subchapter',
+      onConfirm: async () => {
+        try {
+          await deleteSubChapterAdapter(chapterId, subChapterId);
+          setChapters(prev => prev.map(chapter => 
+            chapter.id === chapterId 
+              ? {
+                  ...chapter,
+                  subChapters: chapter.subChapters.filter(subChapter => subChapter.id !== subChapterId)
+                }
+              : chapter
+          ));
+        } catch (error) {
+          console.error('Error deleting sub-chapter:', error);
+        }
+      },
+      itemName: subChapter?.title,
+    });
+    setShowDeleteModal(true);
   };
 
   // Direct chapter content management
@@ -671,6 +726,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         ));
       }
     } catch (error) {
+      console.error('Error adding chapter content:', error);
     }
   };
 
@@ -690,8 +746,9 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       ));
       
       // Update via API
-      await updateContent(chapterId, contentId, updates);
+      await updateContentAdapter(chapterId, contentId, updates);
     } catch (error) {
+      console.error('Error updating chapter content:', error);
     }
   };
 
@@ -717,8 +774,9 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       ));
       
       // Update via API
-      await updateContent(chapterId, contentId, updates);
+      await updateContentAdapter(chapterId, contentId, updates);
     } catch (error) {
+      console.error('Error updating sub-chapter content:', error);
     }
   };
 
@@ -753,6 +811,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         ));
       }
     } catch (error) {
+      console.error('Error adding evaluation:', error);
     }
   };
 
@@ -779,16 +838,17 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
             : chapter
         ));
         
-        // Also reload chapters to get updated data from API
-        await loadChapters();
+        // Don't reload chapters to prevent collapse - data is already updated locally
+        // await loadChapters(); // REMOVED to prevent collapse
       }
     } catch (error) {
+      console.error('Error adding support file:', error);
     }
   };
 
   const handleDeleteChapterContent = async (chapterId: string, contentId: string) => {
     try {
-      await deleteContent(contentId);
+      await deleteContentAdapter(chapterId, contentId);
       setChapters(prev => prev.map(chapter => 
         chapter.id === chapterId 
           ? {
@@ -798,18 +858,17 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
     } catch (error) {
+      console.error('Error deleting chapter content:', error);
     }
   };
 
   // Quiz association management
   const handleAddQuizToChapter = (chapterId: string, subChapterId?: string) => {
-    console.log('🎯 Opening quiz modal for:', { chapterId, subChapterId });
     setQuizModalTarget({ chapterId, subChapterId });
     setShowQuizModal(true);
   };
 
   const handleSelectQuiz = (quizUuid: string, quizTitle: string) => {
-    console.log('✅ Quiz selected and associated:', quizTitle, quizUuid);
     setShowQuizModal(false);
     setQuizModalTarget(null);
     // The association is already done in the modal via quizService.associateQuiz
@@ -833,7 +892,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
 
   const handleDeleteEvaluation = async (chapterId: string, evaluationId: string) => {
     try {
-      // Use the correct API call - need to check what's available
+      await deleteEvaluationAdapter(chapterId, evaluationId);
       setChapters(prev => prev.map(chapter => 
         chapter.id === chapterId 
           ? {
@@ -843,42 +902,62 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
     } catch (error) {
+      console.error('Error deleting evaluation:', error);
     }
   };
 
   const handleUpdateEvaluation = async (chapterId: string, evaluationId: string, data: any) => {
     try {
+      // Update via API
+      const updatedEvaluation = await updateEvaluationAdapter(chapterId, evaluationId, {
+        title: data.title,
+        description: data.description,
+        due_date: data.dueDate,
+        file: data.file
+      });
+      
+      if (updatedEvaluation) {
+        // Update local state with API response
+        setChapters(prev => prev.map(chapter => 
+          chapter.id === chapterId 
+            ? {
+                ...chapter,
+                evaluations: chapter.evaluations.map(evaluation =>
+                  evaluation.id === evaluationId 
+                    ? {
+                        ...evaluation,
+                        title: updatedEvaluation.title,
+                        description: updatedEvaluation.description,
+                        due_date: updatedEvaluation.due_date,
+                        file: data.file || evaluation.file
+                      }
+                    : evaluation
+                )
+              }
+            : chapter
+        ));
+      }
+    } catch (error) {
+      console.error('Error updating evaluation:', error);
+    }
+  };
+
+  const handleDeleteSupportFile = async (chapterId: string, fileId: string) => {
+    try {
+      await deleteSupportFileAdapter(chapterId, fileId);
       // Update local state immediately
       setChapters(prev => prev.map(chapter => 
         chapter.id === chapterId 
           ? {
               ...chapter,
-              evaluations: chapter.evaluations.map(evaluation =>
-                evaluation.id === evaluationId 
-                  ? {
-                      ...evaluation,
-                      title: data.title,
-                      description: data.description,
-                      due_date: data.dueDate,
-                      file: data.file || evaluation.file
-                    }
-                  : evaluation
-              )
+              supportFiles: chapter.supportFiles.filter(file => file.id !== fileId)
             }
           : chapter
       ));
-      
-      // TODO: Add API call to update evaluation on server
+      // Don't reload chapters to prevent collapse - data is already updated locally
+      // await loadChapters(); // REMOVED to prevent collapse
     } catch (error) {
-    }
-  };
-
-  const handleDeleteSupportFile = async (_chapterId: string, fileId: string) => {
-    try {
-      await deleteSupportFile(fileId);
-      // Reload chapters to get updated support files from API
-      await loadChapters();
-    } catch (error) {
+      console.error('Error deleting support file:', error);
     }
   };
 
@@ -931,6 +1010,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         ));
       }
     } catch (error) {
+      console.error('Error adding sub-chapter evaluation:', error);
     }
   };
 
@@ -973,6 +1053,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
         ));
       }
     } catch (error) {
+      console.error('Error adding sub-chapter evaluation:', error);
     }
   };
 
@@ -1006,16 +1087,17 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
             : chapter
         ));
         
-        // Also reload chapters to get updated data from API
-        await loadChapters();
+        // Don't reload chapters to prevent collapse - data is already updated locally
+        // await loadChapters(); // REMOVED to prevent collapse
       }
     } catch (error) {
+      console.error('Error adding sub-chapter support file:', error);
     }
   };
 
   const handleDeleteSubChapterContent = async (chapterId: string, subChapterId: string, contentId: string) => {
     try {
-      await deleteContent(contentId);
+      await deleteContentAdapter(chapterId, contentId);
       setChapters(prev => prev.map(chapter => 
         chapter.id === chapterId 
           ? {
@@ -1032,11 +1114,13 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
     } catch (error) {
+      console.error('Error deleting sub-chapter content:', error);
     }
   };
 
   const handleDeleteSubChapterEvaluation = async (chapterId: string, subChapterId: string, evaluationId: string) => {
     try {
+      await deleteEvaluationAdapter(chapterId, evaluationId);
       setChapters(prev => prev.map(chapter => 
         chapter.id === chapterId 
           ? {
@@ -1053,6 +1137,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
     } catch (error) {
+      console.error('Error deleting sub-chapter evaluation:', error);
     }
   };
 
@@ -1085,16 +1170,68 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           : chapter
       ));
       
-      // TODO: Add API call to update evaluation on server
+      // Update via API
+      const updatedEvaluation = await updateEvaluationAdapter(chapterId, evaluationId, {
+        title: data.title,
+        description: data.description,
+        due_date: data.dueDate,
+        file: data.file
+      });
+      
+      if (updatedEvaluation) {
+        // Update local state with API response
+        setChapters(prev => prev.map(chapter => 
+          chapter.id === chapterId 
+            ? {
+                ...chapter,
+                subChapters: chapter.subChapters.map(subChapter =>
+                  subChapter.id === subChapterId
+                    ? {
+                        ...subChapter,
+                        evaluations: subChapter.evaluations.map(evaluation =>
+                          evaluation.id === evaluationId 
+                            ? {
+                                ...evaluation,
+                                title: updatedEvaluation.title,
+                                description: updatedEvaluation.description,
+                                due_date: updatedEvaluation.due_date,
+                                file: data.file || evaluation.file
+                              }
+                            : evaluation
+                        )
+                      }
+                    : subChapter
+                )
+              }
+            : chapter
+        ));
+      }
     } catch (error) {
+      console.error('Error updating sub-chapter evaluation:', error);
     }
   };
 
-  const handleDeleteSubChapterSupportFile = async (_chapterId: string, _subChapterId: string, fileId: string) => {
+  const handleDeleteSubChapterSupportFile = async (chapterId: string, subChapterId: string, fileId: string) => {
     try {
-      await deleteSupportFile(fileId);
-      // Reload chapters to get updated support files from API
-      await loadChapters();
+      await deleteSupportFileAdapter(chapterId, fileId);
+      // Update local state immediately
+      setChapters(prev => prev.map(chapter => 
+        chapter.id === chapterId 
+          ? {
+              ...chapter,
+              subChapters: chapter.subChapters.map(subChapter =>
+                subChapter.id === subChapterId 
+                  ? {
+                      ...subChapter,
+                      supportFiles: subChapter.supportFiles.filter(file => file.id !== fileId)
+                    }
+                  : subChapter
+              )
+            }
+          : chapter
+      ));
+      // Don't reload chapters to prevent collapse - data is already updated locally
+      // await loadChapters(); // REMOVED to prevent collapse
     } catch (error) {
     }
   };
@@ -1130,20 +1267,24 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     });
   }, [sections]);
 
-  const handleQuickAddSection = async () => {
-    if (!newSectionName.trim()) return;
+  // Block creation - Called from modal
+  const handleConfirmBlock = async (title: string) => {
+    if (!formData.courseUuid) return;
     try {
       await handleCreateSection({
-        title: newSectionName.trim(),
+        title: title || `Block ${sections.length + 1}`,
         order: sections.length,
         is_published: true
       });
       await loadSectionsData();
-      setNewSectionName('');
-      setIsAddingSection(false);
     } catch (error) {
       console.error('Error adding block:', error);
     }
+  };
+
+  // Open block modal
+  const handleAddBlock = () => {
+    setShowBlockModal(true);
   };
 
   const toggleSectionCollapsed = (sectionId: number) => {
@@ -1163,19 +1304,72 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <div className="w-full max-w-[1396px] flex flex-col gap-6">
         <Card className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] ${
-          isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#dbd8d8]'
+          isDark ? 'bg-transparent border-gray-600' : 'bg-transparent border-[#dbd8d8]'
         }`}>
           <CardContent className="p-5 flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Blocks du cours
+                Contenu du cours
               </h3>
-              <Badge variant="outline">{sections.length} block{sections.length > 1 ? 's' : ''}</Badge>
             </div>
 
             {sections.length === 0 ? (
-              <div className={`rounded-lg border border-dashed py-12 text-center ${isDark ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'}`}>
-                Aucun block pour le moment. Ajoutez-en un pour structurer vos chapitres.
+              <div 
+                className={`relative min-h-[400px] rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-300'}`}
+              >
+                {/* Blurred background image */}
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url('/assets/images/step2.png')`,
+                    backgroundSize: 'contain',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    filter: 'blur(2px)'
+                  }}
+                />
+                {/* Overlay for better text readability */}
+                <div className={`absolute inset-0 ${
+                  isDark ? 'bg-black/50' : 'bg-white/70'
+                }`} />
+                
+                {/* Content */}
+                <div className="relative z-10 flex flex-col items-center justify-center min-h-[400px] py-12 px-4">
+                  <div className="text-center mb-8">
+                    <h3 className={`text-lg font-medium mb-2 ${
+                      isDark ? 'text-gray-200' : 'text-gray-800'
+                    }`}>
+                      Aucun block pour le moment. Ajoutez-en un pour structurer vos chapitres.
+                    </h3>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Button
+                      onClick={handleAddBlock}
+                      className="flex items-center gap-2 px-6 py-3"
+                      style={{ 
+                        backgroundColor: isDark ? 'rgba(147, 51, 234, 0.8)' : '#9333EA',
+                        borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                        color: '#FFFFFF'
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      + Ajouter un Bloc
+                    </Button>
+                    <Button
+                      onClick={() => handleAddChapter()}
+                      className="flex items-center gap-2 px-6 py-3"
+                      style={{ 
+                        backgroundColor: primaryColor,
+                        color: '#FFFFFF'
+                      }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      + Ajouter chapiter
+                    </Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1233,11 +1427,21 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                     isDragOver={dragOverItem === chapter.id}
                     onTitleChange={handleChapterTitleChange}
                     onToggleExpanded={handleToggleChapterExpanded}
-                    onAddSubChapter={handleAddSubChapter}
                     onDeleteChapter={handleDeleteChapter}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDragEnd={handleDragEnd}
+                    onAddQuiz={(chapterId) => handleAddQuizToChapter(chapterId)}
+                    onAddDevoir={(chapterId) => {
+                      // Set pending evaluation type and expand chapter
+                      setPendingEvaluationType(prev => ({ ...prev, [chapterId]: 'devoir' }));
+                      handleToggleChapterExpanded(chapterId);
+                    }}
+                    onAddExamin={(chapterId) => {
+                      // Set pending evaluation type and expand chapter
+                      setPendingEvaluationType(prev => ({ ...prev, [chapterId]: 'examen' }));
+                      handleToggleChapterExpanded(chapterId);
+                    }}
                   >
                     <ChapterExpandedContent
                       chapter={chapter}
@@ -1246,6 +1450,21 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                       onAddEvaluation={handleAddEvaluation}
                       onUpdateEvaluation={handleUpdateEvaluation}
                       onAddQuiz={(chapterId) => handleAddQuizToChapter(chapterId)}
+                      onAddSubChapter={handleAddSubChapter}
+                      onAddDevoir={(chapterId) => {
+                        toggleChapterEvaluationEditor(chapterId);
+                      }}
+                      onAddExamin={(chapterId) => {
+                        toggleChapterEvaluationEditor(chapterId);
+                      }}
+                      pendingEvaluationType={pendingEvaluationType[chapter.id] || null}
+                      onPendingEvaluationTypeHandled={() => {
+                        setPendingEvaluationType(prev => {
+                          const newState = { ...prev };
+                          delete newState[chapter.id];
+                          return newState;
+                        });
+                      }}
                       onAddSupportFile={handleAddSupportFile}
                       onDeleteContent={handleDeleteChapterContent}
                       onDeleteEvaluation={handleDeleteEvaluation}
@@ -1325,7 +1544,6 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                         isDragOver={dragOverItem === chapter.id}
                         onTitleChange={handleChapterTitleChange}
                         onToggleExpanded={handleToggleChapterExpanded}
-                        onAddSubChapter={handleAddSubChapter}
                         onDeleteChapter={handleDeleteChapter}
                         onDragStart={handleDragStart}
                         onDragOver={handleDragOver}
@@ -1338,6 +1556,20 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                           onAddEvaluation={handleAddEvaluation}
                           onUpdateEvaluation={handleUpdateEvaluation}
                           onAddQuiz={(chapterId) => handleAddQuizToChapter(chapterId)}
+                          onAddDevoir={(chapterId) => {
+                            toggleChapterEvaluationEditor(chapterId);
+                          }}
+                          onAddExamin={(chapterId) => {
+                            toggleChapterEvaluationEditor(chapterId);
+                          }}
+                          pendingEvaluationType={pendingEvaluationType[chapter.id] || null}
+                          onPendingEvaluationTypeHandled={() => {
+                            setPendingEvaluationType(prev => {
+                              const newState = { ...prev };
+                              delete newState[chapter.id];
+                              return newState;
+                            });
+                          }}
                           onAddSupportFile={handleAddSupportFile}
                           onDeleteContent={handleDeleteChapterContent}
                           onDeleteEvaluation={handleDeleteEvaluation}
@@ -1390,45 +1622,16 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
               </div>
             )}
 
-            <div>
-              {isAddingSection ? (
-                <div className="flex flex-wrap gap-2">
-                  <Input
-                    value={newSectionName}
-                    onChange={(e) => setNewSectionName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleQuickAddSection()}
-                    placeholder="Nom du nouveau block"
-                    className={isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white'}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleQuickAddSection}
-                    disabled={!newSectionName.trim()}
-                    className="rounded-md px-4 py-2 text-white"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    Ajouter
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsAddingSection(false);
-                      setNewSectionName('');
-                    }}
-                    className={`rounded-md px-4 py-2 ${isDark ? 'bg-gray-800 text-gray-300' : 'bg-gray-200 text-gray-700'}`}
-                  >
-                    Annuler
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsAddingSection(true)}
-                  className={`w-full rounded-lg border-2 border-dashed p-4 text-sm font-medium transition ${isDark ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-gray-200' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700'}`}
-                >
-                  <Plus className="mr-2 inline h-4 w-4" />
-                  Ajouter un block
-                </button>
-              )}
-            </div>
+            {/* Only show "Add Block" button when there are already blocks */}
+            {sections.length > 0 && (
+              <button
+                onClick={handleAddBlock}
+                className={`w-full rounded-lg border-2 border-dashed p-4 text-sm font-medium transition ${isDark ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-gray-200' : 'border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-700'}`}
+              >
+                <Plus className="mr-2 inline h-4 w-4" />
+                Ajouter un block
+              </button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -1445,6 +1648,39 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
           courseUuid={formData.courseUuid}
           chapterUuid={quizModalTarget.subChapterId ? undefined : getChapterUuid(quizModalTarget.chapterId)}
           subChapterUuid={quizModalTarget.subChapterId ? getSubChapterUuid(quizModalTarget.chapterId, quizModalTarget.subChapterId) : undefined}
+        />
+      )}
+
+      {/* Add Chapter Modal */}
+      <AddChapterModal
+        isOpen={showChapterModal}
+        onClose={() => {
+          setShowChapterModal(false);
+          setChapterModalSectionId(undefined);
+        }}
+        onConfirm={handleConfirmChapter}
+      />
+
+      {/* Add Block Modal */}
+      <AddBlockModal
+        isOpen={showBlockModal}
+        onClose={() => {
+          setShowBlockModal(false);
+        }}
+        onConfirm={handleConfirmBlock}
+      />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deleteModalConfig && (
+        <DeleteConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setDeleteModalConfig(null);
+          }}
+          onConfirm={deleteModalConfig.onConfirm}
+          type={deleteModalConfig.type}
+          itemName={deleteModalConfig.itemName}
         />
       )}
     </section>

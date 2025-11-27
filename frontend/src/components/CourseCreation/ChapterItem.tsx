@@ -5,6 +5,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { GripVertical, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { QuizPill } from './QuizPill';
+import { DevoirPill } from './DevoirPill';
+import { ExaminPill } from './ExaminPill';
 
 interface Chapter {
   id: string;
@@ -22,7 +25,6 @@ interface ChapterItemProps {
   isDragOver?: boolean;
   onTitleChange: (id: string, title: string) => void;
   onToggleExpanded: (id: string) => void;
-  onAddSubChapter: (chapterId: string) => void;
   onDeleteChapter: (id: string) => void;
   onDragStart: (e: React.DragEvent, item: any) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
@@ -36,11 +38,13 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
   isDragOver = false,
   onTitleChange,
   onToggleExpanded,
-  onAddSubChapter,
   onDeleteChapter,
   onDragStart,
   onDragOver,
   onDragEnd,
+  onAddQuiz,
+  onAddDevoir,
+  onAddExamin,
   children,
 }) => {
   const { t } = useLanguage();
@@ -100,16 +104,6 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onAddSubChapter(chapter.id)}
-            className="flex items-center gap-1"
-          >
-            <Plus className="w-3 h-3" />
-            {t('courseSteps.step2.sections.chapters.addSubChapter')}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
             onClick={() => onToggleExpanded(chapter.id)}
             className="p-1"
           >
@@ -130,6 +124,38 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Add Buttons when collapsed */}
+      {!chapter.isExpanded && (onAddQuiz || onAddDevoir || onAddExamin) && (
+        <div className="flex items-center gap-3 mt-3 px-[17px] pb-3">
+          <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            Ajouter un:
+          </span>
+          {onAddQuiz && (
+            <QuizPill onClick={() => onAddQuiz(chapter.id)} />
+          )}
+          {onAddDevoir && (
+            <DevoirPill 
+              onClick={() => {
+                // Expand chapter first, then the handler will open the editor
+                onToggleExpanded(chapter.id);
+                // Small delay to ensure chapter is expanded before opening editor
+                setTimeout(() => onAddDevoir(chapter.id), 100);
+              }} 
+            />
+          )}
+          {onAddExamin && (
+            <ExaminPill 
+              onClick={() => {
+                // Expand chapter first, then the handler will open the editor
+                onToggleExpanded(chapter.id);
+                // Small delay to ensure chapter is expanded before opening editor
+                setTimeout(() => onAddExamin(chapter.id), 100);
+              }} 
+            />
+          )}
+        </div>
+      )}
 
       {/* Chapter Content */}
       {chapter.isExpanded && children}

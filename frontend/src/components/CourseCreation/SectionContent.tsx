@@ -96,7 +96,7 @@ export const ModulesSection: React.FC<{
                   className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'} cursor-move hover:text-blue-500 transition-colors`} 
                 />
                 
-                <div className="flex-1 space-y-3">
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                       {index + 1}.
@@ -107,27 +107,6 @@ export const ModulesSection: React.FC<{
                       placeholder={t('courseCreation.form.moduleTitle')}
                       className={`flex-1 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
                     />
-                  </div>
-                  
-                  <RichTextEditor
-                    content={module.description}
-                    onChange={(content) => onUpdateModule(module.id, 'description', content)}
-                    placeholder={t('courseCreation.form.moduleDescription')}
-                    className="min-h-[100px]"
-                  />
-                  
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={module.duration || ''}
-                      onChange={(e) => onUpdateModule(module.id, 'duration', parseInt(e.target.value) || 0)}
-                      placeholder="0"
-                      min="0"
-                      className={`w-24 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {t('courseCreation.form.hours')}
-                    </span>
                   </div>
                 </div>
 
@@ -267,11 +246,12 @@ export const ObjectivesSection: React.FC<{
                 />
                 
                 <div className="flex-1">
-                  <RichTextEditor
-                    content={objective.text}
-                    onChange={(content) => onUpdateObjective(objective.id, 'text', content)}
+                  <Input
+                    type="text"
+                    value={objective.text.replace(/<[^>]*>/g, '')} // Strip HTML tags for display
+                    onChange={(e) => onUpdateObjective(objective.id, 'text', e.target.value)}
                     placeholder={t('courseCreation.form.objectiveText')}
-                    className="min-h-[80px]"
+                    className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
                   />
                 </div>
 
@@ -597,31 +577,41 @@ export const PricingSection: React.FC<{
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {t('courseCreation.form.priceHT')}:
                 </label>
-                <Input
-                  type="number"
-                  value={priceHT || ''}
-                  onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={priceHT || ''}
+                    onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    className={`pr-10 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    DT
+                  </span>
+                </div>
               </div>
               
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {t('courseCreation.form.vatPercentage')}:
                 </label>
-                <Input
-                  type="number"
-                  value={vatPercentage || ''}
-                  onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
-                  placeholder="20"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={vatPercentage || ''}
+                    onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
+                    placeholder="20"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className={`pr-10 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    %
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -840,17 +830,35 @@ export const UpdateDateSection: React.FC<{
   const { t } = useLanguage();
   const { isDark } = useTheme();
 
+  // Convert date string to YYYY-MM-DD format for input type="date"
+  const formatDateForInput = (dateString: string): string => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const dateValue = e.target.value;
+    // Convert YYYY-MM-DD to a more readable format or keep as is
+    onUpdateUpdateDate(dateValue);
+  };
+
   return (
     <div className="space-y-4">
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Date De MAJ
       </h3>
       
-      <RichTextEditor
-        content={updateDate}
-        onChange={onUpdateUpdateDate}
-        placeholder="Text Field"
-        className="min-h-[200px]"
+      <Input
+        type="date"
+        value={formatDateForInput(updateDate)}
+        onChange={handleDateChange}
+        className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
       />
     </div>
   );

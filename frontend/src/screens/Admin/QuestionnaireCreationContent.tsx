@@ -38,7 +38,9 @@ import { useToast } from '../../components/ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { courseCreation } from '../../services/courseCreation';
 import { sessionCreation } from '../../services/sessionCreation';
+import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
+import { fixImageUrl } from '../../lib/utils';
 
 type QuestionType = 
   | 'single_choice'      // Réponse simple (radio)
@@ -92,11 +94,16 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
   
   const courseUuid = propCourseUuid || paramCourseUuid || searchParams.get('courseUuid');
   const sessionUuid = propSessionUuid || searchParams.get('sessionUuid');
+  const documentId = searchParams.get('documentId');
+  const questionnaireUuid = searchParams.get('questionnaireUuid');
   const primaryColor = organization?.primary_color || '#2196F3';
 
   const [questionnaireTitle, setQuestionnaireTitle] = useState('');
   const [questionnaireDescription, setQuestionnaireDescription] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [questionnaireId, setQuestionnaireId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   const [draggedQuestionId, setDraggedQuestionId] = useState<string | null>(null);
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -341,12 +348,214 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     setDraggedQuestionId(null);
   };
 
-  const handleSave = async () => {
-    if (!courseUuid && !sessionUuid) {
-      showError('Erreur', 'UUID du cours ou de la session manquant');
-      return;
-    }
+  // Load questionnaire data if in edit mode
+  useEffect(() => {
+    const loadQuestionnaireData = async () => {
+      if (!documentId && !questionnaireUuid) {
+        setIsEditMode(false);
+        setQuestionnaireId(null);
+        return;
+      }
 
+      try {
+        setLoading(true);
+        setIsEditMode(true);
+        
+        // Determine the document ID to fetch
+        let docId: number | null = null;
+        
+        if (documentId) {
+          docId = parseInt(documentId);
+        } else if (questionnaireUuid) {
+          // First, find the document ID from the UUID
+          const listResponse = await courseCreation.getAllOrganizationDocuments({
+            exclude_questionnaires: false
+          });
+          
+          if (listResponse.success && listResponse.data) {
+            const allDocs = Array.isArray(listResponse.data) ? listResponse.data : (listResponse.data.data || []);
+            const foundDoc = allDocs.find((doc: any) => doc.uuid === questionnaireUuid);
+            if (foundDoc) {
+              docId = foundDoc.id;
+            }
+          }
+        }
+        
+        if (!docId) {
+          showError('Erreur', 'Questionnaire non trouvé');
+          setLoading(false);
+          return;
+        }
+        
+        // Fetch the specific document/questionnaire
+        // Try with ?include=questions parameter first
+        let response;
+        try {
+          response = await apiService.get(`/api/organization/documents/${docId}?include=questions`);
+        } catch (err) {
+          // If that fails, try without the parameter
+          response = await apiService.get(`/api/organization/documents/${docId}`);
+        }
+        
+        console.log('📋 Questionnaire API Response:', response);
+        console.log('📋 Full response structure:', JSON.stringify(response, null, 2));
+        
+        if (response.success && response.data) {
+          const questionnaire = response.data;
+          
+          console.log('📋 Questionnaire Data:', questionnaire);
+          console.log('📋 Has questions field?', !!questionnaire.questions);
+          console.log('📋 Questions value:', questionnaire.questions);
+          console.log('📋 All keys in questionnaire:', Object.keys(questionnaire));
+          console.log('📋 Custom template:', questionnaire.custom_template);
+          
+          // Check if questions are in a relation
+          if (questionnaire.questionnaire_questions) {
+            console.log('✅ Found questionnaire_questions relation');
+          }
+          if (questionnaire.questions_relation) {
+            console.log('✅ Found questions_relation');
+          }
+          
+          if (questionnaire && (questionnaire.is_questionnaire || questionnaire.questionnaire_type)) {
+            setQuestionnaireId(questionnaire.id);
+            setQuestionnaireTitle(questionnaire.name || '');
+            setQuestionnaireDescription(questionnaire.description || '');
+            
+            // Try to load questions from the response first
+            let questionsData: any[] = [];
+            
+            // Check multiple possible locations for questions
+            if (questionnaire.questions && Array.isArray(questionnaire.questions) && questionnaire.questions.length > 0) {
+              console.log('✅ Found questions in questionnaire.questions');
+              questionsData = questionnaire.questions;
+            } else if (questionnaire.questionnaire_questions && Array.isArray(questionnaire.questionnaire_questions)) {
+              console.log('✅ Found questions in questionnaire.questionnaire_questions relation');
+              questionsData = questionnaire.questionnaire_questions;
+            } else if (questionnaire.questions_relation && Array.isArray(questionnaire.questions_relation)) {
+              console.log('✅ Found questions in questionnaire.questions_relation');
+              questionsData = questionnaire.questions_relation;
+            } else if (questionnaire.data && questionnaire.data.questions && Array.isArray(questionnaire.data.questions)) {
+              console.log('✅ Found questions in questionnaire.data.questions');
+              questionsData = questionnaire.data.questions;
+            } else {
+              // Try to fetch questions from a separate endpoint
+              try {
+                console.log('🔍 Trying to fetch questions from separate endpoint...');
+                const questionsResponse = await apiService.get(`/api/organization/documents/${docId}/questions`);
+                console.log('📋 Questions API Response:', questionsResponse);
+                if (questionsResponse.success && questionsResponse.data) {
+                  questionsData = Array.isArray(questionsResponse.data) 
+                    ? questionsResponse.data 
+                    : (questionsResponse.data.questions || questionsResponse.data.data || []);
+                  console.log('✅ Found questions from separate endpoint:', questionsData.length);
+                }
+              } catch (err: any) {
+                console.warn('⚠️ Could not fetch questions separately:', err);
+                // Try alternative endpoint
+                try {
+                  const altResponse = await apiService.get(`/api/organization/questionnaires/${docId}/questions`);
+                  console.log('📋 Alternative Questions API Response:', altResponse);
+                  if (altResponse.success && altResponse.data) {
+                    questionsData = Array.isArray(altResponse.data) 
+                      ? altResponse.data 
+                      : (altResponse.data.questions || altResponse.data.data || []);
+                    console.log('✅ Found questions from alternative endpoint:', questionsData.length);
+                  }
+                } catch (altErr) {
+                  console.warn('⚠️ Alternative endpoint also failed:', altErr);
+                }
+                
+                // Check if questions are in custom_template
+                if (questionnaire.custom_template) {
+                  console.log('🔍 Checking custom_template for questions...');
+                  if (questionnaire.custom_template.questions && Array.isArray(questionnaire.custom_template.questions)) {
+                    questionsData = questionnaire.custom_template.questions;
+                    console.log('✅ Found questions in custom_template.questions');
+                  } else if (questionnaire.custom_template.fields) {
+                    // Questions might be stored as fields
+                    console.log('🔍 Checking custom_template.fields...');
+                    const questionFields = questionnaire.custom_template.fields.filter((f: any) => f.type === 'question' || f.question);
+                    if (questionFields.length > 0) {
+                      questionsData = questionFields.map((f: any) => ({
+                        type: f.type || 'short_text',
+                        question: f.question || f.label || '',
+                        required: f.required || false,
+                        options: f.options || undefined,
+                        table_columns: f.table_columns || undefined,
+                        table_rows: f.table_rows || undefined,
+                        content: f.content || undefined
+                      }));
+                      console.log('✅ Found questions in custom_template.fields:', questionsData.length);
+                    }
+                  }
+                }
+              }
+            }
+            
+            console.log('📋 Final questionsData:', questionsData);
+            console.log('📋 questionsData length:', questionsData.length);
+            
+            // Map questions to the Question interface
+            if (questionsData.length > 0) {
+              console.log('✅ Mapping questions to Question interface...');
+              const loadedQuestions: Question[] = questionsData.map((q: any, index: number) => {
+                const mapped: Question = {
+                  id: `q-${index}-${Date.now()}`,
+                  type: (q.type || 'short_text') as QuestionType,
+                  question: q.question || '',
+                  required: q.required || false,
+                };
+                
+                if (q.options && Array.isArray(q.options)) {
+                  mapped.options = q.options.map((opt: string, optIndex: number) => ({
+                    id: `opt-${index}-${optIndex}-${Date.now()}`,
+                    text: opt
+                  }));
+                }
+                
+                if (q.table_columns && q.table_rows) {
+                  mapped.tableColumns = q.table_columns.map((col: string, colIndex: number) => ({
+                    id: `col-${index}-${colIndex}-${Date.now()}`,
+                    label: col
+                  }));
+                  mapped.tableRows = q.table_rows.map((row: any[], rowIndex: number) => ({
+                    id: `row-${index}-${rowIndex}-${Date.now()}`,
+                    cells: Array.isArray(row) ? row : []
+                  }));
+                }
+                
+                if (q.content) {
+                  mapped.content = q.content;
+                }
+                
+                return mapped;
+              });
+              
+              console.log('✅ Loaded questions:', loadedQuestions);
+              setQuestions(loadedQuestions);
+            } else {
+              console.warn('⚠️ No questions found in questionnaire');
+              setQuestions([]);
+              // Don't show error, just log - maybe the questionnaire was created without questions
+            }
+          }
+        } else {
+          showError('Erreur', 'Impossible de charger le questionnaire');
+        }
+      } catch (error: any) {
+        console.error('Error loading questionnaire:', error);
+        showError('Erreur', 'Impossible de charger le questionnaire');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuestionnaireData();
+  }, [documentId, questionnaireUuid]);
+
+  const handleSave = async () => {
+    // Allow creating orphan questionnaires (without courseUuid or sessionUuid)
     if (!questionnaireTitle.trim()) {
       showError('Erreur', 'Veuillez saisir un titre de questionnaire');
       return;
@@ -406,7 +615,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
         } else {
           showError('Erreur', response.message || 'Impossible de créer le questionnaire');
         }
-      } else {
+      } else if (courseUuid) {
         // For courses, use the existing method
         const questionnaireData = {
           title: questionnaireTitle.trim(),
@@ -426,7 +635,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           }))
         };
 
-        const response = await courseCreation.createQuestionnaire(courseUuid!, questionnaireData);
+        const response = await courseCreation.createQuestionnaire(courseUuid, questionnaireData);
         
         if (response.success) {
           showSuccess('Questionnaire créé avec succès');
@@ -437,6 +646,103 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           }
         } else {
           showError('Erreur', response.message || 'Impossible de créer le questionnaire');
+        }
+      } else {
+        // Create or update orphan questionnaire at organization level
+        const customTemplate = {
+          pages: [{ page: 1, content: '' }],
+          total_pages: 1,
+          fields: [
+            {
+              id: 'questionnaire-field',
+              type: 'text',
+              label: 'Questionnaire',
+              required: false,
+              position: { x: 0, y: 0, width: 100, height: 20 }
+            }
+          ]
+        };
+
+        if (isEditMode && questionnaireId) {
+          // Update existing questionnaire
+          const jsonData: any = {
+            name: questionnaireTitle.trim(),
+            document_type: 'custom_builder',
+            audience_type: 'students',
+            is_certificate: false,
+            is_questionnaire: true,
+            questionnaire_type: 'custom',
+            custom_template: customTemplate,
+            questions: questions.map((q, index) => ({
+              order: index + 1,
+              type: q.type,
+              question: q.question,
+              required: q.required,
+              ...(q.options && { options: q.options.map(opt => opt.text) }),
+              ...(q.tableColumns && q.tableRows && {
+                table_columns: q.tableColumns.map(col => col.label),
+                table_rows: q.tableRows.map(row => row.cells)
+              }),
+              ...(q.content && { content: q.content })
+            }))
+          };
+          
+          if (questionnaireDescription.trim()) {
+            jsonData.description = questionnaireDescription.trim();
+          }
+          
+          const response = await apiService.put(`/api/organization/documents/${questionnaireId}`, jsonData);
+          
+          if (response.success) {
+            showSuccess('Questionnaire mis à jour avec succès');
+            if (window.opener) {
+              setTimeout(() => window.close(), 1500);
+            } else {
+              handleBack();
+            }
+          } else {
+            showError('Erreur', response.message || 'Impossible de mettre à jour le questionnaire');
+          }
+        } else {
+          // Create new orphan questionnaire
+          const formDataToSend = new FormData();
+          formDataToSend.append('name', questionnaireTitle.trim());
+          formDataToSend.append('document_type', 'custom_builder');
+          formDataToSend.append('audience_type', 'students');
+          formDataToSend.append('is_certificate', String(0));
+          formDataToSend.append('is_questionnaire', '1');
+          formDataToSend.append('questionnaire_type', 'custom');
+          
+          if (questionnaireDescription.trim()) {
+            formDataToSend.append('description', questionnaireDescription.trim());
+          }
+
+          formDataToSend.append('custom_template', JSON.stringify(customTemplate));
+          formDataToSend.append('questions', JSON.stringify(questions.map((q, index) => ({
+            order: index + 1,
+            type: q.type,
+            question: q.question,
+            required: q.required,
+            ...(q.options && { options: q.options.map(opt => opt.text) }),
+            ...(q.tableColumns && q.tableRows && {
+              table_columns: q.tableColumns.map(col => col.label),
+              table_rows: q.tableRows.map(row => row.cells)
+            }),
+            ...(q.content && { content: q.content })
+          }))));
+
+          const response = await courseCreation.createOrganizationDocument(formDataToSend);
+          
+          if (response.success) {
+            showSuccess('Questionnaire créé avec succès');
+            if (window.opener) {
+              setTimeout(() => window.close(), 1500);
+            } else {
+              handleBack();
+            }
+          } else {
+            showError('Erreur', response.message || 'Impossible de créer le questionnaire');
+          }
         }
       }
     } catch (error: any) {
@@ -463,6 +769,13 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
         } else {
           navigate(`/course-creation?courseUuid=${courseUuid}&step=4`);
         }
+      } else {
+        // For orphan questionnaires, navigate to document hub
+        if (subdomain) {
+          navigate(`/${subdomain}/document-hub`);
+        } else {
+          navigate('/document-hub');
+        }
       }
     }
   };
@@ -479,6 +792,17 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  if (loading) {
+    return (
+      <div className={`w-full ${isDark ? 'bg-gray-900' : 'bg-gray-50'} min-h-full flex items-center justify-center`}>
+        <div className="text-center">
+          <Loader2 className={`h-12 w-12 animate-spin mx-auto mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ color: primaryColor }} />
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Chargement du questionnaire...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full ${isDark ? 'bg-gray-900' : 'bg-gray-50'} min-h-full`}>
@@ -501,12 +825,12 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                 className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
-                Créer un questionnaire
+                {isEditMode ? 'Modifier un questionnaire' : 'Créer un questionnaire'}
               </h1>
               <p 
                 className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
               >
-                Configurez votre questionnaire personnalisé
+                {isEditMode ? 'Modifiez votre questionnaire personnalisé' : 'Configurez votre questionnaire personnalisé'}
               </p>
             </div>
           </div>
@@ -551,7 +875,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   >
                     {organization?.organization_logo ? (
                       <img 
-                        src={organization.organization_logo} 
+                        src={fixImageUrl(organization.organization_logo)} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />
@@ -1302,7 +1626,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   >
                     {organization?.organization_logo ? (
                       <img 
-                        src={organization.organization_logo} 
+                        src={fixImageUrl(organization.organization_logo)} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />

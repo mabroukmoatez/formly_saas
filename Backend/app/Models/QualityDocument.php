@@ -108,6 +108,11 @@ class QualityDocument extends Model
         static::deleting(function ($document) {
             $document->deleteFile();
         });
+
+        // Recalculate completion rate when document is attached to indicators
+        static::created(function ($document) {
+            // This will be handled by the attach event
+        });
     }
 }
 

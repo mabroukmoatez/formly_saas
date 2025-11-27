@@ -504,6 +504,24 @@ export const updateQualityIndicator = async (
   return response.data;
 };
 
+/**
+ * Batch update indicators - updates multiple indicators in a single request
+ * This prevents infinite loops that can occur when updating indicators individually
+ */
+export const batchUpdateIndicators = async (
+  updates: Array<{
+    id: number;
+    isApplicable?: boolean;
+    status?: string;
+    title?: string;
+    description?: string;
+  }>
+) => {
+  // Backend expects 'indicators' field, not 'updates'
+  const response = await api.post('/api/quality/indicators/batch-update', { indicators: updates });
+  return response.data;
+};
+
 export const getIndicatorDocuments = async (
   id: number,
   type?: 'procedure' | 'model' | 'evidence'

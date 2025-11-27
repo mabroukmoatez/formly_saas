@@ -3,7 +3,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { GripVertical, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { GripVertical, Trash2, ChevronDown, ChevronRight, Edit } from 'lucide-react';
 
 interface SubChapter {
   id: string;
@@ -49,7 +49,7 @@ export const SubChapterItem: React.FC<SubChapterItemProps> = ({
     <div className="ml-6 space-y-2">
       {/* SubChapter Header */}
       <div 
-        className={`flex items-center justify-between px-[17px] py-3 rounded-[18px] border border-solid transition-all ${
+        className={`group flex items-center justify-between px-[17px] py-3 rounded-[18px] border border-solid transition-all ${
           isDark ? 'bg-gray-600 border-gray-500' : 'bg-gray-50 border-gray-300'
         } ${
           isDragging ? 'opacity-50' : ''
@@ -75,8 +75,10 @@ export const SubChapterItem: React.FC<SubChapterItemProps> = ({
               }`}
             />
             <span className={`[font-family:'Poppins',Helvetica] font-medium text-[16px] ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
+              isDark ? 'text-purple-300' : 'text-purple-700'
+            }`} style={{
+              color: isDark ? '#E9D5FF' : '#9333EA' // Violet/Rose selon la documentation
+            }}>
               {t('courseSteps.step2.sections.chapters.subChapter')} {subChapter.order}:
             </span>
           </div>
@@ -93,7 +95,7 @@ export const SubChapterItem: React.FC<SubChapterItemProps> = ({
           />
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             variant="ghost"
             size="sm"
@@ -105,6 +107,20 @@ export const SubChapterItem: React.FC<SubChapterItemProps> = ({
             ) : (
               <ChevronRight className="w-4 h-4" />
             )}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Navigate to Phase 3: Édition (expand the subchapter to show content)
+              onToggleExpanded(chapterId, subChapter.id);
+            }}
+            className="p-1 text-blue-500 hover:text-blue-700"
+            title="Éditer"
+          >
+            <Edit className="w-4 h-4" />
           </Button>
           
           <Button

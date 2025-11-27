@@ -187,6 +187,14 @@ class QualityDocumentController extends Controller
             // Attach indicators
             $document->indicators()->attach($request->indicatorIds);
 
+            // Recalculate completion rates for all affected indicators
+            foreach ($request->indicatorIds as $indicatorId) {
+                $indicator = QualityIndicator::find($indicatorId);
+                if ($indicator) {
+                    $indicator->recalculateCompletionRate();
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -406,6 +414,14 @@ class QualityDocumentController extends Controller
             // Attach indicators
             $document->indicators()->attach($indicatorIds);
 
+            // Recalculate completion rates for all affected indicators
+            foreach ($indicatorIds as $indicatorId) {
+                $indicator = QualityIndicator::find($indicatorId);
+                if ($indicator) {
+                    $indicator->recalculateCompletionRate();
+                }
+            }
+
             // Load relationships for response
             $document->load(['creator', 'indicators']);
 
@@ -518,7 +534,21 @@ class QualityDocumentController extends Controller
             $document->update($request->only(['name', 'type', 'description']));
 
             if ($request->has('indicatorIds')) {
+                // Get old indicator IDs before sync
+                $oldIndicatorIds = $document->indicators->pluck('id')->toArray();
+                
                 $document->indicators()->sync($request->indicatorIds);
+                
+                // Get all affected indicator IDs (old + new)
+                $affectedIndicatorIds = array_unique(array_merge($oldIndicatorIds, $request->indicatorIds));
+                
+                // Recalculate completion rates for all affected indicators
+                foreach ($affectedIndicatorIds as $indicatorId) {
+                    $indicator = QualityIndicator::find($indicatorId);
+                    if ($indicator) {
+                        $indicator->recalculateCompletionRate();
+                    }
+                }
             }
 
             return response()->json([
@@ -546,7 +576,16 @@ class QualityDocumentController extends Controller
     {
         try {
             $document = QualityDocument::findOrFail($id);
+            
+            // Get indicators before deletion to recalculate their completion rates
+            $indicators = $document->indicators;
+            
             $document->delete();
+
+            // Recalculate completion rates for all affected indicators
+            foreach ($indicators as $indicator) {
+                $indicator->recalculateCompletionRate();
+            }
 
             return response()->json([
                 'success' => true,
@@ -590,7 +629,22 @@ class QualityDocumentController extends Controller
             }
 
             $document = QualityDocument::findOrFail($id);
+            
+            // Get old indicator IDs before sync
+            $oldIndicatorIds = $document->indicators->pluck('id')->toArray();
+            
             $document->indicators()->sync($request->indicatorIds);
+            
+            // Get all affected indicator IDs (old + new)
+            $affectedIndicatorIds = array_unique(array_merge($oldIndicatorIds, $request->indicatorIds));
+            
+            // Recalculate completion rates for all affected indicators
+            foreach ($affectedIndicatorIds as $indicatorId) {
+                $indicator = QualityIndicator::find($indicatorId);
+                if ($indicator) {
+                    $indicator->recalculateCompletionRate();
+                }
+            }
 
             return response()->json([
                 'success' => true,

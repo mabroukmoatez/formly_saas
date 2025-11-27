@@ -28,8 +28,10 @@ import { useToast } from '../../components/ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { courseCreation } from '../../services/courseCreation';
 import { sessionCreation } from '../../services/sessionCreation';
+import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
 import { VariableDefinition, AVAILABLE_VARIABLES } from '../../components/CourseCreation/VariableSelector';
+import { fixImageUrl } from '../../lib/utils';
 
 interface DocumentField {
   id: string;
@@ -60,6 +62,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
   
   const courseUuid = propCourseUuid || paramCourseUuid || searchParams.get('courseUuid');
   const sessionUuid = propSessionUuid || searchParams.get('sessionUuid');
+  const documentId = searchParams.get('documentId');
   const primaryColor = organization?.primary_color || '#2196F3';
 
   const [documentTitle, setDocumentTitle] = useState('');
@@ -68,6 +71,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [fields, setFields] = useState<DocumentField[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [documentIdState, setDocumentIdState] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
   const [expandedFieldId, setExpandedFieldId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -205,10 +211,11 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
   };
 
   const handleSave = async () => {
-    if (!courseUuid && !sessionUuid) {
-      showError('Erreur', 'UUID du cours ou de la session manquant');
-      return;
-    }
+    // Allow creating orphan documents (without courseUuid or sessionUuid)
+    // if (!courseUuid && !sessionUuid) {
+    //   showError('Erreur', 'UUID du cours ou de la session manquant');
+    //   return;
+    // }
 
     if (!documentTitle.trim()) {
       showError('Erreur', 'Veuillez saisir un titre de document');
@@ -289,7 +296,11 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
       formData.append('name', documentTitle.trim());
       formData.append('document_type', 'custom_builder');
       formData.append('audience_type', 'students');
-      formData.append('is_certificate', isCertificate ? '1' : '0');
+      // Laravel validation: try sending boolean directly (FormData converts to string)
+      // If backend expects '1'/'0', use: isCertificate ? '1' : '0'
+      // If backend expects 'true'/'false', use: isCertificate ? 'true' : 'false'
+      // If backend expects boolean, send directly: isCertificate
+      formData.append('is_certificate', String(isCertificate ? 1 : 0));
       
       // Ajouter l'image de background si c'est un certificat
       if (isCertificate && certificateBackground) {
@@ -328,19 +339,65 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
 
       formData.append('custom_template', customTemplateString);
 
-      const response = sessionUuid 
-        ? await sessionCreation.createDocumentEnhanced(sessionUuid, formData)
-        : await courseCreation.createDocumentEnhanced(courseUuid!, formData);
+      // Create or update document
+      let response;
       
-      if (response.success) {
-        showSuccess('Document créé avec succès');
-        if (window.opener) {
-          setTimeout(() => window.close(), 1500);
+      if (isEditMode && documentIdState) {
+        // Update existing document
+        const jsonData: any = {
+          name: documentTitle.trim(),
+          document_type: 'custom_builder',
+          audience_type: 'students',
+          is_certificate: isCertificate,
+          custom_template: customTemplate
+        };
+        
+        if (certificateBackground && isCertificate) {
+          jsonData.certificate_background = certificateBackground;
+        }
+        
+        if (sessionUuid) {
+          // For sessions, use FormData
+          response = await apiService.put(`/api/organization/sessions/${sessionUuid}/documents/${documentIdState}`, formData);
+        } else if (courseUuid) {
+          // For courses, use FormData with updateDocumentEnhanced
+          response = await courseCreation.updateDocumentEnhanced(courseUuid, documentIdState, formData);
         } else {
-          handleBack();
+          // Update orphan document at organization level - use FormData
+          response = await apiService.put(`/api/organization/documents/${documentIdState}`, formData);
+        }
+        
+        if (response.success) {
+          showSuccess('Document mis à jour avec succès');
+          if (window.opener) {
+            setTimeout(() => window.close(), 1500);
+          } else {
+            handleBack();
+          }
+        } else {
+          showError('Erreur', response.message || 'Impossible de mettre à jour le document');
         }
       } else {
-        showError('Erreur', 'Impossible de créer le document');
+        // Create new document
+        if (sessionUuid) {
+          response = await sessionCreation.createDocumentEnhanced(sessionUuid, formData);
+        } else if (courseUuid) {
+          response = await courseCreation.createDocumentEnhanced(courseUuid, formData);
+        } else {
+          // Create orphan document at organization level
+          response = await courseCreation.createOrganizationDocument(formData);
+        }
+        
+        if (response.success) {
+          showSuccess('Document créé avec succès');
+          if (window.opener) {
+            setTimeout(() => window.close(), 1500);
+          } else {
+            handleBack();
+          }
+        } else {
+          showError('Erreur', response.message || 'Impossible de créer le document');
+        }
       }
     } catch (error: any) {
       console.error('Error creating document:', error);
@@ -366,9 +423,129 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
         } else {
           navigate(`/course-creation?courseUuid=${courseUuid}&step=3`);
         }
+      } else {
+        // If no course or session, navigate to document library or home
+        if (subdomain) {
+          navigate(`/${subdomain}/document-hub`);
+        } else {
+          navigate('/document-hub');
+        }
       }
     }
   };
+
+  // Load document data if in edit mode
+  useEffect(() => {
+    const loadDocumentData = async () => {
+      if (!documentId) {
+        setIsEditMode(false);
+        setDocumentIdState(null);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setIsEditMode(true);
+        
+        const docId = parseInt(documentId);
+        setDocumentIdState(docId);
+        
+        // Fetch the specific document
+        const response = await apiService.get(`/api/organization/documents/${docId}`);
+        
+        console.log('📄 Document API Response:', response);
+        
+        if (response.success && response.data) {
+          const document = response.data;
+          
+          console.log('📄 Document Data:', document);
+          console.log('📄 Custom template:', document.custom_template);
+          
+          setDocumentTitle(document.name || '');
+          setIsCertificate(document.is_certificate || false);
+          
+          if (document.certificate_background_url) {
+            setCertificateBackground(document.certificate_background_url);
+          }
+          
+          // Load fields from custom_template
+          if (document.custom_template) {
+            console.log('📄 Custom template structure:', document.custom_template);
+            
+            let loadedFields: DocumentField[] = [];
+            
+            // Check if fields are directly in custom_template.fields
+            if (document.custom_template.fields && Array.isArray(document.custom_template.fields)) {
+              console.log('✅ Found fields in custom_template.fields:', document.custom_template.fields.length);
+              loadedFields = document.custom_template.fields.map((f: any, index: number) => {
+                const field: DocumentField = {
+                  id: f.id || `field-${Date.now()}-${index}`,
+                  type: (f.type || 'text') as DocumentField['type'],
+                  label: f.label || 'Text Field',
+                  content: f.content || ''
+                };
+                
+                // Handle table data
+                if (f.tableData) {
+                  field.tableData = f.tableData;
+                } else if (f.type === 'title_with_table' && f.table_columns && f.table_rows) {
+                  field.tableData = {
+                    columns: f.table_columns,
+                    rows: f.table_rows
+                  };
+                }
+                
+                // Handle signature fields
+                if (f.signatureFields && Array.isArray(f.signatureFields)) {
+                  field.signatureFields = f.signatureFields;
+                } else if (f.type === 'signature' && f.signature_fields) {
+                  field.signatureFields = f.signature_fields;
+                }
+                
+                // Handle organization signature
+                if (f.organizationSignature) {
+                  field.organizationSignature = f.organizationSignature;
+                } else if (f.organization_signature) {
+                  field.organizationSignature = f.organization_signature;
+                }
+                
+                return field;
+              });
+            } else if (document.custom_template.pages && Array.isArray(document.custom_template.pages)) {
+              // If fields are not directly available, try to extract from pages content
+              console.log('⚠️ Fields not directly available, trying to extract from pages...');
+              // For now, set empty fields - the user can add new fields
+              loadedFields = [];
+            }
+            
+            setFields(loadedFields);
+            console.log('✅ Loaded fields:', loadedFields);
+            
+            if (loadedFields.length === 0) {
+              console.warn('⚠️ No fields found in custom_template - document may need fields to be added');
+            }
+          } else {
+            console.warn('⚠️ No custom_template found');
+            setFields([]);
+          }
+          
+          // Load pages info
+          if (document.custom_template && document.custom_template.pages) {
+            setTotalPages(document.custom_template.total_pages || 1);
+          }
+        } else {
+          showError('Erreur', 'Impossible de charger le document');
+        }
+      } catch (error: any) {
+        console.error('Error loading document:', error);
+        showError('Erreur', 'Impossible de charger le document');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDocumentData();
+  }, [documentId]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -382,6 +559,17 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  if (loading) {
+    return (
+      <div className={`w-full ${isDark ? 'bg-gray-900' : 'bg-gray-50'} min-h-full flex items-center justify-center`}>
+        <div className="text-center">
+          <Loader2 className={`h-12 w-12 animate-spin mx-auto mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ color: primaryColor }} />
+          <p className={`text-lg ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Chargement du document...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full ${isDark ? 'bg-gray-900' : 'bg-gray-50'} min-h-full`}>
@@ -402,12 +590,12 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                 className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
-                Créer un document
+                {isEditMode ? 'Modifier un document' : 'Créer un document'}
               </h1>
               <p 
                 className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
               >
-                Configurez votre document personnalisé
+                {isEditMode ? 'Modifiez votre document personnalisé' : 'Configurez votre document personnalisé'}
               </p>
             </div>
           </div>
@@ -582,9 +770,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
-                    {organization?.organization_logo ? (
+                    {(organization?.organization_logo_url || organization?.organization_logo) ? (
                       <img 
-                        src={organization.organization_logo} 
+                        src={fixImageUrl(organization.organization_logo_url || organization.organization_logo || '')} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />
@@ -1104,9 +1292,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
-                    {organization?.organization_logo ? (
+                    {(organization?.organization_logo_url || organization?.organization_logo) ? (
                       <img 
-                        src={organization.organization_logo} 
+                        src={fixImageUrl(organization.organization_logo_url || organization.organization_logo || '')} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />

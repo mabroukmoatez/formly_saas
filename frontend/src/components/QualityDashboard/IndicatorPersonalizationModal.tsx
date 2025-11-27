@@ -59,10 +59,10 @@ export const IndicatorPersonalizationModal: React.FC<IndicatorPersonalizationMod
     try {
       const response = await getQualityIndicators();
       console.log('✅ IndicatorPersonalizationModal loadCurrentAnswers response:', response);
-      
+
       // Handle different response structures
       let indicatorsArray: any[] = [];
-      
+
       if (response && typeof response === 'object') {
         if (response.success === true && response.data) {
           // Structure: { success: true, data: { indicators: [...] } }
@@ -78,17 +78,17 @@ export const IndicatorPersonalizationModal: React.FC<IndicatorPersonalizationMod
           indicatorsArray = response.data;
         }
       }
-      
+
       const indicators = Array.isArray(indicatorsArray) ? indicatorsArray : [];
-      
+
       // Infer answers from indicator applicability
       // Question 1: If indicators 1, 2, 3 are not applicable → isExclusiveSubcontractor = true
       const indicator1 = indicators.find((ind: any) => ind.number === 1);
       const indicator2 = indicators.find((ind: any) => ind.number === 2);
       const indicator3 = indicators.find((ind: any) => ind.number === 3);
-      const isExclusiveSubcontractor = indicator1?.isApplicable === false && 
-                                       indicator2?.isApplicable === false && 
-                                       indicator3?.isApplicable === false;
+      const isExclusiveSubcontractor = indicator1?.isApplicable === false &&
+        indicator2?.isApplicable === false &&
+        indicator3?.isApplicable === false;
 
       // Question 2: If indicator 8 is not applicable → hasPrerequisites = false
       const indicator8 = indicators.find((ind: any) => ind.number === 8);
@@ -101,9 +101,9 @@ export const IndicatorPersonalizationModal: React.FC<IndicatorPersonalizationMod
       // Question 4: If indicators 3, 7, 15 are applicable → hasRNCP = true
       const indicator7 = indicators.find((ind: any) => ind.number === 7);
       const indicator15 = indicators.find((ind: any) => ind.number === 15);
-      const hasRNCP = indicator3?.isApplicable === true && 
-                      indicator7?.isApplicable === true && 
-                      indicator15?.isApplicable === true;
+      const hasRNCP = indicator3?.isApplicable === true &&
+        indicator7?.isApplicable === true &&
+        indicator15?.isApplicable === true;
 
       // Question 5: If indicator 13 is applicable → hasAlternance = true
       const indicator13 = indicators.find((ind: any) => ind.number === 13);
@@ -185,10 +185,10 @@ export const IndicatorPersonalizationModal: React.FC<IndicatorPersonalizationMod
       const updates = calculateIndicatorApplicability();
       const response = await getQualityIndicators();
       console.log('✅ IndicatorPersonalizationModal handleSave response:', response);
-      
+
       // Handle different response structures
       let indicatorsArray: any[] = [];
-      
+
       if (response && typeof response === 'object') {
         if (response.success === true && response.data) {
           // Structure: { success: true, data: { indicators: [...] } }
@@ -204,7 +204,7 @@ export const IndicatorPersonalizationModal: React.FC<IndicatorPersonalizationMod
           indicatorsArray = response.data;
         }
       }
-      
+
       const indicators = Array.isArray(indicatorsArray) ? indicatorsArray : [];
 
       // Update indicators

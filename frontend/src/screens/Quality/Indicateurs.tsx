@@ -52,88 +52,83 @@ export const Indicateurs = (): JSX.Element => {
   return (
     <div className="px-[27px] py-8">
       {/* Page Title Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div 
-            className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
-            style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
-          >
-            <Bookmark className="w-6 h-6" style={{ color: primaryColor }} />
-          </div>
-          <div>
-            <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
-              Mes Indicateurs
-            </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              Gérez vos indicateurs Qualiopi et suivez votre conformité
-            </p>
-          </div>
-        </div>
-      </div>
-
       <Card className="border-2 border-[#e2e2ea] rounded-[18px]">
         <CardHeader>
           <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-            Liste des Indicateurs
+            Indicateurs du Référentiel qualiopi
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+          {/* Grid with 3 cards per row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {indicators.map((indicator) => (
-              <Card
+              <div
                 key={indicator.id}
                 onClick={() => navigateToRoute(`/quality/indicateurs/${indicator.id}`)}
-                className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                  indicator.status === 'completed'
-                    ? 'border-[#25c9b5] hover:border-[#25c9b5]'
-                    : indicator.status === 'in_progress'
-                    ? 'border-[#ff7700] hover:border-[#ff7700]'
-                    : 'border-[#e8f0f7] hover:border-[#ff7700]'
-                }`}
+                className="bg-white relative rounded-[18px] cursor-pointer transition-all hover:shadow-lg"
               >
-                <CardContent className="p-4 flex flex-col items-center gap-2">
-                  <div className={`relative flex items-center justify-center w-16 h-16 rounded-full border-[3.49px] ${
-                    indicator.status === 'completed'
-                      ? 'border-[#25c9b5] bg-[#25c9b5]/10'
-                      : indicator.status === 'in_progress'
-                      ? 'border-[#ff7700] bg-[#ff7700]/10'
-                      : 'border-[#e8f0f7]'
-                  }`}>
-                <span
-                  className={`[font-family:'Poppins',Helvetica] font-semibold text-lg text-center ${
-                    indicator.status === 'completed' 
-                      ? 'text-[#25c9b5]' 
-                      : indicator.status === 'in_progress'
-                      ? 'text-[#ff7700]'
-                      : 'text-black'
-                  }`}
-                >
-                  {indicator.number}
-                </span>
-                {indicator.overlay_color && indicator.status === 'completed' && (
-                  <div
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white"
-                    style={{ backgroundColor: indicator.overlay_color }}
-                  />
-                )}
-              </div>
-                  <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-sm text-center line-clamp-2 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                    {indicator.title}
-                  </h3>
-                  {indicator.documentCounts && (
-                    <div className="flex items-center gap-2 text-xs [font-family:'Poppins',Helvetica]">
-                      <span className="text-[#ff7700]">{indicator.documentCounts.procedures} P</span>
-                      <span className="text-[#25c9b5]">{indicator.documentCounts.models} M</span>
-                      <span className="text-[#d7e07f]">{indicator.documentCounts.evidences} Pr</span>
+                <div aria-hidden="true" className="absolute border-2 border-[#e2e2ea] border-solid inset-0 pointer-events-none rounded-[18px]" />
+                <div className="size-full">
+                  <div className="box-border content-stretch flex flex-col gap-[14px] items-start p-[24px] relative size-full">
+                    {/* Top: Indicator Number + Title */}
+                    <div className="content-stretch flex gap-[12px] items-center relative shrink-0 w-full">
+                      {/* Indicator Number Circle */}
+                      <div className="content-stretch flex gap-[6.984px] items-center justify-center relative rounded-[55.87px] shrink-0 size-[48.188px]">
+                        <div aria-hidden="true" className="absolute border-[#e8f0f7] border-[3.492px] border-solid inset-0 pointer-events-none rounded-[55.87px]" />
+                        <p className="capitalize font-['Poppins',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[12.391px] text-black text-center text-nowrap whitespace-pre">
+                          {indicator.number}
+                        </p>
+                      </div>
+                      {/* Title */}
+                      <p className="font-['Poppins',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[17px] flex-1 line-clamp-2">
+                        {indicator.title}
+                      </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+
+                    {/* Bottom: Document Counts */}
+                    <div className="content-stretch flex gap-[16px] items-center relative shrink-0 w-full">
+                      {/* Procédures */}
+                      <div className="basis-0 bg-white grow min-h-px min-w-px relative rounded-[7.991px] shrink-0">
+                        <div aria-hidden="true" className="absolute border-[#e2e2ea] border-[1.229px] border-solid inset-0 pointer-events-none rounded-[7.991px]" />
+                        <div className="flex flex-col items-center justify-center size-full">
+                          <div className="box-border content-stretch flex flex-col font-['Poppins',sans-serif] gap-[3px] items-center justify-center leading-[normal] not-italic px-[14.752px] py-[9px] relative text-[#6a90ba] text-nowrap w-full whitespace-pre">
+                            <p className="relative shrink-0 text-[14.752px] font-medium">
+                              {indicator.documentCounts?.procedures || 0}
+                            </p>
+                            <p className="relative shrink-0 text-[10.449px]">Procédures</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Modèles */}
+                      <div className="basis-0 bg-white grow min-h-px min-w-px relative rounded-[7.991px] shrink-0">
+                        <div aria-hidden="true" className="absolute border-[#e2e2ea] border-[1.229px] border-solid inset-0 pointer-events-none rounded-[7.991px]" />
+                        <div className="flex flex-col items-center justify-center size-full">
+                          <div className="box-border content-stretch flex flex-col font-['Poppins',sans-serif] gap-[3px] items-center justify-center leading-[normal] not-italic px-[14.752px] py-[9px] relative text-[#6a90ba] text-nowrap w-full whitespace-pre">
+                            <p className="relative shrink-0 text-[14.752px] font-medium">
+                              {indicator.documentCounts?.models || 0}
+                            </p>
+                            <p className="relative shrink-0 text-[10.449px]">Modèles</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Preuves */}
+                      <div className="basis-0 bg-white grow min-h-px min-w-px relative rounded-[7.991px] shrink-0">
+                        <div aria-hidden="true" className="absolute border-[#e2e2ea] border-[1.229px] border-solid inset-0 pointer-events-none rounded-[7.991px]" />
+                        <div className="flex flex-col items-center justify-center size-full">
+                          <div className="box-border content-stretch flex flex-col font-['Poppins',sans-serif] gap-[3px] items-center justify-center leading-[normal] not-italic px-[14.752px] py-[9px] relative text-[#6a90ba] text-nowrap w-full whitespace-pre">
+                            <p className="relative shrink-0 text-[14.752px] font-medium">
+                              {indicator.documentCounts?.evidences || 0}
+                            </p>
+                            <p className="relative shrink-0 text-[10.449px]">Preuves</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -186,9 +181,9 @@ export const Indicateurs = (): JSX.Element => {
                 </div>
                 <div className="mt-4 pt-4 border-t border-[#e8f0f7]">
                   <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-[#25c9b5] to-[#ff7700]" 
-                      style={{ width: `${completionPercentage}%` }} 
+                    <div
+                      className="h-full bg-gradient-to-r from-[#25c9b5] to-[#ff7700]"
+                      style={{ width: `${completionPercentage}%` }}
                     />
                   </div>
                   <p className={`mt-2 text-center [font-family:'Poppins',Helvetica] font-medium text-sm ${isDark ? 'text-white' : 'text-[#19294a]'}`}>

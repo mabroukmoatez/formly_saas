@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useCourseCreation } from '../../contexts/CourseCreationContext';
 import { useToast } from '../ui/toast';
-import { TrainerPermissionsModal, TrainerPermissions } from './TrainerPermissionsModal';
+import { TrainerPermissions } from './TrainerPermissionsModal';
 import { courseCreation } from '../../services/courseCreation';
-import { CourseTrainerEnhanced } from '../../services/courseCreation.types';
-import { User, Trash2, Edit3, Plus, Eye, Shield, Users, Award } from 'lucide-react';
+import { Users, Trash2, Plus, Search, X, Check, Loader2, Camera, Edit3, Eye, Edit, Award, FileText, Shield, GitBranch, Upload } from 'lucide-react';
+import { TrainerSelectionModal } from './TrainerSelectionModal';
+import { TrainerCreateModal } from './TrainerCreateModal';
 
 interface CourseTrainer {
   id: number;
@@ -38,8 +40,10 @@ export const Step5FormateurNew: React.FC = () => {
   const [courseTrainers, setCourseTrainers] = useState<CourseTrainer[]>([]);
   const [availableTrainers, setAvailableTrainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showSelectionModal, setShowSelectionModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTrainer, setEditingTrainer] = useState<CourseTrainer | null>(null);
+  const [editingPermissions, setEditingPermissions] = useState<TrainerPermissions | null>(null);
 
   useEffect(() => {
     if (formData.courseUuid) {
@@ -52,18 +56,9 @@ export const Step5FormateurNew: React.FC = () => {
     try {
       setLoading(true);
       const response = await courseCreation.getCourseTrainersEnhanced(formData.courseUuid!);
-      console.log('📊 Course trainers response:', response);
       if (response.success && response.data) {
-        // Filter out any trainers without trainer data
-        const validTrainers = response.data.filter((ct: any) => {
-          if (!ct.trainer) {
-            console.warn('⚠️ Skipping course trainer without trainer data:', ct);
-            return false;
-          }
-          return true;
-        });
+        const validTrainers = response.data.filter((ct: any) => ct.trainer);
         setCourseTrainers(validTrainers);
-        console.log('✅ Loaded course trainers:', validTrainers);
       }
     } catch (error: any) {
       console.error('Error loading trainers:', error);
@@ -77,58 +72,32 @@ export const Step5FormateurNew: React.FC = () => {
     try {
       const response = await courseCreation.getOrganizationTrainers({ is_active: true });
       if (response.success && response.data) {
-        // Ensure trainers have numeric IDs - log structure for debugging
-        const trainers = response.data.map((trainer: any) => {
-          console.log('🔍 Trainer from API:', { id: trainer.id, uuid: trainer.uuid, name: trainer.name });
-          return trainer;
-        });
-        setAvailableTrainers(trainers);
+        setAvailableTrainers(response.data);
       }
     } catch (error: any) {
       console.error('Error loading available trainers:', error);
     }
   };
 
-  const handleAssignTrainer = async (trainerId: number | string, permissions: TrainerPermissions) => {
+  const handleAssignTrainers = async (trainerIds: (number | string)[], permissions: TrainerPermissions) => {
     try {
       if (!formData.courseUuid) {
         throw new Error('UUID du cours manquant');
       }
 
-      // Accept both numeric ID and UUID
-      let trainerIdentifier: number | string = trainerId;
-      
-      if (typeof trainerId === 'string') {
-        // Try to parse as number if it's a numeric string
-        const parsedId = parseInt(trainerId, 10);
-        if (!isNaN(parsedId)) {
-          trainerIdentifier = parsedId;
-        }
-        // Otherwise keep as UUID string
+      // Assign each selected trainer
+      for (const trainerId of trainerIds) {
+        // assignTrainerEnhanced will convert to string as required by backend
+        const assignmentData = { instructor_id: trainerId, permissions };
+        await courseCreation.assignTrainerEnhanced(formData.courseUuid, assignmentData);
       }
-      
-      console.log('🔵 Trainer ID:', trainerIdentifier, 'Type:', typeof trainerIdentifier);
 
-      // Backend expects instructor_id
-      const assignmentData = { instructor_id: trainerIdentifier, permissions };
-      
-      console.log('🔵 Assigning trainer with data:', assignmentData);
-      console.log('🔵 Course UUID:', formData.courseUuid);
-      
-      const response = await courseCreation.assignTrainerEnhanced(formData.courseUuid, assignmentData);
-      
-      console.log('✅ Trainer assigned response:', response);
-      
-      showSuccess('Formateur assigné avec succès');
+      showSuccess('Formateurs assignés avec succès');
       await loadCourseTrainers();
+      setShowSelectionModal(false);
     } catch (error: any) {
-      console.error('❌ Error assigning trainer:', error);
-      console.error('❌ Error details:', error.message, error.status);
-      console.error('❌ Error response:', error.response?.data);
-      
-      const errorMessage = error.response?.data?.message || error.message || 'Impossible d\'assigner le formateur';
-      showError('Erreur', errorMessage);
-      throw error;
+      console.error('Error assigning trainers:', error);
+      showError('Erreur', error.response?.data?.message || 'Impossible d\'assigner les formateurs');
     }
   };
 
@@ -147,179 +116,185 @@ export const Step5FormateurNew: React.FC = () => {
     }
   };
 
-  const getPermissionLevel = (permissions: TrainerPermissions): { label: string; color: string } => {
-    const count = Object.values(permissions).filter(Boolean).length;
-    if (count === 1) return { label: 'Lecture seule', color: isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700' };
-    if (count <= 4) return { label: 'Éditeur', color: isDark ? 'bg-blue-900/20 text-blue-300' : 'bg-blue-100 text-blue-700' };
-    if (count <= 7) return { label: 'Gestionnaire', color: isDark ? 'bg-purple-900/20 text-purple-300' : 'bg-purple-100 text-purple-700' };
-    return { label: 'Contrôle total', color: isDark ? 'bg-green-900/20 text-green-300' : 'bg-green-100 text-green-700' };
+  const handleTrainerCreated = async () => {
+    await loadAvailableTrainers();
+    setShowCreateModal(false);
+    setShowSelectionModal(true);
   };
 
-  const getPermissionIcons = (permissions: TrainerPermissions) => {
-    const icons = [];
-    if (permissions.view_course) icons.push({ icon: Eye, label: 'Voir' });
-    if (permissions.edit_content) icons.push({ icon: Edit3, label: 'Éditer' });
-    if (permissions.manage_students) icons.push({ icon: Users, label: 'Étudiants' });
-    if (permissions.grade_assignments) icons.push({ icon: Award, label: 'Noter' });
-    return icons;
+  const handleEditPermissions = (courseTrainer: CourseTrainer) => {
+    setEditingTrainer(courseTrainer);
+    setEditingPermissions(courseTrainer.permissions || {
+      view_course: true,
+      edit_content: false,
+      manage_students: false,
+      grade_assignments: false,
+      view_analytics: false,
+      manage_documents: false,
+      manage_workflow: false,
+      publish_content: false
+    });
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Formateurs du Cours
-          </h2>
-          <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Assignez des formateurs et définissez leurs permissions
+  const handleSavePermissions = async () => {
+    if (!editingTrainer || !editingPermissions || !formData.courseUuid) {
+      return;
+    }
+
+    try {
+      await courseCreation.updateTrainerPermissionsEnhanced(
+        formData.courseUuid,
+        editingTrainer.trainer_id,
+        { permissions: editingPermissions }
+      );
+      showSuccess('Permissions mises à jour avec succès');
+      await loadCourseTrainers();
+      setEditingTrainer(null);
+      setEditingPermissions(null);
+    } catch (error: any) {
+      console.error('Error updating permissions:', error);
+      showError('Erreur', error.response?.data?.message || 'Impossible de mettre à jour les permissions');
+    }
+  };
+
+  const handlePermissionToggle = (key: keyof TrainerPermissions) => {
+    if (!editingPermissions) return;
+    const newPermissions = { ...editingPermissions, [key]: !editingPermissions[key] };
+    setEditingPermissions(newPermissions);
+  };
+
+  // Empty state (before any trainers are assigned)
+  if (courseTrainers.length === 0 && !loading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center py-8 px-6">
+        {/* Image without blur */}
+        <div className="mb-6">
+          <img 
+            src="/assets/images/step5.png" 
+            alt="Formateurs"
+            className="max-w-full h-auto"
+          />
+        </div>
+        
+        {/* Text content */}
+        <div className="text-center px-6 max-w-2xl mb-6">
+          <p className={`text-lg mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+            Tous les formateurs de vos Parties-prenantes peuvent animer cette formation.
+          </p>
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            Spécifiez Des Formateurs Ici Pour Restreindre L'animation Des Séances.
           </p>
         </div>
+        
+        {/* Button under the image and text */}
         <Button
-          onClick={() => setShowAssignModal(true)}
+          onClick={() => setShowSelectionModal(true)}
           style={{ backgroundColor: primaryColor }}
-          className="gap-2"
+          className="gap-2 px-6 py-3 text-base"
         >
-          <Plus className="w-4 h-4" />
-          Assigner un Formateur
+          <Users className="w-5 h-5" />
+          Sélectionner Un Formateur
         </Button>
+
+        {/* Modals */}
+        <TrainerSelectionModal
+          isOpen={showSelectionModal}
+          onClose={() => setShowSelectionModal(false)}
+          onSelect={handleAssignTrainers}
+          availableTrainers={availableTrainers}
+          onCreateNew={() => {
+            setShowSelectionModal(false);
+            setShowCreateModal(true);
+          }}
+        />
+
+        <TrainerCreateModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleTrainerCreated}
+        />
       </div>
+    );
+  }
 
-      {/* Info Card */}
-      <Card className={`${isDark ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'} border`}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Shield className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h4 className={`font-medium mb-1 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
-                Permissions Granulaires
-              </h4>
-              <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                Contrôlez précisément ce que chaque formateur peut faire : voir, éditer, gérer les étudiants, noter, etc.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Trainers List */}
+  // Trainers grid view (when trainers are assigned)
+  return (
+    <div className="space-y-6">
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${primaryColor}40`, borderTopColor: primaryColor }} />
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
         </div>
-      ) : courseTrainers.length === 0 ? (
-        <Card className={isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}>
-          <CardContent className="py-12">
-            <div className="text-center">
-              <User className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: primaryColor }} />
-              <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Aucun formateur assigné
-              </h3>
-              <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Assignez des formateurs pour collaborer sur ce cours
-              </p>
-              <Button
-                onClick={() => setShowAssignModal(true)}
-                style={{ backgroundColor: primaryColor }}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Assigner le Premier Formateur
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Trainer Cards */}
           {courseTrainers.map(courseTrainer => {
-            // Guard against missing trainer data
-            if (!courseTrainer?.trainer) {
-              console.error('❌ CourseTrainer missing trainer data:', courseTrainer);
-              return null;
-            }
-
-            const permLevel = getPermissionLevel(courseTrainer.permissions);
-            const permIcons = getPermissionIcons(courseTrainer.permissions);
+            if (!courseTrainer?.trainer) return null;
+            
             const trainer = courseTrainer.trainer;
             
             return (
-              <Card key={courseTrainer.id} className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} hover:shadow-lg transition-shadow`}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4 flex-1">
-                      {/* Avatar */}
-                      {trainer.avatar_url ? (
-                        <img 
-                          src={trainer.avatar_url} 
-                          alt={trainer.name || 'Formateur'}
-                          className="w-14 h-14 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl`} style={{ backgroundColor: primaryColor }}>
-                          {trainer.name?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                      )}
-
-                      {/* Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {trainer.name || 'Formateur'}
-                          </h3>
-                          <Badge className={permLevel.color}>
-                            {permLevel.label}
-                          </Badge>
-                        </div>
-
-                        <p className={`text-sm mb-3 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {trainer.email || 'Email non disponible'}
-                        </p>
-
-                        {trainer.specialization && (
-                          <p className={`text-sm mb-3 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                            Spécialisation: {trainer.specialization}
-                          </p>
-                        )}
-
-                        {/* Permission Icons */}
-                        <div className="flex flex-wrap gap-2">
-                          {permIcons.map(({ icon: Icon, label }, idx) => (
-                            <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-                              <Icon className="w-3 h-3" />
-                              {label}
-                            </div>
-                          ))}
-                          {Object.values(courseTrainer.permissions).filter(Boolean).length > 4 && (
-                            <div className={`px-2 py-1 rounded text-xs ${isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
-                              +{Object.values(courseTrainer.permissions).filter(Boolean).length - 4} autres
-                            </div>
-                          )}
-                        </div>
-
-                        <p className={`text-xs mt-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Assigné le {new Date(courseTrainer.assigned_at).toLocaleDateString('fr-FR')}
-                        </p>
+              <Card 
+                key={courseTrainer.id} 
+                className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} hover:shadow-lg transition-shadow`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex flex-col items-center text-center">
+                    {/* Avatar */}
+                    {trainer.avatar_url ? (
+                      <img 
+                        src={trainer.avatar_url} 
+                        alt={trainer.name || 'Formateur'}
+                        className="w-20 h-20 rounded-full object-cover mb-3"
+                      />
+                    ) : (
+                      <div 
+                        className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl mb-3"
+                        style={{ backgroundColor: primaryColor }}
+                      >
+                        {trainer.name?.charAt(0).toUpperCase() || 'U'}
                       </div>
-                    </div>
+                    )}
+
+                    {/* Name */}
+                    <h3 className={`text-base font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {trainer.name || 'Formateur'}
+                    </h3>
+
+                    {/* Domain Label */}
+                    <p className={`text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Domaine
+                    </p>
+
+                    {/* Badge */}
+                    <Badge 
+                      className="mb-3 px-3 py-1"
+                      style={{ 
+                        backgroundColor: isDark ? '#7C3AED' : '#EDE9FE',
+                        color: isDark ? '#C4B5FD' : '#7C3AED',
+                        border: 'none'
+                      }}
+                    >
+                      <Users className="w-3 h-3 mr-1" />
+                      Formateur
+                    </Badge>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex gap-2 w-full mt-2">
                       <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => setEditingTrainer(courseTrainer)}
-                        className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
-                        title="Modifier permissions"
+                        size="sm"
+                        onClick={() => handleEditPermissions(courseTrainer)}
+                        className="flex-1"
+                        style={{ color: primaryColor }}
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Permissions
                       </Button>
                       <Button
                         variant="ghost"
-                        size="icon"
+                        size="sm"
                         onClick={() => handleRemoveTrainer(courseTrainer.trainer_id)}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        title="Retirer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -329,19 +304,180 @@ export const Step5FormateurNew: React.FC = () => {
               </Card>
             );
           })}
+
+          {/* Add Trainer Card */}
+          <Card 
+            className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-2 border-dashed hover:border-solid transition-all cursor-pointer`}
+            onClick={() => setShowSelectionModal(true)}
+            style={{ 
+              borderColor: isDark ? '#4B5563' : primaryColor,
+              borderStyle: 'dashed'
+            }}
+          >
+            <CardContent className="p-4 flex flex-col items-center justify-center h-full min-h-[280px]">
+              <div 
+                className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                style={{ backgroundColor: `${primaryColor}20` }}
+              >
+                <Plus className="w-8 h-8" style={{ color: primaryColor }} />
+              </div>
+              <p 
+                className="text-base font-medium"
+                style={{ color: primaryColor }}
+              >
+                Ajouter Formateur
+              </p>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Assign Trainer Modal */}
-      <TrainerPermissionsModal
-        isOpen={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        onSave={handleAssignTrainer}
-        courseUuid={formData.courseUuid || ''}
+      {/* Modals */}
+      <TrainerSelectionModal
+        isOpen={showSelectionModal}
+        onClose={() => setShowSelectionModal(false)}
+        onSelect={handleAssignTrainers}
         availableTrainers={availableTrainers}
-        assignedTrainers={courseTrainers}
+        onCreateNew={() => {
+          setShowSelectionModal(false);
+          setShowCreateModal(true);
+        }}
       />
+
+      <TrainerCreateModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSave={handleTrainerCreated}
+      />
+
+      {/* Edit Permissions Modal */}
+      {editingTrainer && editingPermissions && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div 
+            className={`w-full max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden ${
+              isDark ? 'bg-gray-800' : 'bg-white'
+            }`}
+          >
+            {/* Header */}
+            <div className={`p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Modifier les permissions
+                  </h2>
+                  <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {editingTrainer.trainer.name}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setEditingTrainer(null);
+                    setEditingPermissions(null);
+                  }}
+                  className={isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Permissions List */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="space-y-3">
+                {[
+                  { key: 'view_course' as const, label: 'Voir le cours', description: 'Consulter le contenu et la structure du cours', icon: Eye },
+                  { key: 'edit_content' as const, label: 'Éditer le contenu', description: 'Modifier chapitres, leçons et éléments de contenu', icon: Edit },
+                  { key: 'manage_students' as const, label: 'Gérer les étudiants', description: 'Inscrire/retirer des étudiants et suivre leur progression', icon: Users },
+                  { key: 'grade_assignments' as const, label: 'Noter les devoirs', description: 'Évaluer les soumissions et donner des feedbacks', icon: Award },
+                  { key: 'view_analytics' as const, label: 'Voir les analytics', description: 'Accéder aux statistiques et rapports du cours', icon: FileText },
+                  { key: 'manage_documents' as const, label: 'Gérer les documents', description: 'Créer, modifier et supprimer des documents', icon: Upload },
+                  { key: 'manage_workflow' as const, label: 'Gérer les workflows', description: 'Configurer les automatisations et notifications', icon: GitBranch },
+                  { key: 'publish_content' as const, label: 'Publier le contenu', description: 'Contrôler la visibilité et publication', icon: Shield }
+                ].map(({ key, label, description, icon: Icon }) => (
+                  <div
+                    key={key}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      editingPermissions[key]
+                        ? isDark ? 'border-blue-500 bg-blue-500/10' : 'border-blue-500 bg-blue-50'
+                        : isDark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            editingPermissions[key]
+                              ? 'bg-blue-500'
+                              : isDark ? 'bg-gray-600' : 'bg-gray-300'
+                          }`}
+                          style={editingPermissions[key] ? { backgroundColor: primaryColor } : {}}
+                        >
+                          <Icon className={`w-5 h-5 ${
+                            editingPermissions[key] ? 'text-white' : isDark ? 'text-gray-400' : 'text-gray-600'
+                          }`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {label}
+                            </h3>
+                            {editingPermissions[key] && (
+                              <Check className="w-4 h-4 text-green-500" />
+                            )}
+                          </div>
+                          <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {description}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => key !== 'view_course' && handlePermissionToggle(key)}
+                        disabled={key === 'view_course'}
+                        className={`w-12 h-6 rounded-full relative transition-colors flex-shrink-0 ${
+                          key === 'view_course' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+                        } ${
+                          editingPermissions[key]
+                            ? 'bg-blue-500'
+                            : isDark ? 'bg-gray-600' : 'bg-gray-300'
+                        }`}
+                        style={editingPermissions[key] ? { backgroundColor: primaryColor } : {}}
+                      >
+                        <div
+                          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                            editingPermissions[key] ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`p-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'} flex justify-end gap-3`}>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingTrainer(null);
+                  setEditingPermissions(null);
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSavePermissions}
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-

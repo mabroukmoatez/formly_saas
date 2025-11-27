@@ -819,6 +819,11 @@ export const AddDocumentModal: React.FC<AddDocumentModalProps> = ({
                           <span className={`${isDark ? 'text-gray-200' : 'text-gray-700'} [font-family:'Poppins',Helvetica] text-sm`}>
                             Indicateur {indicator.number?.toString().padStart(2, '0')} - {indicator.title}
                           </span>
+                          {indicator.isApplicable === false && (
+                            <Badge className={`${isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'} text-xs`}>
+                              Non applicable
+                            </Badge>
+                          )}
                           {selectedIndicators.includes(indicator.id) && (
                             <Badge style={{ backgroundColor: primaryColor }} className="text-white">
                               {indicator.number}

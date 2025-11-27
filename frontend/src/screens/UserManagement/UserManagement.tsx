@@ -349,10 +349,16 @@ export const UserManagement: React.FC = () => {
     if (!selectedUser) return;
 
     try {
+      // Ensure status is always included - use existing status or default to 1
+      const userStatus = selectedUser.status !== undefined && selectedUser.status !== null 
+        ? selectedUser.status 
+        : 1;
+
       const userData: any = {
         name: formData.name,
         email: formData.email,
         role_id: parseInt(formData.role_id),
+        status: userStatus, // Include status field required by backend
         phone: formData.phone || undefined,
         address: formData.address || undefined,
       };
@@ -366,6 +372,8 @@ export const UserManagement: React.FC = () => {
         userData.password = formData.password;
       }
 
+      console.log('Updating user with data:', userData); // Debug log
+      console.log('Selected user status:', selectedUser.status); // Debug log
       const response = await apiService.updateUser(selectedUser.id, userData);
       if (response.success) {
         setEditModalOpen(false);

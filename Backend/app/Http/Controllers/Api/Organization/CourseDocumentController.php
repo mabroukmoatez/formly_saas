@@ -125,7 +125,19 @@ class CourseDocumentController extends Controller
                 $request->merge(['questions' => json_decode($request->questions, true)]);
             }
             
-            // Note: No need to convert booleans here - $request->boolean() handles it automatically
+            // Normalize is_certificate before validation (handle string "0"/"1"/"false"/"true" and boolean)
+            if ($request->has('is_certificate')) {
+                $isCertValue = $request->is_certificate;
+                if (is_string($isCertValue)) {
+                    // Convert string to boolean
+                    $isCertValue = in_array(strtolower($isCertValue), ['1', 'true', 'yes'], true);
+                } elseif ($isCertValue === 0 || $isCertValue === '0') {
+                    $isCertValue = false;
+                } elseif ($isCertValue === 1 || $isCertValue === '1') {
+                    $isCertValue = true;
+                }
+                $request->merge(['is_certificate' => (bool)$isCertValue]);
+            }
             
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
@@ -140,7 +152,7 @@ class CourseDocumentController extends Controller
                 'custom_template.fields' => 'required_if:document_type,custom_builder|array|min:1',
                 'questions' => 'nullable|array',
                 'audience_type' => 'required|in:students,instructors,organization',
-                'is_certificate' => 'required|in:0,1,true,false', // Accept "0", "1", true, false
+                'is_certificate' => 'required|boolean', // Now normalized to boolean
                 'certificate_background' => 'nullable|string', // Can be base64 string or file
                 'certificate_orientation' => 'nullable|in:portrait,landscape',
                 'is_questionnaire' => 'nullable|boolean',

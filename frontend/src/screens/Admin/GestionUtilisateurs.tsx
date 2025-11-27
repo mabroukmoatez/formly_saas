@@ -196,10 +196,16 @@ export const GestionUtilisateurs = (): JSX.Element => {
 
   const handleUpdateUser = async () => {
     try {
+      // Ensure status is always included - use existing status or default to 1
+      const userStatus = selectedUser?.status !== undefined && selectedUser?.status !== null 
+        ? selectedUser.status 
+        : 1;
+
       const updateData: any = {
         name: userFormData.name,
         email: userFormData.email,
         role_id: parseInt(userFormData.role_id),
+        status: userStatus, // Include status field required by backend
         phone: userFormData.phone,
         address: userFormData.address
       };
@@ -207,6 +213,7 @@ export const GestionUtilisateurs = (): JSX.Element => {
         updateData.password = userFormData.password;
       }
 
+      console.log('Updating user with data:', updateData); // Debug log
       const response = await apiService.updateUser(selectedUser.id, updateData);
       if (response.success) {
         success('Succès', 'Utilisateur mis à jour');
