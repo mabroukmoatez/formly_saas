@@ -2766,7 +2766,7 @@ export default {
       info: 'Info',
     },
     header: {
-      hello: 'Hello,',
+      hello: 'Bonjour,',
       notifications: 'Notifications',
       profile: 'Mon profil',
       settings: 'Paramètres',
