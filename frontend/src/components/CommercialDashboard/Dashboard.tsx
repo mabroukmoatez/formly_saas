@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -24,12 +24,13 @@ export const CommercialDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [chartYear, setChartYear] = useState(new Date().getFullYear()); // Separate state for chart year filter
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedYear]);
+  }, []); // Remove selectedYear dependency - statistics should not update when chart year changes
 
   // Helper function to normalize values (convert strings to numbers)
   const normalizeValue = (value: number | string | undefined): number => {
@@ -80,15 +81,8 @@ export const CommercialDashboard: React.FC = () => {
               .map((point) => ({
                 ...point,
                 value: normalizeValue(point.value),
-              }))
-              .filter((point) => {
-                // Filter by selected year if month format is YYYY-MM
-                if (point.month && point.month.includes('-')) {
-                  const pointYear = parseInt(point.month.split('-')[0]);
-                  return pointYear === selectedYear;
-                }
-                return true; // Keep all if format is not recognized
-              }),
+              })),
+              // Note: Year filtering is now done in the useMemo below using chartYear
           },
         };
         setDashboardData(normalizedData);
@@ -140,6 +134,18 @@ export const CommercialDashboard: React.FC = () => {
 
   const kpis = dashboardData.kpis;
   const charts = dashboardData.charts || { revenue: [] };
+
+  // Filter chart data based on selected chart year
+  const filteredChartData = useMemo(() => {
+    return charts.revenue.filter((point) => {
+      // Filter by chart year if month format is YYYY-MM
+      if (point.month && point.month.includes('-')) {
+        const pointYear = parseInt(point.month.split('-')[0]);
+        return pointYear === chartYear;
+      }
+      return true; // Keep all if format is not recognized
+    });
+  }, [charts.revenue, chartYear]);
 
   // Calculate total revenue from chart data if current is 0
   const calculateTotalRevenue = (): number => {
@@ -339,11 +345,11 @@ export const CommercialDashboard: React.FC = () => {
 
         {/* Revenue Chart Card - Le composant inclut maintenant la Card */}
         <RevenueLineChart
-          data={charts.revenue || []}
+          data={filteredChartData}
           height={256}
           primaryColor={primaryColor}
-          selectedYear={selectedYear}
-          onYearChange={setSelectedYear}
+          selectedYear={chartYear}
+          onYearChange={setChartYear}
           showCard={true}
           isLoading={loading}
         />
