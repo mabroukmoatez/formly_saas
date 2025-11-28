@@ -349,6 +349,38 @@ export default {
       common: {
         client_information: 'Expense Information',
         organization_info: 'Organization Information',
+        export_excel: 'Export Excel',
+        export_pdf: 'Export PDF',
+        date: 'Date',
+        type: 'Type',
+        client: 'Client',
+        amount_ht: 'Amount Excl. Tax',
+        amount_vat: 'VAT Amount',
+        amount_ttc: 'Amount Incl. Tax',
+        status_title: 'Status',
+        actions: 'Actions',
+        total_ht: 'Total Excl. Tax',
+        vat: 'VAT',
+        total_ttc: 'Total Incl. Tax',
+        reset: 'Reset',
+        period: 'Period',
+        from: 'From',
+        to: 'To',
+        today: 'Today',
+        this_week: 'This Week',
+        this_month: 'This Month',
+        all: 'All',
+        individual: 'Individual',
+        company: 'Company',
+        created: 'Created',
+        sent: 'Sent',
+        signed: 'Signed',
+        rejected: 'Rejected',
+        expired: 'Expired',
+        cancelled: 'Cancelled',
+        apply_filters: 'Apply filters',
+        min: 'Min',
+        max: 'Max'
       },
       totalRevenue: 'Total revenue',
       unpaidAmount: 'Unpaid amount',
@@ -388,6 +420,49 @@ export default {
           expired: 'Expired',
           cancelled: 'Cancelled',
         },
+        import_quote: 'Import a quote',
+        filter_quotes: 'Filter quotes',
+        relance: 'Relance',
+        number: 'No.',
+        select_at_least_one: 'Please select at least one quote',
+        export_success: 'quote(s) exported successfully',
+        export_error: 'Unable to export quotes',
+        delete_success: 'quote(s) deleted successfully',
+        delete_single_success: 'Quote deleted successfully',
+        delete_error: 'Unable to delete quote',
+        load_error: 'Unable to load quotes',
+        relance_success: 'quote(s) relanced successfully',
+        relance_error: 'Unable to relance quotes',
+        confirm_delete_title: 'Are you sure you want to delete this quote?',
+        confirm_delete_message: 'This action is irreversible. The quote will be permanently deleted.',
+        reset: 'Reset',
+        client_type: 'Client Type',
+        amount_ttc: 'Amount (Incl. Tax)',
+        period: 'Period',
+        min: 'Min',
+        max: 'Max',
+        from: 'From',
+        to: 'To',
+        today: 'Today',
+        this_week: 'This Week',
+        this_month: 'This Month',
+        all: 'All',
+        individual: 'Individual',
+        company: 'Company',
+        apply_filters: 'Apply Filters',
+        actions: 'Actions',
+        total_ht: 'Total (Excl. Tax)',
+        total_tva: 'Total VAT',
+        total_ttc: 'Total (Incl. Tax)',
+        delete_confirm_title: 'Are you sure you want to delete this quote?',
+        delete_confirm_message: 'This action is irreversible. The quote will be permanently deleted.',
+        delete_confirm_btn: 'Delete',
+        cancel_btn: 'Cancel',
+        export_excel: 'Export Excel',
+        export_pdf: 'Export PDF',
+        delete: 'Delete',
+        sort: 'Sort',
+        no_data: 'No data found',
       },
       mes_articles: {
         title: 'My Articles',
@@ -1300,7 +1375,7 @@ export default {
     success: 'Success',
     error: 'Error',
   },
- 
+
   // Events
   events: {
     title: 'Events',
@@ -1330,7 +1405,7 @@ export default {
     delete: 'Delete Quiz',
     duplicate: 'Duplicate',
     search: 'Search for a quiz...',
-    
+
     // List & Filters
     list: {
       title: 'My Quizzes',
@@ -1420,13 +1495,13 @@ export default {
       questionTitlePlaceholder: 'Example Question Title',
       questionDescription: 'Question Description',
       questionDescriptionPlaceholder: 'Question description...',
-      
+
       // Question Settings
       timeLimit: 'Response Time',
       timeLimitUnit: 'Min ⏱️',
       points: 'Points Awarded',
       pointsUnit: 'Points 💎',
-      
+
       // Question Types
       types: {
         singleChoice: 'Single Choice',
@@ -1436,7 +1511,7 @@ export default {
         freeText: 'Free Text',
         trueFalse: 'True / False',
       },
-      
+
       // Options
       options: {
         addImage: 'Add an Image',
@@ -1534,7 +1609,7 @@ export default {
     autoSaveError: 'Error auto-saving session',
     draftSaved: 'Draft saved successfully',
     draftSaveError: 'Error saving draft',
-    
+
     form: {
       basicInformation: 'Basic Information',
       title: 'Session Title',

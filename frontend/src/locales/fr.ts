@@ -570,6 +570,38 @@ export default {
       common: {
         client_information: 'Informations Dépense',
         organization_info: 'Informations Organisation',
+        export_excel: 'Export Excel',
+        export_pdf: 'Export PDF',
+        date: 'Date',
+        type: 'Type',
+        client: 'Client',
+        amount_ht: 'Montant HT',
+        amount_vat: 'Montant TVA',
+        amount_ttc: 'Montant TTC',
+        status_title: 'Statut',
+        actions: 'Actions',
+        total_ht: 'Total HT',
+        vat: 'TVA',
+        total_ttc: 'Total TTC',
+        reset: 'Reset',
+        period: 'Période',
+        from: 'De',
+        to: 'À',
+        today: 'Aujourd\'hui',
+        this_week: 'Cette Semaine',
+        this_month: 'Ce Mois',
+        all: 'Tous',
+        individual: 'Particulier',
+        company: 'Entreprise',
+        created: 'Créée',
+        sent: 'Envoyé',
+        signed: 'Signé',
+        rejected: 'Rejeté',
+        expired: 'Expiré',
+        cancelled: 'Annulé',
+        apply_filters: 'Appliquer les filtres',
+        min: 'Min',
+        max: 'Max'
       },
       totalRevenue: 'Chiffre d\'affaires total',
       unpaidAmount: 'Montant impayé',
@@ -609,6 +641,49 @@ export default {
           expired: 'Expiré',
           cancelled: 'Annulé',
         },
+        import_quote: 'Importer un devis',
+        filter_quotes: 'Filtrer les devis',
+        relance: 'Relancer',
+        number: 'N°',
+        select_at_least_one: 'Veuillez sélectionner au moins un devis',
+        export_success: 'devis exporté(s) avec succès',
+        export_error: 'Impossible d\'exporter les devis',
+        delete_success: 'devis supprimé(s) avec succès',
+        delete_single_success: 'Devis supprimé avec succès',
+        delete_error: 'Impossible de supprimer le devis',
+        load_error: 'Impossible de charger les devis',
+        relance_success: 'devis relancé(s) avec succès',
+        relance_error: 'Impossible de relancer les devis',
+        confirm_delete_title: 'Voulez-vous vraiment supprimer ce devis ?',
+        confirm_delete_message: 'Cette action est irréversible. Le devis sera définitivement supprimé.',
+        reset: 'Reset',
+        client_type: 'Type de client',
+        amount_ttc: 'Montant TTC',
+        period: 'Période',
+        min: 'Min',
+        max: 'Max',
+        from: 'De',
+        to: 'À',
+        today: 'Aujourd\'hui',
+        this_week: 'Cette Semaine',
+        this_month: 'Ce Mois',
+        all: 'Tous',
+        individual: 'Particulier',
+        company: 'Entreprise',
+        apply_filters: 'Appliquer les filtres',
+        actions: 'Actions',
+        total_ht: 'Total HT',
+        total_tva: 'Total TVA',
+        total_ttc: 'Total TTC',
+        delete_confirm_title: 'Voulez-vous vraiment supprimer ce devis ?',
+        delete_confirm_message: 'Cette action est irréversible. Le devis sera définitivement supprimé.',
+        delete_confirm_btn: 'Supprimer',
+        cancel_btn: 'Annuler',
+        export_excel: 'Export Excel',
+        export_pdf: 'Export PDF',
+        delete: 'Supprimer',
+        sort: 'Trier',
+        no_data: 'Aucune donnée trouvée',
       },
       mes_articles: {
         title: 'Mes Articles',
@@ -982,7 +1057,7 @@ export default {
     success: 'Succès',
     error: 'Erreur',
   },
-  
+
   // Workflow
   workflow: {
     title: 'Workflow et Automatisation',
@@ -1506,7 +1581,7 @@ export default {
     delete: 'Supprimer le Quiz',
     duplicate: 'Dupliquer',
     search: 'Rechercher un quiz...',
-    
+
     // List & Filters
     list: {
       title: 'Mes Quiz',
@@ -1596,13 +1671,13 @@ export default {
       questionTitlePlaceholder: 'Titre De La Question Example',
       questionDescription: 'Description De La Question',
       questionDescriptionPlaceholder: 'Description de la question...',
-      
+
       // Question Settings
       timeLimit: 'Temps De Réponses',
       timeLimitUnit: 'Min ⏱️',
       points: 'Note Attribuée',
       pointsUnit: 'Points 💎',
-      
+
       // Question Types
       types: {
         singleChoice: 'Choix unique',
@@ -1612,7 +1687,7 @@ export default {
         freeText: 'Réponse libre',
         trueFalse: 'Vrai / Faux',
       },
-      
+
       // Options
       options: {
         addImage: 'Ajouter Une Image',
@@ -1710,7 +1785,7 @@ export default {
     autoSaveError: 'Erreur lors de la sauvegarde automatique de la session',
     draftSaved: 'Brouillon sauvegardé avec succès',
     draftSaveError: 'Erreur lors de la sauvegarde du brouillon',
-    
+
     form: {
       basicInformation: 'Informations Générales',
       title: 'Titre de la Session',
@@ -2080,7 +2155,7 @@ export default {
     exportCsv: 'Exporter CSV',
     exportExcel: 'Exporter Excel',
     noCompanies: 'Aucune entreprise trouvée',
-    details: 'Détails de l\'entreprise',
+    detailsTitle: 'Détails de l\'entreprise',
     edit: 'Modifier',
     save: 'Enregistrer',
     cancel: 'Annuler',
@@ -2639,7 +2714,7 @@ export default {
         optional: 'Ces informations sont optionnelles et peuvent être ajoutées plus tard',
       },
       branding: {
-        description: 'Personnalisez l\'apparence de votre plateforme',
+        brandingDescription: 'Personnalisez l\'apparence de votre plateforme',
         tagline: 'Slogan',
         taglinePlaceholder: 'Votre slogan ou accroche',
         description: 'Description',
