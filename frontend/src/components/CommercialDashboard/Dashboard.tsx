@@ -10,7 +10,7 @@ import { Card, CardContent } from '../ui/card';
 import { InvoiceCreationModal } from './InvoiceCreationModal';
 import { QuoteCreationModal } from './QuoteCreationModal';
 import { RevenueLineChart } from './RevenueLineChart';
-import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, FileText, Receipt, CreditCard, BarChart3, DollarSign, Wallet, AlertCircle } from 'lucide-react';
+import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, FileText, Receipt, CreditCard, BarChart3, DollarSign, Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { useOrganization } from '../../contexts/OrganizationContext';
 
 export const CommercialDashboard: React.FC = () => {
@@ -21,6 +21,7 @@ export const CommercialDashboard: React.FC = () => {
   const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
+  const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -42,6 +43,7 @@ export const CommercialDashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
+      setLoading(true);
       const response = await commercialDashboardService.getDashboard(selectedYear);
       if (response.success && response.data) {
         // Normalize the data - convert strings to numbers
@@ -94,6 +96,8 @@ export const CommercialDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching dashboard:', err);
       showError('Erreur', 'Impossible de charger le tableau de bord');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,14 +111,28 @@ export const CommercialDashboard: React.FC = () => {
     }).format(value).replace('€', '€').replace(/ /g, ' ').trim();
   };
 
-  // Format number for display
+  // Format number with thousand separator
   const formatNumber = (value: number): string => {
     return new Intl.NumberFormat('fr-FR').format(value);
   };
 
-  if (!dashboardData || !dashboardData.kpis) {
+  // Show loading spinner on initial load (no data yet)
+  if (loading && (!dashboardData || !dashboardData.kpis)) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t('common.loading') || 'Chargement des données...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && (!dashboardData || !dashboardData.kpis)) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
         <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{t('dashboard.commercial.noDataAvailable')}</p>
       </div>
     );
@@ -240,12 +258,12 @@ export const CommercialDashboard: React.FC = () => {
             <BarChart3 className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
-              {t('dashboard.commercial.title')}
-            </h1>
+              <h1
+                className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+                style={{ fontFamily: 'Poppins, Helvetica' }}
+              >
+                {t('dashboard.commercial.title')}
+              </h1>
             <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
@@ -327,10 +345,11 @@ export const CommercialDashboard: React.FC = () => {
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           showCard={true}
+          isLoading={loading}
         />
       </div>
-
-      {/* Invoice Creation Modal */}
+      
+       {/* Invoice Creation Modal */}
       <InvoiceCreationModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}

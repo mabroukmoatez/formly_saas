@@ -3,6 +3,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ChartDataPoint } from '../../services/commercialDashboard.types';
 import { Card, CardContent } from '../ui/card';
+import { Loader2 } from 'lucide-react';
 
 interface RevenueLineChartProps {
   data: ChartDataPoint[];
@@ -11,6 +12,7 @@ interface RevenueLineChartProps {
   selectedYear?: number;
   onYearChange?: (year: number) => void;
   showCard?: boolean;
+  isLoading?: boolean;
 }
 
 export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
@@ -20,6 +22,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
   selectedYear,
   onYearChange,
   showCard = true,
+  isLoading = false,
 }) => {
   const { isDark } = useTheme();
   const { t } = useLanguage();
@@ -429,10 +432,19 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
 
         {/* Revenue Chart - Line Chart with Area */}
         <div className="relative w-full" style={{ marginLeft: '-24px', marginRight: '-24px', paddingLeft: '24px', paddingRight: '24px' }}>
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-lg">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('common.loading') || 'Chargement du graphique...'}
+                </span>
+              </div>
+            </div>
+          )}
           <ChartSVG />
         </div>
       </CardContent>
     </Card>
   );
 };
-
