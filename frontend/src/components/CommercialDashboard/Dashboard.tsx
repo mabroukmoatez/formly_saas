@@ -19,9 +19,9 @@ export const CommercialDashboard: React.FC = () => {
   const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
+  const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -39,7 +39,7 @@ export const CommercialDashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       const response = await commercialDashboardService.getDashboard(selectedYear);
       if (response.success && response.data) {
         // Normalize the data - convert strings to numbers
@@ -93,7 +93,7 @@ export const CommercialDashboard: React.FC = () => {
       console.error('Error fetching dashboard:', err);
       showError('Erreur', 'Impossible de charger le tableau de bord');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -113,7 +113,7 @@ export const CommercialDashboard: React.FC = () => {
   };
 
   // Show loading spinner on initial load (no data yet)
-  if (isLoading && (!dashboardData || !dashboardData.kpis)) {
+  if (loading && (!dashboardData || !dashboardData.kpis)) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
@@ -127,7 +127,7 @@ export const CommercialDashboard: React.FC = () => {
   }
 
   // Show "no data" message only if not loading and no data
-  if (!isLoading && (!dashboardData || !dashboardData.kpis)) {
+  if (!loading && (!dashboardData || !dashboardData.kpis)) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{t('dashboard.commercial.noDataAvailable')}</p>
@@ -262,7 +262,7 @@ export const CommercialDashboard: React.FC = () => {
               >
                 {t('dashboard.commercial.title')}
               </h1>
-              {isLoading && (
+              {loading && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
                   <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
                   <span className="text-xs font-medium text-blue-500">
@@ -352,7 +352,7 @@ export const CommercialDashboard: React.FC = () => {
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           showCard={true}
-          isLoading={isLoading}
+          isLoading={loading}
         />
       </div>
     </section>
