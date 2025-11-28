@@ -7,10 +7,8 @@ import { commercialDashboardService } from '../../services/commercialDashboard';
 import { DashboardData } from '../../services/commercialDashboard.types';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
-import { InvoiceCreationModal } from './InvoiceCreationModal';
-import { QuoteCreationModal } from './QuoteCreationModal';
 import { RevenueLineChart } from './RevenueLineChart';
-import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, FileText, Receipt, CreditCard, BarChart3, DollarSign, Wallet, AlertCircle } from 'lucide-react';
+import { TrendingUp as TrendingUpIcon, TrendingDown as TrendingDownIcon, FileText, Receipt, CreditCard, BarChart3, DollarSign, Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { useOrganization } from '../../contexts/OrganizationContext';
 
 export const CommercialDashboard: React.FC = () => {
@@ -23,8 +21,7 @@ export const CommercialDashboard: React.FC = () => {
 
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
-  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -42,6 +39,7 @@ export const CommercialDashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
+      setIsLoading(true);
       const response = await commercialDashboardService.getDashboard(selectedYear);
       if (response.success && response.data) {
         // Normalize the data - convert strings to numbers
@@ -94,6 +92,8 @@ export const CommercialDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching dashboard:', err);
       showError('Erreur', 'Impossible de charger le tableau de bord');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -112,9 +112,24 @@ export const CommercialDashboard: React.FC = () => {
     return new Intl.NumberFormat('fr-FR').format(value);
   };
 
-  if (!dashboardData || !dashboardData.kpis) {
+  // Show loading spinner on initial load (no data yet)
+  if (isLoading && (!dashboardData || !dashboardData.kpis)) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            {t('dashboard.commercial.loadingData') || 'Chargement des données...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show "no data" message only if not loading and no data
+  if (!isLoading && (!dashboardData || !dashboardData.kpis)) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
         <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{t('dashboard.commercial.noDataAvailable')}</p>
       </div>
     );
@@ -240,12 +255,22 @@ export const CommercialDashboard: React.FC = () => {
             <BarChart3 className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
-              {t('dashboard.commercial.title')}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1
+                className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+                style={{ fontFamily: 'Poppins, Helvetica' }}
+              >
+                {t('dashboard.commercial.title')}
+              </h1>
+              {isLoading && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  <span className="text-xs font-medium text-blue-500">
+                    {t('dashboard.commercial.updating') || 'Mise à jour...'}
+                  </span>
+                </div>
+              )}
+            </div>
             <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
@@ -327,30 +352,9 @@ export const CommercialDashboard: React.FC = () => {
           selectedYear={selectedYear}
           onYearChange={setSelectedYear}
           showCard={true}
+          isLoading={isLoading}
         />
       </div>
-
-      {/* Invoice Creation Modal */}
-      <InvoiceCreationModal
-        isOpen={isInvoiceModalOpen}
-        onClose={() => setIsInvoiceModalOpen(false)}
-        onSave={() => {
-          setIsInvoiceModalOpen(false);
-          fetchDashboardData();
-          success('Facture créée avec succès');
-        }}
-      />
-
-      {/* Quote Creation Modal */}
-      <QuoteCreationModal
-        isOpen={isQuoteModalOpen}
-        onClose={() => setIsQuoteModalOpen(false)}
-        onSave={() => {
-          setIsQuoteModalOpen(false);
-          fetchDashboardData();
-          success('Devis créé avec succès');
-        }}
-      />
     </section>
   );
 };
