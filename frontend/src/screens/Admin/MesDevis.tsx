@@ -429,11 +429,25 @@ export const MesDevis = (): JSX.Element => {
         ? quotes.filter(q => selectedQuotes.has(String(q.id)))
         : quotes;
 
+      if (quotesToExport.length === 0) {
+        showError(t('common.error'), 'Aucun devis à exporter');
+        return;
+      }
+
+      // Helper function to escape CSV values
+      const escapeCsvValue = (value: any): string => {
+        const str = String(value);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
       const csvData = quotesToExport.map(quote => ({
         'N°': quote.quote_number,
         'Date': formatDate(quote.issue_date),
         'Type': getClientType(quote),
-        'Client': quote.client?.company_name || 
+        'Client': quote.client?.company_name ||
           `${quote.client?.first_name || ''} ${quote.client?.last_name || ''}`.trim() ||
           quote.client_name || '',
         'Montant HT': normalizeValue(quote.total_ht),
@@ -441,18 +455,21 @@ export const MesDevis = (): JSX.Element => {
         'Montant TTC': normalizeValue(quote.total_ttc || quote.total_amount),
         'Statut': getStatusLabel(quote.status),
       }));
-      
+
+      const headers = Object.keys(csvData[0]);
       const csv = [
-        Object.keys(csvData[0]).join(','),
-        ...csvData.map(row => Object.values(row).join(','))
+        headers.map(h => escapeCsvValue(h)).join(','),
+        ...csvData.map(row => headers.map(h => escapeCsvValue(row[h as keyof typeof row])).join(','))
       ].join('\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `devis_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       success(`${quotesToExport.length} ${t('dashboard.commercial.mes_devis.export_success')}`);
     } catch (err) {
@@ -475,18 +492,34 @@ export const MesDevis = (): JSX.Element => {
     }
     try {
       const quoteIds = Array.from(selectedQuotes);
+      let successCount = 0;
+
       for (const id of quoteIds) {
-        const blob = await commercialService.generateQuotePdf(id);
-        const quote = quotes.find(q => String(q.id) === id);
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Devis-${quote?.quote_number || id}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        await new Promise(resolve => setTimeout(resolve, 200));
+        try {
+          const blob = await commercialService.generateQuotePdf(id);
+          const quote = quotes.find(q => String(q.id) === id);
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Devis-${quote?.quote_number || id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          successCount++;
+
+          // Increased delay to ensure browser handles multiple downloads
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (pdfErr: any) {
+          console.error(`Error exporting PDF for quote ${id}:`, pdfErr);
+        }
       }
-      success(`${selectedQuotes.size} ${t('dashboard.commercial.mes_devis.export_success')}`);
+
+      if (successCount > 0) {
+        success(`${successCount} ${t('dashboard.commercial.mes_devis.export_success')}`);
+      } else {
+        showError(t('common.error'), t('dashboard.commercial.mes_devis.export_error'));
+      }
     } catch (err: any) {
       showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.export_error'));
     }
@@ -523,10 +556,27 @@ export const MesDevis = (): JSX.Element => {
 
     try {
       const quoteIds = Array.from(selectedQuotes);
+      let successCount = 0;
+      let failedCount = 0;
+
       for (const id of quoteIds) {
-        await commercialService.sendQuoteEmail(id, emailData);
+        try {
+          await commercialService.sendQuoteEmail(id, emailData);
+          successCount++;
+        } catch (emailErr: any) {
+          console.error(`Error sending email for quote ${id}:`, emailErr);
+          failedCount++;
+        }
       }
-      success(`${selectedQuotes.size} ${t('dashboard.commercial.mes_devis.relance_success')}`);
+
+      if (successCount > 0) {
+        success(`${successCount} ${t('dashboard.commercial.mes_devis.relance_success')}`);
+      }
+
+      if (failedCount > 0) {
+        showError(t('common.error'), `${failedCount} devis n'ont pas pu être envoyés`);
+      }
+
       setShowEmailModal(false);
       setEmailModalQuote(null);
       setSelectedQuotes(new Set());
@@ -1142,42 +1192,16 @@ export const MesDevis = (): JSX.Element => {
 
         {/* Totals Summary - Moved outside table */}
         {sortedQuotes.length > 0 && (
-          <div className="flex justify-end mt-6">
-            <div className={`w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {t('dashboard.commercial.mes_devis.total_ht')}
-                  </span>
-                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {formatCurrency(
-                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {t('dashboard.commercial.mes_devis.tva')}
-                  </span>
-                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                    {formatCurrency(
-                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
-                    )}
-                  </span>
-                </div>
-                <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-bold text-base`} style={{ color: primaryColor }}>
-                      {t('dashboard.commercial.mes_devis.total_ttc')}
-                    </span>
-                    <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
-                      {formatCurrency(
-                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
+          <div className="flex justify-end mt-6 mr-4">
+            <div className="flex items-center gap-4">
+              <span className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {t('dashboard.commercial.mes_devis.total_ttc')}
+              </span>
+              <span className={`font-bold text-2xl`} style={{ color: primaryColor }}>
+                {formatCurrency(
+                  sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
+                )}
+              </span>
             </div>
           </div>
         )}

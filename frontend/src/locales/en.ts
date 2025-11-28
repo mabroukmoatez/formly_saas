@@ -436,7 +436,7 @@ export default {
         tva: 'VAT',
         status_created: 'Created',
         status_sent: 'Sent',
-        status_signed: 'Signed ✓',
+        status_signed: 'Signed',
         status_rejected: 'Rejected',
         status_expired: 'Expired',
         status_cancelled: 'Cancelled',

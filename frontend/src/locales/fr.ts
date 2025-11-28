@@ -657,7 +657,7 @@ export default {
         tva: 'TVA',
         status_created: 'Créée',
         status_sent: 'Envoyé',
-        status_signed: 'Signé ✓',
+        status_signed: 'Signé',
         status_rejected: 'Rejeté',
         status_expired: 'Expiré',
         status_cancelled: 'Annulé',
