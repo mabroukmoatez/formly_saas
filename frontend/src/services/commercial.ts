@@ -156,13 +156,38 @@ class CommercialService {
   }
 
   async sendQuoteEmail(id: string, emailData: {
-    email: string;
-    cc?: string[];
+    to?: string;
+    email?: string;
+    cc?: string | string[];
     bcc?: string[];
     subject?: string;
     message?: string;
   }): Promise<ApiResponse<null>> {
-    return await apiService.post<ApiResponse<null>>(`/api/organization/commercial/quotes/${id}/send-email`, emailData);
+    // Support both 'email' and 'to' for backwards compatibility
+    const normalizedData = {
+      email: emailData.to || emailData.email,
+      cc: Array.isArray(emailData.cc) ? emailData.cc : (emailData.cc ? emailData.cc.split(',').map(e => e.trim()) : []),
+      bcc: emailData.bcc,
+      subject: emailData.subject,
+      message: emailData.message,
+    };
+    return await apiService.post<ApiResponse<null>>(`/api/organization/commercial/quotes/${id}/send-email`, normalizedData);
+  }
+
+  async updateQuoteStatus(id: string, status: string): Promise<ApiResponse<{ quote: Quote }>> {
+    return await apiService.patch<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/status`, { status });
+  }
+
+  async uploadSignedDocument(id: string, formData: FormData): Promise<ApiResponse<{ quote: Quote }>> {
+    return await apiService.post<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`, formData);
+  }
+
+  async replaceSignedDocument(id: string, formData: FormData): Promise<ApiResponse<{ quote: Quote }>> {
+    return await apiService.put<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`, formData);
+  }
+
+  async deleteSignedDocument(id: string): Promise<ApiResponse<null>> {
+    return await apiService.delete<ApiResponse<null>>(`/api/organization/commercial/quotes/${id}/signed-document`);
   }
 
   // ============ ARTICLES ============

@@ -11,14 +11,16 @@ import { commercialService } from '../../services/commercial';
 import { Quote } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
 import { QuoteImportModal } from '../../components/CommercialDashboard/QuoteImportModal';
+import { QuoteStatusChangeModal, StatusChangeData } from '../../components/CommercialDashboard/QuoteStatusChangeModal';
+import { SignedDocumentModal } from '../../components/CommercialDashboard/SignedDocumentModal';
 import { ConfirmationModal as ConfirmationModalComponent } from '../../components/ui/confirmation-modal';
-import { 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
-  FileText, 
-  FileUp, 
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  FileText,
+  FileUp,
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
@@ -27,7 +29,8 @@ import {
   Calendar,
   X,
   FileDown,
-  RotateCw
+  RotateCw,
+  Eye
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
@@ -75,6 +78,15 @@ export const MesDevis = (): JSX.Element => {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailModalQuote, setEmailModalQuote] = useState<Quote | null>(null);
+
+  // Status change modal states
+  const [showStatusChangeModal, setShowStatusChangeModal] = useState(false);
+  const [statusChangeQuote, setStatusChangeQuote] = useState<Quote | null>(null);
+  const [targetStatus, setTargetStatus] = useState<string>('');
+
+  // Signed document modal states
+  const [showSignedDocModal, setShowSignedDocModal] = useState(false);
+  const [signedDocQuote, setSignedDocQuote] = useState<Quote | null>(null);
 
   // Format date for input (DD-MM-YYYY)
   const formatDateForInput = (date: Date): string => {
@@ -508,7 +520,7 @@ export const MesDevis = (): JSX.Element => {
 
   const handleSendEmailConfirm = async (emailData: EmailData) => {
     if (!emailModalQuote) return;
-    
+
     try {
       const quoteIds = Array.from(selectedQuotes);
       for (const id of quoteIds) {
@@ -521,6 +533,99 @@ export const MesDevis = (): JSX.Element => {
       fetchQuotes();
     } catch (err: any) {
       showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.relance_error'));
+      throw err;
+    }
+  };
+
+  // Handle status badge click
+  const handleStatusClick = (quote: Quote, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    // If status is 'accepted', show signed document modal
+    if (quote.status === 'accepted') {
+      setSignedDocQuote(quote);
+      setShowSignedDocModal(true);
+      return;
+    }
+
+    // Otherwise, show status change options
+    setStatusChangeQuote(quote);
+
+    // Determine next status based on current status
+    if (quote.status === 'draft') {
+      setTargetStatus('sent');
+    } else if (quote.status === 'sent') {
+      setTargetStatus('accepted');
+    }
+
+    setShowStatusChangeModal(true);
+  };
+
+  // Handle status change confirmation
+  const handleStatusChangeConfirm = async (data: StatusChangeData) => {
+    if (!statusChangeQuote) return;
+
+    try {
+      if (data.status === 'sent' && data.email) {
+        // Send email and update status
+        await commercialService.sendQuoteEmail(String(statusChangeQuote.id), {
+          to: data.email.to,
+          cc: data.email.cc,
+          subject: data.email.subject,
+          message: data.email.message,
+        });
+
+        // Update quote status
+        await commercialService.updateQuoteStatus(String(statusChangeQuote.id), 'sent');
+        success('Devis envoyé avec succès');
+      } else if (data.status === 'accepted' && data.signedDocument) {
+        // Upload signed document and update status
+        const formData = new FormData();
+        formData.append('signed_document', data.signedDocument);
+        formData.append('status', 'accepted');
+
+        await commercialService.uploadSignedDocument(String(statusChangeQuote.id), formData);
+        success('Document signé ajouté avec succès');
+      }
+
+      fetchQuotes();
+      setShowStatusChangeModal(false);
+      setStatusChangeQuote(null);
+      setTargetStatus('');
+    } catch (err: any) {
+      showError(t('common.error'), err.message || 'Erreur lors du changement de statut');
+      throw err;
+    }
+  };
+
+  // Handle signed document replace
+  const handleDocumentReplace = async (file: File) => {
+    if (!signedDocQuote) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('signed_document', file);
+
+      await commercialService.replaceSignedDocument(String(signedDocQuote.id), formData);
+      fetchQuotes();
+    } catch (err: any) {
+      showError(t('common.error'), err.message || 'Erreur lors du remplacement du document');
+      throw err;
+    }
+  };
+
+  // Handle signed document delete
+  const handleDocumentDelete = async () => {
+    if (!signedDocQuote) return;
+
+    try {
+      // Delete document and revert status to 'sent'
+      await commercialService.deleteSignedDocument(String(signedDocQuote.id));
+      await commercialService.updateQuoteStatus(String(signedDocQuote.id), 'sent');
+
+      fetchQuotes();
+    } catch (err: any) {
+      showError(t('common.error'), err.message || 'Erreur lors de la suppression du document');
       throw err;
     }
   };
@@ -972,17 +1077,33 @@ export const MesDevis = (): JSX.Element => {
                           {formatCurrency(quote.total_ttc || quote.total_amount)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-4 py-4 text-center">
-                        <Badge
-                          className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
-                          style={{
-                            backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
-                            color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
-                          }}
-                        >
-                          {quote.status === 'accepted' && <Check className="w-3 h-3" />}
-                          {getStatusLabel(quote.status)}
-                        </Badge>
+                      <TableCell className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-2">
+                          <Badge
+                            onClick={(e) => handleStatusClick(quote, e)}
+                            className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                            style={{
+                              backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
+                              color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
+                            }}
+                          >
+                            {quote.status === 'accepted' && <Check className="w-3 h-3" />}
+                            {getStatusLabel(quote.status)}
+                          </Badge>
+                          {quote.status === 'accepted' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSignedDocQuote(quote);
+                                setShowSignedDocModal(true);
+                              }}
+                              className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                              title="Voir le document signé"
+                            >
+                              <Eye className="w-4 h-4" style={{ color: primaryColor }} />
+                            </button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
@@ -1322,9 +1443,44 @@ export const MesDevis = (): JSX.Element => {
           documentType="quote"
           documentNumber={emailModalQuote.quote_number || ''}
           clientEmail={emailModalQuote.client?.email || emailModalQuote.client_email || ''}
-          clientName={emailModalQuote.client?.company_name || 
+          clientName={emailModalQuote.client?.company_name ||
             `${emailModalQuote.client?.first_name || ''} ${emailModalQuote.client?.last_name || ''}`.trim() ||
             emailModalQuote.client_name || ''}
+        />
+      )}
+
+      {/* Status Change Modal */}
+      {statusChangeQuote && (
+        <QuoteStatusChangeModal
+          isOpen={showStatusChangeModal}
+          onClose={() => {
+            setShowStatusChangeModal(false);
+            setStatusChangeQuote(null);
+            setTargetStatus('');
+          }}
+          onConfirm={handleStatusChangeConfirm}
+          currentStatus={statusChangeQuote.status}
+          targetStatus={targetStatus}
+          quoteNumber={statusChangeQuote.quote_number || ''}
+          clientEmail={statusChangeQuote.client?.email || statusChangeQuote.client_email || ''}
+          clientName={statusChangeQuote.client?.company_name ||
+            `${statusChangeQuote.client?.first_name || ''} ${statusChangeQuote.client?.last_name || ''}`.trim() ||
+            statusChangeQuote.client_name || ''}
+        />
+      )}
+
+      {/* Signed Document Modal */}
+      {signedDocQuote && (
+        <SignedDocumentModal
+          isOpen={showSignedDocModal}
+          onClose={() => {
+            setShowSignedDocModal(false);
+            setSignedDocQuote(null);
+          }}
+          onReplace={handleDocumentReplace}
+          onDelete={handleDocumentDelete}
+          quoteNumber={signedDocQuote.quote_number || ''}
+          documentUrl={(signedDocQuote as any).signed_document_url}
         />
       )}
     </div>
