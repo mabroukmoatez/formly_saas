@@ -97,7 +97,7 @@ export const MesDevis = (): JSX.Element => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [page, selectedStatus, searchTerm, minAmount, maxAmount, dateFrom, dateTo, filterType, filterStatus]);
+  }, [page, selectedStatus, searchTerm]);
 
   const confirmDeleteQuote = async () => {
     if (!quoteToDelete) return;
@@ -109,17 +109,17 @@ export const MesDevis = (): JSX.Element => {
           commercialService.deleteQuote(id)
         );
         await Promise.all(deletePromises);
-        success(`${selectedQuotes.size} devis supprimé(s) avec succès`);
+        success(`${selectedQuotes.size} ${t('dashboard.commercial.mes_devis.delete_success')}`);
         setSelectedQuotes(new Set());
       } else {
         await commercialService.deleteQuote(quoteToDelete);
-        success('Devis supprimé avec succès');
+        success(t('dashboard.commercial.mes_devis.delete_single_success'));
       }
       fetchQuotes();
       setShowDeleteModal(false);
       setQuoteToDelete(null);
     } catch (err: any) {
-      showError('Erreur', err.message || 'Impossible de supprimer le devis');
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.delete_error'));
     } finally {
       setDeleting(false);
     }
@@ -182,7 +182,7 @@ export const MesDevis = (): JSX.Element => {
       }
     } catch (err) {
       console.error('Error fetching quotes:', err);
-      showError(t('common.error'), 'Impossible de charger les devis');
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.load_error'));
       setQuotes([]);
     } finally {
       setLoading(false);
@@ -306,7 +306,7 @@ export const MesDevis = (): JSX.Element => {
     return sorted;
   }, [filteredQuotes, sortField, sortDirection]);
 
-  // Reset filters
+  // Reset filters (no longer auto-apply, wait for user to click "Apply filters")
   const resetAmountFilter = () => {
     setMinAmount('');
     setMaxAmount('');
@@ -378,21 +378,21 @@ export const MesDevis = (): JSX.Element => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      draft: 'Créée',
-      sent: 'Envoyé',
-      accepted: 'Signé ✓',
-      rejected: 'Rejeté',
-      expired: 'Expiré',
-      cancelled: 'Annulé',
+      draft: t('dashboard.commercial.mes_devis.status_created'),
+      sent: t('dashboard.commercial.mes_devis.status_sent'),
+      accepted: t('dashboard.commercial.mes_devis.status_signed'),
+      rejected: t('dashboard.commercial.mes_devis.status_rejected'),
+      expired: t('dashboard.commercial.mes_devis.status_expired'),
+      cancelled: t('dashboard.commercial.mes_devis.status_cancelled'),
     };
     return labels[status] || status;
   };
 
   const getClientType = (quote: Quote): string => {
     if (quote.client?.type) {
-      return quote.client.type === 'company' ? 'Entreprise' : 'Particulier';
+      return quote.client.type === 'company' ? t('dashboard.commercial.mes_devis.company') : t('dashboard.commercial.mes_devis.individual');
     }
-    return 'Particulier';
+    return t('dashboard.commercial.mes_devis.individual');
   };
 
   const formatCurrency = (value: number | string | undefined): string => {
@@ -442,15 +442,15 @@ export const MesDevis = (): JSX.Element => {
       a.download = `devis_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      success(`${quotesToExport.length} devis exporté(s) avec succès`);
+      success(`${quotesToExport.length} ${t('dashboard.commercial.mes_devis.export_success')}`);
     } catch (err) {
-      showError('Erreur', 'Impossible d\'exporter les devis');
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.export_error'));
     }
   };
 
   const handleExportSelectedExcel = async () => {
     if (selectedQuotes.size === 0) {
-      showError('Erreur', 'Veuillez sélectionner au moins un devis');
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
       return;
     }
     await handleExportExcel();
@@ -458,7 +458,7 @@ export const MesDevis = (): JSX.Element => {
 
   const handleExportSelectedPDF = async () => {
     if (selectedQuotes.size === 0) {
-      showError('Erreur', 'Veuillez sélectionner au moins un devis');
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
       return;
     }
     try {
@@ -474,15 +474,28 @@ export const MesDevis = (): JSX.Element => {
         window.URL.revokeObjectURL(url);
         await new Promise(resolve => setTimeout(resolve, 200));
       }
-      success(`${selectedQuotes.size} devis exporté(s) en PDF avec succès`);
+      success(`${selectedQuotes.size} ${t('dashboard.commercial.mes_devis.export_success')}`);
     } catch (err: any) {
-      showError('Erreur', err.message || 'Impossible d\'exporter les devis en PDF');
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.export_error'));
     }
   };
 
   const handleRelancerSelected = async () => {
     if (selectedQuotes.size === 0) {
-      showError('Erreur', 'Veuillez sélectionner au moins un devis');
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
+      return;
+    }
+    const firstQuoteId = Array.from(selectedQuotes)[0];
+    const firstQuote = quotes.find(q => String(q.id) === firstQuoteId);
+    if (firstQuote) {
+      setEmailModalQuote(firstQuote);
+      setShowEmailModal(true);
+    }
+  };
+
+  const handleSendSelected = async () => {
+    if (selectedQuotes.size === 0) {
+      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
       return;
     }
     const firstQuoteId = Array.from(selectedQuotes)[0];
@@ -501,13 +514,13 @@ export const MesDevis = (): JSX.Element => {
       for (const id of quoteIds) {
         await commercialService.sendQuoteEmail(id, emailData);
       }
-      success(`${selectedQuotes.size} devis relancé(s) avec succès`);
+      success(`${selectedQuotes.size} ${t('dashboard.commercial.mes_devis.relance_success')}`);
       setShowEmailModal(false);
       setEmailModalQuote(null);
       setSelectedQuotes(new Set());
       fetchQuotes();
     } catch (err: any) {
-      showError('Erreur', err.message || 'Impossible de relancer les devis');
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.relance_error'));
       throw err;
     }
   };
@@ -553,14 +566,14 @@ export const MesDevis = (): JSX.Element => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             onClick={() => setIsImportModalOpen(true)}
             variant="outline"
             className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border ${isDark ? 'border-gray-600 hover:border-gray-500' : 'border-[#6a90b9]'} shadow-sm hover:shadow-md transition-all`}
           >
             <FileUp className="w-4 h-4" style={{ color: primaryColor }} />
             <span className="font-medium text-[17px]" style={{ color: primaryColor }}>
-              Importer un devis
+              {t('dashboard.commercial.mes_devis.import_quote')}
             </span>
           </Button>
           <Button 
@@ -590,7 +603,7 @@ export const MesDevis = (): JSX.Element => {
           <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px', flexShrink: 0 }}>
             <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
             <Input
-              placeholder="Rechercher Un Document"
+              placeholder={t('dashboard.commercial.mes_devis.search_document')}
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -610,9 +623,9 @@ export const MesDevis = (): JSX.Element => {
             <div className="flex items-center gap-3 flex-1 justify-start" style={{ marginLeft: '16px' }}>
               <Button
                 variant="outline"
-                onClick={handleExportSelectedExcel}
+                onClick={handleSendSelected}
                 className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
-                style={{ 
+                style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
                   color: 'white'
@@ -624,10 +637,31 @@ export const MesDevis = (): JSX.Element => {
                   e.currentTarget.style.opacity = '1';
                 }}
               >
-                <FileDown className="w-4 h-4" />
+                <FileUp className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  {t('dashboard.commercial.mes_devis.send')}
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={handleExportSelectedExcel}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
                 <FileSpreadsheet className="w-4 h-4" />
                 <span className="font-medium text-sm">
-                  Export Excel
+                  {t('dashboard.commercial.mes_devis.export_excel')}
                 </span>
               </Button>
 
@@ -635,7 +669,7 @@ export const MesDevis = (): JSX.Element => {
                 variant="outline"
                 onClick={handleExportSelectedPDF}
                 className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
-                style={{ 
+                style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
                   color: 'white'
@@ -647,10 +681,9 @@ export const MesDevis = (): JSX.Element => {
                   e.currentTarget.style.opacity = '1';
                 }}
               >
-                <FileDown className="w-4 h-4" />
                 <FileText className="w-4 h-4" />
                 <span className="font-medium text-sm">
-                  Export PDF
+                  {t('dashboard.commercial.mes_devis.export_pdf')}
                 </span>
               </Button>
 
@@ -661,7 +694,7 @@ export const MesDevis = (): JSX.Element => {
                   setShowDeleteModal(true);
                 }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
-                style={{ 
+                style={{
                   borderColor: '#ef4444',
                   backgroundColor: '#ef4444',
                   color: 'white'
@@ -673,70 +706,47 @@ export const MesDevis = (): JSX.Element => {
                   e.currentTarget.style.opacity = '1';
                 }}
               >
-                <FileDown className="w-4 h-4" />
                 <Trash2 className="w-4 h-4" />
                 <span className="font-medium text-sm">
-                  Supprimer
-                </span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={handleRelancerSelected}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
-                style={{ 
-                  borderColor: primaryColor,
-                  backgroundColor: primaryColor,
-                  color: 'white'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.9';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-              >
-                <RotateCw className="w-4 h-4" />
-                <span className="font-medium text-sm">
-                  Relancer
+                  {t('dashboard.commercial.mes_devis.delete')}
                 </span>
               </Button>
             </div>
           )}
 
-          {/* Right: Filter and Export (shown when no quotes are selected) */}
-          {selectedQuotes.size === 0 && (
-            <div className="flex items-center gap-3">
-              {/* Filter Button */}
-              <Button
-                variant="outline"
-                onClick={() => setShowFilterModal(true)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
-              >
-                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
-                <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Trier
-                </span>
-                <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
-              </Button>
+          {/* Right: Filter and Export (always shown) */}
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Filter Button */}
+            <Button
+              variant="outline"
+              onClick={() => setShowFilterModal(true)}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
+            >
+              <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+              <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                {t('dashboard.commercial.mes_devis.sort')}
+              </span>
+              <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+            </Button>
 
-              {/* Export Excel Button */}
+            {/* Export Excel Button (only shown when no quotes are selected) */}
+            {selectedQuotes.size === 0 && (
               <Button
                 variant="outline"
                 onClick={handleExportExcel}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
-                style={{ 
+                style={{
                   borderColor: isDark ? undefined : primaryColor,
                   borderStyle: 'dashed',
                 }}
               >
                 <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
                 <span className="font-medium text-sm" style={{ color: primaryColor }}>
-                  Export Excel
+                  {t('dashboard.commercial.mes_devis.export_excel')}
                 </span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Table */}
@@ -759,12 +769,12 @@ export const MesDevis = (): JSX.Element => {
                       style={someSelected && !allSelected ? { opacity: 0.7 } : {}}
                     />
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('quote_number')}
                   >
                     <div className="flex items-center gap-2">
-                      N°
+                      {t('dashboard.commercial.mes_devis.number')}
                       {sortField === 'quote_number' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -776,12 +786,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('issue_date')}
                   >
                     <div className="flex items-center gap-2">
-                      Date
+                      {t('dashboard.commercial.mes_devis.date')}
                       {sortField === 'issue_date' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -793,12 +803,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('type')}
                   >
                     <div className="flex items-center gap-2">
-                      Type
+                      {t('dashboard.commercial.mes_devis.type')}
                       {sortField === 'type' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -810,12 +820,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('client_name')}
                   >
                     <div className="flex items-center gap-2">
-                      Client
+                      {t('dashboard.commercial.mes_devis.client')}
                       {sortField === 'client_name' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -827,12 +837,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('total_ht')}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Montant HT
+                      {t('dashboard.commercial.mes_devis.amount_ht')}
                       {sortField === 'total_ht' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -844,12 +854,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('total_tva')}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Montant TVA
+                      {t('dashboard.commercial.mes_devis.amount_tva')}
                       {sortField === 'total_tva' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -861,12 +871,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('total_ttc')}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Montant TTC
+                      {t('dashboard.commercial.mes_devis.amount_ttc')}
                       {sortField === 'total_ttc' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -878,12 +888,12 @@ export const MesDevis = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      Statut
+                      {t('dashboard.commercial.mes_devis.status_label')}
                       {sortField === 'status' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -896,7 +906,7 @@ export const MesDevis = (): JSX.Element => {
                     </div>
                   </TableHead>
                   <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
-                    Actions
+                    {t('dashboard.commercial.mes_devis.actions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -906,9 +916,25 @@ export const MesDevis = (): JSX.Element => {
                   return (
                     <TableRow
                       key={String(quote.id)}
-                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedQuotes.has(String(quote.id)) ? 'bg-blue-50' : ''}`}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedQuotes.has(String(quote.id)) ? 'bg-blue-50' : ''} cursor-pointer`}
+                      onClick={(e) => {
+                        // Don't navigate if clicking on checkbox or action buttons
+                        const target = e.target as HTMLElement;
+                        if (
+                          target.closest('button') ||
+                          target.closest('[role="checkbox"]') ||
+                          target.type === 'checkbox'
+                        ) {
+                          return;
+                        }
+                        if (subdomain) {
+                          navigate(`/${subdomain}/quote-view/${quote.id}`);
+                        } else {
+                          navigate(`/quote-view/${quote.id}`);
+                        }
+                      }}
                     >
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedQuotes.has(String(quote.id))}
                           onCheckedChange={(checked) => handleSelectQuote(String(quote.id), checked as boolean)}
@@ -927,7 +953,7 @@ export const MesDevis = (): JSX.Element => {
                         {getClientType(quote)}
                       </TableCell>
                       <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'} text-[15px]`}>
-                        {quote.client?.company_name || 
+                        {quote.client?.company_name ||
                           `${quote.client?.first_name || ''} ${quote.client?.last_name || ''}`.trim() ||
                           quote.client_name || 'N/A'}
                       </TableCell>
@@ -947,9 +973,9 @@ export const MesDevis = (): JSX.Element => {
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-center">
-                        <Badge 
+                        <Badge
                           className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
-                          style={{ 
+                          style={{
                             backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
                             color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
                           }}
@@ -958,9 +984,9 @@ export const MesDevis = (): JSX.Element => {
                           {getStatusLabel(quote.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-4 py-4">
+                      <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => {
                               if (subdomain) {
                                 navigate(`/${subdomain}/quote-view/${quote.id}`);
@@ -969,17 +995,17 @@ export const MesDevis = (): JSX.Element => {
                               }
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
-                            title="Modifier"
+                            title={t('dashboard.commercial.mes_devis.modify')}
                           >
                             <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => {
                               setQuoteToDelete(String(quote.id));
                               setShowDeleteModal(true);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
-                            title="Supprimer"
+                            title={t('dashboard.commercial.mes_devis.delete')}
                           >
                             <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
                           </button>
@@ -990,46 +1016,48 @@ export const MesDevis = (): JSX.Element => {
                 })}
               </TableBody>
             </Table>
+          </div>
+        )}
 
-            {/* Totals Summary */}
-            {sortedQuotes.length > 0 && (
-              <div className={`mt-6 ml-auto w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
-                <div className="flex flex-col gap-3">
+        {/* Totals Summary - Moved outside table */}
+        {sortedQuotes.length > 0 && (
+          <div className="flex justify-end mt-6">
+            <div className={`w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('dashboard.commercial.mes_devis.total_ht')}
+                  </span>
+                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {formatCurrency(
+                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('dashboard.commercial.mes_devis.tva')}
+                  </span>
+                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {formatCurrency(
+                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
+                    )}
+                  </span>
+                </div>
+                <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                   <div className="flex items-center justify-between">
-                    <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Total HT
+                    <span className={`font-bold text-base`} style={{ color: primaryColor }}>
+                      {t('dashboard.commercial.mes_devis.total_ttc')}
                     </span>
-                    <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
                       {formatCurrency(
-                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
+                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
                       )}
                     </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      TVA
-                    </span>
-                    <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {formatCurrency(
-                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
-                      )}
-                    </span>
-                  </div>
-                  <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`font-bold text-base`} style={{ color: primaryColor }}>
-                        Total TTC
-                      </span>
-                      <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
-                        {formatCurrency(
-                          sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
-                        )}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -1064,10 +1092,10 @@ export const MesDevis = (): JSX.Element => {
         isOpen={showDeleteModal}
         onClose={cancelDeleteQuote}
         onConfirm={confirmDeleteQuote}
-        title="Voulez-vous vraiment supprimer ce devis ?"
-        message="Cette action est irréversible. Le devis sera définitivement supprimé."
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={t('dashboard.commercial.mes_devis.confirm_delete_title')}
+        message={t('dashboard.commercial.mes_devis.confirm_delete_message')}
+        confirmText={t('dashboard.commercial.mes_devis.delete_confirm_btn')}
+        cancelText={t('dashboard.commercial.mes_devis.cancel_btn')}
         type="danger"
         isLoading={deleting}
       />
@@ -1091,7 +1119,7 @@ export const MesDevis = (): JSX.Element => {
         <DialogContent className={`sm:max-w-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <DialogHeader>
             <DialogTitle className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-              Filtrer les devis
+              {t('dashboard.commercial.mes_devis.filter_quotes')}
             </DialogTitle>
           </DialogHeader>
           
@@ -1101,11 +1129,11 @@ export const MesDevis = (): JSX.Element => {
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    Montant TTC
+                    {t('dashboard.commercial.mes_devis.amount_ttc')}
                   </label>
                   <div className="flex items-center gap-4 mt-1">
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Min</span>
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Max</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('dashboard.commercial.mes_devis.min')}</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('dashboard.commercial.mes_devis.max')}</span>
                   </div>
                 </div>
                 <button
@@ -1113,7 +1141,7 @@ export const MesDevis = (): JSX.Element => {
                   className="text-sm font-medium"
                   style={{ color: primaryColor }}
                 >
-                  Reset
+                  {t('dashboard.commercial.mes_devis.reset')}
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -1139,11 +1167,11 @@ export const MesDevis = (): JSX.Element => {
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    Période
+                    {t('dashboard.commercial.mes_devis.period')}
                   </label>
                   <div className="flex items-center gap-4 mt-1">
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>De</span>
-                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>À</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('dashboard.commercial.mes_devis.from')}</span>
+                    <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('dashboard.commercial.mes_devis.to')}</span>
                   </div>
                 </div>
                 <button
@@ -1151,7 +1179,7 @@ export const MesDevis = (): JSX.Element => {
                   className="text-sm font-medium"
                   style={{ color: primaryColor }}
                 >
-                  Reset
+                  {t('dashboard.commercial.mes_devis.reset')}
                 </button>
               </div>
               <div className="flex items-center gap-3">
@@ -1180,32 +1208,32 @@ export const MesDevis = (): JSX.Element => {
                 <button
                   onClick={setToday}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isDark 
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Aujourd'hui
+                  {t('dashboard.commercial.mes_devis.today')}
                 </button>
                 <button
                   onClick={setThisWeek}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isDark 
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Cette Semaine
+                  {t('dashboard.commercial.mes_devis.this_week')}
                 </button>
                 <button
                   onClick={setThisMonth}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    isDark 
-                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Ce Mois
+                  {t('dashboard.commercial.mes_devis.this_month')}
                 </button>
               </div>
             </div>
@@ -1214,14 +1242,14 @@ export const MesDevis = (): JSX.Element => {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                  Type
+                  {t('dashboard.commercial.mes_devis.type')}
                 </label>
                 <button
                   onClick={resetTypeFilter}
                   className="text-sm font-medium"
                   style={{ color: primaryColor }}
                 >
-                  Reset
+                  {t('dashboard.commercial.mes_devis.reset')}
                 </button>
               </div>
               <div className="relative">
@@ -1230,9 +1258,9 @@ export const MesDevis = (): JSX.Element => {
                   onChange={(e) => setFilterType(e.target.value)}
                   className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white px-4 py-2 appearance-none pr-10`}
                 >
-                  <option value="">Tous</option>
-                  <option value="particulier">Particulier</option>
-                  <option value="company">Entreprise</option>
+                  <option value="">{t('dashboard.commercial.mes_devis.all')}</option>
+                  <option value="particulier">{t('dashboard.commercial.mes_devis.individual')}</option>
+                  <option value="company">{t('dashboard.commercial.mes_devis.company')}</option>
                 </select>
                 <ChevronDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               </div>
@@ -1242,14 +1270,14 @@ export const MesDevis = (): JSX.Element => {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <label className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                  Status
+                  {t('dashboard.commercial.mes_devis.status_label')}
                 </label>
                 <button
                   onClick={resetStatusFilter}
                   className="text-sm font-medium"
                   style={{ color: primaryColor }}
                 >
-                  Reset
+                  {t('dashboard.commercial.mes_devis.reset')}
                 </button>
               </div>
               <div className="relative">
@@ -1258,13 +1286,13 @@ export const MesDevis = (): JSX.Element => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className={`w-full rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white px-4 py-2 appearance-none pr-10`}
                 >
-                  <option value="">Tous</option>
-                  <option value="draft">Créée</option>
-                  <option value="sent">Envoyé</option>
-                  <option value="accepted">Signé ✓</option>
-                  <option value="rejected">Rejeté</option>
-                  <option value="expired">Expiré</option>
-                  <option value="cancelled">Annulé</option>
+                  <option value="">{t('dashboard.commercial.mes_devis.all')}</option>
+                  <option value="draft">{t('dashboard.commercial.mes_devis.status_created')}</option>
+                  <option value="sent">{t('dashboard.commercial.mes_devis.status_sent')}</option>
+                  <option value="accepted">{t('dashboard.commercial.mes_devis.status_signed')}</option>
+                  <option value="rejected">{t('dashboard.commercial.mes_devis.status_rejected')}</option>
+                  <option value="expired">{t('dashboard.commercial.mes_devis.status_expired')}</option>
+                  <option value="cancelled">{t('dashboard.commercial.mes_devis.status_cancelled')}</option>
                 </select>
                 <ChevronDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 pointer-events-none ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               </div>
@@ -1276,7 +1304,7 @@ export const MesDevis = (): JSX.Element => {
               className="w-full py-3 rounded-lg text-white font-medium"
               style={{ backgroundColor: primaryColor }}
             >
-              Appliquer les filtres
+              {t('dashboard.commercial.mes_devis.apply_filters')}
             </Button>
           </div>
         </DialogContent>
