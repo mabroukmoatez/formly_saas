@@ -32,6 +32,22 @@ export const CommercialDashboard: React.FC = () => {
     fetchDashboardData();
   }, []); // Remove selectedYear dependency - statistics should not update when chart year changes
 
+  // Filter chart data based on selected chart year
+  // This must be at the top level before any conditional returns (Rules of Hooks)
+  const filteredChartData = useMemo(() => {
+    if (!dashboardData?.charts?.revenue) {
+      return [];
+    }
+    return dashboardData.charts.revenue.filter((point) => {
+      // Filter by chart year if month format is YYYY-MM
+      if (point.month && point.month.includes('-')) {
+        const pointYear = parseInt(point.month.split('-')[0]);
+        return pointYear === chartYear;
+      }
+      return true; // Keep all if format is not recognized
+    });
+  }, [dashboardData?.charts?.revenue, chartYear]);
+
   // Helper function to normalize values (convert strings to numbers)
   const normalizeValue = (value: number | string | undefined): number => {
     if (value === undefined || value === null) return 0;
@@ -134,18 +150,6 @@ export const CommercialDashboard: React.FC = () => {
 
   const kpis = dashboardData.kpis;
   const charts = dashboardData.charts || { revenue: [] };
-
-  // Filter chart data based on selected chart year
-  const filteredChartData = useMemo(() => {
-    return charts.revenue.filter((point) => {
-      // Filter by chart year if month format is YYYY-MM
-      if (point.month && point.month.includes('-')) {
-        const pointYear = parseInt(point.month.split('-')[0]);
-        return pointYear === chartYear;
-      }
-      return true; // Keep all if format is not recognized
-    });
-  }, [charts.revenue, chartYear]);
 
   // Calculate total revenue from chart data if current is 0
   const calculateTotalRevenue = (): number => {
