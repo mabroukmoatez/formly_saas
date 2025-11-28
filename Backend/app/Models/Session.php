@@ -28,8 +28,12 @@ class Session extends Model
         'private_mode' => 'boolean',
         'session_start_date' => 'date',
         'session_end_date' => 'date',
+        'session_start_time' => 'datetime:H:i:s',
+        'session_end_time' => 'datetime:H:i:s',
         'max_participants' => 'integer',
         'current_participants' => 'integer',
+        'duration' => 'integer',
+        'duration_days' => 'integer',
     ];
 
     protected $fillable = [
@@ -52,6 +56,7 @@ class Session extends Model
         'vat_percentage',
         'currency',
         'old_price',
+        'formation_action',
         'duration',
         'duration_days',
         'session_start_date',
@@ -66,6 +71,11 @@ class Session extends Model
         'learning_outcomes',
         'methods',
         'specifics',
+        'evaluation_modalities',
+        'access_modalities',
+        'accessibility',
+        'contacts',
+        'update_date',
         'learner_accessibility',
         'image',
         'video',
@@ -274,6 +284,18 @@ class Session extends Model
     {
         return $this->belongsToMany(Trainer::class, 'session_trainers', 'session_uuid', 'trainer_id', 'uuid', 'uuid')
                     ->withPivot('permissions', 'assigned_at');
+    }
+
+    public function formationPractices()
+    {
+        return $this->belongsToMany(
+            FormationPractice::class,
+            'session_formation_practices',
+            'session_uuid',
+            'formation_practice_id',
+            'uuid',
+            'id'
+        )->withTimestamps();
     }
 
     protected static function booted()

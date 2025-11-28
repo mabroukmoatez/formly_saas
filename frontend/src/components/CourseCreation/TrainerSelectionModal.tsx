@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Search, Plus, Users, Check, Eye, Edit, Award, FileText, Shield, GitBranch, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Search, Plus, Users, Check, Eye, Edit, Award, FileText, Upload, GitBranch, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { TrainerPermissions } from './TrainerPermissionsModal';
@@ -24,6 +25,62 @@ interface TrainerSelectionModalProps {
   availableTrainers: Trainer[];
   onCreateNew: () => void;
 }
+
+const PERMISSION_DEFINITIONS: Array<{
+  key: keyof TrainerPermissions;
+  label: string;
+  description: string;
+  icon: React.ComponentType<any>;
+}> = [
+  {
+    key: 'view_course',
+    label: 'Voir le cours',
+    description: 'Consulter le contenu et la structure du cours',
+    icon: Eye
+  },
+  {
+    key: 'edit_content',
+    label: 'Éditer le contenu',
+    description: 'Modifier chapitres, leçons et éléments de contenu',
+    icon: Edit
+  },
+  {
+    key: 'manage_students',
+    label: 'Gérer les étudiants',
+    description: 'Inscrire/retirer des étudiants et suivre leur progression',
+    icon: Users
+  },
+  {
+    key: 'grade_assignments',
+    label: 'Noter les devoirs',
+    description: 'Évaluer les soumissions et donner des feedbacks',
+    icon: Award
+  },
+  {
+    key: 'view_analytics',
+    label: 'Voir les analytics',
+    description: 'Accéder aux statistiques et rapports du cours',
+    icon: FileText
+  },
+  {
+    key: 'manage_documents',
+    label: 'Gérer les documents',
+    description: 'Créer, modifier et supprimer des documents',
+    icon: Upload
+  },
+  {
+    key: 'manage_workflow',
+    label: 'Gérer les workflows',
+    description: 'Configurer les automatisations et notifications',
+    icon: GitBranch
+  },
+  {
+    key: 'publish_content',
+    label: 'Publier le contenu',
+    description: 'Contrôler la visibilité et publication',
+    icon: Shield
+  }
+];
 
 const defaultPermissions: TrainerPermissions = {
   view_course: true,
@@ -50,66 +107,21 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrainers, setSelectedTrainers] = useState<Set<number | string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
-  const [showPermissions, setShowPermissions] = useState(false);
-  const [permissions, setPermissions] = useState<TrainerPermissions>({
-    view_course: true,
-    edit_content: false,
-    manage_students: false,
-    grade_assignments: false,
-    view_analytics: false,
-    manage_documents: false,
-    manage_workflow: false,
-    publish_content: false
-  });
-
-  const filteredTrainers = useMemo(() => {
-    return availableTrainers.filter(trainer =>
-      trainer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trainer.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [availableTrainers, searchQuery]);
+  const [permissions, setPermissions] = useState<TrainerPermissions>(defaultPermissions);
 
   useEffect(() => {
-    if (!isOpen) return;
-    
     if (selectAll) {
-      const allIds = filteredTrainers.map(t => t.uuid || t.id);
+      const allIds = filteredTrainers.map(t => t.id || t.uuid);
       setSelectedTrainers(new Set(allIds));
     } else {
-      // Only clear if explicitly unchecking selectAll
-      // Don't clear on initial mount or when selectAll is already false
-      if (selectedTrainers.size > 0) {
-        // Keep current selections, just don't add new ones
-      }
+      setSelectedTrainers(new Set());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectAll]);
 
-  useEffect(() => {
-    if (selectedTrainers.size > 0) {
-      setShowPermissions(true);
-    }
-  }, [selectedTrainers.size]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      // Reset when modal closes
-      setSelectedTrainers(new Set());
-      setSelectAll(false);
-      setShowPermissions(false);
-      setSearchQuery('');
-      setPermissions({
-        view_course: true,
-        edit_content: false,
-        manage_students: false,
-        grade_assignments: false,
-        view_analytics: false,
-        manage_documents: false,
-        manage_workflow: false,
-        publish_content: false
-      });
-    }
-  }, [isOpen]);
+  const filteredTrainers = availableTrainers.filter(trainer =>
+    trainer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    trainer.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleToggleTrainer = (trainerId: number | string) => {
     const newSelected = new Set(selectedTrainers);
@@ -127,14 +139,13 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
       setSelectedTrainers(new Set());
       setSelectAll(false);
     } else {
-      const allIds = filteredTrainers.map(t => t.uuid || t.id);
+      const allIds = filteredTrainers.map(t => t.id || t.uuid);
       setSelectedTrainers(new Set(allIds));
       setSelectAll(true);
     }
   };
 
   const handlePermissionToggle = (key: keyof TrainerPermissions) => {
-    if (key === 'view_course') return; // Cannot disable view_course
     const newPermissions = { ...permissions, [key]: !permissions[key] };
     setPermissions(newPermissions);
   };
@@ -145,6 +156,8 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
     }
     await onSelect(Array.from(selectedTrainers), permissions);
   };
+
+  const permissionCount = Object.values(permissions).filter(Boolean).length;
 
   if (!isOpen) return null;
 
@@ -223,185 +236,137 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
           </div>
         </div>
 
-        {/* Permissions Section */}
-        {selectedTrainers.size > 0 && (
-          <div className={`border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-            <button
-              onClick={() => setShowPermissions(!showPermissions)}
-              className={`w-full p-4 flex items-center justify-between ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'} transition-colors`}
-            >
-              <div className="flex items-center gap-2">
-                <Shield className={`w-5 h-5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
-                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Permissions ({selectedTrainers.size} formateur{selectedTrainers.size > 1 ? 's' : ''} sélectionné{selectedTrainers.size > 1 ? 's' : ''})
-                </span>
-              </div>
-              {showPermissions ? (
-                <ChevronUp className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+        {/* Single Scrollable Container for Trainers and Permissions */}
+        <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+          <div className="space-y-6">
+            {/* Trainers Grid */}
+            <div>
+              {filteredTrainers.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                    Aucun formateur trouvé
+                  </p>
+                </div>
               ) : (
-                <ChevronDown className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-              )}
-            </button>
-            
-            {showPermissions && (
-              <div className="p-6 space-y-3 max-h-[300px] overflow-y-auto">
-                {[
-                  { key: 'view_course' as const, label: 'Voir le cours', description: 'Consulter le contenu et la structure du cours', icon: Eye },
-                  { key: 'edit_content' as const, label: 'Éditer le contenu', description: 'Modifier chapitres, leçons et éléments de contenu', icon: Edit },
-                  { key: 'manage_students' as const, label: 'Gérer les étudiants', description: 'Inscrire/retirer des étudiants et suivre leur progression', icon: Users },
-                  { key: 'grade_assignments' as const, label: 'Noter les devoirs', description: 'Évaluer les soumissions et donner des feedbacks', icon: Award },
-                  { key: 'view_analytics' as const, label: 'Voir les analytics', description: 'Accéder aux statistiques et rapports du cours', icon: FileText },
-                  { key: 'manage_documents' as const, label: 'Gérer les documents', description: 'Créer, modifier et supprimer des documents', icon: Upload },
-                  { key: 'manage_workflow' as const, label: 'Gérer les workflows', description: 'Configurer les automatisations et notifications', icon: GitBranch },
-                  { key: 'publish_content' as const, label: 'Publier le contenu', description: 'Contrôler la visibilité et publication', icon: Shield }
-                ].map(({ key, label, description, icon: Icon }) => (
-                  <div
-                    key={key}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      permissions[key]
-                        ? isDark ? 'border-blue-500 bg-blue-500/10' : 'border-blue-500 bg-blue-50'
-                        : isDark ? 'border-gray-700 bg-gray-700/50' : 'border-gray-200 bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            permissions[key]
-                              ? 'bg-blue-500'
-                              : isDark ? 'bg-gray-600' : 'bg-gray-300'
-                          }`}
-                          style={permissions[key] ? { backgroundColor: primaryColor } : {}}
-                        >
-                          <Icon className={`w-4 h-4 ${
-                            permissions[key] ? 'text-white' : isDark ? 'text-gray-400' : 'text-gray-600'
-                          }`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {label}
-                            </h4>
-                            {permissions[key] && (
-                              <Check className="w-3 h-3 text-green-500" />
+                <div className="grid grid-cols-2 gap-4">
+                  {filteredTrainers.map(trainer => {
+                    const trainerId = trainer.id || trainer.uuid;
+                    const isSelected = selectedTrainers.has(trainerId);
+                    
+                    return (
+                      <Card
+                        key={trainerId}
+                        className={`cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-2 border-blue-500'
+                            : isDark
+                              ? 'bg-gray-700 border-gray-600'
+                              : 'bg-white border-gray-200'
+                        }`}
+                        onClick={() => handleToggleTrainer(trainerId)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            {/* Avatar */}
+                            {trainer.avatar_url ? (
+                              <img
+                                src={trainer.avatar_url}
+                                alt={trainer.name}
+                                className="w-16 h-16 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
+                                style={{ backgroundColor: primaryColor }}
+                              >
+                                {trainer.name?.charAt(0).toUpperCase() || 'U'}
+                              </div>
                             )}
+
+                            {/* Info */}
+                            <div className="flex-1">
+                              <h3 className={`font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {trainer.name}
+                              </h3>
+                              <p className={`text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                Domaine
+                              </p>
+                              <Badge
+                                className="px-2 py-0.5 text-xs"
+                                style={{
+                                  backgroundColor: isDark ? '#EDE9FE' : '#EDE9FE',
+                                  color: isDark ? '#7C3AED' : '#7C3AED',
+                                  border: 'none'
+                                }}
+                              >
+                                <Users className="w-3 h-3 mr-1" />
+                                Formateur
+                              </Badge>
+                            </div>
+
+                            {/* Checkbox */}
+                            <div
+                              className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-500'
+                                  : isDark
+                                    ? 'border-gray-600 bg-gray-700'
+                                    : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-4 h-4 text-white" />}
+                            </div>
                           </div>
-                          <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Permissions Section - Only show when trainers are selected */}
+            {selectedTrainers.size > 0 && (
+              <div className={`pt-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <Label className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                    Autorisations pour les formateurs sélectionnés
+                  </Label>
+                  <Badge variant="outline" className={isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300'}>
+                    {permissionCount}/8 activées
+                  </Badge>
+                </div>
+                
+                <div className={`grid grid-cols-2 gap-3 p-4 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  {PERMISSION_DEFINITIONS.map(({ key, label, description, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => handlePermissionToggle(key)}
+                      disabled={key === 'view_course' && permissions.view_course}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        permissions[key]
+                          ? isDark ? 'border-green-600 bg-green-900/20' : 'border-green-500 bg-green-50'
+                          : isDark ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-200'
+                      } ${key === 'view_course' && permissions.view_course ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${permissions[key] ? 'text-green-500' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium text-sm mb-1 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {label}
+                            {permissions[key] && <Check className="w-4 h-4 text-green-500" />}
+                          </div>
+                          <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                             {description}
-                          </p>
+                          </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handlePermissionToggle(key)}
-                        disabled={key === 'view_course'}
-                        className={`w-10 h-5 rounded-full relative transition-colors flex-shrink-0 ${
-                          key === 'view_course' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                        } ${
-                          permissions[key]
-                            ? 'bg-blue-500'
-                            : isDark ? 'bg-gray-600' : 'bg-gray-300'
-                        }`}
-                        style={permissions[key] ? { backgroundColor: primaryColor } : {}}
-                      >
-                        <div
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-                            permissions[key] ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* Trainers Grid */}
-        <div className={`p-6 overflow-y-auto ${showPermissions ? 'max-h-[calc(90vh-500px)]' : 'max-h-[calc(90vh-200px)]'}`}>
-          {filteredTrainers.length === 0 ? (
-            <div className="text-center py-12">
-              <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                Aucun formateur trouvé
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {filteredTrainers.map(trainer => {
-                // Use UUID in priority, fallback to ID if UUID not available
-                const trainerId = trainer.uuid || trainer.id;
-                const isSelected = selectedTrainers.has(trainerId);
-                
-                return (
-                  <Card
-                    key={trainerId}
-                    className={`cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-2 border-blue-500'
-                        : isDark
-                          ? 'bg-gray-700 border-gray-600'
-                          : 'bg-white border-gray-200'
-                    }`}
-                    onClick={() => handleToggleTrainer(trainerId)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        {/* Avatar */}
-                        {trainer.avatar_url ? (
-                          <img
-                            src={trainer.avatar_url}
-                            alt={trainer.name}
-                            className="w-16 h-16 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div
-                            className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
-                            style={{ backgroundColor: primaryColor }}
-                          >
-                            {trainer.name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
-                        )}
-
-                        {/* Info */}
-                        <div className="flex-1">
-                          <h3 className={`font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {trainer.name}
-                          </h3>
-                          <p className={`text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Domaine
-                          </p>
-                          <Badge
-                            className="px-2 py-0.5 text-xs"
-                            style={{
-                              backgroundColor: isDark ? '#EDE9FE' : '#EDE9FE',
-                              color: isDark ? '#7C3AED' : '#7C3AED',
-                              border: 'none'
-                            }}
-                          >
-                            <Users className="w-3 h-3 mr-1" />
-                            Formateur
-                          </Badge>
-                        </div>
-
-                        {/* Checkbox */}
-                        <div
-                          className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                            isSelected
-                              ? 'border-blue-500 bg-blue-500'
-                              : isDark
-                                ? 'border-gray-600 bg-gray-700'
-                                : 'border-gray-300 bg-white'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-4 h-4 text-white" />}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -169,11 +169,11 @@ Route::middleware(['auth:api'])->prefix('news')->group(function () {
 Route::prefix('auth')->group(function () {
     Route::post('login', [OrganizationAuthController::class, 'login']);
     Route::post('register', [OrganizationAuthController::class, 'register']);
-
+    
     // Public invitation routes
     Route::get('verify-invitation/{token}', [OrganizationAuthController::class, 'verifyInvitation']);
     Route::post('setup-password', [OrganizationAuthController::class, 'setupPassword']);
-
+    
     Route::middleware(['auth:api', 'organization.api'])->group(function () {
         Route::get('profile', [OrganizationAuthController::class, 'profile']);
         Route::post('logout', [OrganizationAuthController::class, 'logout']);
@@ -201,13 +201,13 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/white-
     Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
     Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
     Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
-
+    
     // File upload routes
     Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
     Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
     Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
     Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']); // Alias for upload-background
-
+    
     // File deletion routes
     Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
     Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
@@ -250,13 +250,13 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/whitel
     Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
     Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
     Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
-
+    
     // File upload routes
     Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
     Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
     Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
     Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
-
+    
     // File deletion routes
     Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
     Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
@@ -302,13 +302,13 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/whitel
     Route::post('/reset', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'resetWhitelabelSettings']);
     Route::get('/preview', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'getPreviewData']);
     Route::post('/test-domain', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'testDomain']);
-
+    
     // File upload routes
     Route::post('/upload-logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadLogo']);
     Route::post('/upload-favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadFavicon']);
     Route::post('/upload-background', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
     Route::post('/upload-login-banner', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'uploadBackground']);
-
+    
     // File deletion routes
     Route::delete('/logo', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteLogo']);
     Route::delete('/favicon', [\App\Http\Controllers\Api\OrganizationWhitelabelController::class, 'deleteFavicon']);
@@ -362,7 +362,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
     // Subdomain management
     Route::put('/subdomain/update', [OrganizationWhitelabelController::class, 'updateSubdomainSettings']);
     Route::post('/subdomain/test', [OrganizationWhitelabelController::class, 'testSubdomainAvailability']);
-
+    
     // Custom domain management
     Route::post('/custom-domain/test', [OrganizationWhitelabelController::class, 'testCustomDomainConnectivity']);
 });
@@ -376,58 +376,58 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
     Route::get('/trainers/{uuid}', [TrainerApiController::class, 'show']);
     Route::put('/trainers/{uuid}', [TrainerApiController::class, 'update']);
     Route::delete('/trainers/{uuid}', [TrainerApiController::class, 'destroy']);
-
+    
     // Trainers - Avatar upload
     Route::post('/trainers/{uuid}/avatar', [TrainerApiController::class, 'uploadAvatar']);
-
+    
     // Trainers - Documents management
     Route::post('/trainers/{uuid}/documents', [TrainerApiController::class, 'uploadDocument']);
     Route::delete('/trainers/{uuid}/documents/{documentId}', [TrainerApiController::class, 'deleteDocument']);
-
+    
     // Trainers - Calendar & Availability
     Route::get('/trainers/{uuid}/calendar', [TrainerApiController::class, 'getCalendar']);
     Route::post('/trainers/{uuid}/unavailability', [TrainerApiController::class, 'addUnavailability']);
     Route::delete('/trainers/{uuid}/unavailability/{unavailabilityId}', [TrainerApiController::class, 'removeUnavailability']);
     Route::put('/trainers/{uuid}/availability-schedule', [TrainerApiController::class, 'updateAvailabilitySchedule']);
-
+    
     // Trainers - Assigned trainings
     Route::get('/trainers/{uuid}/trainings', [TrainerApiController::class, 'getTrainings']);
-
+    
     // Trainers - Assigned courses
     Route::get('/trainers/{uuid}/courses', [TrainerApiController::class, 'getCourses']);
-
+    
     // Trainers - Evaluations
     Route::post('/trainers/{uuid}/evaluate', [TrainerApiController::class, 'evaluate']);
-
+    
     // Trainers - Statistics
     Route::get('/trainers/{uuid}/stats', [TrainerApiController::class, 'getStats']);
-
+    
     // Trainers - Questionnaires
     Route::get('/trainers/{uuid}/questionnaires', [TrainerApiController::class, 'getQuestionnaires']);
     Route::post('/trainers/{uuid}/remind-questionnaire', [TrainerApiController::class, 'remindQuestionnaire']);
-
+    
     // Trainers - Stakeholders (Parties Prenantes - Tab 4)
     Route::get('/trainers/{uuid}/stakeholders', [TrainerApiController::class, 'getStakeholders']);
     Route::post('/trainers/{uuid}/stakeholders', [TrainerApiController::class, 'addStakeholder']);
     Route::put('/trainers/{uuid}/stakeholders/{stakeholderId}', [TrainerApiController::class, 'updateStakeholder']);
     Route::delete('/trainers/{uuid}/stakeholders/{stakeholderId}', [TrainerApiController::class, 'deleteStakeholder']);
-
+    
     // Trainers - Stakeholder Interactions (Optional)
     Route::get('/trainers/{uuid}/stakeholders/{stakeholderId}/interactions', [TrainerApiController::class, 'getStakeholderInteractions']);
     Route::post('/trainers/{uuid}/stakeholders/{stakeholderId}/interactions', [TrainerApiController::class, 'addStakeholderInteraction']);
-
+    
     // Certification models management
     Route::get('/certification-models', [OrganizationCertificationController::class, 'index']);
     Route::post('/certification-models', [OrganizationCertificationController::class, 'store']);
     Route::put('/certification-models/{uuid}', [OrganizationCertificationController::class, 'update']);
     Route::delete('/certification-models/{uuid}', [OrganizationCertificationController::class, 'destroy']);
-
+    
     // Email templates management
     Route::get('/email-templates', [OrganizationEmailTemplateController::class, 'index']);
     Route::post('/email-templates', [OrganizationEmailTemplateController::class, 'store']);
     Route::put('/email-templates/{uuid}', [OrganizationEmailTemplateController::class, 'update']);
     Route::delete('/email-templates/{uuid}', [OrganizationEmailTemplateController::class, 'destroy']);
-
+    
     // Document templates management (HTML to PDF templates)
     Route::get('/document-templates/types', [DocumentTemplateController::class, 'types']);
     Route::get('/document-templates', [DocumentTemplateController::class, 'index']);
@@ -437,7 +437,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
     Route::delete('/document-templates/{id}', [DocumentTemplateController::class, 'destroy']);
     Route::post('/document-templates/{id}/preview', [DocumentTemplateController::class, 'preview']);
     Route::post('/document-templates/{id}/clone', [DocumentTemplateController::class, 'clone']);
-
+    
     // Organization-wide documents (for reusing as templates across courses)
     Route::get('/documents', [OrganizationDocumentController::class, 'index']);
     Route::get('/documents/all', [OrganizationDocumentController::class, 'index']);
@@ -446,36 +446,36 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
     Route::get('/documents/{id}', [OrganizationDocumentController::class, 'show']);
     Route::put('/documents/{id}', [OrganizationDocumentController::class, 'update']);
     Route::delete('/documents/{id}', [OrganizationDocumentController::class, 'destroy']);
-
+    
     // Questions for organization documents
     Route::get('/documents/{id}/questions', [OrganizationDocumentController::class, 'getQuestions']);
     Route::post('/documents/{id}/questions', [OrganizationDocumentController::class, 'addQuestion']);
     Route::put('/documents/{id}/questions', [OrganizationDocumentController::class, 'updateQuestions']);
     Route::put('/documents/{id}/questions/{questionId}', [OrganizationDocumentController::class, 'updateQuestion']);
     Route::delete('/documents/{id}/questions/{questionId}', [OrganizationDocumentController::class, 'deleteQuestion']);
-
+    
     // Organization-wide questionnaires (without course)
     Route::get('/questionnaires', [OrganizationQuestionnaireController::class, 'index']);
     Route::post('/questionnaires', [OrganizationQuestionnaireController::class, 'store']);
     Route::get('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'show']);
     Route::put('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'update']);
     Route::delete('/questionnaires/{uuid}', [OrganizationQuestionnaireController::class, 'destroy']);
-
+    
     // Questions for organization questionnaires
     Route::get('/questionnaires/{uuid}/questions', [OrganizationQuestionnaireController::class, 'getQuestions']);
     Route::post('/questionnaires/{uuid}/questions', [OrganizationQuestionnaireController::class, 'storeQuestion']);
     Route::put('/questionnaires/{uuid}/questions/{questionId}', [OrganizationQuestionnaireController::class, 'updateQuestion']);
     Route::delete('/questionnaires/{uuid}/questions/{questionId}', [OrganizationQuestionnaireController::class, 'destroyQuestion']);
-
+    
     // Course documents management (for course creation)
     Route::get('/course-creation/courses/{uuid}/documents', [CourseDocumentApiController::class, 'index']);
     Route::post('/course-creation/courses/{uuid}/documents', [CourseDocumentApiController::class, 'store']);
     Route::put('/course-creation/courses/{uuid}/documents/{documentId}', [CourseDocumentApiController::class, 'update']);
     Route::delete('/course-creation/courses/{uuid}/documents/{documentId}', [CourseDocumentApiController::class, 'destroy']);
-
+    
     // Course certification model assignment (for course creation)
     Route::post('/course-creation/courses/{uuid}/certification-model', [CourseDocumentApiController::class, 'assignCertificationModel']);
-
+    
     // Certification models management (for course creation)
     Route::get('/course-creation/certification-models', [CertificationModelApiController::class, 'index']);
     Route::post('/course-creation/certification-models', [CertificationModelApiController::class, 'store']);
@@ -491,7 +491,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     Route::put('/{uuid}/sections/{sectionId}', [CourseSectionController::class, 'update']);
     Route::delete('/{uuid}/sections/{sectionId}', [CourseSectionController::class, 'destroy']);
     Route::post('/{uuid}/sections/reorder', [CourseSectionController::class, 'reorder']);
-
+    
     // Course chapters management
     Route::get('/{uuid}/chapters', [OrgCourseChapterController::class, 'index']);
     Route::post('/{uuid}/chapters', [OrgCourseChapterController::class, 'store']);
@@ -500,33 +500,33 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     Route::delete('/{uuid}/chapters/{chapterUuid}', [OrgCourseChapterController::class, 'destroy']);
     // ✅ Get chapter quizzes (dedicated endpoint)
     Route::get('/{uuid}/chapters/{chapterUuid}/quizzes', [OrgCourseChapterController::class, 'getChapterQuizzes']);
-
+    
     // Course trainers management
     Route::get('/{uuid}/trainers', [OrgCourseTrainerController::class, 'index']);
     Route::post('/{uuid}/trainers', [OrgCourseTrainerController::class, 'store']);
     Route::put('/{uuid}/trainers/{trainerId}', [OrgCourseTrainerController::class, 'update']);
     Route::delete('/{uuid}/trainers/{trainerId}', [OrgCourseTrainerController::class, 'destroy']);
-
+    
     // Course modules management
     Route::get('/{uuid}/modules', [CourseModuleController::class, 'index']);
     Route::post('/{uuid}/modules', [CourseModuleController::class, 'store']);
     Route::put('/{uuid}/modules/{moduleId}', [CourseModuleController::class, 'update']);
     Route::delete('/{uuid}/modules/{moduleId}', [CourseModuleController::class, 'destroy']);
     Route::patch('/{uuid}/modules/reorder', [CourseModuleController::class, 'reorder']);
-
+    
     // Course objectives management
     Route::get('/{uuid}/objectives', [CourseObjectiveController::class, 'index']);
     Route::post('/{uuid}/objectives', [CourseObjectiveController::class, 'store']);
     Route::put('/{uuid}/objectives/{objectiveId}', [CourseObjectiveController::class, 'update']);
     Route::delete('/{uuid}/objectives/{objectiveId}', [CourseObjectiveController::class, 'destroy']);
     Route::patch('/{uuid}/objectives/reorder', [CourseObjectiveController::class, 'reorder']);
-
+    
     // Course additional fees management
     Route::get('/{uuid}/additional-fees', [CourseAdditionalFeeController::class, 'index']);
     Route::post('/{uuid}/additional-fees', [CourseAdditionalFeeController::class, 'store']);
     Route::put('/{uuid}/additional-fees/{feeId}', [CourseAdditionalFeeController::class, 'update']);
     Route::delete('/{uuid}/additional-fees/{feeId}', [CourseAdditionalFeeController::class, 'destroy']);
-
+    
     // Enhanced document management with templates and PDF generation
     Route::get('/{uuid}/documents-enhanced', [CourseDocumentController::class, 'index']);
     Route::post('/{uuid}/documents-enhanced', [CourseDocumentController::class, 'store']);
@@ -534,38 +534,38 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     Route::put('/{uuid}/documents-enhanced/{documentId}', [CourseDocumentController::class, 'update']);
     Route::delete('/{uuid}/documents-enhanced/{documentId}', [CourseDocumentController::class, 'destroy']);
     Route::get('/{uuid}/documents-enhanced/{documentId}/download', [CourseDocumentController::class, 'download']);
-
+    
     // Documents routes (standard endpoint)
     Route::prefix('{courseUuid}/documents')->group(function () {
         // Specific routes first (before dynamic routes)
         Route::get('/templates', [DocumentTemplateController::class, 'getAvailableTemplates']);
         Route::post('/generate', [DocumentTemplateController::class, 'generateDocument']);
-
+        
         // CRUD routes
         Route::get('/', [CourseDocumentController::class, 'index']);
         Route::post('/', [CourseDocumentController::class, 'store']);
-
+        
         // Document-specific routes
         Route::post('/{documentId}/regenerate', [CourseDocumentController::class, 'regenerate']);
         Route::get('/{documentId}/download', [CourseDocumentController::class, 'download']);
         Route::put('/{documentId}', [CourseDocumentController::class, 'update']);
         Route::delete('/{documentId}', [CourseDocumentController::class, 'destroy']);
     });
-
+    
     // Questionnaires management (separate from documents)
     Route::get('/{uuid}/questionnaires', [CourseQuestionnaireController::class, 'index']);
     Route::get('/{uuid}/questionnaires/{questionnaireId}', [CourseQuestionnaireController::class, 'show']);
-
+    
     // Questionnaire responses management (Organization)
     Route::get('/{uuid}/documents/{documentId}/responses', [QuestionnaireResponseController::class, 'index']);
     Route::post('/{uuid}/documents/{documentId}/responses/{responseId}/grade', [QuestionnaireResponseController::class, 'grade']);
-
+    
     // Flow Actions - New implementation according to BACKEND_ADJUSTMENTS_FLOW_ACTIONS.md
     Route::get('/{courseUuid}/flow-actions', [FlowActionController::class, 'index']);
     Route::post('/{courseUuid}/flow-actions', [FlowActionController::class, 'store']);
     Route::put('/{courseUuid}/flow-actions/{actionId}', [FlowActionController::class, 'update']);
     Route::delete('/{courseUuid}/flow-actions/{actionId}', [FlowActionController::class, 'destroy']);
-
+    
     // Flow Actions (alias for workflow actions for backward compatibility)
     Route::get('/{uuid}/flow-actions', [WorkflowController::class, 'getActions']);
     Route::post('/{uuid}/flow-actions', [WorkflowController::class, 'createAction']);
@@ -589,77 +589,77 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
     Route::put('/{uuid}/chapters/{chapterId}', [CourseChapterController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}', [CourseChapterController::class, 'destroy']);
     Route::patch('/{uuid}/chapters/reorder', [CourseChapterController::class, 'reorder']);
-
+    
     // Course sub-chapters management
     Route::get('/{uuid}/chapters/{chapterId}/sub-chapters', [CourseSubChapterController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/sub-chapters', [CourseSubChapterController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}', [CourseSubChapterController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}', [CourseSubChapterController::class, 'destroy']);
     Route::patch('/{uuid}/chapters/{chapterId}/sub-chapters/reorder', [CourseSubChapterController::class, 'reorder']);
-
+    
     // Course content management (chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/content', [CourseContentController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/content', [CourseContentController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterId}/content/{contentId}', [CourseContentController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}/content/{contentId}', [CourseContentController::class, 'destroy']);
     Route::patch('/{uuid}/chapters/{chapterId}/content/reorder', [CourseContentController::class, 'reorder']);
-
+    
     // Course content management (sub-chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content', [CourseContentController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content', [CourseContentController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content/{contentId}', [CourseContentController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content/{contentId}', [CourseContentController::class, 'destroy']);
     Route::patch('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content/reorder', [CourseContentController::class, 'reorder']);
-
+    
     // Course evaluations management (chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/evaluations', [CourseEvaluationController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/evaluations', [CourseEvaluationController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterId}/evaluations/{evaluationId}', [CourseEvaluationController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}/evaluations/{evaluationId}', [CourseEvaluationController::class, 'destroy']);
-
+    
     // Course evaluations management (sub-chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations', [CourseEvaluationController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations', [CourseEvaluationController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations/{evaluationId}', [CourseEvaluationController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations/{evaluationId}', [CourseEvaluationController::class, 'destroy']);
-
+    
     // Course support files management (chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/support-files', [CourseSupportFileController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/support-files', [CourseSupportFileController::class, 'store']);
     Route::delete('/{uuid}/chapters/{chapterId}/support-files/{fileId}', [CourseSupportFileController::class, 'destroy']);
-
+    
     // Course support files management (sub-chapter level)
     Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files', [CourseSupportFileController::class, 'index']);
     Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files', [CourseSupportFileController::class, 'store']);
     Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files/{fileId}', [CourseSupportFileController::class, 'destroy']);
-
+    
     // Course documents management (existing)
     Route::get('/{uuid}/documents', [CourseDocumentApiController::class, 'index']);
     Route::post('/{uuid}/documents', [CourseDocumentApiController::class, 'store']);
     Route::put('/{uuid}/documents/{documentId}', [CourseDocumentApiController::class, 'update']);
     Route::delete('/{uuid}/documents/{documentId}', [CourseDocumentApiController::class, 'destroy']);
-
+    
     // Course certification model assignment
     Route::post('/{uuid}/certification-model', [CourseDocumentApiController::class, 'assignCertificationModel']);
-
+    
     // Course questionnaires management
     Route::get('/{uuid}/questionnaires', [CourseQuestionnaireApiController::class, 'index']);
     Route::post('/{uuid}/questionnaires', [CourseQuestionnaireApiController::class, 'store']);
     Route::put('/{uuid}/questionnaires/{questionnaireId}', [CourseQuestionnaireApiController::class, 'update']);
     Route::delete('/{uuid}/questionnaires/{questionnaireId}', [CourseQuestionnaireApiController::class, 'destroy']);
-
+    
     // Course questionnaire questions management
     Route::get('/{uuid}/questionnaires/{questionnaireId}/questions', [CourseQuestionnaireApiController::class, 'getQuestions']);
     Route::post('/{uuid}/questionnaires/{questionnaireId}/questions', [CourseQuestionnaireApiController::class, 'storeQuestion']);
     Route::put('/{uuid}/questionnaires/{questionnaireId}/questions/{questionId}', [CourseQuestionnaireApiController::class, 'updateQuestion']);
     Route::delete('/{uuid}/questionnaires/{questionnaireId}/questions/{questionId}', [CourseQuestionnaireApiController::class, 'destroyQuestion']);
-
+    
     // Course trainers management
     Route::get('/{uuid}/trainers', [CourseTrainerApiController::class, 'index']);
     Route::post('/{uuid}/trainers', [CourseTrainerApiController::class, 'store']);
     Route::put('/{uuid}/trainers/{trainerId}', [CourseTrainerApiController::class, 'update']);
     Route::delete('/{uuid}/trainers/{trainerId}', [CourseTrainerApiController::class, 'destroy']);
-
+    
     // Trainer search and management
     Route::get('/trainers/search', [CourseTrainerApiController::class, 'search']);
 
@@ -686,7 +686,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
         Route::put('/{workflowUuid}', [WorkflowController::class, 'update']);
         Route::delete('/{workflowUuid}', [WorkflowController::class, 'destroy']);
         Route::patch('/toggle', [WorkflowController::class, 'toggleStatus']);
-
+        
         // Workflow Actions
         Route::get('/actions', [WorkflowController::class, 'getActions']);
         Route::post('/actions', [WorkflowController::class, 'createAction']);
@@ -695,7 +695,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
         Route::patch('/actions/{uuid}/toggle', [WorkflowController::class, 'toggleAction']);
         Route::post('/actions/reorder', [WorkflowController::class, 'reorderActions']);
         Route::post('/actions/{uuid}/execute', [WorkflowController::class, 'executeAction']);
-
+        
         // Workflow Triggers
         Route::get('/triggers', [WorkflowController::class, 'getTriggers']);
         Route::post('/triggers', [WorkflowController::class, 'createTrigger']);
@@ -703,7 +703,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
         Route::put('/triggers/{uuid}', [WorkflowController::class, 'updateTrigger']);
         Route::delete('/triggers/{uuid}', [WorkflowController::class, 'deleteTrigger']);
         Route::post('/triggers/{uuid}/test', [WorkflowController::class, 'testTrigger']);
-
+        
         // Workflow Execution & Analytics
         Route::get('/executions', [WorkflowController::class, 'getExecutions']);
         Route::post('/execute', [WorkflowController::class, 'executeWorkflow']);
@@ -773,7 +773,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/course
         Route::put('/{uuid}', [WorkflowController::class, 'updateNotificationTemplate']);
         Route::delete('/{uuid}', [WorkflowController::class, 'deleteNotificationTemplate']);
     });
-
+    
 });
 
 // ============================================================================
@@ -787,6 +787,7 @@ use App\Http\Controllers\Api\Organization\SessionSubChapterApiController;
 use App\Http\Controllers\Api\Organization\SessionContentApiController;
 use App\Http\Controllers\Api\Organization\SessionEvaluationApiController;
 use App\Http\Controllers\Api\Organization\SessionQuestionnaireApiController;
+use App\Http\Controllers\Api\Organization\SessionFlowActionController;
 use App\Http\Controllers\Api\Organization\SessionSupportFileApiController;
 use App\Http\Controllers\Api\Organization\SessionTrainerApiController;
 use App\Http\Controllers\Api\Organization\SessionAdditionalFeeApiController;
@@ -802,29 +803,38 @@ use App\Http\Controllers\Api\Organization\SessionWorkflowController;
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization/sessions')->group(function () {
     // Session Metadata
     Route::get('/metadata', [SessionManagementApiController::class, 'getMetadata']);
-
+    
+    // Session Subcategories (same as courses - category-based)
+    Route::get('/subcategories/{categoryId}', [CourseManagementApiController::class, 'getSubcategories']);
+    
     // Session CRUD
     Route::get('/', [SessionManagementApiController::class, 'index']);
     Route::post('/', [SessionManagementApiController::class, 'store']);
     Route::get('/{uuid}', [SessionManagementApiController::class, 'show']);
     Route::put('/{uuid}', [SessionManagementApiController::class, 'update']);
     Route::delete('/{uuid}', [SessionManagementApiController::class, 'destroy']);
-
+    
     // Session Instances
     Route::post('/{uuid}/generate-instances', [SessionManagementApiController::class, 'generateInstances']);
     Route::get('/{uuid}/instances', [SessionManagementApiController::class, 'getInstances']);
-
+    
     // Session Media Management
     Route::post('/{uuid}/media/intro-video', [SessionMediaApiController::class, 'uploadIntroVideo']);
     Route::post('/{uuid}/media/intro-image', [SessionMediaApiController::class, 'uploadIntroImage']);
     Route::put('/{uuid}/media/urls', [SessionMediaApiController::class, 'updateUrls']);
     Route::delete('/{uuid}/media/intro-video', [SessionMediaApiController::class, 'deleteIntroVideo']);
     Route::delete('/{uuid}/media/intro-image', [SessionMediaApiController::class, 'deleteIntroImage']);
-
+    
     // Session Participants
     Route::post('/{uuid}/enroll', [SessionManagementApiController::class, 'enrollParticipant']);
+    Route::post('/{uuid}/enroll-multiple', [SessionManagementApiController::class, 'enrollMultiple']);
     Route::get('/{uuid}/participants', [SessionManagementApiController::class, 'getParticipants']);
-
+    Route::get('/{uuid}/participants/export', [SessionManagementApiController::class, 'exportParticipants']);
+    Route::put('/{uuid}/participants/{participantId}/tarif', [SessionManagementApiController::class, 'updateParticipantTarif']);
+    Route::put('/{uuid}/participants/{participantId}/type', [SessionManagementApiController::class, 'updateParticipantType']);
+    Route::delete('/{uuid}/participants/{participantId}', [SessionManagementApiController::class, 'removeParticipant']);
+    Route::delete('/{uuid}/participants', [SessionManagementApiController::class, 'removeMultipleParticipants']);
+    
     // Session Sections Management
     Route::get('/{uuid}/sections', [SessionSectionApiController::class, 'index']);
     Route::post('/{uuid}/sections', [SessionSectionApiController::class, 'store']);
@@ -832,80 +842,93 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/sessio
     Route::put('/{uuid}/sections/{sectionId}', [SessionSectionApiController::class, 'update']);
     Route::delete('/{uuid}/sections/{sectionId}', [SessionSectionApiController::class, 'destroy']);
     Route::post('/{uuid}/sections/reorder', [SessionSectionApiController::class, 'reorder']);
-
+    
     // Session Chapters Management
     Route::get('/{uuid}/chapters', [SessionChapterApiController::class, 'index']);
     Route::post('/{uuid}/chapters', [SessionChapterApiController::class, 'store']);
     Route::put('/{uuid}/chapters/{chapterUuid}', [SessionChapterApiController::class, 'update']);
     Route::delete('/{uuid}/chapters/{chapterUuid}', [SessionChapterApiController::class, 'destroy']);
-
+    // Chapter quizzes management
+    Route::get('/{uuid}/chapters/{chapterUuid}/quizzes', [SessionChapterApiController::class, 'getChapterQuizzes']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/quizzes', [SessionChapterApiController::class, 'assignQuiz']);
+    
     // Session Sub-Chapters Management
-    Route::get('/{uuid}/chapters/{chapterId}/sub-chapters', [SessionSubChapterApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/sub-chapters', [SessionSubChapterApiController::class, 'store']);
-    Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}', [SessionSubChapterApiController::class, 'update']);
-    Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}', [SessionSubChapterApiController::class, 'destroy']);
-    Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/reorder', [SessionSubChapterApiController::class, 'reorder']);
-
+    Route::get('/{uuid}/chapters/{chapterUuid}/sub-chapters', [SessionSubChapterApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/sub-chapters', [SessionSubChapterApiController::class, 'store']);
+    Route::put('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}', [SessionSubChapterApiController::class, 'update']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}', [SessionSubChapterApiController::class, 'destroy']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/sub-chapters/reorder', [SessionSubChapterApiController::class, 'reorder']);
+    
     // Session Content Management (chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/content', [SessionContentApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/content', [SessionContentApiController::class, 'store']);
-    Route::put('/{uuid}/chapters/{chapterId}/content/{contentId}', [SessionContentApiController::class, 'update']);
-    Route::delete('/{uuid}/chapters/{chapterId}/content/{contentId}', [SessionContentApiController::class, 'destroy']);
-    Route::post('/{uuid}/chapters/{chapterId}/content/reorder', [SessionContentApiController::class, 'reorder']);
-
-    // Session Content Management (sub-chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content', [SessionContentApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content', [SessionContentApiController::class, 'store']);
-    Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content/{contentId}', [SessionContentApiController::class, 'update']);
-    Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/content/{contentId}', [SessionContentApiController::class, 'destroy']);
-
+    Route::get('/{uuid}/chapters/{chapterUuid}/content', [SessionContentApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/content', [SessionContentApiController::class, 'store']);
+    Route::put('/{uuid}/chapters/{chapterUuid}/content/{contentUuid}', [SessionContentApiController::class, 'update']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/content/{contentUuid}', [SessionContentApiController::class, 'destroy']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/content/reorder', [SessionContentApiController::class, 'reorder']);
+    
+    // Session Content Management (sub-chapter level) - Keep for backward compatibility
+    Route::get('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/content', [SessionContentApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/content', [SessionContentApiController::class, 'store']);
+    Route::put('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/content/{contentUuid}', [SessionContentApiController::class, 'update']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/content/{contentUuid}', [SessionContentApiController::class, 'destroy']);
+    
     // Session Evaluations Management (chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/evaluations', [SessionEvaluationApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/evaluations', [SessionEvaluationApiController::class, 'store']);
-    Route::put('/{uuid}/chapters/{chapterId}/evaluations/{evaluationId}', [SessionEvaluationApiController::class, 'update']);
-    Route::delete('/{uuid}/chapters/{chapterId}/evaluations/{evaluationId}', [SessionEvaluationApiController::class, 'destroy']);
-
-    // Session Evaluations Management (sub-chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations', [SessionEvaluationApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations', [SessionEvaluationApiController::class, 'store']);
-    Route::put('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations/{evaluationId}', [SessionEvaluationApiController::class, 'update']);
-    Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/evaluations/{evaluationId}', [SessionEvaluationApiController::class, 'destroy']);
-
+    Route::get('/{uuid}/chapters/{chapterUuid}/evaluations', [SessionEvaluationApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/evaluations', [SessionEvaluationApiController::class, 'store']);
+    Route::put('/{uuid}/chapters/{chapterUuid}/evaluations/{evaluationUuid}', [SessionEvaluationApiController::class, 'update']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/evaluations/{evaluationUuid}', [SessionEvaluationApiController::class, 'destroy']);
+    
+    // Session Evaluations Management (sub-chapter level) - Keep for backward compatibility
+    Route::get('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/evaluations', [SessionEvaluationApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/evaluations', [SessionEvaluationApiController::class, 'store']);
+    Route::put('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/evaluations/{evaluationUuid}', [SessionEvaluationApiController::class, 'update']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/evaluations/{evaluationUuid}', [SessionEvaluationApiController::class, 'destroy']);
+    
     // Session Support Files Management (chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/support-files', [SessionSupportFileApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/support-files', [SessionSupportFileApiController::class, 'store']);
-    Route::delete('/{uuid}/chapters/{chapterId}/support-files/{fileId}', [SessionSupportFileApiController::class, 'destroy']);
-
-    // Session Support Files Management (sub-chapter level)
-    Route::get('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files', [SessionSupportFileApiController::class, 'index']);
-    Route::post('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files', [SessionSupportFileApiController::class, 'store']);
-    Route::delete('/{uuid}/chapters/{chapterId}/sub-chapters/{subChapterId}/support-files/{fileId}', [SessionSupportFileApiController::class, 'destroy']);
-
+    Route::get('/{uuid}/chapters/{chapterUuid}/support-files', [SessionSupportFileApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/support-files', [SessionSupportFileApiController::class, 'store']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/support-files/{fileUuid}', [SessionSupportFileApiController::class, 'destroy']);
+    
+    // Session Support Files Management (sub-chapter level) - Keep for backward compatibility
+    Route::get('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/support-files', [SessionSupportFileApiController::class, 'index']);
+    Route::post('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/support-files', [SessionSupportFileApiController::class, 'store']);
+    Route::delete('/{uuid}/chapters/{chapterUuid}/sub-chapters/{subChapterUuid}/support-files/{fileUuid}', [SessionSupportFileApiController::class, 'destroy']);
+    
     // Session Questionnaires Management
     Route::get('/{uuid}/questionnaires', [SessionQuestionnaireApiController::class, 'index']);
     Route::post('/{uuid}/questionnaires', [SessionQuestionnaireApiController::class, 'store']);
     Route::put('/{uuid}/questionnaires/{questionnaireId}', [SessionQuestionnaireApiController::class, 'update']);
     Route::delete('/{uuid}/questionnaires/{questionnaireId}', [SessionQuestionnaireApiController::class, 'destroy']);
     Route::post('/{uuid}/questionnaires/{questionnaireId}/duplicate', [SessionQuestionnaireApiController::class, 'duplicate']);
-
+    
     // Session Trainers Management
     Route::get('/{uuid}/trainers', [SessionTrainerApiController::class, 'index']);
     Route::post('/{uuid}/trainers', [SessionTrainerApiController::class, 'store']);
     Route::put('/{uuid}/trainers/{trainerId}', [SessionTrainerApiController::class, 'updatePermissions']);
     Route::delete('/{uuid}/trainers/{trainerId}', [SessionTrainerApiController::class, 'destroy']);
-
+    
+    // Session Formation Practices
+    Route::get('/{sessionUuid}/formation-practices', [SessionManagementApiController::class, 'getFormationPractices']);
+    Route::post('/{sessionUuid}/formation-practices', [SessionManagementApiController::class, 'updateFormationPractices']);
+    
+    // Session Flow Actions
+    Route::get('/{sessionUuid}/flow-actions', [SessionFlowActionController::class, 'index']);
+    Route::post('/{sessionUuid}/flow-actions', [SessionFlowActionController::class, 'store']);
+    Route::put('/{sessionUuid}/flow-actions/{actionId}', [SessionFlowActionController::class, 'update']);
+    Route::delete('/{sessionUuid}/flow-actions/{actionId}', [SessionFlowActionController::class, 'destroy']);
+    
     // Session Additional Fees Management
     Route::get('/{uuid}/additional-fees', [SessionAdditionalFeeApiController::class, 'index']);
     Route::post('/{uuid}/additional-fees', [SessionAdditionalFeeApiController::class, 'store']);
     Route::put('/{uuid}/additional-fees/{feeId}', [SessionAdditionalFeeApiController::class, 'update']);
     Route::delete('/{uuid}/additional-fees/{feeId}', [SessionAdditionalFeeApiController::class, 'destroy']);
-
+    
     // Session Objectives Management
     Route::get('/{uuid}/objectives', [SessionObjectiveApiController::class, 'index']);
     Route::post('/{uuid}/objectives', [SessionObjectiveApiController::class, 'store']);
     Route::put('/{uuid}/objectives/{objectiveUuid}', [SessionObjectiveApiController::class, 'update']);
     Route::delete('/{uuid}/objectives/{objectiveUuid}', [SessionObjectiveApiController::class, 'destroy']);
-
+    
     // Session Modules Management
     Route::get('/{uuid}/modules', [SessionModuleApiController::class, 'index']);
     Route::post('/{uuid}/modules', [SessionModuleApiController::class, 'store']);
@@ -913,12 +936,12 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/sessio
     Route::get('/{uuid}/modules/{moduleUuid}', [SessionModuleApiController::class, 'show']);
     Route::put('/{uuid}/modules/{moduleUuid}', [SessionModuleApiController::class, 'update']);
     Route::delete('/{uuid}/modules/{moduleUuid}', [SessionModuleApiController::class, 'destroy']);
-
+    
     // Session Documents Management
     Route::get('/{uuid}/documents', [SessionDocumentApiController::class, 'index']);
     Route::post('/{uuid}/documents', [SessionDocumentApiController::class, 'store']);
     Route::delete('/{uuid}/documents/{documentUuid}', [SessionDocumentApiController::class, 'destroy']);
-
+    
     // Session Documents Enhanced Management
     Route::prefix('{uuid}/documents-enhanced')->group(function () {
         Route::get('/', [SessionDocumentController::class, 'index']);
@@ -928,12 +951,12 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/sessio
         Route::post('/{documentId}/regenerate', [SessionDocumentController::class, 'regenerate']);
         Route::get('/{documentId}/download', [SessionDocumentController::class, 'download']);
     });
-
+    
     // Session Workflow Management
     Route::prefix('{uuid}/workflow')->group(function () {
         Route::get('/', [SessionWorkflowController::class, 'index']);
         Route::patch('/toggle', [SessionWorkflowController::class, 'toggleStatus']);
-
+        
         // Workflow Actions
         Route::get('/actions', [SessionWorkflowController::class, 'getActions']);
         Route::post('/actions', [SessionWorkflowController::class, 'createAction']);
@@ -960,7 +983,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
 
 // Organization Quiz Management API Routes
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->group(function () {
-
+    
     // Quiz Categories Management
     Route::prefix('quiz-categories')->group(function () {
         Route::get('/', [QuizManagementController::class, 'getCategories']);
@@ -980,28 +1003,29 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
         Route::get('/{uuid}', [QuizManagementController::class, 'show']);         // Détails d'un quiz
         Route::put('/{uuid}', [QuizManagementController::class, 'update']);       // Modifier un quiz
         Route::delete('/{uuid}', [QuizManagementController::class, 'destroy']);   // Supprimer un quiz
-
+        
         // Auto-save et Progress (EF-106, EF-107)
         Route::post('/{uuid}/auto-save', [QuizManagementController::class, 'autoSave']);
         Route::get('/{uuid}/progress', [QuizManagementController::class, 'getProgress']);
-
+        
         // Questions Management (EF-201 à EF-210)
         Route::post('/{quiz_uuid}/questions', [QuizQuestionController::class, 'store']);
         Route::post('/{quiz_uuid}/questions/reorder', [QuizQuestionController::class, 'reorder']); // EF-208
-
+        
         // Quiz Course Assignment (EF-301 à EF-305)
         Route::post('/{uuid}/assign-to-course', [QuizCourseAssignmentController::class, 'assignToCourse']);
         Route::post('/{uuid}/associate', [QuizCourseAssignmentController::class, 'assignToCourse']); // Alias for frontend compatibility
         Route::get('/{uuid}/course-assignments', [QuizCourseAssignmentController::class, 'getAssignments']);
         Route::put('/{uuid}/course-assignments/{assignmentUuid}', [QuizCourseAssignmentController::class, 'updateAssignment']);
         Route::delete('/{uuid}/course-assignments/{assignmentUuid}', [QuizCourseAssignmentController::class, 'removeAssignment']);
-
+        
         // Quiz Session Assignment
         Route::post('/{uuid}/assign-to-session', [QuizSessionAssignmentController::class, 'assignToSession']);
         Route::get('/{uuid}/session-assignments', [QuizSessionAssignmentController::class, 'getAssignments']);
         Route::put('/{uuid}/session-assignments/{assignmentUuid}', [QuizSessionAssignmentController::class, 'updateAssignment']);
         Route::delete('/{uuid}/session-assignments/{assignmentUuid}', [QuizSessionAssignmentController::class, 'removeAssignment']);
-
+        Route::delete('/{quizUuid}/associations/{sessionUuid}', [QuizSessionAssignmentController::class, 'dissociateFromSession']); // Dissociate quiz from session
+        
         // Quiz Statistics
         Route::get('/{uuid}/statistics', [QuizStatisticsController::class, 'getStatistics']);
         Route::get('/{uuid}/attempts-to-grade', [QuizStatisticsController::class, 'getAttemptsToGrade']);
@@ -1025,7 +1049,7 @@ Route::middleware(['auth:api'])->prefix('student/quizzes')->group(function () {
     // Quiz Discovery
     Route::get('/', [QuizStudentController::class, 'index']);
     Route::get('/{quiz_uuid}', [QuizStudentController::class, 'show']);
-
+    
     // Quiz Attempts
     Route::post('/{quiz_uuid}/start-attempt', [QuizStudentController::class, 'startAttempt']);
     Route::get('/{quiz_uuid}/my-attempts', [QuizStudentController::class, 'myAttempts']);
@@ -1036,7 +1060,7 @@ Route::middleware(['auth:api'])->prefix('student/quiz-attempts')->group(function
     Route::post('/{attempt_uuid}/answer', [QuizStudentController::class, 'submitAnswer']);
     Route::post('/{attempt_uuid}/auto-save', [QuizStudentController::class, 'autoSaveAttempt']);
     Route::post('/{attempt_uuid}/submit', [QuizStudentController::class, 'submitQuiz']);
-
+    
     // After Quiz
     Route::get('/{attempt_uuid}/results', [QuizStudentController::class, 'getResults']);
 });
@@ -1049,16 +1073,16 @@ Route::middleware(['auth:api'])->prefix('student/quiz-attempts')->group(function
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization/document-hub')->group(function () {
     // Vue d'ensemble du hub
     Route::get('/', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'index']);
-
+    
     // Statistiques globales
     Route::get('/statistics', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'statistics']);
-
+    
     // Gestion des dossiers
     Route::post('/folders', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'store']);
     Route::get('/folders/{folderUuid}', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'show']);
     Route::put('/folders/{folderUuid}', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'update']);
     Route::delete('/folders/{folderUuid}', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'destroy']);
-
+    
     // Gestion des documents dans les dossiers
     Route::post('/folders/{folderUuid}/documents', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'addDocument']);
     Route::delete('/folders/{folderUuid}/documents/{documentUuid}', [\App\Http\Controllers\Api\Organization\DocumentHubController::class, 'removeDocument']);
@@ -1085,7 +1109,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization')->gro
         Route::delete('/{id}/group/avatar', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'deleteAvatar']);
         Route::patch('/{id}/group/settings', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'updateGroupSettings']);
     });
-
+    
     // Liste des utilisateurs disponibles pour le chat
     Route::get('/chat/users', [\App\Http\Controllers\Api\Organization\ConversationController::class, 'getAvailableUsers']);
 });
@@ -1193,6 +1217,12 @@ Route::middleware(['auth:api', 'organization.api'])->group(function () {
 
 // Formation practices routes
 Route::get('courses/formation-practices', [\App\Http\Controllers\Api\Organization\FormationPracticeController::class, 'index']);
+Route::get('organization/formation-practices', [\App\Http\Controllers\Api\Organization\FormationPracticeController::class, 'index']);
+
+// Categories routes (accessible for both courses and sessions)
+Route::middleware(['auth:api', 'organization.api'])->prefix('organization/categories')->group(function () {
+    Route::get('/{categoryId}/subcategories', [\App\Http\Controllers\Api\Organization\CourseManagementApiController::class, 'getSubcategories']);
+});
 
 Route::get('bundle-list', [CourseController::class, 'getBundleCourseList']);
 Route::get('bundle-details/{slug}', [CourseController::class, 'bundleDetails']);
@@ -1223,7 +1253,7 @@ Route::middleware('auth:api')->group(function () {
     Route::post('user/update-profile', [UserProfileController::class, 'updateProfile']); // Alias for PUT (compatibility)
     Route::post('user/upload-avatar', [UserProfileController::class, 'uploadAvatar']);
     Route::post('user/change-password', [UserProfileController::class, 'changePassword']);
-
+    
     // Notifications API
     Route::prefix('notifications')->group(function () {
         Route::get('count', [NotificationController::class, 'count']);
@@ -1233,7 +1263,7 @@ Route::middleware('auth:api')->group(function () {
         Route::put('{id}/read', [NotificationController::class, 'markAsRead']);
         Route::delete('{id}', [NotificationController::class, 'destroy']);
     });
-
+    
     Route::group(['prefix' => 'student', 'middleware' => ['student', 'local']], function () {
         Route::get('my-learning', [MyCourseController::class, 'myLearningCourseList']);
         Route::get('my-consultation', [MyCourseController::class, 'myConsultationList']);
@@ -1536,13 +1566,13 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/metadata', [CourseManagementApiController::class, 'getMetadata']);
         Route::get('/subcategories/{categoryId}', [CourseManagementApiController::class, 'getSubcategories']);
         Route::post('/subcategories', [CourseManagementApiController::class, 'storeSubcategory']);
-
+        
         // Categories routes (must be before /{uuid} to avoid route conflicts)
         Route::get('/categories', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'index']);
         Route::post('/categories/custom', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'storeCustom']);
         Route::put('/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'updateCustom']);
         Route::delete('/categories/custom/{id}', [\App\Http\Controllers\Api\Organization\CategoryController::class, 'destroyCustom']);
-
+        
         // Course routes with UUID
         Route::get('/{uuid}', [CourseManagementApiController::class, 'show']);
         Route::get('/{uuid}/creation-data', [CourseManagementApiController::class, 'getCreationData']);
@@ -1621,17 +1651,17 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     // Initialization (must be called first for new organizations)
     Route::post('/initialize', [QualityInitializationController::class, 'initialize']);
     Route::get('/initialize/status', [QualityInitializationController::class, 'status']);
-
+    
     // System overview
     Route::get('/system/overview', [QualitySystemController::class, 'overview']);
-
+    
     // Indicators
     Route::get('/indicators', [QualityIndicatorController::class, 'index']);
     Route::post('/indicators/batch-update', [QualityIndicatorController::class, 'batchUpdate']);
     Route::get('/indicators/{id}', [QualityIndicatorController::class, 'show']);
     Route::put('/indicators/{id}', [QualityIndicatorController::class, 'update']);
     Route::get('/indicators/{id}/documents', [QualityIndicatorController::class, 'documents']);
-
+    
     // Documents
     Route::get('/documents', [QualityDocumentController::class, 'index']);
     Route::get('/documents/{id}', [QualityDocumentController::class, 'show']);
@@ -1640,32 +1670,32 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     Route::delete('/documents/{id}', [QualityDocumentController::class, 'destroy']);
     Route::put('/documents/{id}/indicators', [QualityDocumentController::class, 'associateIndicators']);
     Route::get('/documents/{id}/download', [QualityDocumentController::class, 'download']);
-
+    
     // Procedures, Models, Evidences
     Route::post('/procedures', [QualityDocumentController::class, 'createProcedure']);
     Route::put('/procedures/{id}', [QualityDocumentController::class, 'update']);
     Route::delete('/procedures/{id}', [QualityDocumentController::class, 'destroy']);
-
+    
     Route::post('/models', [QualityDocumentController::class, 'createModel']);
     Route::put('/models/{id}', [QualityDocumentController::class, 'update']);
     Route::delete('/models/{id}', [QualityDocumentController::class, 'destroy']);
-
+    
     Route::post('/evidences', [QualityDocumentController::class, 'createEvidence']);
     Route::put('/evidences/{id}', [QualityDocumentController::class, 'update']);
     Route::delete('/evidences/{id}', [QualityDocumentController::class, 'destroy']);
-
+    
     // Actions
     Route::get('/actions', [QualityActionController::class, 'index']);
     Route::post('/actions', [QualityActionController::class, 'store']);
     Route::put('/actions/{id}', [QualityActionController::class, 'update']);
     Route::delete('/actions/{id}', [QualityActionController::class, 'destroy']);
-
+    
     // Action Categories
     Route::get('/action-categories', [QualityActionController::class, 'categories']);
     Route::post('/action-categories', [QualityActionController::class, 'createCategory']);
     Route::put('/action-categories/{id}', [QualityActionController::class, 'updateCategory']);
     Route::delete('/action-categories/{id}', [QualityActionController::class, 'destroyCategory']);
-
+    
     // Audits
     Route::get('/audit/next', [QualityAuditController::class, 'next']);
     Route::get('/audit/history', [QualityAuditController::class, 'history']);
@@ -1673,7 +1703,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     Route::put('/audit/{id}', [QualityAuditController::class, 'update']);
     Route::post('/audit/{id}/complete', [QualityAuditController::class, 'complete']);
     Route::delete('/audit/{id}', [QualityAuditController::class, 'destroy']);
-
+    
     // BPF
     Route::get('/bpf', [QualityBpfController::class, 'index']);
     Route::get('/bpf/{id}', [QualityBpfController::class, 'show']);
@@ -1683,29 +1713,29 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     Route::get('/bpf/archives', [QualityBpfController::class, 'archives']);
     Route::get('/bpf/{id}/export', [QualityBpfController::class, 'export']);
     Route::delete('/bpf/{id}', [QualityBpfController::class, 'destroy']);
-
+    
     // Articles
     Route::get('/articles', [QualityArticleController::class, 'index']);
     Route::get('/articles/{id}', [QualityArticleController::class, 'show']);
     Route::post('/articles', [QualityArticleController::class, 'store']);
     Route::put('/articles/{id}', [QualityArticleController::class, 'update']);
     Route::delete('/articles/{id}', [QualityArticleController::class, 'destroy']);
-
+    
     // Notifications
     Route::get('/notifications', [QualityNotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [QualityNotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [QualityNotificationController::class, 'markAllAsRead']);
-
+    
     // Dashboard
     Route::get('/dashboard/stats', [QualityDashboardController::class, 'stats']);
-
+    
     // Search
     Route::get('/search', [QualitySearchController::class, 'search']);
-
+    
     // Reports
     Route::get('/reports/export', [QualityReportController::class, 'export']);
     Route::get('/reports/{reportId}/status', [QualityReportController::class, 'status']);
-
+    
     // Tasks (Système Trello)
     Route::get('/tasks', [QualityTaskController::class, 'index']);
     Route::get('/tasks/statistics', [QualityTaskController::class, 'statistics']);
@@ -1714,20 +1744,20 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('quality')->group(fu
     Route::put('/tasks/{id}', [QualityTaskController::class, 'update']);
     Route::delete('/tasks/{id}', [QualityTaskController::class, 'destroy']);
     Route::post('/tasks/positions', [QualityTaskController::class, 'updatePositions']);
-
+    
     // Task Categories
     Route::get('/task-categories', [QualityTaskCategoryController::class, 'index']);
     Route::post('/task-categories', [QualityTaskCategoryController::class, 'store']);
     Route::put('/task-categories/{id}', [QualityTaskCategoryController::class, 'update']);
     Route::delete('/task-categories/{id}', [QualityTaskCategoryController::class, 'destroy']);
     Route::post('/task-categories/initialize', [QualityTaskCategoryController::class, 'initializeSystemCategories']);
-
+    
     // Invitations (Collaborateurs externes)
     Route::get('/invitations', [QualityInvitationController::class, 'index']);
     Route::post('/invitations', [QualityInvitationController::class, 'store']);
     Route::post('/invitations/{id}/revoke', [QualityInvitationController::class, 'revoke']);
     Route::post('/invitations/{id}/resend', [QualityInvitationController::class, 'resend']);
-
+    
     // Statistics (Suivi d'avancement)
     Route::get('/statistics/current', [QualityStatisticsController::class, 'current']);
     Route::get('/statistics/period', [QualityStatisticsController::class, 'period']);
@@ -1740,7 +1770,7 @@ Route::prefix('quality/public')->group(function () {
     // News QUALIOPI (actualities)
     Route::get('/news', [QualityNewsController::class, 'index']);
     Route::get('/news/{id}', [QualityNewsController::class, 'show']);
-
+    
     // Services complémentaires
     Route::get('/services', [QualityServiceController::class, 'index']);
     Route::get('/services/{id}', [QualityServiceController::class, 'show']);
@@ -1752,7 +1782,7 @@ Route::middleware(['auth:api', 'admin'])->prefix('admin/quality')->group(functio
     Route::post('/news', [QualityNewsController::class, 'store']);
     Route::put('/news/{id}', [QualityNewsController::class, 'update']);
     Route::delete('/news/{id}', [QualityNewsController::class, 'destroy']);
-
+    
     // Services Management
     Route::post('/services', [QualityServiceController::class, 'store']);
     Route::put('/services/{id}', [QualityServiceController::class, 'update']);
@@ -1767,26 +1797,26 @@ Route::post('/quality/invitations/{token}/accept', [QualityInvitationController:
 // ============================================================================
 
 Route::middleware(['auth:api'])->prefix('admin/organization')->group(function () {
-
+    
     // 1. Organization Settings
     Route::get('/settings', [OrganizationSettingsController::class, 'show']);
     Route::put('/settings', [OrganizationSettingsController::class, 'update']);
     Route::post('/settings', [OrganizationSettingsController::class, 'update']); // Alternative POST method
-
+    
     // 2. Organization Documents
     Route::get('/documents', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'index']);
     Route::patch('/documents/{document_id}/rename', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'rename']);
     Route::delete('/documents/{document_id}', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'destroy']);
     Route::get('/documents/{document_id}/view', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'view']);
     Route::get('/documents/{document_id}/download', [\App\Http\Controllers\Api\Admin\OrganizationDocumentController::class, 'download']);
-
+    
     // 2. Messagerie
     Route::get('/messages', [MessageController::class, 'index']);
     Route::post('/messages', [MessageController::class, 'store']);
     Route::put('/messages/{id}/read', [MessageController::class, 'markAsRead']);
     Route::post('/messages/{id}/archive', [MessageController::class, 'archive']);
     Route::delete('/messages/{id}', [MessageController::class, 'destroy']);
-
+    
     // 3. Mailing Lists
     Route::get('/mailing-lists', [MailingListController::class, 'index']);
     Route::post('/mailing-lists', [MailingListController::class, 'store']);
@@ -1794,7 +1824,7 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
     Route::delete('/mailing-lists/{id}', [MailingListController::class, 'destroy']);
     Route::post('/mailing-lists/{id}/recipients/add', [MailingListController::class, 'addRecipients']);
     Route::post('/mailing-lists/{id}/recipients/remove', [MailingListController::class, 'removeRecipients']);
-
+    
     // 4. News (Actualités)
     Route::get('/news', [OrganizationNewsController::class, 'index']);
     Route::post('/news', [OrganizationNewsController::class, 'store']);
@@ -1803,43 +1833,43 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
     Route::post('/news/{id}/publish', [OrganizationNewsController::class, 'publish']);
     Route::post('/news/{id}/archive', [OrganizationNewsController::class, 'archive']);
     Route::post('/news/{id}/toggle-visibility', [OrganizationNewsController::class, 'toggleVisibility']);
-
+    
     // 5. Events (Événements) - Système complet selon spécifications
     Route::get('/events', [EventController::class, 'index']);
     Route::get('/events/{eventId}', [EventController::class, 'show']);
     Route::post('/events', [EventController::class, 'store']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::delete('/events/{eventId}', [EventController::class, 'destroy']);
-
+    
     // Inscriptions aux événements
     Route::post('/events/{eventId}/register', [EventController::class, 'register']);
     Route::delete('/events/{eventId}/register', [EventController::class, 'unregister']);
-
+    
     // Participants et statistiques
     Route::get('/events/{eventId}/attendees', [EventController::class, 'attendees']);
     Route::get('/events/{eventId}/statistics', [EventController::class, 'statistics']);
-
+    
     // Upload d'images
     Route::post('/events/upload-image', [EventController::class, 'uploadImage']);
-
+    
     // 6. News (Actualités) - Système complet selon spécifications
     Route::get('/news', [NewsController::class, 'index']);
     Route::get('/news/{id}', [NewsController::class, 'show']);
     Route::post('/news', [NewsController::class, 'store']);
     Route::put('/news/{id}', [NewsController::class, 'update']);
     Route::delete('/news/{id}', [NewsController::class, 'destroy']);
-
+    
     // Actions sur les actualités
     Route::patch('/news/{id}/publish', [NewsController::class, 'publish']);
     Route::patch('/news/{id}/feature', [NewsController::class, 'feature']);
     Route::post('/news/{id}/view', [NewsController::class, 'view']);
     Route::post('/news/{id}/like', [NewsController::class, 'like']);
     Route::delete('/news/{id}/like', [NewsController::class, 'unlike']);
-
+    
     // Catégories et statistiques
     Route::get('/news/categories', [NewsController::class, 'getCategories']);
     Route::get('/news/statistics', [NewsController::class, 'statistics']);
-
+    
     // Routes compatibles pour le frontend (sans préfixe organization)
     Route::prefix('events')->group(function () {
         Route::get('/', [EventController::class, 'index']);
@@ -1854,7 +1884,7 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
         Route::get('/{eventId}/statistics', [EventController::class, 'statistics']);
         Route::post('/upload-image', [EventController::class, 'uploadImage']);
     });
-
+    
     Route::prefix('news')->group(function () {
         Route::get('/', [NewsController::class, 'index']);
         Route::get('/categories', [NewsController::class, 'getCategories']);
@@ -1869,14 +1899,14 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
         Route::post('/{id}/like', [NewsController::class, 'like']);
         Route::delete('/{id}/like', [NewsController::class, 'unlike']);
     });
-
+    
     // Routes legacy pour compatibilité (à supprimer plus tard)
     // Route::post('/events/{id}/cancel', [OrganizationEventController::class, 'cancel']);
     // Route::post('/events/{id}/toggle-visibility', [OrganizationEventController::class, 'toggleVisibility']);
-
+    
     // 6. Calendar (Planning)
     Route::get('/calendar', [CalendarController::class, 'index']);
-
+    
     // 7. Session Planning (Sessions & Formations)
     Route::prefix('sessions')->group(function () {
         Route::get('/planning', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getSessions']);
@@ -1885,15 +1915,15 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
         Route::put('/{sessionId}/instances/{instanceId}', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'updateSessionInstance']);
         Route::post('/{sessionId}/instances/{instanceId}/cancel', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'cancelSessionInstance']);
     });
-
+    
     // 8. Course Planning (Courses & Live Classes)
     Route::prefix('courses')->group(function () {
         Route::get('/planning', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getCourses']);
     });
-
+    
     // 9. Planning Overview (Sessions + Courses + Events)
     Route::get('/planning/overview', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getPlanningOverview']);
-
+    
     // 9. Reports & Statistics (Rapports)
     Route::get('/reports/dashboard', [AdminReportController::class, 'dashboard']);
     Route::get('/reports/connections', [AdminReportController::class, 'connections']);
@@ -1911,20 +1941,20 @@ Route::middleware(['auth:api'])->prefix('admin')->group(function () {
     Route::post('/messages/{id}/archive', [\App\Http\Controllers\Api\Admin\MessageController::class, 'archive']);
     Route::delete('/messages/{id}', [\App\Http\Controllers\Api\Admin\MessageController::class, 'destroy']);
     Route::get('/messages/stats', [\App\Http\Controllers\Api\Admin\MessageController::class, 'stats']);
-
+    
     // Mailing Lists (alternative routes)
     Route::get('/mailing-lists', [\App\Http\Controllers\Api\Admin\MailingListController::class, 'index']);
     Route::post('/mailing-lists', [\App\Http\Controllers\Api\Admin\MailingListController::class, 'store']);
     Route::put('/mailing-lists/{id}', [\App\Http\Controllers\Api\Admin\MailingListController::class, 'update']);
     Route::delete('/mailing-lists/{id}', [\App\Http\Controllers\Api\Admin\MailingListController::class, 'destroy']);
     Route::post('/mailing-lists/{id}/add-recipients', [\App\Http\Controllers\Api\Admin\MailingListController::class, 'addRecipients']);
-
+    
     // User Search (for messaging)
     Route::get('/users/search', [\App\Http\Controllers\Api\Admin\UserSearchController::class, 'search']);
-
+    
     // Calendar (for frontend compatibility)
     Route::get('/calendar', [\App\Http\Controllers\Api\Admin\CalendarController::class, 'index']);
-
+    
     // Session Planning (for frontend compatibility)
     Route::prefix('sessions')->group(function () {
         Route::get('/planning', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getSessions']);
@@ -1933,15 +1963,15 @@ Route::middleware(['auth:api'])->prefix('admin')->group(function () {
         Route::put('/{sessionId}/instances/{instanceId}', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'updateSessionInstance']);
         Route::post('/{sessionId}/instances/{instanceId}/cancel', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'cancelSessionInstance']);
     });
-
+    
     // Course Planning (for frontend compatibility)
     Route::prefix('courses')->group(function () {
         Route::get('/planning', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getCourses']);
     });
-
+    
     // Planning Overview (for frontend compatibility)
     Route::get('/planning/overview', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getPlanningOverview']);
-
+    
     // Conversations (Real-time messaging)
     Route::get('/conversations', [\App\Http\Controllers\Api\Admin\ConversationController::class, 'index']);
     Route::post('/conversations', [\App\Http\Controllers\Api\Admin\ConversationController::class, 'store']);
@@ -1982,8 +2012,7 @@ Route::middleware(['auth:api'])->prefix('admin/support-tickets')->group(function
 Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commercial')->group(function () {
     // Dashboard
     Route::get('/dashboard', [\App\Http\Controllers\Api\Organization\GestionCommercial\CommercialDashboardController::class, 'index']);
-    Route::get('/dashboard/next-document-number/{type}', [\App\Http\Controllers\Api\Organization\GestionCommercial\CommercialDashboardController::class, 'getNextDocumentNumber']);
-
+    
     // Clients
     Route::get('/clients', [\App\Http\Controllers\Api\Organization\GestionCommercial\ClientManagementController::class, 'index']);
     Route::get('/clients/statistics', [\App\Http\Controllers\Api\Organization\GestionCommercial\ClientManagementController::class, 'statistics']);
@@ -1992,7 +2021,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::put('/clients/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ClientManagementController::class, 'update']);
     Route::delete('/clients/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ClientManagementController::class, 'destroy']);
     Route::post('/clients/match-or-create', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'matchOrCreateClient']);
-
+    
     // INSEE API Routes
     Route::get('/insee/search', [\App\Http\Controllers\Api\Organization\GestionCommercial\InseeSearchController::class, 'search']);
     Route::get('/insee/search-siret', [\App\Http\Controllers\Api\Organization\GestionCommercial\InseeSearchController::class, 'searchBySiret']);
@@ -2000,14 +2029,14 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::get('/insee/search-name', [\App\Http\Controllers\Api\Organization\GestionCommercial\InseeSearchController::class, 'searchByName']);
     Route::get('/insee/validate-siret', [\App\Http\Controllers\Api\Organization\GestionCommercial\InseeSearchController::class, 'validateSiret']);
     Route::get('/insee/validate-siren', [\App\Http\Controllers\Api\Organization\GestionCommercial\InseeSearchController::class, 'validateSiren']);
-
+    
     // OCR Import Routes
     Route::post('/invoices/import-ocr', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'importInvoiceOcr']);
     Route::post('/factures/import-ocr', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'importInvoiceOcr']);
     Route::post('/quotes/import-ocr', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'importQuoteOcr']);
     Route::post('/devis/import-ocr', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'importQuoteOcr']);
     Route::post('/articles/match-or-create', [\App\Http\Controllers\Api\Organization\GestionCommercial\OcrImportController::class, 'matchOrCreateArticles']);
-
+    
     // Items (English)
     Route::get('/items', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'index']);
     Route::post('/items', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'store']);
@@ -2015,7 +2044,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::put('/items/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'update']);
     Route::delete('/items/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'destroy']);
     Route::post('/items/bulk-delete', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'bulkDestroy']);
-
+    
     // Articles (French - Alias for Items)
     Route::get('/articles', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'index']);
     Route::post('/articles', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'store']);
@@ -2023,7 +2052,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::put('/articles/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'update']);
     Route::delete('/articles/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'destroy']);
     Route::post('/articles/bulk-delete', [\App\Http\Controllers\Api\Organization\GestionCommercial\ItemManagementController::class, 'bulkDestroy']);
-
+    
     // Quotes (English)
     Route::get('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'index']);
     Route::post('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'store']);
@@ -2036,7 +2065,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/quotes/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/quotes/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
     Route::post('/quotes/{id}/send-email', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'sendEmail']);
-
+    
     // Devis (French - Alias for Quotes)
     Route::get('/devis', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'index']);
     Route::post('/devis', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'store']);
@@ -2050,7 +2079,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/devis/{id}/convert-to-facture', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/devis/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
     Route::post('/devis/{id}/send-email', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'sendEmail']);
-
+    
     // Invoices (English)
     Route::get('/invoices', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'index']);
     Route::post('/invoices', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'store']);
@@ -2061,7 +2090,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/invoices/remind-unpaid', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'remindUnpaid']);
     Route::get('/invoices/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'generatePDF']);
     Route::post('/invoices/{id}/send-email', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'sendEmail']);
-
+    
     // Factures (French - Alias for Invoices)
     Route::get('/factures', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'index']);
     Route::post('/factures', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'store']);
@@ -2073,7 +2102,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/factures/remind-unpaid', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'remindUnpaid']);
     Route::get('/factures/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'generatePDF']);
     Route::post('/factures/{id}/send-email', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'sendEmail']);
-
+    
     // Expenses (English)
     Route::get('/expenses', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'index']);
     Route::get('/expenses/dashboard', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'dashboard']);
@@ -2088,7 +2117,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/expenses/bulk-delete', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'bulkDestroy']);
     Route::post('/expenses/{id}/upload', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'uploadDocuments']);
     Route::get('/expenses/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'generatePDF']);
-
+    
     // Charges (French - Alias for Expenses)
     Route::get('/charges', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'index']);
     Route::get('/charges/dashboard', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'dashboard']);
@@ -2103,37 +2132,37 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/charges/bulk-delete', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'bulkDestroy']);
     Route::post('/charges/{id}/upload', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'uploadDocuments']);
     Route::get('/charges/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\ExpensesChargesController::class, 'generatePDF']);
-
+    
     // Company Details
     Route::get('/company-details', [\App\Http\Controllers\Organization\CompanyDetailsController::class, 'index']);
     Route::put('/company-details', [\App\Http\Controllers\Organization\CompanyDetailsController::class, 'update']);
     Route::post('/company-details/logo', [\App\Http\Controllers\Organization\CompanyDetailsController::class, 'uploadLogo']);
-
+    
     // Bank Accounts
     Route::get('/bank-accounts', [\App\Http\Controllers\Organization\BankAccountController::class, 'index']);
     Route::get('/bank-accounts/{id}', [\App\Http\Controllers\Organization\BankAccountController::class, 'show']);
     Route::post('/bank-accounts', [\App\Http\Controllers\Organization\BankAccountController::class, 'store']);
     Route::put('/bank-accounts/{id}', [\App\Http\Controllers\Organization\BankAccountController::class, 'update']);
     Route::delete('/bank-accounts/{id}', [\App\Http\Controllers\Organization\BankAccountController::class, 'destroy']);
-
+    
     // Payment Conditions
     Route::get('/payment-conditions/templates', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'getTemplates']);
     Route::post('/payment-conditions/templates', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'createTemplate']);
-
+    
     // Payment Schedules
     Route::get('/invoices/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'getPaymentSchedule']);
     Route::post('/invoices/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'savePaymentSchedule']);
     Route::patch('/invoices/{invoiceId}/payment-schedule/{scheduleId}', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'updateScheduleStatus']);
-
+    
     // Factures Payment Schedules (French Alias)
     Route::get('/factures/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'getPaymentSchedule']);
     Route::post('/factures/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'savePaymentSchedule']);
     Route::patch('/factures/{invoiceId}/payment-schedule/{scheduleId}', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'updateScheduleStatus']);
-
+    
     // Quote Payment Schedules
     Route::get('/quotes/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'getQuotePaymentSchedule']);
     Route::post('/quotes/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'saveQuotePaymentSchedule']);
-
+    
     // Devis Payment Schedules (French Alias)
     Route::get('/devis/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'getQuotePaymentSchedule']);
     Route::post('/devis/{id}/payment-schedule', [\App\Http\Controllers\Organization\PaymentConditionController::class, 'saveQuotePaymentSchedule']);
@@ -2149,7 +2178,7 @@ Route::middleware(['auth:api'])->prefix('learner')->group(function () {
     Route::post('/profile/request-password-change-code', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'requestPasswordChangeCode']);
     Route::post('/profile/change-password', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'changePassword']);
     Route::put('/profile/notification-preferences', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateNotificationPreferences']);
-
+    
     // Dashboard routes
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getStats']);
     Route::get('/dashboard/stats/detailed', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getDetailedStats']);
@@ -2157,19 +2186,19 @@ Route::middleware(['auth:api'])->prefix('learner')->group(function () {
     Route::get('/dashboard/news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getNews']);
     Route::get('/dashboard/events-and-news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getEventsAndNews']);
     Route::get('/dashboard/recent-activities', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getRecentActivities']);
-
+    
     // Courses routes
     Route::get('/courses', [\App\Http\Controllers\Api\Learner\LearnerCoursesController::class, 'index']);
-
+    
     // Documents routes
     Route::get('/documents', [\App\Http\Controllers\Api\Learner\LearnerDocumentsController::class, 'index']);
-
+    
     // Notifications routes
     Route::get('/notifications', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'index']);
     Route::get('/notifications/count', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'count']);
     Route::put('/notifications/{id}/read', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'markAsRead']);
     Route::put('/notifications/read-all', [\App\Http\Controllers\Api\Learner\LearnerNotificationController::class, 'markAllAsRead']);
-
+    
     // Conversations/Messaging routes
     Route::prefix('conversations')->group(function () {
         Route::get('/', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'index']);
@@ -2180,7 +2209,7 @@ Route::middleware(['auth:api'])->prefix('learner')->group(function () {
         Route::put('/{id}/mark-read', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'markAsRead']);
         Route::get('/{id}/participants', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'getParticipants']);
     });
-
+    
     // Liste des utilisateurs disponibles pour le chat
     Route::get('/chat/users', [\App\Http\Controllers\Api\Learner\LearnerConversationController::class, 'getAvailableUsers']);
 });
@@ -2330,14 +2359,14 @@ Route::middleware(['auth:api'])->prefix('learner')->group(function () {
     Route::post('/profile/request-password-change-code', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'requestPasswordChangeCode']);
     Route::post('/profile/change-password', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'changePassword']);
     Route::put('/profile/notification-preferences', [\App\Http\Controllers\Api\Learner\LearnerProfileController::class, 'updateNotificationPreferences']);
-
+    
     // Dashboard routes
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getStats']);
     Route::get('/dashboard/stats/detailed', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getDetailedStats']);
     Route::get('/dashboard/upcoming-events', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getUpcomingEvents']);
     Route::get('/dashboard/news', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getNews']);
     Route::get('/dashboard/recent-activities', [\App\Http\Controllers\Api\Learner\LearnerDashboardController::class, 'getRecentActivities']);
-
+    
     // Note: Other routes (courses, documents, questionnaires, attendance, etc.) 
     // will be added as we create the corresponding controllers
 });

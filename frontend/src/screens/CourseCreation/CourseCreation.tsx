@@ -14,7 +14,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { useToast } from '../../components/ui/toast';
-import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 
 interface CourseCreationProps {
   courseUuid?: string;
@@ -70,8 +69,6 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
   const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
   const [selectedPracticeIds, setSelectedPracticeIds] = useState<number[]>(formData.formation_practice_ids || []);
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
 
   // Load module durations from localStorage
   useEffect(() => {
@@ -522,35 +519,24 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         }
       }
     } else if (currentStep === 6) {
-      // Show confirmation modal before publishing
-      setShowPublishModal(true);
+      // Handle course completion
+      try {
+        const updated = await updateCourseStatus('active');
+        if (updated) {
+          showSuccess(t('course.completedSuccessfully'));
+          // Optionally redirect to course management or dashboard
+          // You can add navigation logic here
+        }
+      } catch (error: any) {
+        console.error('Failed to complete course:', error);
+        showError(t('course.completionError'));
+      }
     }
   };
 
   const handlePreviousStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
-    }
-  };
-
-  const handleConfirmPublish = async () => {
-    try {
-      setIsPublishing(true);
-      const updated = await updateCourseStatus('active');
-      if (updated) {
-        showSuccess(t('course.completedSuccessfully') || 'Formation publiée avec succès');
-        setShowPublishModal(false);
-        // Optionally redirect to course management or dashboard
-        // You can add navigation logic here
-        if (onCourseSaved) {
-          onCourseSaved();
-        }
-      }
-    } catch (error: any) {
-      console.error('Failed to complete course:', error);
-      showError(t('course.completionError') || 'Erreur lors de la publication de la formation');
-    } finally {
-      setIsPublishing(false);
     }
   };
 
@@ -715,19 +701,6 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
                       </div>
                     </div>
         </main>
-
-        {/* Publication Confirmation Modal */}
-        <ConfirmationModal
-          isOpen={showPublishModal}
-          onClose={() => setShowPublishModal(false)}
-          onConfirm={handleConfirmPublish}
-          title="Confirmer la publication"
-          message={`Êtes-vous sûr de vouloir publier la formation "${formData.title || 'sans titre'}" ? Une fois publiée, la formation sera visible par les apprenants.`}
-          confirmText="Publier"
-          cancelText="Annuler"
-          type="info"
-          isLoading={isPublishing}
-        />
         </div>
   );
 };

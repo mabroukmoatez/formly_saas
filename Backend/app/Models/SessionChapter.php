@@ -64,5 +64,10 @@ class SessionChapter extends Model
     {
         return $this->hasMany(SessionSupportFile::class, 'chapter_id', 'uuid');
     }
+
+    public function quizAssignments()
+    {
+        return $this->hasMany(QuizSessionAssignment::class, 'chapter_id', 'id');
+    }
 }
 

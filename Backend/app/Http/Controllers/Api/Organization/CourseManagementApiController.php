@@ -1408,11 +1408,12 @@ class CourseManagementApiController extends Controller
     public function getSubcategories($categoryId)
     {
         try {
-            // Check permission
-            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+            // Check permission (allow both courses and sessions permissions)
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses') && 
+                !Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'You do not have permission to manage courses'
+                    'message' => 'You do not have permission to access this resource'
                 ], 403);
             }
 

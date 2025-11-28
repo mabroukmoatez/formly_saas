@@ -631,14 +631,8 @@ class CourseCreationService {
   }
 
   // Email Templates (Global)
-  getEmailTemplates(params?: { page?: number; per_page?: number; search?: string }) {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', String(params.page));
-    if (params?.per_page) queryParams.append('per_page', String(params.per_page));
-    if (params?.search) queryParams.append('search', params.search);
-    queryParams.append('type', 'email');
-    const qs = queryParams.toString();
-    return apiService.get(`/api/organization/white-label/library/templates?${qs}`);
+  getEmailTemplates() {
+    return apiService.get(`${this.base}/email-templates`);
   }
   createEmailTemplate(data: { name: string; subject: string; body: string; placeholders: string[]; is_default: boolean }) {
     return apiService.post(`${this.ccBase}/email-templates`, data);
@@ -1059,7 +1053,7 @@ class CourseCreationService {
     return apiService.get(`${this.orgCoursesBase}/${courseUuid}/trainers`);
   }
   assignTrainerEnhanced(courseUuid: UUID, data: { instructor_id?: number | string; trainer_id?: number | string; permissions: any }) {
-    // Backend expects: { "instructor_id": "45" (as string), "permissions": {...} }
+    // Backend expects: { "instructor_id": 45, "permissions": {...} }
     // Accept both trainer_id and instructor_id for compatibility
     const trainerId = data.trainer_id || data.instructor_id;
 
@@ -1067,9 +1061,17 @@ class CourseCreationService {
       throw new Error('ID du formateur manquant');
     }
 
-    // Backend expects instructor_id as a string (even if it's a numeric ID)
-    // Convert to string to ensure compatibility
-    const trainerIdentifier = String(trainerId);
+    // Accept both numeric ID and UUID
+    let trainerIdentifier: number | string = trainerId;
+    
+    // Try to convert to number if it's a numeric string
+    if (typeof trainerId === 'string') {
+      const numericId = parseInt(trainerId, 10);
+      if (!isNaN(numericId)) {
+        trainerIdentifier = numericId;
+      }
+      // Otherwise keep as UUID string
+    }
 
     // Backend expects instructor_id (not trainer_id)
     const payload = {

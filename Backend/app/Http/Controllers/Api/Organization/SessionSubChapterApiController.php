@@ -57,7 +57,7 @@ class SessionSubChapterApiController extends Controller
                 ], 404);
             }
 
-            $subChapters = SessionSubChapter::where('chapter_uuid', $chapterId)
+            $subChapters = SessionSubChapter::where('chapter_id', $chapter->uuid)
                 ->with(['content', 'evaluations', 'supportFiles'])
                 ->orderBy('order_index')
                 ->get();
@@ -135,12 +135,12 @@ class SessionSubChapterApiController extends Controller
                 ], 422);
             }
 
-            $maxOrder = SessionSubChapter::where('chapter_uuid', $chapterId)->max('order_index');
+            $maxOrder = SessionSubChapter::where('chapter_id', $chapter->uuid)->max('order_index');
             $orderIndex = $request->order_index ?? ($maxOrder !== null ? $maxOrder + 1 : 0);
 
             $subChapter = SessionSubChapter::create([
                 'uuid' => Str::uuid()->toString(),
-                'chapter_uuid' => $chapterId,
+                'chapter_id' => $chapter->uuid,
                 'title' => $request->title,
                 'description' => $request->description,
                 'order_index' => $orderIndex,
@@ -176,7 +176,20 @@ class SessionSubChapterApiController extends Controller
                 ], 403);
             }
 
-            $subChapter = SessionSubChapter::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $subChapter = SessionSubChapter::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $subChapterId)
                 ->first();
 
@@ -233,7 +246,20 @@ class SessionSubChapterApiController extends Controller
                 ], 403);
             }
 
-            $subChapter = SessionSubChapter::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $subChapter = SessionSubChapter::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $subChapterId)
                 ->first();
 

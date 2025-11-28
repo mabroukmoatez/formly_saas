@@ -36,12 +36,25 @@ class SessionContentApiController extends Controller
                 ], 403);
             }
 
-            $query = SessionContent::where('chapter_uuid', $chapterId);
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $query = SessionContent::where('chapter_id', $chapter->uuid);
             
             if ($subChapterId) {
-                $query->where('sub_chapter_uuid', $subChapterId);
+                $query->where('sub_chapter_id', $subChapterId);
             } else {
-                $query->whereNull('sub_chapter_uuid');
+                $query->whereNull('sub_chapter_id');
             }
 
             $content = $query->orderBy('order_index')->get();
@@ -74,12 +87,18 @@ class SessionContentApiController extends Controller
                 ], 403);
             }
 
-            $validator = Validator::make($request->all(), [
+            // Prepare validation rules
+            $rules = [
                 'type' => 'required|in:video,text,image,file',
-                'content' => 'required_if:type,text|string',
-                'file' => 'required_if:type,video,image,file|file',
-                'order_index' => 'nullable|integer|min:0'
-            ]);
+                'title' => 'nullable|string|max:255',
+                'content' => 'nullable|string', // Content is optional, can be empty
+                'file' => 'required_if:type,video,image,file|nullable|file',
+                'order_index' => 'nullable|integer|min:0',
+                'order' => 'nullable|integer|min:0', // Alias for order_index
+                'sub_chapter_id' => 'nullable|string' // Accept from request body
+            ];
+            
+            $validator = Validator::make($request->all(), $rules);
 
             if ($validator->fails()) {
                 return response()->json([
@@ -89,23 +108,48 @@ class SessionContentApiController extends Controller
                 ], 422);
             }
 
-            $query = SessionContent::where('chapter_uuid', $chapterId);
+            // Get sub_chapter_id from request body (preferred) or URL parameter
+            $subChapterId = $request->sub_chapter_id ?? $subChapterId;
+
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $query = SessionContent::where('chapter_id', $chapter->uuid);
             if ($subChapterId) {
-                $query->where('sub_chapter_uuid', $subChapterId);
+                $query->where('sub_chapter_id', $subChapterId);
             } else {
-                $query->whereNull('sub_chapter_uuid');
+                $query->whereNull('sub_chapter_id');
             }
             
             $maxOrder = $query->max('order_index');
-            $orderIndex = $request->order_index ?? ($maxOrder !== null ? $maxOrder + 1 : 0);
+            $orderIndex = $request->order_index ?? $request->order ?? ($maxOrder !== null ? $maxOrder + 1 : 0);
 
             $contentData = [
                 'uuid' => Str::uuid()->toString(),
-                'chapter_uuid' => $chapterId,
-                'sub_chapter_uuid' => $subChapterId,
+                'chapter_id' => $chapter->uuid,
+                'sub_chapter_id' => $subChapterId,
                 'type' => $request->type,
+                'title' => $request->title ?? ($request->type === 'text' ? 'Text Content' : ucfirst($request->type) . ' Content'),
                 'order_index' => $orderIndex
             ];
+
+            // Add content if provided (optional for all types)
+            if ($request->has('content')) {
+                $contentData['content'] = $request->content ?? '';
+            } elseif ($request->type === 'text') {
+                // For text type, set empty string if not provided
+                $contentData['content'] = '';
+            }
 
             if (in_array($request->type, ['video', 'image', 'file']) && $request->hasFile('file')) {
                 $fileDetails = $this->fileUploadService->uploadFileWithDetails('session', $request->file('file'));
@@ -122,16 +166,23 @@ class SessionContentApiController extends Controller
                 $contentData['file_size'] = $fileDetails['file_size'];
             }
 
-            if ($request->type === 'text') {
-                $contentData['content'] = $request->content;
-            }
-
             $content = SessionContent::create($contentData);
+            
+            // Format response according to specs
+            $responseData = [
+                'uuid' => $content->uuid,
+                'type' => $content->type,
+                'title' => $content->title,
+                'content' => $content->content,
+                'file_url' => $content->file_url,
+                'order' => $content->order_index,
+                'sub_chapter_id' => $content->sub_chapter_id
+            ];
 
             return response()->json([
                 'success' => true,
                 'message' => 'Content added successfully',
-                'data' => $content
+                'data' => $responseData
             ], 201);
 
         } catch (\Exception $e) {
@@ -157,7 +208,20 @@ class SessionContentApiController extends Controller
                 ], 403);
             }
 
-            $content = SessionContent::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $content = SessionContent::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $contentId)
                 ->first();
 
@@ -170,7 +234,8 @@ class SessionContentApiController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'type' => 'required|in:video,text,image,file',
-                'content' => 'required_if:type,text|string',
+                'content' => 'nullable|string', // Content is optional for all types
+                'title' => 'nullable|string|max:255',
                 'file' => 'nullable|file',
                 'order_index' => 'nullable|integer|min:0'
             ]);
@@ -183,7 +248,15 @@ class SessionContentApiController extends Controller
                 ], 422);
             }
 
-            $updateData = ['type' => $request->type];
+            $updateData = [];
+            
+            if ($request->has('type')) {
+                $updateData['type'] = $request->type;
+            }
+            
+            if ($request->has('title')) {
+                $updateData['title'] = $request->title;
+            }
 
             if (in_array($request->type, ['video', 'image', 'file']) && $request->hasFile('file')) {
                 $fileDetails = $this->fileUploadService->uploadFileWithDetails('session', $request->file('file'));
@@ -200,8 +273,9 @@ class SessionContentApiController extends Controller
                 $updateData['file_size'] = $fileDetails['file_size'];
             }
 
-            if ($request->type === 'text') {
-                $updateData['content'] = $request->content;
+            // Update content if provided (for text type or any type)
+            if ($request->has('content')) {
+                $updateData['content'] = $request->content ?? '';
             }
 
             if ($request->has('order_index')) {
@@ -239,7 +313,20 @@ class SessionContentApiController extends Controller
                 ], 403);
             }
 
-            $content = SessionContent::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $content = SessionContent::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $contentId)
                 ->first();
 
@@ -294,7 +381,7 @@ class SessionContentApiController extends Controller
             }
 
             foreach ($request->content_ids as $index => $contentId) {
-                SessionContent::where('chapter_uuid', $chapterId)
+                SessionContent::where('chapter_id', $chapterId)
                     ->where('uuid', $contentId)
                     ->update(['order_index' => $index]);
             }

@@ -65,7 +65,7 @@ return new class extends Migration
             $table->foreign('instructor_id')->references('id')->on('instructors')->onDelete('set null');
             $table->foreign('organization_id')->references('id')->on('organizations')->onDelete('cascade');
             $table->foreign('category_id')->references('id')->on('categories')->onDelete('set null');
-            $table->foreign('subcategory_id')->references('id')->on('sub_categories')->onDelete('set null');
+            $table->foreign('subcategory_id')->references('id')->on('subcategories')->onDelete('set null');
             $table->foreign('session_language_id')->references('id')->on('course_languages')->onDelete('set null');
             $table->foreign('difficulty_level_id')->references('id')->on('difficulty_levels')->onDelete('set null');
         });

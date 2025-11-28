@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api\Organization;
 use App\Http\Controllers\Controller;
 use App\Models\Quiz;
 use App\Models\QuizCourseAssignment;
+use App\Models\QuizSessionAssignment;
 use App\Models\Course;
+use App\Models\Session;
 use App\Models\CourseChapter;
+use App\Models\SessionChapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -33,13 +36,18 @@ class QuizCourseAssignmentController extends Controller
                 ], 404);
             }
 
+            // Support both course_uuid and session_uuid
             $validator = Validator::make($request->all(), [
-                'course_uuid' => 'required|string|exists:courses,uuid',
+                'course_uuid' => 'required_without:session_uuid|string|exists:courses,uuid',
+                'session_uuid' => 'required_without:course_uuid|string|exists:sessions_training,uuid',
                 'chapter_id' => 'nullable|exists:course_chapters,id',
-                'chapter_uuid' => 'nullable|string|exists:course_chapters,uuid',
-                'subchapter_uuid' => 'nullable|string',
+                'chapter_uuid' => 'nullable|string',
+                'sub_chapter_uuid' => 'nullable|string',
+                'subchapter_uuid' => 'nullable|string', // Alias for backward compatibility
+                'placement' => 'nullable|in:before,after',
+                'reference_element_uuid' => 'nullable|string',
                 'order' => 'nullable|integer|min:0',
-                'placement_after_uuid' => 'nullable|string',
+                'placement_after_uuid' => 'nullable|string', // Alias for reference_element_uuid
                 'is_visible' => 'nullable|boolean',
                 'available_from' => 'nullable|date',
                 'available_until' => 'nullable|date|after:available_from',
@@ -53,6 +61,58 @@ class QuizCourseAssignmentController extends Controller
                 ], 422);
             }
 
+            // Handle session_uuid (for sessions)
+            if ($request->has('session_uuid') && $request->session_uuid) {
+                $session = Session::where('uuid', $request->session_uuid)->first();
+                if (!$session) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Session not found'
+                    ], 404);
+                }
+
+                // Convert chapter_uuid to chapter_id if provided
+                $chapterId = $request->chapter_id;
+                if (!$chapterId && $request->chapter_uuid) {
+                    $chapter = SessionChapter::where('uuid', $request->chapter_uuid)->first();
+                    if ($chapter) {
+                        $chapterId = $chapter->id;
+                    }
+                }
+
+                $subChapterUuid = $request->sub_chapter_uuid ?? $request->subchapter_uuid;
+                $placementAfterUuid = $request->reference_element_uuid ?? $request->placement_after_uuid;
+
+                $assignment = QuizSessionAssignment::create([
+                    'quiz_id' => $quiz->id,
+                    'session_uuid' => $request->session_uuid,
+                    'chapter_id' => $chapterId,
+                    'subchapter_uuid' => $subChapterUuid,
+                    'order' => $request->order ?? 0,
+                    'placement_after_uuid' => $placementAfterUuid,
+                    'is_visible' => $request->boolean('is_visible', true),
+                    'available_from' => $request->available_from,
+                    'available_until' => $request->available_until,
+                ]);
+
+                $assignment->load(['session', 'chapter']);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Quiz successfully assigned to session',
+                    'data' => [
+                        'uuid' => $assignment->uuid,
+                        'quiz_uuid' => $quiz->uuid,
+                        'session_uuid' => $assignment->session_uuid,
+                        'chapter_uuid' => $assignment->chapter ? $assignment->chapter->uuid : null,
+                        'sub_chapter_uuid' => $assignment->subchapter_uuid,
+                        'placement' => $assignment->placement_after_uuid ? 'after' : null,
+                        'reference_element_uuid' => $assignment->placement_after_uuid
+                    ]
+                ], 201);
+            }
+
+            // Handle course_uuid (for courses - existing logic)
             // Convert chapter_uuid to chapter_id if provided
             $chapterId = $request->chapter_id;
             if (!$chapterId && $request->chapter_uuid) {
@@ -66,9 +126,9 @@ class QuizCourseAssignmentController extends Controller
                 'quiz_id' => $quiz->id,
                 'course_uuid' => $request->course_uuid,
                 'chapter_id' => $chapterId,
-                'subchapter_uuid' => $request->subchapter_uuid,
+                'subchapter_uuid' => $request->sub_chapter_uuid ?? $request->subchapter_uuid,
                 'order' => $request->order ?? 0,
-                'placement_after_uuid' => $request->placement_after_uuid,
+                'placement_after_uuid' => $request->reference_element_uuid ?? $request->placement_after_uuid,
                 'is_visible' => $request->boolean('is_visible', true),
                 'available_from' => $request->available_from,
                 'available_until' => $request->available_until,
@@ -79,7 +139,15 @@ class QuizCourseAssignmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Quiz successfully assigned to course',
-                'data' => $assignment
+                'data' => [
+                    'uuid' => $assignment->uuid,
+                    'quiz_uuid' => $quiz->uuid,
+                    'course_uuid' => $assignment->course_uuid,
+                    'chapter_uuid' => $assignment->chapter ? $assignment->chapter->uuid : null,
+                    'sub_chapter_uuid' => $assignment->subchapter_uuid,
+                    'placement' => $assignment->placement_after_uuid ? 'after' : null,
+                    'reference_element_uuid' => $assignment->placement_after_uuid
+                ]
             ], 201);
 
         } catch (\Exception $e) {

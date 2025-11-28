@@ -150,6 +150,7 @@ export interface Charge {
   }>;
   // Legacy fields for compatibility
   expense_type?: string;
+  description?: string;
   tax?: number;
   total_amount?: number;
   payment_date?: string;
@@ -176,8 +177,8 @@ export interface ListResponse<T> {
   };
 }
 
-export interface InvoiceListResponse extends ApiResponse<ListResponse<Invoice>> { }
-export interface InvoiceDetailsResponse extends ApiResponse<{ invoice: Invoice }> { }
+export interface InvoiceListResponse extends ApiResponse<ListResponse<Invoice>> {}
+export interface InvoiceDetailsResponse extends ApiResponse<{ invoice: Invoice }> {}
 export interface CreateInvoiceData {
   invoice_number: string;
   client_name: string;
@@ -193,7 +194,7 @@ export interface CreateInvoiceData {
   notes?: string;
   status?: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 }
-export interface UpdateInvoiceData extends Partial<CreateInvoiceData> { }
+export interface UpdateInvoiceData extends Partial<CreateInvoiceData> {}
 export interface InvoiceStatistics {
   total_invoices: number;
   total_revenue: number;
@@ -202,8 +203,8 @@ export interface InvoiceStatistics {
   pending_amount: number;
 }
 
-export interface QuoteListResponse extends ApiResponse<ListResponse<Quote>> { }
-export interface QuoteDetailsResponse extends ApiResponse<{ quote: Quote }> { }
+export interface QuoteListResponse extends ApiResponse<ListResponse<Quote>> {}
+export interface QuoteDetailsResponse extends ApiResponse<{ quote: Quote }> {}
 export interface CreateQuoteData {
   quote_number: string;
   client_name: string;
@@ -220,7 +221,7 @@ export interface CreateQuoteData {
   payment_schedule_text?: string; // New structured payment schedule text
   notes?: string;
 }
-export interface UpdateQuoteData extends Partial<CreateQuoteData> { }
+export interface UpdateQuoteData extends Partial<CreateQuoteData> {}
 export interface QuoteStatistics {
   total_quotes: number;
   accepted_quotes: number;
@@ -229,8 +230,8 @@ export interface QuoteStatistics {
   total_revenue: number;
 }
 
-export interface ArticleListResponse extends ApiResponse<ListResponse<Article>> { }
-export interface ArticleDetailsResponse extends ApiResponse<{ article: Article }> { }
+export interface ArticleListResponse extends ApiResponse<ListResponse<Article>> {}
+export interface ArticleDetailsResponse extends ApiResponse<{ article: Article }> {}
 export interface CreateArticleData {
   name: string;
   description?: string;
@@ -243,10 +244,10 @@ export interface CreateArticleData {
   min_stock?: number;
   image_url?: string;
 }
-export interface UpdateArticleData extends Partial<CreateArticleData> { }
+export interface UpdateArticleData extends Partial<CreateArticleData> {}
 
-export interface ChargeListResponse extends ApiResponse<ListResponse<Charge>> { }
-export interface ChargeDetailsResponse extends ApiResponse<{ charge: Charge }> { }
+export interface ChargeListResponse extends ApiResponse<ListResponse<Charge>> {}
+export interface ChargeDetailsResponse extends ApiResponse<{ charge: Charge }> {}
 export interface CreateChargeData {
   expense_type: string;
   description: string;
@@ -258,7 +259,7 @@ export interface CreateChargeData {
   receipt_url?: string;
   notes?: string;
 }
-export interface UpdateChargeData extends Partial<CreateChargeData> { }
+export interface UpdateChargeData extends Partial<CreateChargeData> {}
 export interface ChargeStatistics {
   total_expenses: number;
   by_category: Record<string, number>;

@@ -7,9 +7,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useNavigate } from 'react-router-dom';
 import { sessionCreation } from '../../services/sessionCreation';
-import { Search, Clock, User, Eye, Edit, Trash2, Plus, Grid3X3, List, X, AlertTriangle, Filter, Download, ChevronDown, ChevronLeft, ChevronRight, Calendar, Users, Play } from 'lucide-react';
+import { Search, Eye, Edit, Trash2, Plus, X, AlertTriangle, Filter, Download, ChevronDown, ChevronLeft, ChevronRight, Calendar as CalendarIcon, List } from 'lucide-react';
 import { DashboardLayout } from '../../components/CommercialDashboard';
-import { useTranslation } from 'react-i18next';
 import { LoadingScreen } from '../../components/LoadingScreen';
 
 interface Session {
@@ -50,24 +49,52 @@ interface Session {
   }>;
   participants_count?: number;
   instances_count?: number;
-  session_instances?: Array<any>;
+  session_instances?: Array<{
+    uuid: string;
+    instance_type?: 'presentiel' | 'distanciel' | 'e-learning' | 'hybride';
+    start_date?: string;
+    end_date?: string;
+    status?: string;
+  }>;
+}
+
+interface Category {
+  id: number;
+  name: string;
+}
+
+interface Trainer {
+  uuid: string;
+  name: string;
+  email?: string;
 }
 
 export const Sessions: React.FC = () => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'à venir' | 'en cours' | 'terminée'>('all');
+  const [trainerFilter, setTrainerFilter] = useState('');
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'presentiel' | 'distanciel' | 'e-learning' | 'hybride'>('all');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
+  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
-  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
+  const filterModalRef = useRef<HTMLDivElement>(null);
+  const sessionTypeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Filter data
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,10 +104,10 @@ export const Sessions: React.FC = () => {
 
   // Get organization colors
   const primaryColor = organization?.primary_color || '#3b82f6';
-  const secondaryColor = organization?.secondary_color || '#64748b';
-  const accentColor = organization?.accent_color || '#f59e0b';
 
   useEffect(() => {
+    loadCategories();
+    loadTrainers();
     loadSessions();
   }, []);
 
@@ -98,63 +125,98 @@ export const Sessions: React.FC = () => {
   useEffect(() => {
     setCurrentPage(1); // Reset to first page when filtering
     loadSessions();
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, trainerFilter, sessionTypeFilter, startDateFilter, endDateFilter]);
+
+  // Reload sessions when calendar date changes (for calendar view)
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      loadSessions();
+    }
+  }, [currentCalendarDate, calendarView, viewMode]);
 
   // Reload sessions when page or items per page changes
   useEffect(() => {
     loadSessions();
   }, [currentPage, itemsPerPage]);
 
-  // Close filter dropdown when clicking outside
+  // Close filter modal when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
-        setShowFilterDropdown(false);
+      if (filterModalRef.current && !filterModalRef.current.contains(event.target as Node)) {
+        if (sessionTypeDropdownRef.current && sessionTypeDropdownRef.current.contains(event.target as Node)) {
+          return; // Don't close if clicking inside session type dropdown
+        }
+        setShowFilterModal(false);
+        setShowSessionTypeDropdown(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    if (showFilterModal) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [showFilterModal]);
+
+  // Close session type dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sessionTypeDropdownRef.current && !sessionTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowSessionTypeDropdown(false);
+      }
+    };
+
+    if (showSessionTypeDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSessionTypeDropdown]);
+
+  const loadCategories = async () => {
+    try {
+      const response: any = await sessionCreation.getSessionCategories();
+      if (response.success && response.data) {
+        setCategories(Array.isArray(response.data) ? response.data : response.data.categories || []);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadTrainers = async () => {
+    try {
+      const response: any = await sessionCreation.getAllTrainers({ per_page: 100 });
+      if (response.success && response.data) {
+        const trainersData = Array.isArray(response.data) ? response.data : response.data.data || [];
+        setTrainers(trainersData);
+      }
+    } catch (error) {
+      console.error('Error loading trainers:', error);
+    }
+  };
 
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await sessionCreation.listOrganizationSessions({
+      const response: any = await sessionCreation.listOrganizationSessions({
         per_page: itemsPerPage,
         search: searchQuery || undefined,
         category_id: categoryFilter ? parseInt(categoryFilter) : undefined,
-        status: statusFilter ? parseInt(statusFilter) : undefined,
+        trainer_id: trainerFilter || undefined,
       });
       
       if (response.success) {
         const sessionsData = response.data;
         let sessionsList: Session[] = [];
-        let paginationInfo = {
-          total: 0,
-          per_page: itemsPerPage,
-          current_page: currentPage,
-          last_page: 1,
-        };
         
         // Handle Laravel pagination structure: { data: { current_page, data: [...], total, ... } }
         if (sessionsData && sessionsData.data && Array.isArray(sessionsData.data)) {
           sessionsList = sessionsData.data;
-          paginationInfo = {
-            total: sessionsData.total || 0,
-            per_page: sessionsData.per_page || itemsPerPage,
-            current_page: sessionsData.current_page || currentPage,
-            last_page: sessionsData.last_page || 1,
-          };
         } else if (sessionsData && sessionsData.sessions && Array.isArray(sessionsData.sessions.data)) {
           sessionsList = sessionsData.sessions.data;
-          if (sessionsData.sessions.pagination) {
-            paginationInfo = sessionsData.sessions.pagination;
-          } else if (sessionsData.pagination) {
-            paginationInfo = sessionsData.pagination;
-          }
         } else if (Array.isArray(sessionsData)) {
           sessionsList = sessionsData;
         } else if (sessionsData && Array.isArray(sessionsData.sessions)) {
@@ -163,17 +225,43 @@ export const Sessions: React.FC = () => {
           sessionsList = [];
         }
 
-        console.log('📋 Loaded sessions:', sessionsList.length);
-        console.log('📋 First session data:', sessionsList[0]);
-        if (sessionsList[0]) {
-          console.log('📋 First session image_url:', sessionsList[0].image_url);
-          console.log('📋 First session image:', sessionsList[0].image);
-          console.log('📋 First session has_image:', sessionsList[0].has_image);
+        // Apply client-side filters
+        let filteredSessions = sessionsList;
+        
+        // Filter by status
+        if (statusFilter !== 'all') {
+          filteredSessions = filteredSessions.filter(session => {
+            const sessionStatus = getSessionStatus(session);
+            return sessionStatus === statusFilter;
+          });
         }
         
-        setSessions(sessionsList);
-        setTotalItems(paginationInfo.total || sessionsList.length);
-        setTotalPages(paginationInfo.last_page || 1);
+        // Filter by session type
+        if (sessionTypeFilter !== 'all') {
+          filteredSessions = filteredSessions.filter(session => {
+            const sessionType = getSessionType(session);
+            return sessionType === sessionTypeFilter;
+          });
+        }
+        
+        // Filter by date range
+        if (startDateFilter) {
+          filteredSessions = filteredSessions.filter(session => {
+            if (!session.session_start_date) return false;
+            return new Date(session.session_start_date) >= new Date(startDateFilter);
+          });
+        }
+        
+        if (endDateFilter) {
+          filteredSessions = filteredSessions.filter(session => {
+            if (!session.session_end_date) return false;
+            return new Date(session.session_end_date) <= new Date(endDateFilter);
+          });
+        }
+        
+        setSessions(filteredSessions);
+        setTotalItems(filteredSessions.length);
+        setTotalPages(Math.ceil(filteredSessions.length / itemsPerPage));
       } else {
         setSessions([]);
         setTotalItems(0);
@@ -223,7 +311,7 @@ export const Sessions: React.FC = () => {
     
     try {
       setLoading(true);
-      const response = await sessionCreation.deleteSession(sessionToDelete);
+      const response: any = await sessionCreation.deleteSession(sessionToDelete);
       
       if (response.success) {
         setSessions(prev => prev.filter(session => session.uuid !== sessionToDelete));
@@ -267,32 +355,89 @@ export const Sessions: React.FC = () => {
     return { startItem, endItem };
   };
 
-  const getStatusBadge = (status: number) => {
-    switch (status) {
-      case 1:
-        return <Badge className="text-white rounded-full px-2 py-0.5 text-[10px] font-medium shadow-sm" style={{ backgroundColor: '#10b981' }}>Publiée</Badge>;
-      case 0:
-        return <Badge className="text-white rounded-full px-2 py-0.5 text-[10px] font-medium shadow-sm" style={{ backgroundColor: accentColor }}>Brouillon</Badge>;
-      default:
-        return <Badge className="bg-gray-500 text-white rounded-full px-2 py-0.5 text-[10px] font-medium shadow-sm">Inconnu</Badge>;
+  // Calculate session status based on dates
+  const getSessionStatus = (session: Session): 'à venir' | 'en cours' | 'terminée' => {
+    if (!session.session_start_date || !session.session_end_date) {
+      return 'à venir';
+    }
+    
+    const now = new Date();
+    const startDate = new Date(session.session_start_date);
+    const endDate = new Date(session.session_end_date);
+    
+    if (now < startDate) {
+      return 'à venir';
+    } else if (now >= startDate && now <= endDate) {
+      return 'en cours';
+    } else {
+      return 'terminée';
     }
   };
 
-  const formatPrice = (price?: number | string) => {
-    if (!price && price !== 0) return 'Prix non défini';
-    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-    if (isNaN(numPrice)) return 'Prix non défini';
-    return `${numPrice.toFixed(0)} €`;
+  // Get session type from instances
+  const getSessionType = (session: Session): 'presentiel' | 'distanciel' | 'e-learning' | 'hybride' | null => {
+    if (session.session_instances && session.session_instances.length > 0) {
+      const types = session.session_instances
+        .map(inst => inst.instance_type)
+        .filter(Boolean) as string[];
+      
+      if (types.length === 0) return null;
+      
+      // If multiple types, it's hybrid
+      const uniqueTypes = [...new Set(types)];
+      if (uniqueTypes.length > 1) {
+        return 'hybride';
+      }
+      
+      return uniqueTypes[0] as 'presentiel' | 'distanciel' | 'e-learning' | 'hybride';
+    }
+    return null;
   };
 
-  const formatDuration = (session: Session) => {
-    if (session.duration) {
-      return session.duration;
-    }
-    if (session.duration_days && session.duration_days > 0) {
-      return `${session.duration_days} Jours`;
-    }
-    return 'Durée non définie';
+  const getStatusBadge = (session: Session) => {
+    const status = getSessionStatus(session);
+    const colors = {
+      'à venir': { bg: '#DBEAFE', text: '#1E40AF' },
+      'en cours': { bg: '#FED7AA', text: '#9A3412' },
+      'terminée': { bg: '#D1FAE5', text: '#065F46' }
+    };
+    
+    return (
+      <Badge 
+        className="rounded-full px-3 py-1 text-xs font-medium"
+        style={{ 
+          backgroundColor: colors[status].bg, 
+          color: colors[status].text 
+        }}
+      >
+        {status}
+      </Badge>
+    );
+  };
+
+  const getSessionTypeBadge = (session: Session) => {
+    const type = getSessionType(session);
+    if (!type) return null;
+    
+    const typeConfig = {
+      'distanciel': { label: 'Distanciel', dotColor: '#8B5CF6' },
+      'presentiel': { label: 'Présentiel', dotColor: '#10B981' },
+      'e-learning': { label: 'E-Learning', dotColor: '#EC4899' },
+      'hybride': { label: 'Hybride', dotColor: '#F97316' }
+    };
+    
+    const config = typeConfig[type];
+    if (!config) return null;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <div 
+          className="w-2 h-2 rounded-full"
+          style={{ backgroundColor: config.dotColor }}
+        />
+        <span className="text-sm text-gray-700">{config.label}</span>
+      </div>
+    );
   };
 
   const formatDate = (dateString?: string) => {
@@ -300,548 +445,589 @@ export const Sessions: React.FC = () => {
     try {
       const date = new Date(dateString);
       return date.toLocaleDateString('fr-FR', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
       });
     } catch {
       return dateString;
     }
   };
 
-  const formatTimeRange = (session: Session) => {
-    if (session.session_start_time && session.session_end_time) {
-      return `${session.session_start_time} - ${session.session_end_time}`;
-    }
-    return 'Horaire non défini';
-  };
-
-  const getTrainerName = (session: Session) => {
+  const getTrainerNames = (session: Session) => {
     if (session.trainers && session.trainers.length > 0) {
-      return session.trainers[0].name;
+      const names = session.trainers.map(t => t.name).join(', ');
+      const count = session.trainers.length;
+      return count > 1 ? `${names.split(',')[0]} +${count - 1}` : names;
     }
-    return 'Aucun formateur assigné';
+    return 'Aucun formateur';
   };
 
-  const getSessionImage = (session: Session) => {
-    // Retourner l'image de la session ou un placeholder
-    if (session.image_url) {
-      // Normalize URL - replace escaped slashes if present
-      let imageUrl = session.image_url.replace(/\\\//g, '/');
-      // Add /storage/ if URL contains /uploads/ but not /storage/
-      if (imageUrl.includes('/uploads/') && !imageUrl.includes('/storage/')) {
-        imageUrl = imageUrl.replace('/uploads/', '/storage/uploads/');
-      }
-      return imageUrl;
-    }
-    return '/uploads/default/session.jpg';
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadSessions();
+    setShowFilterModal(false);
   };
 
   if (loading) {
     return <LoadingScreen />;
   }
 
+  // Get paginated sessions for current page
+  const paginatedSessions = sessions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Calendar view functions
+  const getSessionsForDate = (date: Date) => {
+    return sessions.filter(session => {
+      if (!session.session_start_date || !session.session_end_date) return false;
+      const startDate = new Date(session.session_start_date);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(session.session_end_date);
+      endDate.setHours(23, 59, 59, 999);
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      return checkDate >= startDate && checkDate <= endDate;
+    });
+  };
+
+  const getWeekDays = (date: Date) => {
+    const weekStart = new Date(date);
+    const day = weekStart.getDay();
+    const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    weekStart.setDate(diff);
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(weekStart);
+      day.setDate(weekStart.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const getSessionColor = (session: Session) => {
+    const type = getSessionType(session);
+    const colors = {
+      'presentiel': '#10B981', // Green
+      'distanciel': '#8B5CF6', // Purple
+      'e-learning': '#EC4899', // Pink
+      'hybride': '#F97316' // Orange
+    };
+    return type ? colors[type] : '#6B7280'; // Gray default
+  };
+
+  const formatMonthYear = (date: Date) => {
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const navigateCalendarMonth = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentCalendarDate);
+    if (direction === 'prev') {
+      newDate.setMonth(newDate.getMonth() - 1);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentCalendarDate(newDate);
+  };
+
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Monday = 0
+    
+    // Get previous month's days to fill the first week
+    const prevMonth = new Date(year, month - 1, 0);
+    const prevMonthDays = prevMonth.getDate();
+    const daysBefore = [];
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      daysBefore.push({
+        date: new Date(year, month - 1, prevMonthDays - i),
+        isCurrentMonth: false
+      });
+    }
+    
+    // Current month's days
+    const currentDays = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      currentDays.push({
+        date: new Date(year, month, i),
+        isCurrentMonth: true
+      });
+    }
+    
+    // Next month's days to fill the last week
+    const totalDays = daysBefore.length + currentDays.length;
+    const remainingDays = 42 - totalDays; // 6 weeks * 7 days
+    const nextDays = [];
+    for (let i = 1; i <= remainingDays; i++) {
+      nextDays.push({
+        date: new Date(year, month + 1, i),
+        isCurrentMonth: false
+      });
+    }
+    
+    return [...daysBefore, ...currentDays, ...nextDays];
+  };
+
   return (
     <DashboardLayout>
       <div className="flex flex-col w-full px-6 py-6 flex-1 min-h-0 overflow-hidden">
         <section className="flex flex-col w-full gap-5 flex-1 min-h-0">
-          {/* Header Card */}
-          <Card className="w-full border-[#e2e2ea] rounded-[18px] translate-y-[-1rem] animate-fade-in opacity-0 [--animation-delay:200ms]">
-            <CardContent className="flex items-center justify-between p-[21px]">
-              <div className="flex items-center gap-4">
-                <div 
-                  className="w-12 h-12 rounded-[12px] flex items-center justify-center"
-                  style={{ backgroundColor: `${primaryColor}15` }}
-                >
-                  <Calendar className="w-6 h-6" style={{ color: primaryColor }} />
-                </div>
-                <div>
-                  <h1 
-                    className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-                    style={{ fontFamily: 'Poppins, Helvetica' }}
-                  >
-                    Gestion des Sessions
-                  </h1>
-                  <p 
-                    className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-                  >
-                    Gérez vos sessions de formation
-                  </p>
-                </div>
-              </div>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h1 
+              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+              style={{ fontFamily: 'Poppins, Helvetica' }}
+            >
+              Session
+            </h1>
+            <Button 
+              onClick={handleCreateSession}
+              className="h-10 gap-2.5 px-4 py-2.5 rounded-[10px] hover:opacity-90 transition-all duration-200"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Plus className="w-5 h-5" />
+              <span className="[font-family:'Poppins',Helvetica] font-medium text-white text-[13px]">
+                + Créer Une Nouvelle Session
+              </span>
+            </Button>
+          </div>
 
-              <div className="flex items-center gap-5">
-                <Button 
-                  onClick={handleCreateSession}
-                  className="h-10 gap-2.5 px-4 py-2.5 rounded-[10px] hover:opacity-90 transition-all duration-200"
-                  style={{ backgroundColor: primaryColor }}
+          {/* Search and Actions Bar */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#698eac]" />
+              <Input
+                placeholder="Recherche Une Formation"
+                value={searchQuery}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                className="h-10 pl-12 bg-white border border-[#e2e2ea] rounded-[10px] [font-family:'Poppins',Helvetica] font-medium text-[#698eac] text-[13px] placeholder:text-[#698eac]"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilterModal(true)}
+                  className="h-10 gap-2 px-4 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
                 >
-                  <Plus className="w-5 h-5" />
-                  <span className="[font-family:'Poppins',Helvetica] font-medium text-white text-[13px]">
-                    Créer une Session
+                  <Filter className="w-5 h-5 text-[#7e8ca9]" />
+                  <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
+                    Filtre
                   </span>
+                  <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
                 </Button>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Filter and Search Card */}
-          <Card className="w-full border-[#e2e2ea] rounded-[18px] translate-y-[-1rem] animate-fade-in opacity-0 [--animation-delay:400ms]">
-            <CardContent className="flex flex-col gap-[26px] p-[21px]">
-              <div className="flex items-center justify-between w-full">
-                <div className="relative w-[461px]">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[22.22px] h-[22.22px] text-[#698eac]" />
-                  <Input
-                    placeholder="Rechercher une session"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-10 pl-[50px] bg-[#e8f0f7] border-0 rounded-[10px] [font-family:'Poppins',Helvetica] font-medium text-[#698eac] text-[13px] placeholder:text-[#698eac]"
-                  />
-                </div>
+              <Button
+                variant="outline"
+                className="h-10 gap-2 px-4 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
+              >
+                <Download className="w-5 h-5 text-[#7e8ca9]" />
+                <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
+                  Export Excel
+                </span>
+              </Button>
 
-                <div className="flex items-center gap-4">
-                  <div className="relative" ref={filterDropdownRef}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                      className="h-10 gap-2.5 px-4 py-2.5 bg-[#f5f4f4] rounded-[10px] hover:bg-[#e5e4e4] transition-colors"
-                    >
-                      <Filter className="w-5 h-5 text-[#7e8ca9]" />
-                      <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
-                        Filtrer
-                      </span>
-                      <ChevronDown className="w-[11px] h-[6.51px] text-[#7e8ca9]" />
-                    </Button>
-                    
-                    {/* Filter Dropdown */}
-                    {showFilterDropdown && (
-                      <div className="absolute top-12 right-0 bg-white border border-[#e2e2ea] rounded-[10px] shadow-lg z-10 min-w-[200px] p-4">
-                        <div className="space-y-4">
-                          {/* Status Filter */}
-                          <div>
-                            <label className="block text-sm font-medium text-[#19294a] mb-2">
-                              Statut
-                            </label>
-                            <select
-                              value={statusFilter}
-                              onChange={(e) => setStatusFilter(e.target.value)}
-                              className="w-full p-2 border border-[#e2e2ea] rounded-[8px] text-sm"
-                            >
-                              <option value="">Tous les statuts</option>
-                              <option value="1">Publié</option>
-                              <option value="0">Brouillon</option>
-                            </select>
-                          </div>
-                          
-                          {/* Category Filter */}
-                          {/* Catégories chargées depuis l'API si nécessaire */}
-                          
-                          {/* Clear Filters */}
-                          <div className="pt-2 border-t border-[#e2e2ea]">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setStatusFilter('');
-                                setCategoryFilter('');
-                                setSearchQuery('');
-                              }}
-                              className="w-full h-8 text-xs"
-                            >
-                              Réinitialiser les filtres
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+              <Button
+                variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                onClick={() => setViewMode('calendar')}
+                className="h-10 gap-2 px-4 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
+                style={viewMode === 'calendar' ? { backgroundColor: primaryColor, color: 'white', borderColor: primaryColor } : {}}
+              >
+                <CalendarIcon className="w-5 h-5" style={{ color: viewMode === 'calendar' ? 'white' : '#7e8ca9' }} />
+                <span className="[font-family:'Poppins',Helvetica] font-medium text-[13px]" style={{ color: viewMode === 'calendar' ? 'white' : '#7e8ca9' }}>
+                  Vue Calendrier
+                </span>
+              </Button>
+              
+              <Button
+                variant={viewMode === 'table' ? 'default' : 'outline'}
+                onClick={() => setViewMode('table')}
+                className="h-10 gap-2 px-4 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
+                style={viewMode === 'table' ? { backgroundColor: primaryColor, color: 'white', borderColor: primaryColor } : {}}
+              >
+                <List className="w-5 h-5" style={{ color: viewMode === 'table' ? 'white' : '#7e8ca9' }} />
+                <span className="[font-family:'Poppins',Helvetica] font-medium text-[13px]" style={{ color: viewMode === 'table' ? 'white' : '#7e8ca9' }}>
+                  Vue Liste
+                </span>
+              </Button>
+            </div>
+          </div>
 
-                  <Button
-                    variant="outline"
-                    className="h-10 gap-2.5 px-4 py-2.5 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors"
-                  >
-                    <Download className="w-5 h-5 text-[#7e8ca9]" />
-                    <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
-                      Exporter
-                    </span>
-                  </Button>
-
-                  {/* View Toggle */}
-                  <div className="flex items-center border border-[#e2e2ea] rounded-[10px] overflow-hidden">
-                    <Button
-                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('grid')}
-                      className={`px-3 py-2 rounded-none h-10 ${viewMode === 'grid' ? 'text-white' : 'text-[#7e8ca9] hover:bg-[#f5f4f4]'}`}
-                      style={viewMode === 'grid' ? { backgroundColor: primaryColor } : {}}
-                    >
-                      <Grid3X3 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setViewMode('list')}
-                      className={`px-3 py-2 rounded-none h-10 ${viewMode === 'list' ? 'text-white' : 'text-[#7e8ca9] hover:bg-[#f5f4f4]'}`}
-                      style={viewMode === 'list' ? { backgroundColor: primaryColor } : {}}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+          {/* Calendar View Header */}
+          {viewMode === 'calendar' && (
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#698eac]" />
+                <Input
+                  placeholder="Recherche une Formation"
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-12 bg-white border border-[#e2e2ea] rounded-[10px] [font-family:'Poppins',Helvetica] font-medium text-[#698eac] text-[13px] placeholder:text-[#698eac]"
+                />
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Content System */}
-          <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-stretch' : 'space-y-2'}>
-            {(Array.isArray(sessions) ? sessions : []).map((session) => (
-              <Card key={session.uuid} className={`bg-white border-[#e2e2ea] rounded-[12px] shadow-sm transition-all duration-200 overflow-hidden group flex flex-col ${
-                viewMode === 'grid' 
-                  ? 'h-auto min-h-[450px] hover:shadow-lg' 
-                  : 'h-[100px] hover:bg-gray-50 hover:border-gray-300'
-              }`}>
-                {viewMode === 'grid' ? (
-                  // Grid View - Card Layout
-                  <>
-                    {/* Hero Image Area */}
-                    <div className="relative h-[200px] flex-shrink-0 overflow-hidden bg-gradient-to-br from-blue-400 to-purple-600">
-                      {(() => {
-                        // Get image source - prioritize image_url, then build from image field
-                        const getSessionImage = (s: Session): string | null => {
-                          // First priority: image_url (complete URL from API)
-                          if (s.image_url) {
-                            // Normalize URL - replace escaped slashes if present
-                            let normalizedUrl = s.image_url.replace(/\\\//g, '/');
-                            // Add /storage/ if URL contains /uploads/ but not /storage/
-                            if (normalizedUrl.includes('/uploads/') && !normalizedUrl.includes('/storage/')) {
-                              normalizedUrl = normalizedUrl.replace('/uploads/', '/storage/uploads/');
-                            }
-                            console.log('🖼️ Using image_url:', normalizedUrl);
-                            return normalizedUrl;
-                          }
-                          // Second priority: image field (construct full URL)
-                          if (s.image) {
-                            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-                            let imagePath = s.image.replace(/\\\//g, '/'); // Normalize slashes
-                            // If image already starts with http, use as is
-                            if (imagePath.startsWith('http')) {
-                              // Add /storage/ if URL contains /uploads/ but not /storage/
-                              if (imagePath.includes('/uploads/') && !imagePath.includes('/storage/')) {
-                                imagePath = imagePath.replace('/uploads/', '/storage/uploads/');
-                              }
-                              console.log('🖼️ Using full URL from image:', imagePath);
-                              return imagePath;
-                            }
-                            // If image starts with uploads/, use directly with storage
-                            if (imagePath.startsWith('uploads/')) {
-                              const fullUrl = `${baseUrl}/storage/${imagePath}`;
-                              console.log('🖼️ Constructed URL from uploads/:', fullUrl);
-                              return fullUrl;
-                            }
-                            // Otherwise, assume it's in uploads/session/
-                            const fullUrl = `${baseUrl}/storage/uploads/session/${imagePath}`;
-                            console.log('🖼️ Constructed URL for session:', fullUrl);
-                            return fullUrl;
-                          }
-                          console.log('⚠️ No image found for session:', s.uuid);
-                          return null;
-                        };
-                        
-                        const imageSrc = getSessionImage(session);
-                        console.log('📸 Final image source for session', session.uuid, ':', imageSrc);
-                        
-                        return imageSrc ? (
-                          <img
-                            src={imageSrc}
-                            alt={session.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onLoad={() => {
-                              console.log('✅ Image loaded successfully:', imageSrc);
-                            }}
-                            onError={(e) => {
-                              console.error('❌ Image failed to load:', imageSrc, e);
-                              const parent = e.currentTarget.parentElement;
-                              if (parent) {
-                                parent.innerHTML = '<div class="w-full h-full flex items-center justify-center"><svg class="w-16 h-16 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Calendar className="w-16 h-16 text-white/40" />
-                          </div>
-                        );
-                      })()}
-                      
-                      {/* Status Badge */}
-                      <div className="absolute top-3 left-3">
-                        {getStatusBadge(session.status)}
-                      </div>
-                      
-                      {/* Video indicator if video exists */}
-                      {(session.video_url || session.has_video) && (
-                        <div className="absolute top-3 right-3">
-                          <Badge className="bg-black/50 text-white flex items-center gap-1">
-                            <Play className="w-3 h-3" />
-                            <span className="text-xs">Vidéo</span>
-                          </Badge>
-                        </div>
-                      )}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilterModal(true)}
+                  className="h-10 gap-2 px-4 border-[#e2e2ea] rounded-[10px] hover:bg-[#f9f9f9] transition-colors bg-white"
+                >
+                  <Filter className="w-5 h-5 text-[#7e8ca9]" />
+                  <span className="[font-family:'Poppins',Helvetica] font-medium text-[#7e8ca9] text-[13px]">
+                    Filtre
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigateCalendarMonth('prev')}
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                >
+                  <ChevronLeft className="w-4 h-4 text-[#7e8ca9]" />
+                </Button>
+                <span className="text-sm font-medium text-[#19294a] [font-family:'Poppins',Helvetica] min-w-[120px] text-center">
+                  {formatMonthYear(currentCalendarDate)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigateCalendarMonth('next')}
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                >
+                  <ChevronRight className="w-4 h-4 text-[#7e8ca9]" />
+                </Button>
+              </div>
+
+              <div className="flex items-center border border-[#e2e2ea] rounded-[10px] overflow-hidden bg-white">
+                <Button
+                  variant={calendarView === 'month' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCalendarView('month')}
+                  className={`px-4 py-2 rounded-none h-10 text-sm ${
+                    calendarView === 'month' ? 'text-white' : 'text-[#7e8ca9] hover:bg-[#f5f4f4]'
+                  }`}
+                  style={calendarView === 'month' ? { backgroundColor: primaryColor } : {}}
+                >
+                  Month
+                </Button>
+                <Button
+                  variant={calendarView === 'week' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setCalendarView('week')}
+                  className={`px-4 py-2 rounded-none h-10 text-sm ${
+                    calendarView === 'week' ? 'text-white' : 'text-[#7e8ca9] hover:bg-[#f5f4f4]'
+                  }`}
+                  style={calendarView === 'week' ? { backgroundColor: primaryColor } : {}}
+                >
+                  week
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Calendar Month View */}
+          {viewMode === 'calendar' && calendarView === 'month' && (
+            <Card className="w-full border-[#e2e2ea] rounded-[18px] overflow-hidden">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'].map((day) => (
+                    <div key={day} className="text-center text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica] py-2">
+                      {day}
                     </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {getDaysInMonth(currentCalendarDate).map((dayInfo, index) => {
+                    const daySessions = getSessionsForDate(dayInfo.date);
+                    const maxVisible = 4;
+                    const visibleSessions = daySessions.slice(0, maxVisible);
+                    const remainingCount = daySessions.length - maxVisible;
+                    const isToday = dayInfo.date.toDateString() === new Date().toDateString();
                     
-                    {/* Content Container */}
-                    <CardContent className="p-5 flex-1 flex flex-col min-h-0 overflow-hidden">
-                      {/* Title */}
-                      <h3 className="font-bold text-lg text-[#19294a] mb-3 line-clamp-2 leading-tight [font-family:'Poppins',Helvetica] flex-shrink-0">
-                        {session.title}
-                      </h3>
-                      
-                      {/* Category Badge */}
-                      {session.category && (
-                        <div className="mb-3 flex-shrink-0">
-                          <span 
-                            className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium text-white min-w-[80px] text-center justify-center"
-                            style={{ backgroundColor: secondaryColor }}
-                          >
-                            {session.category.name}
-                          </span>
+                    return (
+                      <div
+                        key={index}
+                        className={`min-h-[100px] border border-[#e2e2ea] rounded p-1 ${
+                          !dayInfo.isCurrentMonth ? 'bg-gray-50 opacity-50' : 'bg-white'
+                        } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                      >
+                        <div className={`text-xs font-medium mb-1 ${
+                          dayInfo.isCurrentMonth ? 'text-[#19294a]' : 'text-gray-400'
+                        } ${isToday ? 'text-blue-600 font-bold' : ''}`}>
+                          {dayInfo.date.getDate()}
                         </div>
-                      )}
-                      
-                      {/* Metadata Row */}
-                      <div className="space-y-1.5 mb-3 flex-shrink-0">
-                        <div className="flex items-center gap-2 text-sm text-[#7e8ca9]">
-                          <Calendar className="w-4 h-4 text-[#698eac] flex-shrink-0" />
-                          <span className="[font-family:'Poppins',Helvetica] truncate text-xs">
+                        <div className="space-y-1">
+                          {visibleSessions.map((session) => {
+                            const color = getSessionColor(session);
+                            const startDate = session.session_start_date ? new Date(session.session_start_date) : null;
+                            const endDate = session.session_end_date ? new Date(session.session_end_date) : null;
+                            if (!startDate || !endDate) return null;
+                            
+                            startDate.setHours(0, 0, 0, 0);
+                            endDate.setHours(23, 59, 59, 999);
+                            const checkDate = new Date(dayInfo.date);
+                            checkDate.setHours(0, 0, 0, 0);
+                            
+                            const isStart = checkDate.toDateString() === startDate.toDateString();
+                            const isEnd = checkDate.toDateString() === endDate.toDateString();
+                            const isMiddle = checkDate > startDate && checkDate < endDate;
+                            
+                            return (
+                              <div
+                                key={session.uuid}
+                                className="text-xs px-2 py-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: color }}
+                                onClick={() => handleViewSession(session.uuid)}
+                                title={session.title}
+                              >
+                                {isStart || (!isMiddle && !isEnd) ? (
+                                  session.title.length > 20 ? `${session.title.substring(0, 20)}...` : session.title
+                                ) : (
+                                  <span className="opacity-75">•</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {remainingCount > 0 && (
+                            <div className="text-xs text-gray-500 px-2 py-1">
+                              + {remainingCount} Plus
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Calendar Week View */}
+          {viewMode === 'calendar' && calendarView === 'week' && (
+            <Card className="w-full border-[#e2e2ea] rounded-[18px] overflow-hidden">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'].map((day) => (
+                    <div key={day} className="text-center text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica] py-2">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {getWeekDays(currentCalendarDate).map((day, index) => {
+                    const daySessions = getSessionsForDate(day);
+                    const maxVisible = 6;
+                    const visibleSessions = daySessions.slice(0, maxVisible);
+                    const remainingCount = daySessions.length - maxVisible;
+                    const isToday = day.toDateString() === new Date().toDateString();
+                    const isCurrentMonth = day.getMonth() === currentCalendarDate.getMonth();
+                    
+                    return (
+                      <div
+                        key={index}
+                        className={`min-h-[400px] border border-[#e2e2ea] rounded p-2 ${
+                          !isCurrentMonth ? 'bg-gray-50 opacity-50' : 'bg-white'
+                        } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                      >
+                        <div className={`text-sm font-medium mb-2 ${
+                          isCurrentMonth ? 'text-[#19294a]' : 'text-gray-400'
+                        } ${isToday ? 'text-blue-600 font-bold' : ''}`}>
+                          {day.getDate()}
+                        </div>
+                        <div className="space-y-1">
+                          {visibleSessions.map((session) => {
+                            const color = getSessionColor(session);
+                            const startDate = session.session_start_date ? new Date(session.session_start_date) : null;
+                            const endDate = session.session_end_date ? new Date(session.session_end_date) : null;
+                            const isStart = startDate && day.toDateString() === startDate.toDateString();
+                            const isEnd = endDate && day.toDateString() === endDate.toDateString();
+                            const isMiddle = startDate && endDate && 
+                              day > startDate && day < endDate;
+                            
+                            return (
+                              <div
+                                key={session.uuid}
+                                className="text-xs px-2 py-1.5 rounded text-white cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{ backgroundColor: color }}
+                                onClick={() => handleViewSession(session.uuid)}
+                                title={session.title}
+                              >
+                                {isStart || (!isMiddle && !isEnd) ? (
+                                  <div className="truncate">{session.title}</div>
+                                ) : (
+                                  <div className="opacity-75">•</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {remainingCount > 0 && (
+                            <div className="text-xs text-gray-500 px-2 py-1">
+                              + {remainingCount} Plus
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Table View */}
+          {viewMode === 'table' && (
+          <Card className="w-full border-[#e2e2ea] rounded-[18px] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[#f5f5f5] border-b border-[#e2e2ea]">
+                  <tr>
+                    <th className="px-4 py-3 text-left">
+                      <input type="checkbox" className="rounded" />
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      intitulé de la Formation
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Type de session
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Status
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Durée
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Date de début
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Date de fin
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      <div className="flex items-center gap-2">
+                        Nombre De Participants
+                        <ChevronDown className="w-4 h-4 text-[#7e8ca9]" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedSessions.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                        Aucune session trouvée
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedSessions.map((session) => (
+                      <tr key={session.uuid} className="border-b border-[#e2e2ea] hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-4">
+                          <input type="checkbox" className="rounded" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
+                            {session.title}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          {getSessionTypeBadge(session) || (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          {getStatusBadge(session)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
+                            {getTrainerNames(session)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
                             {formatDate(session.session_start_date)}
                           </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-sm text-[#7e8ca9]">
-                          <Clock className="w-4 h-4 text-[#698eac] flex-shrink-0" />
-                          <span className="[font-family:'Poppins',Helvetica] truncate text-xs">
-                            {formatTimeRange(session)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
+                            {formatDate(session.session_end_date)}
                           </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 text-sm text-[#7e8ca9]">
-                          <User className="w-4 h-4 text-[#698eac] flex-shrink-0" />
-                          <span className="[font-family:'Poppins',Helvetica] truncate text-xs">
-                            {getTrainerName(session)}
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
+                            {session.participants_count || 0}/{session.max_participants || 0}
                           </span>
-                        </div>
-
-                        {session.max_participants && (
-                          <div className="flex items-center gap-2 text-sm text-[#7e8ca9]">
-                            <Users className="w-4 h-4 text-[#698eac] flex-shrink-0" />
-                            <span className="[font-family:'Poppins',Helvetica] truncate text-xs">
-                              {session.participants_count || 0}/{session.max_participants} participants
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Spacer to push buttons to bottom */}
-                      <div className="flex-1"></div>
-                      
-                      {/* Price Display - Always visible at bottom */}
-                      <div className="flex items-center justify-between pt-3 border-t border-[#e2e2ea] flex-shrink-0 mt-auto">
-                        <div className="flex flex-col">
-                          <span 
-                            className="font-bold text-xl [font-family:'Poppins',Helvetica]"
-                            style={{ color: primaryColor }}
-                          >
-                            {formatPrice(session.price_ht || session.price || 0)}
-                          </span>
-                          {session.currency && (
-                            <span className="text-xs text-[#7e8ca9]">{session.currency}</span>
-                          )}
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 items-center">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-9 w-9 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
-                            onClick={() => handleViewSession(session.uuid)}
-                            title="Voir"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-9 w-9 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
-                            onClick={() => handleEditSession(session.uuid)}
-                            title="Modifier"
-                          >
-                            <Edit className="w-5 h-5" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-9 w-9 p-0 text-[#7e8ca9] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                            onClick={() => handleDeleteSession(session.uuid)}
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </>
-                ) : (
-                  // List View - Compact Horizontal Layout
-                  <CardContent className="p-3 h-full">
-                    <div className="flex items-center gap-3 w-full h-full">
-                      {/* Compact Thumbnail */}
-                      <div className="relative w-16 h-16 flex-shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-blue-400 to-purple-600">
-                        {(() => {
-                          // Get image source - same logic as grid view
-                          const getSessionImage = (s: Session): string | null => {
-                            if (s.image_url) {
-                              // Normalize URL - replace escaped slashes if present
-                              let imageUrl = s.image_url.replace(/\\\//g, '/');
-                              // Add /storage/ if URL contains /uploads/ but not /storage/
-                              if (imageUrl.includes('/uploads/') && !imageUrl.includes('/storage/')) {
-                                imageUrl = imageUrl.replace('/uploads/', '/storage/uploads/');
-                              }
-                              return imageUrl;
-                            }
-                            if (s.image) {
-                              const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-                              let imagePath = s.image.replace(/\\\//g, '/'); // Normalize slashes
-                              if (imagePath.startsWith('http')) {
-                                // Add /storage/ if URL contains /uploads/ but not /storage/
-                                if (imagePath.includes('/uploads/') && !imagePath.includes('/storage/')) {
-                                  imagePath = imagePath.replace('/uploads/', '/storage/uploads/');
-                                }
-                                return imagePath;
-                              }
-                              if (imagePath.startsWith('uploads/')) {
-                                return `${baseUrl}/storage/${imagePath}`;
-                              }
-                              return `${baseUrl}/storage/uploads/session/${imagePath}`;
-                            }
-                            return null;
-                          };
-                          
-                          const imageSrc = getSessionImage(session);
-                          
-                          return imageSrc ? (
-                            <img
-                              src={imageSrc}
-                              alt={session.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error('❌ List view image failed to load:', imageSrc);
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Calendar className="w-8 h-8 text-white/50" />
-                            </div>
-                          );
-                        })()}
-                        <div className="absolute top-1 left-1">
-                          {getStatusBadge(session.status)}
-                        </div>
-                        {(session.video_url || session.has_video) && (
-                          <div className="absolute bottom-1 right-1">
-                            <Badge className="bg-black/70 text-white p-0.5">
-                              <Play className="w-2.5 h-2.5" />
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Session Info */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <h3 className="font-semibold text-base text-[#19294a] mb-1 line-clamp-1 [font-family:'Poppins',Helvetica]">
-                          {session.title}
-                        </h3>
-                        
-                        {session.category && (
-                          <div className="mb-1">
-                            <span 
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                              style={{ backgroundColor: secondaryColor }}
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
+                              onClick={() => handleViewSession(session.uuid)}
+                              title="Voir"
                             >
-                              {session.category.name}
-                            </span>
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
+                              onClick={() => handleEditSession(session.uuid)}
+                              title="Modifier"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                              onClick={() => handleDeleteSession(session.uuid)}
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
-                        )}
-                        
-                        {/* Metadata */}
-                        <div className="flex items-center gap-3 text-xs text-[#7e8ca9]">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-[#698eac]" />
-                            <span className="[font-family:'Poppins',Helvetica] truncate">
-                              {formatDate(session.session_start_date)}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-1">
-                            <User className="w-3 h-3 text-[#698eac]" />
-                            <span className="[font-family:'Poppins',Helvetica] truncate">
-                              {getTrainerName(session)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Price and Actions */}
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="flex flex-col items-end">
-                          <span 
-                            className="font-bold text-lg [font-family:'Poppins',Helvetica] min-w-[60px] text-right"
-                            style={{ color: primaryColor }}
-                          >
-                            {formatPrice(session.price_ht || session.price || 0)}
-                          </span>
-                          {session.currency && (
-                            <span className="text-xs text-[#7e8ca9]">{session.currency}</span>
-                          )}
-                        </div>
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-1 items-center">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
-                            onClick={() => handleViewSession(session.uuid)}
-                            title="Voir"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-[#19294a] hover:bg-gray-100 rounded-md transition-colors"
-                            onClick={() => handleEditSession(session.uuid)}
-                            title="Modifier"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-[#7e8ca9] hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                            onClick={() => handleDeleteSession(session.uuid)}
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
-            ))}
-          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          )}
 
           {/* Pagination */}
           {totalItems > 0 && (
@@ -858,7 +1044,7 @@ export const Sessions: React.FC = () => {
                     <span className="text-sm text-[#7e8ca9] [font-family:'Poppins',Helvetica]">Afficher:</span>
                     <select
                       value={itemsPerPage}
-                      onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleItemsPerPageChange(parseInt(e.target.value))}
                       className="px-2 py-1 border border-[#e2e2ea] rounded-[6px] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value={6}>6</option>
@@ -987,6 +1173,307 @@ export const Sessions: React.FC = () => {
           )}
         </section>
       </div>
+
+      {/* Filter Modal - Mobile Style like Figma */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 md:items-center">
+          <div 
+            ref={filterModalRef}
+            className="bg-white rounded-t-[20px] md:rounded-[20px] w-full md:max-w-md md:w-auto md:mx-4 relative shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-white z-10 border-b border-[#e2e2ea] px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-[#19294a] [font-family:'Poppins',Helvetica]">
+                Filtres
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowFilterModal(false)}
+                className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6 space-y-6">
+              {/* Formation Filter */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="[font-family:'Poppins',Helvetica] font-semibold text-sm text-[#19294a]">
+                    Formation
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryFilter('')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="relative">
+                  <select
+                    value={categoryFilter}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCategoryFilter(e.target.value)}
+                    className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-[#19294a] [font-family:'Poppins',Helvetica] text-sm appearance-none"
+                  >
+                    <option value="">Sélectionner</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id.toString()}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7e8ca9] pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Formateur Filter */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="[font-family:'Poppins',Helvetica] font-semibold text-sm text-[#19294a]">
+                    Formateur
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setTrainerFilter('')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="relative">
+                  <select
+                    value={trainerFilter}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTrainerFilter(e.target.value)}
+                    className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-[#19294a] [font-family:'Poppins',Helvetica] text-sm appearance-none"
+                  >
+                    <option value="">Sélectionner</option>
+                    {trainers.map((trainer) => (
+                      <option key={trainer.uuid} value={trainer.uuid}>
+                        {trainer.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7e8ca9] pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="[font-family:'Poppins',Helvetica] font-semibold text-sm text-[#19294a]">
+                    Status
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setStartDateFilter('');
+                      setEndDateFilter('');
+                    }}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="relative mb-3">
+                  <select
+                    value={statusFilter}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value as any)}
+                    className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-[#19294a] [font-family:'Poppins',Helvetica] text-sm appearance-none"
+                  >
+                    <option value="all">ALL</option>
+                    <option value="à venir">à venir</option>
+                    <option value="en cours">en cours</option>
+                    <option value="terminée">terminée</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7e8ca9] pointer-events-none" />
+                </div>
+                {/* Radio Buttons */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('à venir')}
+                    className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                      statusFilter === 'à venir'
+                        ? 'bg-[#DBEAFE] text-[#1E40AF]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    à venir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('en cours')}
+                    className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                      statusFilter === 'en cours'
+                        ? 'bg-[#FED7AA] text-[#9A3412]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    en cours
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('terminée')}
+                    className={`flex-1 px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                      statusFilter === 'terminée'
+                        ? 'bg-[#D1FAE5] text-[#065F46]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    terminée
+                  </button>
+                </div>
+                {/* Date Range */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 relative">
+                    <input
+                      type="date"
+                      value={startDateFilter}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setStartDateFilter(e.target.value)}
+                      className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-[#19294a] [font-family:'Poppins',Helvetica] text-sm"
+                    />
+                    <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7e8ca9] pointer-events-none" />
+                  </div>
+                  <span className="text-sm font-medium text-[#19294a] [font-family:'Poppins',Helvetica]">À</span>
+                  <div className="flex-1 relative">
+                    <input
+                      type="date"
+                      value={endDateFilter}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEndDateFilter(e.target.value)}
+                      className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-[#19294a] [font-family:'Poppins',Helvetica] text-sm"
+                    />
+                    <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7e8ca9] pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Type De La Session Filter */}
+              <div className="relative" ref={sessionTypeDropdownRef}>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="[font-family:'Poppins',Helvetica] font-semibold text-sm text-[#19294a]">
+                    Type De La Session
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setSessionTypeFilter('all')}
+                    className="[font-family:'Poppins',Helvetica] font-medium text-xs hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="relative">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowSessionTypeDropdown(!showSessionTypeDropdown)}
+                      className="w-full h-10 px-4 pr-10 rounded-[10px] bg-[#f5f5f5] border border-[#e2e2ea] text-left [font-family:'Poppins',Helvetica] text-sm flex items-center justify-between"
+                    >
+                      <span className={sessionTypeFilter === 'all' ? 'text-gray-500' : 'text-[#19294a]'}>
+                        {sessionTypeFilter === 'all' 
+                          ? 'Sélectionner' 
+                          : sessionTypeFilter === 'distanciel' 
+                            ? 'Distanciel' 
+                            : sessionTypeFilter === 'presentiel'
+                              ? 'Présentiel'
+                              : sessionTypeFilter === 'e-learning'
+                                ? 'E-Learning'
+                                : 'Hybride'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-[#7e8ca9] transition-transform ${showSessionTypeDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {/* Dropdown Menu - Bottom Sheet Style */}
+                    {showSessionTypeDropdown && (
+                      <div className="fixed inset-x-0 bottom-0 md:absolute md:inset-x-auto md:bottom-auto md:top-full md:mt-1 z-50 bg-white border-t md:border-t-0 md:border border-[#e2e2ea] rounded-t-[20px] md:rounded-[10px] shadow-lg overflow-hidden max-h-[50vh] md:max-h-96 overflow-y-auto">
+                        <div className="md:hidden px-4 py-3 border-b border-[#e2e2ea] flex items-center justify-between">
+                          <span className="font-semibold text-[#19294a] [font-family:'Poppins',Helvetica]">Type De La Session</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowSessionTypeDropdown(false)}
+                            className="w-8 h-8 flex items-center justify-center"
+                          >
+                            <X className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </div>
+                        <div className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessionTypeFilter('distanciel');
+                              setShowSessionTypeDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors ${
+                              sessionTypeFilter === 'distanciel' ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#8B5CF6' }} />
+                            <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">Distanciel</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessionTypeFilter('presentiel');
+                              setShowSessionTypeDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors ${
+                              sessionTypeFilter === 'presentiel' ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#10B981' }} />
+                            <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">Présentiel</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessionTypeFilter('e-learning');
+                              setShowSessionTypeDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors ${
+                              sessionTypeFilter === 'e-learning' ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#EC4899' }} />
+                            <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">E-Learning</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSessionTypeFilter('hybride');
+                              setShowSessionTypeDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors ${
+                              sessionTypeFilter === 'hybride' ? 'bg-blue-50' : ''
+                            }`}
+                          >
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#F97316' }} />
+                            <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">Hybride</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <div className="sticky bottom-0 bg-white border-t border-[#e2e2ea] px-6 py-4">
+              <Button
+                onClick={applyFilters}
+                className="w-full h-12 rounded-[10px] font-medium [font-family:'Poppins',Helvetica] text-white text-sm"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Appliquer les filtres
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

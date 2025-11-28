@@ -40,7 +40,6 @@ import { courseCreation } from '../../services/courseCreation';
 import { sessionCreation } from '../../services/sessionCreation';
 import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
-import { fixImageUrl } from '../../lib/utils';
 
 type QuestionType = 
   | 'single_choice'      // Réponse simple (radio)
@@ -875,7 +874,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   >
                     {organization?.organization_logo ? (
                       <img 
-                        src={fixImageUrl(organization.organization_logo)} 
+                        src={organization.organization_logo} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />
@@ -1626,7 +1625,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   >
                     {organization?.organization_logo ? (
                       <img 
-                        src={fixImageUrl(organization.organization_logo)} 
+                        src={organization.organization_logo} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />

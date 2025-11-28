@@ -37,7 +37,7 @@ class CommercialDashboardController extends Controller
         $lastMonthStart = now()->subMonth()->startOfMonth();
         $lastMonthEnd = now()->subMonth()->endOfMonth();
 
-        // 1. KPI: CA (Chiffre d'Affaires) - Based on SENT and PAID invoices this month
+        // 1. KPI: CA (Chiffre d'Affaires) - Based on PAID invoices this month
         $revenueCurrentMonth = Invoice::where('organization_id', $organization_id)
             ->whereIn('status', ['sent', 'paid'])
             ->whereBetween('issue_date', [$currentMonthStart, $currentMonthEnd])
@@ -66,12 +66,10 @@ class CommercialDashboardController extends Controller
             ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])
             ->count();
 
-        // 4. KPI: Impayés (Unpaid) - Total amount of unpaid invoices (sent or partially_paid)
+        // 4. KPI: Impayés (Overdue) - Total amount of overdue invoices
         $overdueAmount = Invoice::where('organization_id', $organization_id)
-            ->whereIn('status', ['sent', 'partially_paid'])
+            ->whereIn('status', ['overdue', 'partially_paid'])
             ->sum(DB::raw('total_ttc - COALESCE(amount_paid, 0)'));
-
-        // 5. KPI: Paiements Reçus (Received Payments) - Total amount of paid invoices this month
         $receivedPayments = Invoice::where('organization_id', $organization_id)
             ->where('status', 'paid')
             ->whereBetween('issue_date', [$currentMonthStart, $currentMonthEnd])

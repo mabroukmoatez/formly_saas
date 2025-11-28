@@ -406,7 +406,7 @@ export const WhiteLabelPlansPage: React.FC = () => {
               </div>
 
               {/* Plans Grid - 4 cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-20">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Starter Plan */}
                 <Card className={`border-2 rounded-[18px] relative overflow-hidden ${
                   isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea]'
@@ -502,8 +502,8 @@ export const WhiteLabelPlansPage: React.FC = () => {
                 <Card className={`border-2 rounded-[18px] relative overflow-visible ${
                   isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea]'
                 }`} style={{ borderColor: '#3b82f640', backgroundColor: isDark ? '#1f2937' : '#eff6ff', position: 'relative', zIndex: 1 }}>
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-50" style={{ zIndex: 9999 }}>
-                    <div className="text-white text-xs md:text-sm font-bold px-4 md:px-5 py-1.5 md:py-2 rounded-full whitespace-nowrap shadow-xl" style={{ backgroundColor: '#3b82f6', minWidth: 'max-content' }}>
+                  <div className="absolute -top-5 left-1/2 transform -translate-x-1/2" style={{ zIndex: 9999 }}>
+                    <div className="text-white text-sm font-bold px-5 py-2 rounded-full whitespace-nowrap shadow-xl" style={{ backgroundColor: '#3b82f6' }}>
                       LE PLUS POPULAIRE
                     </div>
                   </div>
@@ -659,7 +659,7 @@ export const WhiteLabelPlansPage: React.FC = () => {
             </div>
 
             {/* Comparez nos abonnements - Comparison Table */}
-            <div className="mt-16 mb-12 pt-20">
+            <div className="mt-16 mb-12">
               <h2 className={`text-2xl font-bold mb-16 text-center`}>
                 <span className="font-bold" style={{ color: '#3b82f6' }}>Comparez</span>
                 <span className={`font-bold ${isDark ? 'text-white' : 'text-black'}`}> nos abonnements</span>
@@ -685,7 +685,7 @@ export const WhiteLabelPlansPage: React.FC = () => {
                             style={{ backgroundColor: '#dbeafe', color: '#3b82f6', paddingTop: '2.5rem', zIndex: 1 }}
                           >
                             Orga
-                            <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 text-white text-xs md:text-sm px-4 md:px-5 py-1.5 md:py-2 rounded-full whitespace-nowrap shadow-xl font-bold" style={{ backgroundColor: '#3b82f6', zIndex: 9999, minWidth: 'max-content' }}>
+                            <Badge className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-white text-sm px-5 py-2 rounded-full whitespace-nowrap shadow-xl font-bold" style={{ backgroundColor: '#3b82f6', zIndex: 9999 }}>
                               LE PLUS POPULAIRE
                             </Badge>
                           </th>

@@ -507,35 +507,25 @@ export const WhiteLabelIdentity: React.FC = () => {
                   <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
                     Couleur de l'interface
                   </h2>
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <label className="relative inline-block cursor-pointer">
-                      <input
-                        type="color"
-                        value={formData.primary_color || '#007aff'}
-                        onChange={(e) => {
-                          const color = e.target.value;
+                  <div className="flex items-center gap-4">
+                    <Button
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'color';
+                        input.value = formData.primary_color || '#007aff';
+                        input.onchange = (e) => {
+                          const color = (e.target as HTMLInputElement).value;
                           setSelectedColor(color);
                           handleInputChange('primary_color', color);
-                        }}
-                        className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                        style={{ position: 'absolute', width: 0, height: 0, opacity: 0 }}
-                      />
-                      <Button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          const input = e.currentTarget.parentElement?.querySelector('input[type="color"]') as HTMLInputElement;
-                          if (input) {
-                            input.click();
-                          }
-                        }}
-                        className="rounded-[10px] px-6 h-12 flex items-center gap-2"
-                        style={{ backgroundColor: primaryColor, color: 'white' }}
-                      >
-                        <Palette className="w-4 h-4" />
-                        Choisie Une Couleur
-                      </Button>
-                    </label>
+                        };
+                        input.click();
+                      }}
+                      className="rounded-[10px] px-6 h-12 flex items-center gap-2"
+                      style={{ backgroundColor: primaryColor, color: 'white' }}
+                    >
+                      <Palette className="w-4 h-4" />
+                      Choisie Une Couleur
+                    </Button>
                     <div className="flex items-center gap-2">
                       {['#ff0000', '#ff7700', '#ffdd00', '#00ff00', '#00aaff', '#0066ff'].map((color) => (
                         <button
@@ -613,10 +603,10 @@ export const WhiteLabelIdentity: React.FC = () => {
                           Téléchargement en cours...
                         </p>
                       </>
-                    ) : (settings?.login_banner_url || organization?.login_banner_url || organization?.login_background_image_url) ? (
+                    ) : settings?.login_banner_url ? (
                       <>
                         <img
-                          src={fixImageUrl(settings?.login_banner_url || organization?.login_banner_url || organization?.login_background_image_url || '')}
+                          src={fixImageUrl(settings.login_banner_url)}
                           alt="Bannière"
                           className="max-h-40 max-w-full object-contain rounded-[8px]"
                         />
@@ -672,10 +662,10 @@ export const WhiteLabelIdentity: React.FC = () => {
                       >
                         {uploading === 'logo_square' ? (
                           <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
-                        ) : (settings?.logo_square_url || organization?.organization_logo_url) ? (
+                        ) : settings?.logo_square_url ? (
                           <>
                             <img
-                              src={fixImageUrl(settings?.logo_square_url || organization?.organization_logo_url || '')}
+                              src={fixImageUrl(settings.logo_square_url)}
                               alt="Logo carré"
                               className="max-h-24 max-w-full object-contain rounded-[8px]"
                             />
@@ -730,10 +720,10 @@ export const WhiteLabelIdentity: React.FC = () => {
                       >
                         {uploading === 'logo_wide' ? (
                           <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
-                        ) : (settings?.logo_wide_url || organization?.organization_logo_url) ? (
+                        ) : settings?.logo_wide_url ? (
                           <>
                             <img
-                              src={fixImageUrl(settings?.logo_wide_url || organization?.organization_logo_url || '')}
+                              src={fixImageUrl(settings.logo_wide_url)}
                               alt="Logo large"
                               className="max-h-24 max-w-full object-contain rounded-[8px]"
                             />
@@ -946,10 +936,10 @@ export const WhiteLabelIdentity: React.FC = () => {
                   <Label className={`font-medium ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
                     Favicon
                   </Label>
-                  {(settings?.favicon_url || organization?.organization_favicon_url) && (
+                  {settings?.favicon_url && (
                     <div className="flex justify-center mb-4">
                       <img
-                        src={fixImageUrl(settings?.favicon_url || organization?.organization_favicon_url || '')}
+                        src={fixImageUrl(settings.favicon_url)}
                         alt="Favicon"
                         className="w-12 h-12 object-contain rounded-[10px] p-2 border"
                       />
@@ -1305,14 +1295,14 @@ export const WhiteLabelIdentity: React.FC = () => {
       {/* Template Selection Modal */}
       {showTemplateModal && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 z-50 overflow-y-auto"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowTemplateModal(false);
             }
           }}
         >
-          <Card className={`w-full max-w-2xl md:max-w-3xl rounded-[18px] ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} relative my-4 md:my-0 max-h-[90vh] overflow-hidden flex flex-col`}>
+          <Card className={`w-full max-w-5xl rounded-[18px] ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'} relative`}>
             {/* Close Button */}
             <button
               onClick={() => setShowTemplateModal(false)}
@@ -1325,13 +1315,13 @@ export const WhiteLabelIdentity: React.FC = () => {
               <X className="w-5 h-5" />
             </button>
 
-            <CardHeader className="pb-4 px-4 md:px-6 flex-shrink-0">
-              <CardTitle className={`text-lg md:text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+            <CardHeader className="pb-4">
+              <CardTitle className={`text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
                 Sélectionner un modèle de connexion
               </CardTitle>
             </CardHeader>
             
-            <CardContent className="pb-6 px-4 md:px-6 overflow-y-auto flex-1">
+            <CardContent className="pb-6">
               {loadingTemplates ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin" style={{ color: primaryColor }} />
@@ -1342,20 +1332,20 @@ export const WhiteLabelIdentity: React.FC = () => {
                   <p>Aucun modèle disponible</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
+                <div className="grid grid-cols-2 gap-6 mb-6">
                   {loginTemplates.map((template) => (
                     <div
                       key={template.id}
                       onClick={() => {
                         setSelectedTemplate(template.id);
                       }}
-                      className={`p-3 rounded-[12px] border-2 cursor-pointer transition-all ${
+                      className={`p-4 rounded-[12px] border-2 cursor-pointer transition-all ${
                         selectedTemplate === template.id
                           ? isDark ? 'border-blue-500 bg-blue-900/20 ring-2 ring-blue-500/50' : 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/50'
                           : isDark ? 'border-gray-600 hover:border-gray-500 bg-gray-700/50' : 'border-gray-200 hover:border-gray-300 bg-white'
                       }`}
                     >
-                      <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-[8px] mb-2 flex items-center justify-center overflow-hidden shadow-sm">
+                      <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-[8px] mb-3 flex items-center justify-center overflow-hidden shadow-sm">
                         {template.preview_url ? (
                           <img
                             src={fixImageUrl(template.preview_url)}
@@ -1373,11 +1363,11 @@ export const WhiteLabelIdentity: React.FC = () => {
                           <LayoutTemplate className="w-12 h-12 text-gray-400" />
                         </div>
                       </div>
-                      <p className={`text-xs md:text-sm font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <p className={`text-sm font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {template.name}
                       </p>
                       {template.description && (
-                        <p className={`text-xs mt-1 text-center line-clamp-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <p className={`text-xs mt-1 text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                           {template.description}
                         </p>
                       )}
@@ -1387,14 +1377,14 @@ export const WhiteLabelIdentity: React.FC = () => {
               )}
               
               {/* Validation Button */}
-              <div className="flex justify-center mt-4 flex-shrink-0">
+              <div className="flex justify-center mt-6">
                 <Button
                   onClick={() => {
                     if (selectedTemplate) {
                       setShowTemplateModal(false);
                     }
                   }}
-                  className="rounded-[10px] px-6 md:px-8 h-10 md:h-12"
+                  className="rounded-[10px] px-8 h-12"
                   style={{ backgroundColor: primaryColor, color: 'white' }}
                   disabled={!selectedTemplate}
                 >

@@ -26,6 +26,8 @@ class SessionParticipant extends Model
         'end_date',
         'status', // enrolled, active, completed, suspended, cancelled
         'progress_percentage',
+        'tarif',
+        'type',
         'last_accessed_at',
         'completion_certificate_issued',
         'certificate_issued_at',
@@ -38,6 +40,7 @@ class SessionParticipant extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'progress_percentage' => 'decimal:2',
+        'tarif' => 'decimal:2',
         'last_accessed_at' => 'datetime',
         'completion_certificate_issued' => 'boolean',
         'certificate_issued_at' => 'datetime',
@@ -54,6 +57,12 @@ class SessionParticipant extends Model
             }
             if (empty($model->status)) {
                 $model->status = 'enrolled';
+            }
+            if (empty($model->tarif)) {
+                $model->tarif = 0;
+            }
+            if (empty($model->type)) {
+                $model->type = 'Particulier';
             }
         });
     }

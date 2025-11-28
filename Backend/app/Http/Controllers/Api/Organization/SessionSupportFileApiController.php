@@ -36,12 +36,25 @@ class SessionSupportFileApiController extends Controller
                 ], 403);
             }
 
-            $query = SessionSupportFile::where('chapter_uuid', $chapterId);
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $query = SessionSupportFile::where('chapter_id', $chapter->uuid);
             
             if ($subChapterId) {
-                $query->where('sub_chapter_uuid', $subChapterId);
+                $query->where('sub_chapter_id', $subChapterId);
             } else {
-                $query->whereNull('sub_chapter_uuid');
+                $query->whereNull('sub_chapter_id');
             }
 
             $supportFiles = $query->orderBy('uploaded_at', 'desc')->get();
@@ -74,9 +87,13 @@ class SessionSupportFileApiController extends Controller
                 ], 403);
             }
 
+            // Get sub_chapter_uuid from request body (preferred) or URL parameter
+            $subChapterUuid = $request->sub_chapter_uuid ?? $subChapterId;
+
             $validator = Validator::make($request->all(), [
                 'files' => 'required|array|min:1',
-                'files.*' => 'required|file|max:10240'
+                'files.*' => 'required|file|max:10240',
+                'sub_chapter_uuid' => 'nullable|string' // Accept from request body
             ]);
 
             if ($validator->fails()) {
@@ -85,6 +102,19 @@ class SessionSupportFileApiController extends Controller
                     'message' => 'Validation failed',
                     'errors' => $validator->errors()
                 ], 422);
+            }
+
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
             }
 
             $uploadedFiles = [];
@@ -96,19 +126,31 @@ class SessionSupportFileApiController extends Controller
                     continue;
                 }
 
+                // Get mime type from file
+                $mimeType = $file->getMimeType();
+
                 $supportFileData = [
                     'uuid' => Str::uuid()->toString(),
-                    'chapter_uuid' => $chapterId,
-                    'sub_chapter_uuid' => $subChapterId,
+                    'chapter_id' => $chapter->uuid,
+                    'sub_chapter_id' => $subChapterUuid,
                     'name' => $fileDetails['file_name'],
-                    'type' => $fileDetails['file_type'] ?? null,
+                    'type' => $fileDetails['file_type'] ?? $mimeType,
                     'size' => $fileDetails['file_size'],
                     'file_url' => $fileDetails['path'],
                     'uploaded_at' => now()
                 ];
 
                 $supportFile = SessionSupportFile::create($supportFileData);
-                $uploadedFiles[] = $supportFile;
+                
+                // Format response according to specs
+                $uploadedFiles[] = [
+                    'uuid' => $supportFile->uuid,
+                    'file_name' => $supportFile->name,
+                    'file_url' => $supportFile->file_url,
+                    'file_size' => $supportFile->size,
+                    'mime_type' => $supportFile->type ?? $mimeType,
+                    'sub_chapter_uuid' => $supportFile->sub_chapter_id
+                ];
             }
 
             return response()->json([
@@ -140,7 +182,20 @@ class SessionSupportFileApiController extends Controller
                 ], 403);
             }
 
-            $supportFile = SessionSupportFile::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $supportFile = SessionSupportFile::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $fileId)
                 ->first();
 

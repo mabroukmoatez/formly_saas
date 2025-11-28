@@ -31,7 +31,6 @@ import { sessionCreation } from '../../services/sessionCreation';
 import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
 import { VariableDefinition, AVAILABLE_VARIABLES } from '../../components/CourseCreation/VariableSelector';
-import { fixImageUrl } from '../../lib/utils';
 
 interface DocumentField {
   id: string;
@@ -770,9 +769,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
-                    {(organization?.organization_logo_url || organization?.organization_logo) ? (
+                    {organization?.organization_logo ? (
                       <img 
-                        src={fixImageUrl(organization.organization_logo_url || organization.organization_logo || '')} 
+                        src={organization.organization_logo} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />
@@ -1292,9 +1291,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
-                    {(organization?.organization_logo_url || organization?.organization_logo) ? (
+                    {organization?.organization_logo ? (
                       <img 
-                        src={fixImageUrl(organization.organization_logo_url || organization.organization_logo || '')} 
+                        src={organization.organization_logo} 
                         alt="Logo" 
                         className="w-full h-full object-contain rounded-lg"
                       />

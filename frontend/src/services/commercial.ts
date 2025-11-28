@@ -392,10 +392,7 @@ class CommercialService {
   async createQuotePaymentSchedule(quoteId: string, data: any): Promise<ApiResponse<any>> {
     return await apiService.post<ApiResponse<any>>(`/api/organization/commercial/quotes/${quoteId}/payment-schedule`, data);
   }
-
-  async getNextDocumentNumber(type: 'invoice' | 'quote'): Promise<{ next_number: string }> {
-    return await apiService.get<{ next_number: string }>(`/api/organization/commercial/dashboard/next-document-number/${type}`);
-  }
 }
 
 export const commercialService = new CommercialService();
+

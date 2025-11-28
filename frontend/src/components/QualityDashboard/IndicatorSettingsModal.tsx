@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
+import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
+import { Card, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { useToast } from '../ui/toast';
-import { getQualityIndicators, updateQualityIndicator } from '../../services/qualityManagement';
-import { Loader2, Info, X } from 'lucide-react';
+import { getQualityIndicators, updateQualityIndicator, batchUpdateIndicators } from '../../services/qualityManagement';
+import { Loader2, Info } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { QualityIndicator } from '../../services/qualityManagement';
+import { InfoTooltip } from '../ui/info-tooltip';
 
 interface IndicatorSettingsModalProps {
   isOpen: boolean;
@@ -27,7 +32,6 @@ interface PersonalizationQuestion {
   toggleValue: boolean;
   affectedIndicators: number[];
   indicatorAction: 'activate' | 'deactivate';
-  hint: string;
 }
 
 export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
@@ -54,20 +58,20 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       selected: true,
     },
     {
-      id: 'vae',
-      name: "Validation des acquis de l'expérience - VAE",
-      description: 'Le système sélectionne aléatoirement un nombre défini de questions à partir de votre banque de questions.',
-      selected: false,
-    },
-    {
       id: 'bilan-competences',
       name: 'Bilan de compétences',
       description: 'Le système sélectionne aléatoirement un nombre défini de questions à partir de votre banque de questions.',
       selected: false,
     },
     {
+      id: 'vae',
+      name: 'Validation des acquis de l\'expérience',
+      description: 'Le système sélectionne aléatoirement un nombre défini de questions à partir de votre banque de questions.',
+      selected: false,
+    },
+    {
       id: 'cfa',
-      name: "Centre de formation d'apprentis - CFA",
+      name: 'CFA',
       description: 'Le système sélectionne aléatoirement un nombre défini de questions à partir de votre banque de questions.',
       selected: false,
     },
@@ -81,15 +85,13 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: true,
       affectedIndicators: [1, 2, 3],
       indicatorAction: 'deactivate',
-      hint: '(Désactivation des indicateurs 1, 2 et 3)',
     },
     {
       id: 'q2',
-      question: "Vos formations nécessitent des prérequis à l'entrée ?",
+      question: 'Vos formations nécessitent des prérequis à l\'entrée ?',
       toggleValue: false,
       affectedIndicators: [8],
       indicatorAction: 'activate',
-      hint: "(Activation de l'indicateur 8)",
     },
     {
       id: 'q3',
@@ -97,7 +99,6 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: false,
       affectedIndicators: [12],
       indicatorAction: 'deactivate',
-      hint: "(Désactivation l'indicateur 12)",
     },
     {
       id: 'q4',
@@ -105,7 +106,6 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: true,
       affectedIndicators: [3, 7, 15],
       indicatorAction: 'activate',
-      hint: '(Activation des indicateurs 3, 7 et 16)',
     },
     {
       id: 'q5',
@@ -113,7 +113,6 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: false,
       affectedIndicators: [13],
       indicatorAction: 'activate',
-      hint: "(Activation de l'indicateur 13)",
     },
     {
       id: 'q6',
@@ -121,7 +120,6 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: false,
       affectedIndicators: [27],
       indicatorAction: 'deactivate',
-      hint: "(Désactivation de l'indicateur 27)",
     },
     {
       id: 'q7',
@@ -129,7 +127,6 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       toggleValue: true,
       affectedIndicators: [28],
       indicatorAction: 'activate',
-      hint: "(Activation de l'indicateur 28)",
     },
   ]);
 
@@ -144,10 +141,10 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
     try {
       const response = await getQualityIndicators();
       console.log('✅ IndicatorSettingsModal loadIndicators response:', response);
-
+      
       // Handle different response structures
       let indicatorsArray: QualityIndicator[] = [];
-
+      
       if (response && typeof response === 'object') {
         if (response.success === true && response.data) {
           // Structure: { success: true, data: { indicators: [...] } }
@@ -163,8 +160,15 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
           indicatorsArray = response.data;
         }
       }
-
-      setIndicators(Array.isArray(indicatorsArray) ? indicatorsArray : []);
+      
+      const loadedIndicators = Array.isArray(indicatorsArray) ? indicatorsArray : [];
+      setIndicators(loadedIndicators);
+      
+      // Synchronize questions with current indicator states
+      if (loadedIndicators.length > 0) {
+        console.log('🔄 Synchronizing questions from indicators:', loadedIndicators.length);
+        synchronizeQuestionsFromIndicators(loadedIndicators);
+      }
     } catch (err: any) {
       console.error('Error loading indicators:', err);
       showError('Erreur', err.response?.data?.error?.message || err.message || 'Impossible de charger les indicateurs Qualiopi');
@@ -288,7 +292,8 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
     try {
       // Calculate which indicators should be applicable based on questions
       const indicatorUpdates: Record<number, boolean> = {};
-
+      
+      // Process all indicators
       indicators.forEach((indicator) => {
         const status = getIndicatorStatus(indicator.number || 0);
         
@@ -359,7 +364,7 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Error saving settings:', err);
-      showError('Erreur', err.message || "Une erreur est survenue lors de l'enregistrement");
+      showError('Erreur', err.message || 'Une erreur est survenue lors de l\'enregistrement');
     } finally {
       setSaving(false);
     }
@@ -367,202 +372,167 @@ export const IndicatorSettingsModal: React.FC<IndicatorSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white w-[90vw] max-w-[850px] max-h-[90vh] overflow-y-auto rounded-[18px] shadow-[0px_0px_75.7px_0px_rgba(25,41,74,0.09)] p-0">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute right-[13.33px] top-[11.48px] size-[30.667px] bg-[#e8f0f7] rounded-full flex items-center justify-center hover:opacity-80 transition-opacity z-10"
-        >
-          <X className="w-4 h-4 text-[#6a90ba]" strokeWidth={2} />
-        </button>
+      <DialogContent className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} max-w-4xl max-h-[90vh] overflow-y-auto`}>
+        <DialogHeader>
+          <DialogTitle className={`${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica] font-semibold text-xl`}>
+            Définir les indicateurs qui vous concernent
+          </DialogTitle>
+          <DialogDescription className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+            Personnalisez votre système qualité en sélectionnant les indicateurs applicables à votre organisme
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="box-border content-stretch flex flex-col gap-[28px] items-center px-[20px] py-[32px] relative size-full">
-          {/* Title */}
-          <div className="content-stretch flex gap-[8px] items-center relative shrink-0">
-            <p className="font-['Poppins',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[15px] text-nowrap whitespace-pre">
-              Définir les indicateurs qui vous concernent
+        <div className="flex flex-col gap-6">
+          {/* Section 1: Training Categories */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Label className={`${isDark ? 'text-gray-200' : 'text-gray-700'} [font-family:'Poppins',Helvetica] font-semibold text-lg`}>
+                Catégorie d'action de formation
+              </Label>
+            </div>
+            <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'} [font-family:'Poppins',Helvetica] text-sm`}>
+              Choisissez la catégorie d'actions de formation qui vous concerne :
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {trainingCategories.map((category) => (
+                <Card
+                  key={category.id}
+                  className={`cursor-pointer transition-all ${
+                    category.selected
+                      ? isDark
+                        ? 'border-[#007aff] bg-blue-900/20'
+                        : 'border-[#007aff] bg-blue-50'
+                      : isDark
+                      ? 'border-gray-700 hover:border-gray-600'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleCategoryToggle(category.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={category.selected}
+                        onChange={() => handleCategoryToggle(category.id)}
+                        className="mt-1 w-4 h-4"
+                      />
+                      <div className="flex-1">
+                        <h4 className={`font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica]`}>
+                          {category.name}
+                        </h4>
+                        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} [font-family:'Poppins',Helvetica]`}>
+                          {category.description}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Info Note */}
+          <div className={`flex items-start gap-2 p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+            <Info className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'} [font-family:'Poppins',Helvetica]`}>
+              Formly Propose par défaut les 22 Indicateurs Communs. C'est à dire obligatoires lors de l'audit. ici vous pouvez sélectionner les indicateurs spécifiques qui vous concernent OU personnaliser au mieux l'application pour une utilisation optimale.
             </p>
           </div>
 
-          {/* Main Content */}
-          <div className="content-stretch flex flex-col gap-[24px] items-center relative shrink-0 w-full">
-            {/* Training Categories Section */}
-            <div className="content-stretch flex flex-col gap-[16px] items-center relative shrink-0 w-full">
-              <div className="relative rounded-[18px] shrink-0 w-full border border-[#dbd9d9]">
-                <div className="size-full">
-                  <div className="box-border content-stretch flex flex-col gap-[16px] items-start p-[18px] relative w-full">
-                    <div className="content-stretch flex flex-col gap-[8px] items-start justify-center leading-[normal] not-italic relative shrink-0 w-full">
-                      <p className="font-['Poppins',sans-serif] font-medium relative text-[#19294a] text-[15px]">
-                        Categorie d'action de formation
-                      </p>
-                      <p className="font-['Poppins',sans-serif] font-normal relative text-[#6a90ba] text-[11px] w-full">
-                        {`Choisissez la catégorie d'actions de formation qui vous concerne (Une ou plusieurs)  : `}
-                      </p>
-                    </div>
-
-                    {/* Categories Grid */}
-                    <div className="content-stretch flex flex-wrap gap-[10px] items-start relative shrink-0 w-full">
-                      {/* Left Column */}
-                      <div className="flex-1 min-w-[280px] content-stretch flex flex-col gap-[10px] items-start relative">
-                        {trainingCategories.slice(0, 2).map((category) => (
-                          <div
-                            key={category.id}
-                            className={`${category.selected ? 'bg-[#ebf1ff] border-[#007aff]' : 'bg-neutral-50 border-[#d3d3e8]'
-                              } relative rounded-[18px] shrink-0 w-full border cursor-pointer transition-all hover:opacity-90`}
-                            onClick={() => handleCategoryToggle(category.id)}
-                          >
-                            <div className="flex flex-row items-center size-full">
-                              <div className="box-border content-stretch flex gap-[16px] items-center pl-[7px] pr-[26px] py-[16px] relative w-full">
-                                <div className="content-stretch flex flex-col items-start justify-center relative shrink-0">
-                                  <div className="content-stretch flex gap-[8px] items-center relative shrink-0">
-                                    <p className="font-['Poppins',sans-serif] font-medium leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[15px] text-nowrap whitespace-pre">
-                                      {category.name}
-                                    </p>
-                                  </div>
-                                  <div className="content-stretch flex gap-[7px] items-center relative shrink-0">
-                                    <p className="font-['Poppins',sans-serif] font-normal leading-[14px] not-italic relative shrink-0 text-[#5c677e] text-[11px] max-w-[317.704px]">
-                                      {category.description}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Right Column */}
-                      <div className="flex-1 min-w-[280px] content-stretch flex flex-col gap-[10px] items-start relative">
-                        {trainingCategories.slice(2, 4).map((category) => (
-                          <div
-                            key={category.id}
-                            className={`${category.selected ? 'bg-[#ebf1ff] border-[#007aff]' : 'bg-neutral-50 border-[#d3d3e8]'
-                              } relative rounded-[18px] shrink-0 w-full border cursor-pointer transition-all hover:opacity-90`}
-                            onClick={() => handleCategoryToggle(category.id)}
-                          >
-                            <div className="flex flex-row items-center size-full">
-                              <div className="box-border content-stretch flex gap-[16px] items-center pl-[7px] pr-[26px] py-[16px] relative w-full">
-                                <div className="content-stretch flex flex-col items-start justify-center relative flex-1 min-w-0">
-                                  <div className="content-stretch flex gap-[8px] items-center relative w-full">
-                                    <p className="font-['Poppins',sans-serif] font-medium leading-[normal] not-italic relative text-[#19294a] text-[15px] break-words">
-                                      {category.name}
-                                    </p>
-                                  </div>
-                                  <div className="content-stretch flex gap-[7px] items-start relative w-full">
-                                    <p className="font-['Poppins',sans-serif] font-normal leading-[14px] not-italic relative text-[#5c677e] text-[11px] break-words">
-                                      {category.description}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Section */}
-              <div className="content-stretch flex flex-col gap-[6px] items-center relative shrink-0">
-                <div className="relative shrink-0 size-[13.333px]">
-                  <Info className="block size-full text-[#6a90ba]" />
-                </div>
-                <p className="font-['Poppins',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#6a90ba] text-[11px] text-center max-w-[600px]">
-                  {`Formly Propose par défaut les 22 Indicateurs Communs C'est à dire obligatoires lors de l'audit.`}
-                  <br />
-                  Ici vous pouvez sélectionner les indicateurs spécifiques qui vous concernent OU personnaliser au mieux l'application pour une utilisation optimale.
-                </p>
-              </div>
-            </div>
-
-            {/* Questions Section */}
+          {/* Section 2: Personalization Questions */}
+          <div className="flex flex-col gap-4">
+            <Label className={`${isDark ? 'text-gray-200' : 'text-gray-700'} [font-family:'Poppins',Helvetica] font-semibold text-lg`}>
+              Questions de personnalisation
+            </Label>
             {loadingIndicators ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-[#ff7700]" />
               </div>
             ) : (
-              <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-full">
-                {questions.map((question, index) => {
+              <div className="space-y-4">
+                {questions.map((question) => {
                   const affectedIndicators = indicators.filter((ind) =>
                     question.affectedIndicators.includes(ind.number || 0)
                   );
-
+                  
                   return (
-                    <React.Fragment key={question.id}>
-                      {/* Question Row */}
-                      <div className="content-stretch flex gap-[16px] items-center relative shrink-0 w-full">
-                        <div className="basis-0 content-stretch flex flex-col gap-[8px] grow items-start min-h-px min-w-px relative shrink-0">
-                          <p className="font-['Poppins',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[15px] w-full">
-                            {question.question}
-                          </p>
-                          <div className="content-stretch flex gap-[6px] items-center relative shrink-0 w-full flex-wrap">
-                            <Info className="shrink-0 size-[13.333px] text-[#6a90ba]" />
-                            <p className="font-['Poppins',sans-serif] font-normal leading-[normal] not-italic relative shrink-0 text-[#6a90ba] text-[15px]">
-                              {question.hint}
+                    <Card
+                      key={question.id}
+                      className={`${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-white'}`}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <p className={`font-medium mb-3 ${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica]`}>
+                              {question.question}
                             </p>
-                            {affectedIndicators.map((indicator) => {
-                              const isActive = question.toggleValue && question.indicatorAction === 'activate';
-                              const isInactive = question.toggleValue && question.indicatorAction === 'deactivate';
-                              const bgColor = isInactive ? '#ff7700' : isActive ? '#26c9b6' : '#007aff';
-
-                              return (
-                                <div
-                                  key={indicator.id}
-                                  className="content-stretch flex gap-[3.305px] items-center justify-center relative rounded-[26.438px] shrink-0 size-[22.803px]"
-                                  style={{ backgroundColor: bgColor }}
-                                >
-                                  <p className="capitalize font-['Poppins',sans-serif] font-semibold leading-[normal] not-italic relative shrink-0 text-[10.643px] text-center text-nowrap text-white whitespace-pre">
+                            <div className="flex flex-wrap gap-2">
+                              {affectedIndicators.map((indicator) => {
+                                const status = getIndicatorStatus(indicator.number || 0);
+                                const isActive = question.toggleValue && question.indicatorAction === 'activate';
+                                const isInactive = question.toggleValue && question.indicatorAction === 'deactivate';
+                                
+                                return (
+                                  <Badge
+                                    key={indicator.id}
+                                    className={
+                                      isInactive
+                                        ? 'bg-orange-500 text-white'
+                                        : isActive
+                                        ? 'bg-green-500 text-white'
+                                        : 'bg-blue-500 text-white'
+                                    }
+                                  >
                                     {indicator.number}
-                                  </p>
-                                </div>
-                              );
-                            })}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
                           </div>
+                          <Switch
+                            checked={question.toggleValue}
+                            onCheckedChange={() => handleQuestionToggle(question.id)}
+                            style={question.toggleValue ? { backgroundColor: primaryColor } : undefined}
+                            className={question.toggleValue ? '' : ''}
+                          />
                         </div>
-                        <Switch
-                          checked={question.toggleValue}
-                          onCheckedChange={() => handleQuestionToggle(question.id)}
-                          style={question.toggleValue ? { backgroundColor: primaryColor } : undefined}
-                          className="h-[26.667px] w-[52px]"
-                        />
-                      </div>
-
-                      {/* Separator Line */}
-                      {index < questions.length - 1 && (
-                        <div className="h-0 relative shrink-0 w-full">
-                          <div className="absolute bottom-0 left-0 right-0 top-[-1.32px]">
-                            <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 754 2">
-                              <line stroke="#E4E5E7" strokeWidth="1.32286" x2="754" y1="0.66143" y2="0.66143" />
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-                    </React.Fragment>
+                      </CardContent>
+                    </Card>
                   );
                 })}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Valider Button */}
-          <div className="bg-[#007aff] box-border content-stretch flex flex-col gap-[16px] items-center justify-center px-[16px] py-[10px] relative rounded-[50px] shrink-0 w-[292px] cursor-pointer hover:opacity-90 transition-opacity" onClick={handleSave}>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={saving}
+            className={isDark ? 'border-gray-600' : ''}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="bg-[#4A8AFF] hover:bg-[#3a7aef] text-white w-full"
+          >
             {saving ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin text-white" />
-                <p className="capitalize font-['Poppins',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[19px] text-nowrap text-white whitespace-pre">
-                  Enregistrement...
-                </p>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enregistrement...
               </>
             ) : (
-              <p className="capitalize font-['Poppins',sans-serif] font-bold leading-[normal] not-italic relative shrink-0 text-[19px] text-nowrap text-white whitespace-pre">
-                Valider
-              </p>
+              'Enregistrer'
             )}
-          </div>
-        </div>
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
+

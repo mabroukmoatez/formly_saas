@@ -50,10 +50,11 @@ class SessionManagementApiController extends Controller
             }
 
             $metadata = [
-                'categories' => \App\Models\Category::orderBy('name')->get(['id', 'name', 'slug']),
+                'categories' => \App\Models\Category::orderBy('name')->get(['id', 'name', 'slug', 'is_custom']),
                 'subcategories' => \App\Models\Subcategory::orderBy('name')->get(['id', 'category_id', 'name', 'slug']),
                 'languages' => \App\Models\Course_language::orderBy('name')->get(['id', 'name']),
                 'difficulty_levels' => \App\Models\Difficulty_level::orderBy('name')->get(['id', 'name']),
+                'formation_practices' => \App\Models\FormationPractice::orderBy('name')->get(['id', 'code', 'name']),
                 'trainers' => \App\Models\Trainer::where('organization_id', $organization->id)
                     ->where('is_active', true)
                     ->orderBy('name')
@@ -189,11 +190,35 @@ class SessionManagementApiController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'title' => 'required|string|max:255',
-                'description' => 'nullable|string',
+                'title' => 'required|string|max:110',
+                'subtitle' => 'nullable|string',
+                'description' => 'required|string',
+                'formation_action' => 'required|string|in:Actions de formation,Bilan de compétences,VAE (Validation des Acquis de l\'Expérience),Actions de formation par apprentissage,Autre...',
                 'category_id' => 'nullable|exists:categories,id',
-                'price' => 'nullable|numeric|min:0',
-                'duration' => 'nullable|string',
+                'subcategory_id' => 'nullable|exists:subcategories,id',
+                'session_language_id' => 'nullable|exists:course_languages,id',
+                'difficulty_level_id' => 'nullable|exists:difficulty_levels,id',
+                'duration' => 'required|integer|min:0',
+                'duration_days' => 'required|integer|min:0',
+                'session_start_date' => 'required|date',
+                'session_end_date' => 'required|date|after_or_equal:session_start_date',
+                'session_start_time' => 'required|date_format:H:i',
+                'session_end_time' => 'required|date_format:H:i',
+                'max_participants' => 'required|integer|min:1',
+                'target_audience' => 'nullable|string',
+                'prerequisites' => 'nullable|string',
+                'methods' => 'nullable|string',
+                'price_ht' => 'nullable|numeric|min:0',
+                'vat_percentage' => 'nullable|numeric|min:0|max:100',
+                'currency' => 'nullable|string|max:10',
+                'specifics' => 'nullable|string',
+                'evaluation_modalities' => 'nullable|string',
+                'access_modalities' => 'nullable|string',
+                'accessibility' => 'nullable|string',
+                'contacts' => 'nullable|string',
+                'update_date' => 'nullable|string',
+                'formation_practice_ids' => 'nullable|array',
+                'formation_practice_ids.*' => 'integer|exists:formation_practices,id',
             ]);
 
             if ($validator->fails()) {
@@ -216,6 +241,13 @@ class SessionManagementApiController extends Controller
             DB::beginTransaction();
 
             try {
+                // No strict validation for subcategory - same logic as courses
+                // The validation rule 'exists:subcategories,id' already ensures the subcategory exists
+
+                // Get existing columns to filter out non-existent ones
+                $existingColumns = DB::select("SHOW COLUMNS FROM sessions_training");
+                $columnNames = array_map(function($col) { return $col->Field; }, $existingColumns);
+                
                 $sessionData = [
                     'uuid' => (string) Str::uuid(),
                     'user_id' => Auth::id(),
@@ -236,8 +268,6 @@ class SessionManagementApiController extends Controller
                     'vat_percentage' => $request->get('vat_percentage', 20),
                     'currency' => $request->get('currency', 'EUR'),
                     'old_price' => $request->get('old_price'),
-                    'duration' => $request->get('duration'),
-                    'duration_days' => $request->get('duration_days'),
                     'target_audience' => $request->get('target_audience'),
                     'prerequisites' => $request->get('prerequisites'),
                     'learning_outcomes' => $request->get('learningOutcomes'),
@@ -247,6 +277,29 @@ class SessionManagementApiController extends Controller
                     'difficulty_level_id' => $request->get('difficulty_level_id'),
                     'learner_accessibility' => $request->get('learner_accessibility', 1),
                 ];
+                
+                // Add new columns only if they exist in the database
+                $newColumns = [
+                    'formation_action' => $request->get('formation_action', 'Actions de formation'),
+                    'duration' => $request->get('duration', 0),
+                    'duration_days' => $request->get('duration_days', 0),
+                    'session_start_date' => $request->get('session_start_date'),
+                    'session_end_date' => $request->get('session_end_date'),
+                    'session_start_time' => $request->get('session_start_time'),
+                    'session_end_time' => $request->get('session_end_time'),
+                    'max_participants' => $request->get('max_participants'),
+                    'evaluation_modalities' => $request->get('evaluation_modalities'),
+                    'access_modalities' => $request->get('access_modalities'),
+                    'accessibility' => $request->get('accessibility'),
+                    'contacts' => $request->get('contacts'),
+                    'update_date' => $request->get('update_date'),
+                ];
+                
+                foreach ($newColumns as $key => $value) {
+                    if (in_array($key, $columnNames)) {
+                        $sessionData[$key] = $value;
+                    }
+                }
 
                 // Handle image upload
                 if ($request->hasFile('image')) {
@@ -287,6 +340,11 @@ class SessionManagementApiController extends Controller
                             'updated_at' => now(),
                         ]);
                     }
+                }
+
+                // Sync formation practices
+                if ($request->has('formation_practice_ids') && is_array($request->formation_practice_ids)) {
+                    $session->formationPractices()->sync($request->formation_practice_ids);
                 }
 
                 DB::commit();
@@ -345,7 +403,8 @@ class SessionManagementApiController extends Controller
                     'documents',
                     'questionnaires',
                     'key_points',
-                    'additionalFees'
+                    'additionalFees',
+                    'formationPractices'
                 ])
                 ->first();
 
@@ -397,17 +456,106 @@ class SessionManagementApiController extends Controller
                 ], 404);
             }
 
+            // Validation (same as store but fields are optional for update)
+            $validator = Validator::make($request->all(), [
+                'title' => 'sometimes|required|string|max:110',
+                'subtitle' => 'nullable|string',
+                'description' => 'sometimes|required|string',
+                'formation_action' => 'sometimes|required|string|in:Actions de formation,Bilan de compétences,VAE (Validation des Acquis de l\'Expérience),Actions de formation par apprentissage,Autre...',
+                'category_id' => 'nullable|exists:categories,id',
+                'subcategory_id' => 'nullable|exists:subcategories,id',
+                'session_language_id' => 'nullable|exists:course_languages,id',
+                'difficulty_level_id' => 'nullable|exists:difficulty_levels,id',
+                'duration' => 'sometimes|required|integer|min:0',
+                'duration_days' => 'sometimes|required|integer|min:0',
+                'session_start_date' => 'sometimes|required|date',
+                'session_end_date' => 'sometimes|required|date|after_or_equal:session_start_date',
+                'session_start_time' => 'sometimes|required|date_format:H:i',
+                'session_end_time' => 'sometimes|required|date_format:H:i',
+                'max_participants' => 'sometimes|required|integer|min:1',
+                'target_audience' => 'nullable|string',
+                'prerequisites' => 'nullable|string',
+                'methods' => 'nullable|string',
+                'price_ht' => 'nullable|numeric|min:0',
+                'vat_percentage' => 'nullable|numeric|min:0|max:100',
+                'currency' => 'nullable|string|max:10',
+                'specifics' => 'nullable|string',
+                'evaluation_modalities' => 'nullable|string',
+                'access_modalities' => 'nullable|string',
+                'accessibility' => 'nullable|string',
+                'contacts' => 'nullable|string',
+                'update_date' => 'nullable|string',
+                'formation_practice_ids' => 'nullable|array',
+                'formation_practice_ids.*' => 'integer|exists:formation_practices,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Validate subcategory exists (same logic as courses)
+            // Only validate existence, not strict relationship with category_id
+            if ($request->has('subcategory_id') && $request->get('subcategory_id') !== null) {
+                $subcategory = \App\Models\Subcategory::find($request->get('subcategory_id'));
+                if (!$subcategory) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La sous-catégorie sélectionnée n\'existe pas',
+                        'errors' => ['subcategory_id' => ['La sous-catégorie sélectionnée n\'existe pas']]
+                    ], 422);
+                }
+            }
+
             DB::beginTransaction();
 
             try {
-                $updateData = $request->only([
+                // Get existing columns to filter out non-existent ones
+                $existingColumns = DB::select("SHOW COLUMNS FROM sessions_training");
+                $columnNames = array_map(function($col) { return $col->Field; }, $existingColumns);
+                
+                // Base update data (always existing columns)
+                $updateData = [];
+                $baseFields = [
                     'title', 'subtitle', 'description', 'description_footer',
                     'category_id', 'subcategory_id', 'price', 'price_ht', 
-                    'vat_percentage', 'currency', 'old_price', 'duration', 
-                    'duration_days', 'target_audience', 'prerequisites', 
-                    'learning_outcomes', 'methods', 'specifics', 
+                    'vat_percentage', 'currency', 'old_price',
+                    'target_audience', 'prerequisites', 
+                    'learning_outcomes', 'methods', 'specifics',
                     'session_language_id', 'difficulty_level_id', 'status'
-                ]);
+                ];
+                
+                foreach ($baseFields as $field) {
+                    if ($request->has($field) && in_array($field, $columnNames)) {
+                        $updateData[$field] = $request->get($field);
+                    }
+                }
+                
+                // Add new columns only if they exist in the database
+                $newColumns = [
+                    'formation_action' => $request->get('formation_action'),
+                    'duration' => $request->get('duration'),
+                    'duration_days' => $request->get('duration_days'),
+                    'session_start_date' => $request->get('session_start_date'),
+                    'session_end_date' => $request->get('session_end_date'),
+                    'session_start_time' => $request->get('session_start_time'),
+                    'session_end_time' => $request->get('session_end_time'),
+                    'max_participants' => $request->get('max_participants'),
+                    'evaluation_modalities' => $request->get('evaluation_modalities'),
+                    'access_modalities' => $request->get('access_modalities'),
+                    'accessibility' => $request->get('accessibility'),
+                    'contacts' => $request->get('contacts'),
+                    'update_date' => $request->get('update_date'),
+                ];
+                
+                foreach ($newColumns as $key => $value) {
+                    if ($request->has($key) && in_array($key, $columnNames)) {
+                        $updateData[$key] = $value;
+                    }
+                }
 
                 // Handle image upload
                 if ($request->hasFile('image')) {
@@ -423,6 +571,14 @@ class SessionManagementApiController extends Controller
                 }
 
                 $session->update($updateData);
+
+                // Sync formation practices if provided
+                if ($request->has('formation_practice_ids') && is_array($request->formation_practice_ids)) {
+                    $session->formationPractices()->sync($request->formation_practice_ids);
+                }
+
+                // Reload session with relations
+                $session->load(['formationPractices']);
 
                 DB::commit();
 
@@ -441,6 +597,133 @@ class SessionManagementApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while updating session',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get formation practices for a session
+     * GET /api/organization/sessions/{sessionUuid}/formation-practices
+     */
+    public function getFormationPractices($sessionUuid)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage sessions'
+                ], 403);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->with('formationPractices')
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'practices' => $session->formationPractices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching formation practices',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update formation practices for a session
+     * POST /api/organization/sessions/{sessionUuid}/formation-practices
+     */
+    public function updateFormationPractices(Request $request, $sessionUuid)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage sessions'
+                ], 403);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'practice_ids' => 'required|array',
+                'practice_ids.*' => 'integer|exists:formation_practices,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $session->formationPractices()->sync($request->practice_ids);
+            $session->load('formationPractices');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pratiques de formation mises à jour',
+                'data' => [
+                    'session_uuid' => $session->uuid,
+                    'practices' => $session->formationPractices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                            'code' => $practice->code,
+                            'name' => $practice->name,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating formation practices',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -555,6 +838,22 @@ class SessionManagementApiController extends Controller
 
                 $instances = $this->instanceService->generateInstances($instanceData);
 
+                // Load trainers for all instances
+                $instanceUuids = collect($instances)->pluck('uuid')->toArray();
+                $instancesWithTrainers = SessionInstance::whereIn('uuid', $instanceUuids)
+                    ->with('trainers')
+                    ->get()
+                    ->keyBy('uuid');
+
+                // Map instances with trainers
+                $instancesData = collect($instances)->map(function($instance) use ($instancesWithTrainers) {
+                    $instanceWithTrainers = $instancesWithTrainers->get($instance->uuid);
+                    if ($instanceWithTrainers) {
+                        return $instanceWithTrainers;
+                    }
+                    return $instance;
+                });
+
                 DB::commit();
 
                 return response()->json([
@@ -562,7 +861,7 @@ class SessionManagementApiController extends Controller
                     'message' => 'Session instances generated successfully',
                     'data' => [
                         'instances_count' => count($instances),
-                        'instances' => $instances
+                        'instances' => $instancesData
                     ]
                 ], 201);
 
@@ -697,6 +996,29 @@ class SessionManagementApiController extends Controller
                 ], 422);
             }
 
+            // Check max participants limit
+            if ($session->max_participants) {
+                $currentCount = SessionParticipant::where('session_uuid', $uuid)
+                    ->whereIn('status', ['enrolled', 'active'])
+                    ->count();
+                
+                if ($currentCount >= $session->max_participants) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Session has reached maximum participants limit'
+                    ], 422);
+                }
+            }
+
+            // Verify user is a student
+            $user = \App\Models\User::find($request->user_id);
+            if (!$user || $user->role != USER_ROLE_STUDENT) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User must be a student to enroll in sessions'
+                ], 422);
+            }
+
             $participant = SessionParticipant::create([
                 'session_uuid' => $uuid,
                 'session_id' => $session->id,
@@ -704,7 +1026,12 @@ class SessionManagementApiController extends Controller
                 'owner_user_id' => Auth::id(),
                 'enrollment_date' => now(),
                 'status' => 'enrolled',
+                'tarif' => 0,
+                'type' => 'Particulier',
+                'progress_percentage' => 0,
             ]);
+
+            $participant->load('user');
 
             return response()->json([
                 'success' => true,
@@ -728,9 +1055,29 @@ class SessionManagementApiController extends Controller
     public function getParticipants($uuid)
     {
         try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to view session participants'
+                ], 403);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $uuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
             $participants = SessionParticipant::where('session_uuid', $uuid)
-                ->with(['user', 'attendances'])
-                ->latest()
+                ->with(['user'])
+                ->orderBy('enrollment_date', 'desc')
                 ->get();
 
             return response()->json([
@@ -742,6 +1089,494 @@ class SessionManagementApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while fetching participants',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Enroll multiple participants
+     * POST /api/organization/sessions/{uuid}/enroll-multiple
+     */
+    public function enrollMultiple(Request $request, $uuid)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage session participants'
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'user_ids' => 'required|array|min:1',
+                'user_ids.*' => 'required|integer|exists:users,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $uuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $enrolled = [];
+            $failed = [];
+            $alreadyEnrolled = [];
+
+            foreach ($request->user_ids as $userId) {
+                try {
+                    // Check if already enrolled
+                    $existing = SessionParticipant::where('session_uuid', $uuid)
+                        ->where('user_id', $userId)
+                        ->first();
+
+                    if ($existing) {
+                        $alreadyEnrolled[] = $userId;
+                        continue;
+                    }
+
+                    // Verify user is a student
+                    $user = \App\Models\User::find($userId);
+                    if (!$user || $user->role != USER_ROLE_STUDENT) {
+                        $failed[] = [
+                            'user_id' => $userId,
+                            'reason' => 'User is not a student'
+                        ];
+                        continue;
+                    }
+
+                    // Check max participants limit
+                    if ($session->max_participants) {
+                        $currentCount = SessionParticipant::where('session_uuid', $uuid)
+                            ->whereIn('status', ['enrolled', 'active'])
+                            ->count();
+                        
+                        if ($currentCount >= $session->max_participants) {
+                            $failed[] = [
+                                'user_id' => $userId,
+                                'reason' => 'Session has reached maximum participants limit'
+                            ];
+                            continue;
+                        }
+                    }
+
+                    $participant = SessionParticipant::create([
+                        'session_uuid' => $uuid,
+                        'session_id' => $session->id,
+                        'user_id' => $userId,
+                        'owner_user_id' => Auth::id(),
+                        'enrollment_date' => now(),
+                        'status' => 'enrolled',
+                        'tarif' => 0,
+                        'type' => 'Particulier',
+                        'progress_percentage' => 0,
+                    ]);
+
+                    $participant->load('user');
+                    $enrolled[] = $participant;
+
+                } catch (\Exception $e) {
+                    $failed[] = [
+                        'user_id' => $userId,
+                        'reason' => $e->getMessage()
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => count($enrolled) . ' participants enrolled successfully',
+                'data' => [
+                    'enrolled' => $enrolled,
+                    'failed' => $failed,
+                    'already_enrolled' => $alreadyEnrolled
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while enrolling participants',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update participant tarif
+     * PUT /api/organization/sessions/{sessionUuid}/participants/{participantId}/tarif
+     */
+    public function updateParticipantTarif(Request $request, $sessionUuid, $participantId)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage session participants'
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'tarif' => 'required|numeric|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $participant = SessionParticipant::where('session_uuid', $sessionUuid)
+                ->where(function($q) use ($participantId) {
+                    $q->where('id', $participantId)
+                      ->orWhere('uuid', $participantId);
+                })
+                ->first();
+
+            if (!$participant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Participant not found'
+                ], 404);
+            }
+
+            $participant->update([
+                'tarif' => $request->tarif
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Participant tarif updated successfully',
+                'data' => [
+                    'id' => $participant->id,
+                    'uuid' => $participant->uuid,
+                    'tarif' => $participant->tarif,
+                    'updated_at' => $participant->updated_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating participant tarif',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update participant type
+     * PUT /api/organization/sessions/{sessionUuid}/participants/{participantId}/type
+     */
+    public function updateParticipantType(Request $request, $sessionUuid, $participantId)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage session participants'
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'type' => 'required|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $participant = SessionParticipant::where('session_uuid', $sessionUuid)
+                ->where(function($q) use ($participantId) {
+                    $q->where('id', $participantId)
+                      ->orWhere('uuid', $participantId);
+                })
+                ->first();
+
+            if (!$participant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Participant not found'
+                ], 404);
+            }
+
+            $participant->update([
+                'type' => $request->type
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Participant type updated successfully',
+                'data' => [
+                    'id' => $participant->id,
+                    'uuid' => $participant->uuid,
+                    'type' => $participant->type,
+                    'updated_at' => $participant->updated_at
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating participant type',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove a participant
+     * DELETE /api/organization/sessions/{sessionUuid}/participants/{participantId}
+     */
+    public function removeParticipant($sessionUuid, $participantId)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage session participants'
+                ], 403);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $participant = SessionParticipant::where('session_uuid', $sessionUuid)
+                ->where(function($q) use ($participantId) {
+                    $q->where('id', $participantId)
+                      ->orWhere('uuid', $participantId);
+                })
+                ->first();
+
+            if (!$participant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Participant not found'
+                ], 404);
+            }
+
+            $participant->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Participant removed successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing participant',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Remove multiple participants
+     * DELETE /api/organization/sessions/{sessionUuid}/participants
+     */
+    public function removeMultipleParticipants(Request $request, $sessionUuid)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to manage session participants'
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'participant_ids' => 'required|array|min:1',
+                'participant_ids.*' => 'required|integer'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $removed = [];
+            $failed = [];
+
+            foreach ($request->participant_ids as $participantId) {
+                try {
+                    $participant = SessionParticipant::where('session_uuid', $sessionUuid)
+                        ->where(function($q) use ($participantId) {
+                            $q->where('id', $participantId)
+                              ->orWhere('uuid', $participantId);
+                        })
+                        ->first();
+
+                    if ($participant) {
+                        $participant->delete();
+                        $removed[] = $participantId;
+                    } else {
+                        $failed[] = [
+                            'participant_id' => $participantId,
+                            'reason' => 'Participant not found'
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    $failed[] = [
+                        'participant_id' => $participantId,
+                        'reason' => $e->getMessage()
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => count($removed) . ' participants removed successfully',
+                'data' => [
+                    'removed' => $removed,
+                    'failed' => $failed
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while removing participants',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export participants to Excel
+     * GET /api/organization/sessions/{sessionUuid}/participants/export
+     */
+    public function exportParticipants(Request $request, $sessionUuid)
+    {
+        try {
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_sessions')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have permission to export session participants'
+                ], 403);
+            }
+
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            
+            $session = Session::where('uuid', $sessionUuid)
+                ->where('organization_id', $organization->id)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            $participants = SessionParticipant::where('session_uuid', $sessionUuid)
+                ->with('user')
+                ->orderBy('enrollment_date', 'desc')
+                ->get();
+
+            $format = $request->get('format', 'xlsx');
+
+            // For now, return JSON. Excel export can be implemented with Maatwebsite\Excel package
+            if ($format === 'json') {
+                return response()->json([
+                    'success' => true,
+                    'data' => $participants->map(function($participant) {
+                        return [
+                            'Nom & Prénom' => $participant->user->name ?? '',
+                            'Email' => $participant->user->email ?? '',
+                            'Tarif De la Formation' => $participant->tarif ?? 0,
+                            'Type' => $participant->type ?? 'Particulier',
+                            'Date d\'inscription' => $participant->enrollment_date ? $participant->enrollment_date->format('Y-m-d H:i:s') : '',
+                            'Statut' => $participant->status ?? 'enrolled',
+                            'Progrès (%)' => $participant->progress_percentage ?? 0,
+                        ];
+                    })
+                ]);
+            }
+
+            // Excel export would require Maatwebsite\Excel package
+            return response()->json([
+                'success' => false,
+                'message' => 'Excel export requires Maatwebsite\Excel package. Please install it or use format=json'
+            ], 501);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while exporting participants',
                 'error' => $e->getMessage()
             ], 500);
         }

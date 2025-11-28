@@ -34,7 +34,7 @@ class QuizSessionAssignmentController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'session_uuid' => 'required|string|exists:sessions,uuid',
+                'session_uuid' => 'required|string|exists:sessions_training,uuid',
                 'chapter_id' => 'nullable|exists:session_chapters,id',
                 'chapter_uuid' => 'nullable|string|exists:session_chapters,uuid',
                 'subchapter_uuid' => 'nullable|string',
@@ -257,6 +257,63 @@ class QuizSessionAssignmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to remove assignment',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Dissocier un quiz d'une session
+     * DELETE /api/organization/quizzes/{quizUuid}/associations/{sessionUuid}
+     */
+    public function dissociateFromSession($quizUuid, $sessionUuid)
+    {
+        try {
+            $organizationId = Auth::user()->organization_id;
+
+            $quiz = Quiz::where('uuid', $quizUuid)
+                ->where('organization_id', $organizationId)
+                ->first();
+
+            if (!$quiz) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Quiz not found'
+                ], 404);
+            }
+
+            $session = Session::where('uuid', $sessionUuid)->first();
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            // Verify organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization || $session->organization_id !== $organization->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+
+            // Delete all assignments for this quiz and session
+            $deleted = QuizSessionAssignment::where('quiz_id', $quiz->id)
+                ->where('session_uuid', $sessionUuid)
+                ->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quiz successfully dissociated from session',
+                'deleted_count' => $deleted
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to dissociate quiz from session',
                 'error' => $e->getMessage()
             ], 500);
         }

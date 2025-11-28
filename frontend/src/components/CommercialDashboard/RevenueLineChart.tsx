@@ -3,7 +3,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { ChartDataPoint } from '../../services/commercialDashboard.types';
 import { Card, CardContent } from '../ui/card';
-import { Loader2 } from 'lucide-react';
 
 interface RevenueLineChartProps {
   data: ChartDataPoint[];
@@ -12,7 +11,6 @@ interface RevenueLineChartProps {
   selectedYear?: number;
   onYearChange?: (year: number) => void;
   showCard?: boolean;
-  isLoading?: boolean;
 }
 
 export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
@@ -22,7 +20,6 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
   selectedYear,
   onYearChange,
   showCard = true,
-  isLoading = false,
 }) => {
   const { isDark } = useTheme();
   const { t } = useLanguage();
@@ -42,26 +39,50 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
   // Calculer une échelle dynamique basée sur les valeurs
   const calculateScale = (values: number[]): { step: number; maxScale: number } => {
     if (values.length === 0) return { step: 2000, maxScale: 10000 };
-
+    
     const maxValue = Math.max(...values);
     if (maxValue === 0) return { step: 2000, maxScale: 10000 };
 
-    // Target roughly 5 steps
-    const rawStep = maxValue / 4.5;
+    let step: number;
+    
+    // Exemples:
+    // Si les CA sont 5k, 8k, 10k → mettre une échelle de 2k
+    // Si les CA sont 88k, 120k, 177k → mettre une échelle plus grande (20k ou 10k)
+    
+    if (maxValue < 20000) {
+      // Pour les valeurs < 20k, utiliser 2k
+      step = 2000;
+    } else if (maxValue < 50000) {
+      // Pour les valeurs entre 20k et 50k, utiliser 5k ou 10k
+      step = 10000;
+    } else if (maxValue < 100000) {
+      // Pour les valeurs entre 50k et 100k, utiliser 10k ou 20k
+      if (maxValue < 80000) {
+        step = 10000;
+      } else {
+        step = 20000;
+      }
+    } else if (maxValue < 200000) {
+      // Pour les valeurs entre 100k et 200k, utiliser 20k
+      step = 20000;
+    } else if (maxValue < 500000) {
+      // Pour les valeurs entre 200k et 500k, utiliser 50k
+      step = 50000;
+    } else if (maxValue < 1000000) {
+      // Pour les valeurs entre 500k et 1M, utiliser 100k
+      step = 100000;
+    } else {
+      // Pour les valeurs >= 1M, utiliser 200k ou 500k
+      if (maxValue < 5000000) {
+        step = 200000;
+      } else {
+        step = 500000;
+      }
+    }
 
-    // Round to a nice number (1, 2, 5, 10) * magnitude
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-    const residual = rawStep / magnitude;
-
-    let niceResidual;
-    if (residual <= 1) niceResidual = 1;
-    else if (residual <= 2) niceResidual = 2;
-    else if (residual <= 5) niceResidual = 5;
-    else niceResidual = 10;
-
-    const step = niceResidual * magnitude;
+    // Calculer le maxScale (arrondi au step supérieur)
     const maxScale = Math.ceil(maxValue / step) * step;
-
+    
     return { step, maxScale };
   };
 
@@ -69,7 +90,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
   const chartData = useMemo(() => {
     // Créer un tableau de 12 mois avec des valeurs par défaut à 0
     const monthsData: Array<{ value: number; month: string; fullMonth: string }> = [];
-
+    
     for (let i = 0; i < 12; i++) {
       monthsData.push({
         value: 0,
@@ -83,7 +104,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
       data.forEach((point) => {
         // Extraire le numéro du mois depuis point.month (format peut être "YYYY-MM" ou "MM" ou nom du mois)
         let monthIndex = -1;
-
+        
         if (point.month) {
           // Si le format est "YYYY-MM" ou "MM"
           if (point.month.includes('-')) {
@@ -103,7 +124,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
             }
           }
         }
-
+        
         // Si on a trouvé un mois valide (0-11), mettre à jour la valeur
         if (monthIndex >= 0 && monthIndex < 12) {
           monthsData[monthIndex].value = point.value || 0;
@@ -113,7 +134,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
 
     const values = monthsData.map((d) => d.value);
     const minValue = Math.min(...values, 0);
-
+    
     // Calculer l'échelle dynamique
     const { step, maxScale } = calculateScale(values);
     const maxValue = maxScale;
@@ -186,7 +207,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
       return (
         <div className="w-full h-full flex items-center justify-center" style={{ height: `${chartHeight}px` }}>
           <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} text-center`}>
-            {t('dashboard.commercial.chartComingSoon')}<br />
+            {t('dashboard.commercial.chartComingSoon')}<br/>
             <span className="text-sm">Aucune donnée disponible{selectedYear ? ` pour ${selectedYear}` : ''}</span>
           </p>
         </div>
@@ -215,14 +236,14 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
               <stop offset="100%" stopColor={gradientEndColor} />
             </linearGradient>
             <filter id="tooltip-shadow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-              <feOffset dx="0" dy="2" result="offsetblur" />
+              <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+              <feOffset dx="0" dy="2" result="offsetblur"/>
               <feComponentTransfer>
-                <feFuncA type="linear" slope="0.3" />
+                <feFuncA type="linear" slope="0.3"/>
               </feComponentTransfer>
               <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
+                <feMergeNode/>
+                <feMergeNode in="SourceGraphic"/>
               </feMerge>
             </filter>
           </defs>
@@ -360,7 +381,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
               </text>
             );
           })}
-
+          
           {/* Lignes de grille correspondant aux labels de l'échelle */}
           {chartData.scaleLabels.map((scaleValue) => {
             const ratio = scaleValue / chartData.maxValue;
@@ -416,7 +437,7 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
             {t('dashboard.commercial.revenueEvolution')}
           </h2>
           {selectedYear !== undefined && onYearChange && (
-            <select
+            <select 
               value={selectedYear}
               onChange={(e) => onYearChange(parseInt(e.target.value))}
               className={`w-[104px] h-[28px] ${isDark ? 'bg-gray-700 text-gray-100 border-gray-600' : 'bg-[#fcfcfc] text-gray-900 border-neutral-300'} rounded border-[0.6px] border-solid px-2 text-sm font-medium`}
@@ -432,19 +453,10 @@ export const RevenueLineChart: React.FC<RevenueLineChartProps> = ({
 
         {/* Revenue Chart - Line Chart with Area */}
         <div className="relative w-full" style={{ marginLeft: '-24px', marginRight: '-24px', paddingLeft: '24px', paddingRight: '24px' }}>
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-lg">
-              <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('common.loading') || 'Chargement du graphique...'}
-                </span>
-              </div>
-            </div>
-          )}
           <ChartSVG />
         </div>
       </CardContent>
     </Card>
   );
 };
+

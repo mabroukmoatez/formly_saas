@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -24,12 +24,26 @@ export const CommercialDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [chartYear, setChartYear] = useState(new Date().getFullYear());
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedYear]);
+  }, []);
+
+  const filteredChartData = useMemo(() => {
+    if (!dashboardData?.charts?.revenue) {
+      return [];
+    }
+    return dashboardData.charts.revenue.filter((point) => {
+      if (point.month && point.month.includes('-')) {
+        const pointYear = parseInt(point.month.split('-')[0]);
+        return pointYear === chartYear;
+      }
+      return true;
+    });
+  }, [dashboardData?.charts?.revenue, chartYear]);
 
   // Helper function to normalize values (convert strings to numbers)
   const normalizeValue = (value: number | string | undefined): number => {
@@ -80,15 +94,7 @@ export const CommercialDashboard: React.FC = () => {
               .map((point) => ({
                 ...point,
                 value: normalizeValue(point.value),
-              }))
-              .filter((point) => {
-                // Filter by selected year if month format is YYYY-MM
-                if (point.month && point.month.includes('-')) {
-                  const pointYear = parseInt(point.month.split('-')[0]);
-                  return pointYear === selectedYear;
-                }
-                return true; // Keep all if format is not recognized
-              }),
+              })),
           },
         };
         setDashboardData(normalizedData);
@@ -116,7 +122,6 @@ export const CommercialDashboard: React.FC = () => {
     return new Intl.NumberFormat('fr-FR').format(value);
   };
 
-  // Show loading spinner on initial load (no data yet)
   if (loading && (!dashboardData || !dashboardData.kpis)) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -339,11 +344,11 @@ export const CommercialDashboard: React.FC = () => {
 
         {/* Revenue Chart Card - Le composant inclut maintenant la Card */}
         <RevenueLineChart
-          data={charts.revenue || []}
+          data={filteredChartData}
           height={256}
           primaryColor={primaryColor}
-          selectedYear={selectedYear}
-          onYearChange={setSelectedYear}
+          selectedYear={chartYear}
+          onYearChange={setChartYear}
           showCard={true}
           isLoading={loading}
         />

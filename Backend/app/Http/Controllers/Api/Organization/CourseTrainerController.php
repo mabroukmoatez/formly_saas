@@ -97,7 +97,7 @@ class CourseTrainerController extends Controller
             }
             
             $validator = Validator::make($request->all(), [
-                'instructor_id' => 'required|string',
+                'instructor_id' => 'required', // Can be string (UUID) or integer (ID)
                 'permissions' => 'nullable|array',
                 'status' => 'nullable|integer|min:0|max:1'
             ]);
@@ -113,11 +113,12 @@ class CourseTrainerController extends Controller
             // Get user by UUID or ID
             // Check if it's a UUID format or numeric ID
             $trainer = null; // Initialize trainer variable
+            $instructorId = (string) $request->instructor_id; // Convert to string for regex check
             
-            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $request->instructor_id)) {
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $instructorId)) {
                 // It's a UUID - could be from trainers or users table
                 // First try trainers table
-                $trainer = \App\Models\Trainer::where('uuid', $request->instructor_id)->first();
+                $trainer = \App\Models\Trainer::where('uuid', $instructorId)->first();
                 
                 if ($trainer) {
                     // Check if trainer has associated user_id
@@ -141,11 +142,40 @@ class CourseTrainerController extends Controller
                     }
                 } else {
                     // Try users table
-                    $user = User::where('uuid', $request->instructor_id)->first();
+                    $user = User::where('uuid', $instructorId)->first();
                 }
             } else {
-                // It's a numeric ID
-                $user = User::find($request->instructor_id);
+                // It's a numeric ID - could be trainer ID or user ID
+                // First try to find in trainers table
+                $trainer = \App\Models\Trainer::find($request->instructor_id);
+                
+                if ($trainer) {
+                    // Trainer found, get associated user
+                    if ($trainer->user_id) {
+                        $user = User::find($trainer->user_id);
+                    } else {
+                        // Trainer exists but no user linked - try to find by email
+                        $user = User::where('email', $trainer->email)->first();
+                        if (!$user) {
+                            // Create user account for trainer if doesn't exist
+                            $user = User::create([
+                                'name' => $trainer->name,
+                                'email' => $trainer->email,
+                                'role' => 2, // Instructor role
+                                'phone_number' => $trainer->phone,
+                            ]);
+                            
+                            // Link trainer to user
+                            $trainer->update(['user_id' => $user->id]);
+                        } else {
+                            // Link existing user to trainer
+                            $trainer->update(['user_id' => $user->id]);
+                        }
+                    }
+                } else {
+                    // Not found in trainers, try users table
+                    $user = User::find($request->instructor_id);
+                }
             }
             
             if (!$user) {

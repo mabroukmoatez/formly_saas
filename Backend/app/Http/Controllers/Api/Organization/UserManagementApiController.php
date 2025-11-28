@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -63,11 +64,38 @@ class UserManagementApiController extends Controller
                   });
             });
 
-            // Search filter
+            // Role filter - Support "student" role filter
+            if ($role === 'student' || $role === 'apprenant') {
+                $query->where('role', USER_ROLE_STUDENT);
+            } elseif ($role) {
+                // For other roles, use organization roles
+                $query->whereHas('organizationRoles', function($q) use ($role) {
+                    $q->where('name', 'like', "%{$role}%");
+                });
+            }
+
+            // Exclude already enrolled users if session_uuid is provided
+            if ($request->has('session_uuid') && $request->session_uuid) {
+                $enrolledUserIds = \App\Models\SessionParticipant::where('session_uuid', $request->session_uuid)
+                    ->pluck('user_id')
+                    ->toArray();
+                
+                if (!empty($enrolledUserIds)) {
+                    $query->whereNotIn('id', $enrolledUserIds);
+                }
+            }
+
+            // Search filter - Support first_name and last_name from students table
             if ($search) {
                 $query->where(function($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%");
+                    
+                    // Search in students table for first_name and last_name
+                    $q->orWhereHas('student', function($subQ) use ($search) {
+                        $subQ->where('first_name', 'like', "%{$search}%")
+                             ->orWhere('last_name', 'like', "%{$search}%");
+                    });
                 });
             }
 
@@ -76,19 +104,63 @@ class UserManagementApiController extends Controller
                 $query->where('status', $status);
             }
 
-            // Role filter
-            if ($role) {
-                $query->whereHas('organizationRoles', function($q) use ($role) {
-                    $q->where('name', 'like', "%{$role}%");
-                });
-            }
-
             // Get users with pagination
-            $users = $query->with(['organizationRoles'])
+            $withRelations = ['organizationRoles'];
+            if ($role === 'student' || $role === 'apprenant') {
+                $withRelations[] = 'student';
+            }
+            
+            $users = $query->with($withRelations)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
-            // Get statistics
+            // Format response for student role requests
+            if ($role === 'student' || $role === 'apprenant') {
+                $formattedUsers = $users->map(function($user) {
+                    // Try to get first_name and last_name from students table
+                    $student = $user->student ?? null;
+                    $firstName = $student->first_name ?? null;
+                    $lastName = $student->last_name ?? null;
+                    
+                    // If not found in students table, try to split name
+                    if (!$firstName && !$lastName && $user->name) {
+                        $nameParts = explode(' ', $user->name, 2);
+                        $firstName = $nameParts[0] ?? null;
+                        $lastName = $nameParts[1] ?? null;
+                    }
+                    
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'email' => $user->email,
+                        'avatar_url' => $user->image ? asset('storage/' . $user->image) : null,
+                        'role' => [
+                            'id' => $user->role,
+                            'name' => $user->role == USER_ROLE_STUDENT ? 'student' : 'other',
+                            'slug' => $user->role == USER_ROLE_STUDENT ? 'student' : 'other'
+                        ]
+                    ];
+                });
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'users' => [
+                            'data' => $formattedUsers,
+                            'pagination' => [
+                                'current_page' => $users->currentPage(),
+                                'per_page' => $users->perPage(),
+                                'total' => $users->total(),
+                                'last_page' => $users->lastPage()
+                            ]
+                        ]
+                    ]
+                ]);
+            }
+
+            // Get statistics (only if not filtering by student role)
             $stats = [
                 'total_users' => $users->total(),
                 'active_users' => User::whereHas('organizationBelongsTo', function($q) use ($organization) {

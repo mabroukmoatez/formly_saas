@@ -36,12 +36,25 @@ class SessionEvaluationApiController extends Controller
                 ], 403);
             }
 
-            $query = SessionEvaluation::where('chapter_uuid', $chapterId);
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $query = SessionEvaluation::where('chapter_id', $chapter->uuid);
             
             if ($subChapterId) {
-                $query->where('sub_chapter_uuid', $subChapterId);
+                $query->where('sub_chapter_id', $subChapterId);
             } else {
-                $query->whereNull('sub_chapter_uuid');
+                $query->whereNull('sub_chapter_id');
             }
 
             $evaluations = $query->orderBy('created_at', 'desc')->get();
@@ -78,8 +91,9 @@ class SessionEvaluationApiController extends Controller
                 'type' => 'required|in:devoir,examen',
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
-                'due_date' => 'nullable|date|after:now',
-                'file' => 'nullable|file|mimes:pdf,doc,docx|max:10240'
+                'due_date' => 'nullable|date',
+                'file' => 'nullable|file|mimes:pdf,doc,docx|max:10240',
+                'sub_chapter_id' => 'nullable|string' // Accept from request body
             ]);
 
             if ($validator->fails()) {
@@ -90,10 +104,26 @@ class SessionEvaluationApiController extends Controller
                 ], 422);
             }
 
+            // Get sub_chapter_id from request body (preferred) or URL parameter
+            $subChapterId = $request->sub_chapter_id ?? $subChapterId;
+
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
             $evaluationData = [
                 'uuid' => Str::uuid()->toString(),
-                'chapter_uuid' => $chapterId,
-                'sub_chapter_uuid' => $subChapterId,
+                'chapter_id' => $chapter->uuid,
+                'sub_chapter_id' => $subChapterId,
                 'type' => $request->type,
                 'title' => $request->title,
                 'description' => $request->description,
@@ -145,7 +175,20 @@ class SessionEvaluationApiController extends Controller
                 ], 403);
             }
 
-            $evaluation = SessionEvaluation::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $evaluation = SessionEvaluation::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $evaluationId)
                 ->first();
 
@@ -157,10 +200,10 @@ class SessionEvaluationApiController extends Controller
             }
 
             $validator = Validator::make($request->all(), [
-                'type' => 'required|in:devoir,examen',
-                'title' => 'required|string|max:255',
+                'type' => 'sometimes|required|in:devoir,examen',
+                'title' => 'sometimes|required|string|max:255',
                 'description' => 'nullable|string',
-                'due_date' => 'nullable|date|after:now',
+                'due_date' => 'nullable|date',
                 'file' => 'nullable|file|mimes:pdf,doc,docx|max:10240'
             ]);
 
@@ -224,7 +267,20 @@ class SessionEvaluationApiController extends Controller
                 ], 403);
             }
 
-            $evaluation = SessionEvaluation::where('chapter_uuid', $chapterId)
+            // Find chapter by UUID (could be UUID or ID)
+            $chapter = SessionChapter::where(function($q) use ($chapterId) {
+                $q->where('uuid', $chapterId)
+                  ->orWhere('id', $chapterId);
+            })->first();
+
+            if (!$chapter) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Chapter not found'
+                ], 404);
+            }
+
+            $evaluation = SessionEvaluation::where('chapter_id', $chapter->uuid)
                 ->where('uuid', $evaluationId)
                 ->first();
 

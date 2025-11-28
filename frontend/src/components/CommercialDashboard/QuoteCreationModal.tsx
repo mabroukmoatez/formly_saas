@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Search, Plus, Send, Save, Loader2 } from 'lucide-react';
+import { X, Upload, Download, Search, Plus, Send, Save, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -45,6 +45,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [items, setItems] = useState<QuoteItem[]>([]);
+  const [searchArticle, setSearchArticle] = useState('');
   const [quoteNumber, setQuoteNumber] = useState(`D-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
   const [validUntil, setValidUntil] = useState<string>('');
   const [clientInfo, setClientInfo] = useState({
@@ -69,12 +70,12 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         address: quote.client?.address || quote.client_address || '',
         phone: quote.client?.phone || quote.client_phone || '',
       });
-
+      
       // Set valid_until if it exists
       if (quote.valid_until) {
         setValidUntil(quote.valid_until);
       }
-
+      
       // Load items if they exist
       if (quote.items && quote.items.length > 0) {
         const processedItems = quote.items.map((item: any) => ({
@@ -92,18 +93,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
       }
     } else if (isOpen && !quote) {
       // Reset to defaults when creating new
-      const fetchNextNumber = async () => {
-        try {
-          const { next_number } = await commercialService.getNextDocumentNumber('quote');
-          setQuoteNumber(next_number);
-        } catch (error) {
-          console.error('Failed to fetch next quote number', error);
-          // Fallback to date-based
-          setQuoteNumber(`D-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
-        }
-      };
-      fetchNextNumber();
-
+      setQuoteNumber(`D-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
       setClientInfo({ name: '', email: '', address: '', phone: '' });
       setValidUntil('');
       setItems([]);
@@ -130,7 +120,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
           client_email: clientInfo.email,
           client_address: clientInfo.address,
           client_phone: clientInfo.phone,
-          amount: totalTTC,
           valid_until: validUntil || undefined,
           items: items.map(item => ({
             reference: item.reference,
@@ -155,7 +144,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
           client_email: clientInfo.email,
           client_address: clientInfo.address,
           client_phone: clientInfo.phone,
-          amount: totalTTC,
           valid_until: validUntil || undefined,
           items: items.map(item => ({
             reference: item.reference,
@@ -167,7 +155,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         };
 
         const createResponse = await commercialService.createQuote(quoteData);
-
+        
         if (!createResponse.success || !createResponse.data) {
           showError('Erreur', 'Impossible de créer le devis');
           return;
@@ -175,7 +163,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         // Handle both possible response structures
         const responseData = createResponse.data as any;
         quoteId = String(responseData.quote?.id || responseData.id);
-
+        
         if (!quoteId) {
           showError('Erreur', 'ID de devis manquant dans la réponse');
           return;
@@ -225,7 +213,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
           client_email: clientInfo.email,
           client_address: clientInfo.address,
           client_phone: clientInfo.phone,
-          amount: totalTTC,
           valid_until: validUntil || undefined,
           items: items.map(item => ({
             reference: item.reference,
@@ -250,7 +237,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
           client_email: clientInfo.email,
           client_address: clientInfo.address,
           client_phone: clientInfo.phone,
-          amount: totalTTC,
           valid_until: validUntil || undefined,
           items: items.map(item => ({
             reference: item.reference,
@@ -262,7 +248,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         };
 
         const createResponse = await commercialService.createQuote(quoteData);
-
+        
         if (!createResponse.success || !createResponse.data) {
           showError('Erreur', 'Impossible de créer le devis');
           return;
@@ -270,7 +256,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
         // Handle both possible response structures
         const responseData = createResponse.data as any;
         quoteId = String(responseData.quote?.id || responseData.id);
-
+        
         if (!quoteId) {
           showError('Erreur', 'ID de devis manquant dans la réponse');
           return;
@@ -279,7 +265,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
       }
 
       // Send email
-      await commercialService.sendQuoteEmail(quoteId, { email: clientInfo.email });
+      await commercialService.sendQuoteEmail(quoteId, clientInfo.email);
       success('Email envoyé avec succès');
     } catch (err: any) {
       console.error('Email send error:', err);
@@ -382,7 +368,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
                     client_email: clientInfo.email,
                     client_address: clientInfo.address,
                     client_phone: clientInfo.phone,
-                    amount: totalTTC,
                     valid_until: validUntil || undefined,
                     items: items.map(item => ({
                       description: item.designation,
@@ -424,7 +409,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
                   showError('Erreur', 'Veuillez remplir les informations');
                   return;
                 }
-
+                
                 // Validate items
                 for (const item of items) {
                   if (!item.designation || item.designation.trim() === '') {
@@ -440,7 +425,7 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
                     return;
                   }
                 }
-
+                
                 setSaving(true);
                 try {
                   await commercialService.createQuote({
@@ -449,7 +434,6 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
                     client_email: clientInfo.email,
                     client_address: clientInfo.address,
                     client_phone: clientInfo.phone,
-                    amount: totalTTC,
                     valid_until: validUntil || undefined,
                     items: items.map(item => ({
                       description: item.designation,
@@ -527,12 +511,12 @@ export const QuoteCreationModal: React.FC<QuoteCreationModalProps> = ({
                         addressParts.push((settings as any).country);
                       }
                       const address = addressParts.join('\n');
-
+                      
                       const infoParts = [];
                       if ((settings as any).tva_number) infoParts.push(`N° TVA: ${(settings as any).tva_number}`);
                       if (settings.siret) infoParts.push(`SIRET: ${settings.siret}`);
                       if ((settings as any).rcs) infoParts.push(`RCS: ${(settings as any).rcs}`);
-
+                      
                       return [address, ...infoParts].filter(Boolean).join('\n') || 'Adresse\nN° TVA\nSIRET';
                     }
                     return organization?.description || 'Adresse\nN° TVA\nSIRET';

@@ -34,17 +34,60 @@ class SessionInstanceGenerationService
      */
     protected function createSingleInstance(array $data)
     {
-        return SessionInstance::create([
+        // Determine start_time and end_time from morning/afternoon fields
+        $startTime = null;
+        $endTime = null;
+        $timeSlot = $data['time_slot'] ?? null;
+        
+        // Helper function to normalize time format (HH:MM to HH:MM:SS)
+        $normalizeTime = function($time) {
+            if (empty($time)) return null;
+            // If already in HH:MM:SS format, return as is
+            if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $time)) {
+                return $time;
+            }
+            // If in HH:MM format, add :00
+            if (preg_match('/^\d{2}:\d{2}$/', $time)) {
+                return $time . ':00';
+            }
+            return $time;
+        };
+        
+        // Check if morning is enabled
+        if (!empty($data['morning_enabled']) && !empty($data['morning_start']) && !empty($data['morning_end'])) {
+            $startTime = $normalizeTime($data['morning_start']);
+            $endTime = $normalizeTime($data['morning_end']);
+            $timeSlot = 'morning';
+        }
+        // Check if afternoon is enabled
+        elseif (!empty($data['afternoon_enabled']) && !empty($data['afternoon_start']) && !empty($data['afternoon_end'])) {
+            $startTime = $normalizeTime($data['afternoon_start']);
+            $endTime = $normalizeTime($data['afternoon_end']);
+            $timeSlot = 'afternoon';
+        }
+        // Fallback to direct start_time/end_time if provided
+        elseif (!empty($data['start_time']) && !empty($data['end_time'])) {
+            $startTime = $normalizeTime($data['start_time']);
+            $endTime = $normalizeTime($data['end_time']);
+        }
+        
+        // Calculate duration
+        $durationMinutes = $data['duration_minutes'] ?? null;
+        if (!$durationMinutes && $startTime && $endTime) {
+            $durationMinutes = $this->calculateDuration($startTime, $endTime);
+        }
+        
+        $instance = SessionInstance::create([
             'session_uuid' => $data['session_uuid'],
             'instance_type' => $data['instance_type'],
             'title' => $data['title'] ?? null,
             'description' => $data['description'] ?? null,
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'] ?? $data['start_date'],
-            'start_time' => $data['start_time'] ?? null,
-            'end_time' => $data['end_time'] ?? null,
-            'duration_minutes' => $data['duration_minutes'] ?? $this->calculateDuration($data['start_time'], $data['end_time']),
-            'time_slot' => $data['time_slot'] ?? null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration_minutes' => $durationMinutes,
+            'time_slot' => $timeSlot,
             'is_recurring' => false,
             
             // Location (Présentiel)
@@ -83,6 +126,13 @@ class SessionInstanceGenerationService
             'equipment_needed' => $data['equipment_needed'] ?? null,
             'materials_required' => $data['materials_required'] ?? null,
         ]);
+        
+        // Assign trainers if provided
+        if (!empty($data['trainer_ids'])) {
+            $this->assignTrainersToInstance($instance, $data['trainer_ids']);
+        }
+        
+        return $instance;
     }
     
     /**
