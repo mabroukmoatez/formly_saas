@@ -21,7 +21,6 @@ export const CommercialDashboard: React.FC = () => {
   const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
-  const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -43,7 +42,6 @@ export const CommercialDashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
       const response = await commercialDashboardService.getDashboard(selectedYear);
       if (response.success && response.data) {
         // Normalize the data - convert strings to numbers
@@ -96,8 +94,6 @@ export const CommercialDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching dashboard:', err);
       showError('Erreur', 'Impossible de charger le tableau de bord');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -111,21 +107,10 @@ export const CommercialDashboard: React.FC = () => {
     }).format(value).replace('€', '€').replace(/ /g, ' ').trim();
   };
 
-  // Format number with thousand separator
+  // Format number for display
   const formatNumber = (value: number): string => {
     return new Intl.NumberFormat('fr-FR').format(value);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className={`mt-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{t('common.loading')}...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!dashboardData || !dashboardData.kpis) {
     return (
@@ -248,27 +233,27 @@ export const CommercialDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div 
+          <div
             className="w-12 h-12 rounded-[12px] flex items-center justify-center"
             style={{ backgroundColor: `${primaryColor}15` }}
           >
             <BarChart3 className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {t('dashboard.commercial.title')}
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               {t('dashboard.commercial.subtitle')}
             </p>
           </div>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex items-center gap-[13px]">
           {actionButtons.map((button, index) => (
@@ -369,4 +354,3 @@ export const CommercialDashboard: React.FC = () => {
     </section>
   );
 };
-    
