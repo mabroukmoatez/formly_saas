@@ -2055,6 +2055,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     
     // Quotes (English)
     Route::get('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'index']);
+    Route::post('/quotes/export-excel', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'exportExcel']);
     Route::post('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'store']);
     Route::get('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'show']);
     Route::put('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'update']);

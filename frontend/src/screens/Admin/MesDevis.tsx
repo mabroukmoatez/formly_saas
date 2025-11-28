@@ -425,44 +425,15 @@ export const MesDevis = (): JSX.Element => {
 
   const handleExportExcel = async () => {
     try {
-      const quotesToExport = selectedQuotes.size > 0
-        ? quotes.filter(q => selectedQuotes.has(String(q.id)))
-        : quotes;
+      // Get selected quote IDs or undefined for all quotes
+      const quoteIds = selectedQuotes.size > 0
+        ? Array.from(selectedQuotes)
+        : undefined;
 
-      if (quotesToExport.length === 0) {
-        showError(t('common.error'), 'Aucun devis à exporter');
-        return;
-      }
+      // Call backend export
+      const blob = await commercialService.exportQuotesExcel(quoteIds);
 
-      // Helper function to escape CSV values
-      const escapeCsvValue = (value: any): string => {
-        const str = String(value);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const csvData = quotesToExport.map(quote => ({
-        'N°': quote.quote_number,
-        'Date': formatDate(quote.issue_date),
-        'Type': getClientType(quote),
-        'Client': quote.client?.company_name ||
-          `${quote.client?.first_name || ''} ${quote.client?.last_name || ''}`.trim() ||
-          quote.client_name || '',
-        'Montant HT': normalizeValue(quote.total_ht),
-        'Montant TVA': normalizeValue(quote.total_tva),
-        'Montant TTC': normalizeValue(quote.total_ttc || quote.total_amount),
-        'Statut': getStatusLabel(quote.status),
-      }));
-
-      const headers = Object.keys(csvData[0]);
-      const csv = [
-        headers.map(h => escapeCsvValue(h)).join(','),
-        ...csvData.map(row => headers.map(h => escapeCsvValue(row[h as keyof typeof row])).join(','))
-      ].join('\n');
-
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      // Download the file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -471,9 +442,11 @@ export const MesDevis = (): JSX.Element => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      success(`${quotesToExport.length} ${t('dashboard.commercial.mes_devis.export_success')}`);
-    } catch (err) {
-      showError(t('common.error'), t('dashboard.commercial.mes_devis.export_error'));
+
+      const count = selectedQuotes.size > 0 ? selectedQuotes.size : quotes.length;
+      success(`${count} ${t('dashboard.commercial.mes_devis.export_success')}`);
+    } catch (err: any) {
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.export_error'));
     }
   };
 

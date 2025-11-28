@@ -190,6 +190,13 @@ class CommercialService {
     return await apiService.delete<ApiResponse<null>>(`/api/organization/commercial/quotes/${id}/signed-document`);
   }
 
+  async exportQuotesExcel(quoteIds?: string[]): Promise<Blob> {
+    const data = quoteIds && quoteIds.length > 0 ? { quote_ids: quoteIds } : {};
+    return await apiService.post<Blob>('/api/organization/commercial/quotes/export-excel', data, {
+      responseType: 'blob',
+    });
+  }
+
   // ============ ARTICLES ============
   async getArticles(params?: {
     page?: number;
