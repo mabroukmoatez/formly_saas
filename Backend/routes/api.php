@@ -2061,6 +2061,8 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::delete('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'destroy']);
     Route::patch('/quotes/{id}/status', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'updateStatus']);
     Route::post('/quotes/{id}/upload-signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::post('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::put('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
     Route::post('/quotes/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/quotes/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
