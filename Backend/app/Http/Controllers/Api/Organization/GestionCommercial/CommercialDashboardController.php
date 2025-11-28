@@ -37,14 +37,14 @@ class CommercialDashboardController extends Controller
         $lastMonthStart = now()->subMonth()->startOfMonth();
         $lastMonthEnd = now()->subMonth()->endOfMonth();
 
-        // 1. KPI: CA (Chiffre d'Affaires) - Based on PAID invoices this month
+        // 1. KPI: CA (Chiffre d'Affaires) - Based on SENT and PAID invoices this month
         $revenueCurrentMonth = Invoice::where('organization_id', $organization_id)
-            ->where('status', 'paid')
+            ->whereIn('status', ['sent', 'paid'])
             ->whereBetween('issue_date', [$currentMonthStart, $currentMonthEnd])
             ->sum('total_ttc');
 
         $revenueLastMonth = Invoice::where('organization_id', $organization_id)
-            ->where('status', 'paid')
+            ->whereIn('status', ['sent', 'paid'])
             ->whereBetween('issue_date', [$lastMonthStart, $lastMonthEnd])
             ->sum('total_ttc');
 
@@ -66,11 +66,16 @@ class CommercialDashboardController extends Controller
             ->whereBetween('created_at', [$lastMonthStart, $lastMonthEnd])
             ->count();
 
-        // 4. KPI: Impayés (Overdue) - Total amount of overdue invoices
+        // 4. KPI: Impayés (Unpaid) - Total amount of unpaid invoices (sent or partially_paid)
         $overdueAmount = Invoice::where('organization_id', $organization_id)
             ->whereIn('status', ['sent', 'partially_paid'])
-            ->where('due_date', '<', now())
-            ->sum(DB::raw('total_ttc - amount_paid'));
+            ->sum(DB::raw('total_ttc - COALESCE(amount_paid, 0)'));
+
+        // 5. KPI: Paiements Reçus (Received Payments) - Total amount of paid invoices this month
+        $receivedPayments = Invoice::where('organization_id', $organization_id)
+            ->where('status', 'paid')
+            ->whereBetween('issue_date', [$currentMonthStart, $currentMonthEnd])
+            ->sum('total_ttc');
 
         // 5. KPI: Charges (Expenses) - Total expenses this month
         $expensesCurrentMonth = Expense::where('organization_id', $organization_id)
@@ -83,7 +88,7 @@ class CommercialDashboardController extends Controller
 
         // 6. Graph Data: Revenue over the last 12 months
         $revenueChartData = Invoice::where('organization_id', $organization_id)
-            ->where('status', 'paid')
+            ->whereIn('status', ['sent', 'paid'])
             ->select(
                 DB::raw('SUM(total_ttc) as value'),
                 DB::raw("DATE_FORMAT(issue_date, '%Y-%m') as month")
@@ -113,6 +118,9 @@ class CommercialDashboardController extends Controller
                 'overdue' => [
                     'current' => $overdueAmount,
                 ],
+                'received_payments' => [
+                    'current' => $receivedPayments,
+                ],
                 'expenses' => [
                     'current' => $expensesCurrentMonth,
                     'previous' => $expensesLastMonth,
@@ -125,6 +133,51 @@ class CommercialDashboardController extends Controller
         ];
 
         return $this->success($data);
+    }
+
+    public function getNextDocumentNumber(Request $request, $type)
+    {
+        $organization_id = $this->getOrganizationId();
+        if (!$organization_id) {
+            return $this->failed([], 'User is not associated with an organization.');
+        }
+
+        if (!in_array($type, ['invoice', 'quote'])) {
+            return $this->failed([], 'Invalid document type.');
+        }
+
+        $prefix = ($type === 'invoice') ? 'FA' : 'D';
+        $datePart = now()->format('Y-m-d');
+        $baseNumber = "{$prefix}-{$datePart}";
+
+        // Find the last document created today to determine the sequence
+        if ($type === 'invoice') {
+            $lastDocument = Invoice::where('organization_id', $organization_id)
+                ->where('invoice_number', 'like', "{$baseNumber}-%")
+                ->orderBy('id', 'desc')
+                ->first();
+            $lastNumber = $lastDocument ? $lastDocument->invoice_number : null;
+        } else {
+            $lastDocument = Quote::where('organization_id', $organization_id)
+                ->where('quote_number', 'like', "{$baseNumber}-%")
+                ->orderBy('id', 'desc')
+                ->first();
+            $lastNumber = $lastDocument ? $lastDocument->quote_number : null;
+        }
+
+        $sequence = 1;
+        if ($lastNumber) {
+            // Extract the sequence number from the end
+            $parts = explode('-', $lastNumber);
+            $lastSequence = end($parts);
+            if (is_numeric($lastSequence)) {
+                $sequence = (int) $lastSequence + 1;
+            }
+        }
+
+        $nextNumber = "{$baseNumber}-{$sequence}";
+
+        return $this->success(['next_number' => $nextNumber]);
     }
 
     /**

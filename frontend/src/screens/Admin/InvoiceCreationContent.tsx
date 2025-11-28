@@ -9,6 +9,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { Textarea } from '../../components/ui/textarea';
 import { useToast } from '../../components/ui/toast';
 import { commercialService } from '../../services/commercial';
+import { commercialDashboardService } from '../../services/commercialDashboard';
 import { ArticleSearchModal } from '../../components/CommercialDashboard/ArticleSearchModal';
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import { InseeSearchInput } from '../../components/CommercialDashboard/InseeSearchInput';
@@ -37,7 +38,8 @@ export const InvoiceCreationContent: React.FC = () => {
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [invoiceNumber, setInvoiceNumber] = useState(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [loadingInvoiceNumber, setLoadingInvoiceNumber] = useState(true);
   const [clientInfo, setClientInfo] = useState({
     name: '',
     email: '',
@@ -47,7 +49,7 @@ export const InvoiceCreationContent: React.FC = () => {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [paymentConditions, setPaymentConditions] = useState('');
   const [client, setClient] = useState<InvoiceClient | null>(null);
-  
+
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -70,6 +72,27 @@ export const InvoiceCreationContent: React.FC = () => {
       }
     };
     loadCompanyDetails();
+
+    // Fetch next invoice number from API
+    const fetchNextInvoiceNumber = async () => {
+      try {
+        setLoadingInvoiceNumber(true);
+        const response = await commercialDashboardService.getNextDocumentNumber('invoice');
+        if (response && response.next_number) {
+          setInvoiceNumber(response.next_number);
+        } else {
+          // Fallback to date-based format
+          setInvoiceNumber(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+        }
+      } catch (err) {
+        console.error('Failed to fetch next invoice number', err);
+        // Fallback to date-based format
+        setInvoiceNumber(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+      } finally {
+        setLoadingInvoiceNumber(false);
+      }
+    };
+    fetchNextInvoiceNumber();
 
     // Prefill form with OCR data if available
     const prefillData = (location.state as any)?.prefillData;
@@ -272,20 +295,20 @@ export const InvoiceCreationContent: React.FC = () => {
       {/* Page Title Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div 
+          <div
             className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
             style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
           >
             <Receipt className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {t('dashboard.commercial.mes_factures.create')}
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               Créer une nouvelle facture
@@ -361,7 +384,7 @@ export const InvoiceCreationContent: React.FC = () => {
       <div className="flex flex-col gap-[42px] max-w-[1100px] mx-auto">
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-4">
-          <div 
+          <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowCompanyModal(true)}
           >
@@ -384,7 +407,7 @@ export const InvoiceCreationContent: React.FC = () => {
         {/* Company and Client Info */}
         <div className="flex items-start justify-between gap-4">
           {/* Company Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowCompanyModal(true)}
           >
@@ -396,7 +419,7 @@ export const InvoiceCreationContent: React.FC = () => {
               {(() => {
                 // Build address line with only available information
                 const addressParts = [];
-                
+
                 if (companyInfo) {
                   // Address with zip code and city if available
                   if (companyInfo.address) {
@@ -434,7 +457,7 @@ export const InvoiceCreationContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to organization description if no companyInfo
                 return organization?.description || 'Adresse\nN° TVA\nSIRET';
               })()}
@@ -445,9 +468,10 @@ export const InvoiceCreationContent: React.FC = () => {
           <div className="flex flex-col gap-3">
             <div className={`flex items-start gap-2 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
               <Input
-                value={invoiceNumber}
+                value={loadingInvoiceNumber ? 'Chargement...' : invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
+                disabled={loadingInvoiceNumber}
+                className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'} ${loadingInvoiceNumber ? 'opacity-50' : ''}`}
               />
             </div>
             <div className={`flex items-start gap-4 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
@@ -458,21 +482,21 @@ export const InvoiceCreationContent: React.FC = () => {
           </div>
 
           {/* Client Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowClientModal(true)}
           >
             <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
             <div className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-              {client?.company_name || (client?.first_name && client?.last_name 
-                ? `${client.first_name} ${client.last_name}` 
+              {client?.company_name || (client?.first_name && client?.last_name
+                ? `${client.first_name} ${client.last_name}`
                 : clientInfo.name || 'Informations du client')}
             </div>
             <div className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} whitespace-pre-line`}>
               {(() => {
                 // Build client info display with only available information
                 const addressParts = [];
-                
+
                 if (client) {
                   // Address with zip code and city if available
                   if (client.address) {
@@ -510,7 +534,7 @@ export const InvoiceCreationContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to clientInfo if client object not available
                 if (clientInfo.name || clientInfo.address || clientInfo.email || clientInfo.phone) {
                   const infoParts = [];
@@ -519,7 +543,7 @@ export const InvoiceCreationContent: React.FC = () => {
                   if (clientInfo.phone) infoParts.push(clientInfo.phone);
                   return infoParts.length > 0 ? infoParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 return 'Cliquez pour ajouter les informations';
               })()}
             </div>
@@ -706,7 +730,7 @@ export const InvoiceCreationContent: React.FC = () => {
         </div>
 
         {/* Payment Terms - Clickable */}
-        <div 
+        <div
           className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >

@@ -23,6 +23,20 @@ class CommercialDashboardService {
       throw error;
     }
   }
+
+  /**
+   * Get the next document number for invoice or quote
+   * @param type 'invoice' | 'quote'
+   */
+  async getNextDocumentNumber(type: 'invoice' | 'quote'): Promise<{ next_number: string }> {
+    try {
+      const response = await apiService.get<{ data: { next_number: string } }>(`/api/organization/commercial/dashboard/next-document-number/${type}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching next document number:', error);
+      throw error;
+    }
+  }
 }
 
 export const commercialDashboardService = new CommercialDashboardService();
