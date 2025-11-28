@@ -1216,7 +1216,7 @@ export const MesDevis = (): JSX.Element => {
                   </span>
                 </div>
                 <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-end gap-4">
                     <span className={`font-bold text-base`} style={{ color: primaryColor }}>
                       {t('dashboard.commercial.mes_devis.total_ttc')}
                     </span>
