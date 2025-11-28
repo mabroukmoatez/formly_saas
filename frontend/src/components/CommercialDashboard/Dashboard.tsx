@@ -29,7 +29,7 @@ export const CommercialDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [selectedYear]);
+  }, []); // Only fetch once on mount - year filter is applied client-side for the chart
 
   // Helper function to normalize values (convert strings to numbers)
   const normalizeValue = (value: number | string | undefined): number => {
@@ -44,7 +44,8 @@ export const CommercialDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await commercialDashboardService.getDashboard(selectedYear);
+      // Fetch all data without year filter - statistics show all data, chart filters client-side
+      const response = await commercialDashboardService.getDashboard();
       if (response.success && response.data) {
         // Normalize the data - convert strings to numbers
         const normalizedData = {
@@ -76,19 +77,11 @@ export const CommercialDashboard: React.FC = () => {
             },
           },
           charts: {
-            revenue: response.data.charts.revenue
-              .map((point) => ({
-                ...point,
-                value: normalizeValue(point.value),
-              }))
-              .filter((point) => {
-                // Filter by selected year if month format is YYYY-MM
-                if (point.month && point.month.includes('-')) {
-                  const pointYear = parseInt(point.month.split('-')[0]);
-                  return pointYear === selectedYear;
-                }
-                return true; // Keep all if format is not recognized
-              }),
+            // Store all chart data without filtering - filtering will be done when rendering
+            revenue: response.data.charts.revenue.map((point) => ({
+              ...point,
+              value: normalizeValue(point.value),
+            })),
           },
         };
         setDashboardData(normalizedData);
@@ -339,7 +332,14 @@ export const CommercialDashboard: React.FC = () => {
 
         {/* Revenue Chart Card - Le composant inclut maintenant la Card */}
         <RevenueLineChart
-          data={charts.revenue || []}
+          data={(charts.revenue || []).filter((point) => {
+            // Filter by selected year if month format is YYYY-MM
+            if (point.month && point.month.includes('-')) {
+              const pointYear = parseInt(point.month.split('-')[0]);
+              return pointYear === selectedYear;
+            }
+            return true; // Keep all if format is not recognized
+          })}
           height={256}
           primaryColor={primaryColor}
           selectedYear={selectedYear}
