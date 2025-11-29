@@ -892,7 +892,7 @@ export const MesDevis = (): JSX.Element => {
             >
               <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('dashboard.commercial.mes_devis.sort')}
+                {t('common.filter')}
               </span>
               <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
             </Button>
