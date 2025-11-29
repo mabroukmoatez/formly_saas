@@ -663,9 +663,8 @@ export const MesDevis = (): JSX.Element => {
     if (!signedDocQuote) return;
 
     try {
-      // Delete document and revert status to 'sent'
+      // Delete document (backend automatically reverts status to 'sent')
       await commercialService.deleteSignedDocument(String(signedDocQuote.id));
-      await commercialService.updateQuoteStatus(String(signedDocQuote.id), 'sent');
 
       fetchQuotes();
     } catch (err: any) {

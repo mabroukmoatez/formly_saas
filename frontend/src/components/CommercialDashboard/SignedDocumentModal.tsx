@@ -208,7 +208,7 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
                   {/* PDF Preview */}
                   <div className="w-full" style={{ height: '500px' }}>
                     <iframe
-                      src={documentUrl}
+                      src={getFullDocumentUrl() || ''}
                       className="w-full h-full"
                       title={`Devis ${quoteNumber} - Document signé`}
                       style={{ border: 'none' }}
