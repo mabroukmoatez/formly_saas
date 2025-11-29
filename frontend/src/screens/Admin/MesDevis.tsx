@@ -88,6 +88,11 @@ export const MesDevis = (): JSX.Element => {
   const [showSignedDocModal, setShowSignedDocModal] = useState(false);
   const [signedDocQuote, setSignedDocQuote] = useState<Quote | null>(null);
 
+  // Export loading states
+  const [exportingExcel, setExportingExcel] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportProgress, setExportProgress] = useState('');
+
   // Format date for input (DD-MM-YYYY)
   const formatDateForInput = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -424,6 +429,9 @@ export const MesDevis = (): JSX.Element => {
   };
 
   const handleExportExcel = async () => {
+    setExportingExcel(true);
+    setExportProgress('Génération du fichier Excel en cours...');
+
     try {
       // Get selected quote IDs or undefined for all quotes
       const quoteIds = selectedQuotes.size > 0
@@ -447,6 +455,9 @@ export const MesDevis = (): JSX.Element => {
       success(`${count} ${t('dashboard.commercial.mes_devis.export_success')}`);
     } catch (err: any) {
       showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.export_error'));
+    } finally {
+      setExportingExcel(false);
+      setExportProgress('');
     }
   };
 
@@ -463,11 +474,18 @@ export const MesDevis = (): JSX.Element => {
       showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
       return;
     }
+
+    setExportingPDF(true);
+
     try {
       const quoteIds = Array.from(selectedQuotes);
       let successCount = 0;
+      const totalCount = quoteIds.length;
 
-      for (const id of quoteIds) {
+      for (let i = 0; i < quoteIds.length; i++) {
+        const id = quoteIds[i];
+        setExportProgress(`Téléchargement du PDF ${i + 1} sur ${totalCount}...`);
+
         try {
           const blob = await commercialService.generateQuotePdf(id);
           const quote = quotes.find(q => String(q.id) === id);
@@ -495,6 +513,9 @@ export const MesDevis = (): JSX.Element => {
       }
     } catch (err: any) {
       showError(t('common.error'), err.message || t('dashboard.commercial.mes_devis.export_error'));
+    } finally {
+      setExportingPDF(false);
+      setExportProgress('');
     }
   };
 
@@ -1505,6 +1526,35 @@ export const MesDevis = (): JSX.Element => {
           quoteNumber={signedDocQuote.quote_number || ''}
           documentUrl={(signedDocQuote as any).signed_document_url}
         />
+      )}
+
+      {/* Export Loading Overlay */}
+      {(exportingExcel || exportingPDF) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl border p-8 shadow-2xl min-w-[300px]`}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div
+                  className="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4"
+                  style={{ borderColor: primaryColor }}
+                ></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className={`text-xs font-bold`} style={{ color: primaryColor }}>
+                    {exportingPDF && selectedQuotes.size > 0 ? selectedQuotes.size : '...'}
+                  </div>
+                </div>
+              </div>
+              <div className="text-center">
+                <p className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {exportingExcel ? 'Export Excel' : 'Export PDF'}
+                </p>
+                <p className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {exportProgress}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
