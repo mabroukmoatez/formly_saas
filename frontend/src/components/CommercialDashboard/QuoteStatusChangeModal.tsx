@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
 import { X, Mail, FileUp, Upload, Download, Trash2, FileText } from 'lucide-react';
+import { apiService } from '../../services/api';
 
 interface QuoteStatusChangeModalProps {
   isOpen: boolean;
@@ -63,19 +64,76 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
   // Document upload fields (for 'accepted' status)
   const [signedDocument, setSignedDocument] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [loadingPdf, setLoadingPdf] = useState(false);
 
-  // Helper function to get full document URL
-  const getFullDocumentUrl = () => {
-    if (!documentUrl) return null;
-    if (documentUrl.startsWith('http')) return documentUrl;
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    return `${baseUrl}${documentUrl}`;
-  };
+  // Fetch PDF with authentication token and create blob URL
+  useEffect(() => {
+    if (!documentUrl || !isOpen) return;
 
-  const handleDownload = () => {
-    const fullUrl = getFullDocumentUrl();
-    if (fullUrl) {
-      window.open(fullUrl, '_blank');
+    let isMounted = true;
+
+    const fetchPdfBlob = async () => {
+      setLoadingPdf(true);
+      try {
+        // Fetch the PDF using apiService which includes the auth token
+        const response = await apiService.get(documentUrl, {
+          responseType: 'blob',
+        });
+
+        if (isMounted && response) {
+          // Create a blob URL from the response
+          const blob = new Blob([response], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          setPdfBlobUrl(url);
+        }
+      } catch (err) {
+        console.error('Error fetching PDF:', err);
+        if (isMounted) {
+          showError('Erreur', 'Impossible de charger le document PDF');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingPdf(false);
+        }
+      }
+    };
+
+    fetchPdfBlob();
+
+    // Cleanup function to revoke blob URL
+    return () => {
+      isMounted = false;
+      if (pdfBlobUrl) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [documentUrl, isOpen]);
+
+  const handleDownload = async () => {
+    if (!documentUrl) return;
+
+    try {
+      // Fetch the PDF using apiService which includes the auth token
+      const response = await apiService.get(documentUrl, {
+        responseType: 'blob',
+      });
+
+      if (response) {
+        // Create a blob URL and trigger download
+        const blob = new Blob([response], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Devis-${quoteNumber}-signé.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      showError('Erreur', 'Impossible de télécharger le document');
     }
   };
 
@@ -346,13 +404,33 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
                     </div>
 
                     {/* PDF Preview */}
-                    <div className="w-full" style={{ height: '400px' }}>
-                      <iframe
-                        src={getFullDocumentUrl() || ''}
-                        className="w-full h-full"
-                        title={`Devis ${quoteNumber} - Document signé`}
-                        style={{ border: 'none' }}
-                      />
+                    <div className="w-full relative" style={{ height: '400px' }}>
+                      {loadingPdf ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <div
+                              className="animate-spin rounded-full h-10 w-10 border-b-2 border-t-2"
+                              style={{ borderColor: primaryColor }}
+                            ></div>
+                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Chargement du document...
+                            </p>
+                          </div>
+                        </div>
+                      ) : pdfBlobUrl ? (
+                        <iframe
+                          src={pdfBlobUrl}
+                          className="w-full h-full"
+                          title={`Devis ${quoteNumber} - Document signé`}
+                          style={{ border: 'none' }}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Impossible de charger le document
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
