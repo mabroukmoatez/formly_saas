@@ -115,8 +115,23 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
 
   const handleDownload = () => {
     if (documentUrl) {
-      window.open(documentUrl, '_blank');
+      // Construct full URL from relative path
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const fullUrl = documentUrl.startsWith('http') ? documentUrl : `${baseUrl}${documentUrl}`;
+      window.open(fullUrl, '_blank');
     }
+  };
+
+  // Helper function to get full document URL
+  const getFullDocumentUrl = () => {
+    if (!documentUrl) return null;
+
+    // If already a full URL, return as is
+    if (documentUrl.startsWith('http')) return documentUrl;
+
+    // Construct full URL from relative path
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    return `${baseUrl}${documentUrl}`;
   };
 
   const handleClose = () => {

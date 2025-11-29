@@ -2062,6 +2062,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::delete('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'destroy']);
     Route::patch('/quotes/{id}/status', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'updateStatus']);
     Route::post('/quotes/{id}/upload-signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::get('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getSignedDocument']);
     Route::post('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::put('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
@@ -2077,6 +2078,8 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::delete('/devis/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'destroy']);
     Route::patch('/devis/{id}/status', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'updateStatus']);
     Route::post('/devis/{id}/upload-signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::get('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getSignedDocument']);
+    Route::post('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
     Route::post('/devis/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::post('/devis/{id}/convert-to-facture', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);

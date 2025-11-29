@@ -482,6 +482,33 @@ class QuoteManagementController extends Controller
     }
 
     /**
+     * Get/Download signed document file
+     */
+    public function getSignedDocument($id)
+    {
+        $organization_id = $this->getOrganizationId();
+        $quote = Quote::where('id', $id)->where('organization_id', $organization_id)->first();
+
+        if (!$quote || !$quote->signed_document_path) {
+            return $this->failed([], 'No signed document found.');
+        }
+
+        $filePath = $quote->signed_document_path;
+
+        if (!Storage::disk('public')->exists($filePath)) {
+            return $this->failed([], 'Document file not found.');
+        }
+
+        $file = Storage::disk('public')->get($filePath);
+        $mimeType = Storage::disk('public')->mimeType($filePath);
+        $fileName = 'Devis-' . $quote->quote_number . '-signé.pdf';
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
+    }
+
+    /**
      * Convert quote to invoice
      */
     public function convertToInvoice(Request $request, $id)

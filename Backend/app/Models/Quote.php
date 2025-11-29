@@ -121,8 +121,9 @@ class Quote extends Model
             return null;
         }
 
-        // Use Storage::url() for more reliable URL generation
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->signed_document_path);
+        // Return API endpoint path for serving the signed document
+        // Frontend will use this with their configured API base URL
+        return '/api/organization/commercial/quotes/' . $this->id . '/signed-document';
     }
 }
 
