@@ -724,89 +724,19 @@ class QuoteManagementController extends Controller
         if ($validator->fails()) return $this->failed([], $validator->errors()->first());
 
         try {
-            $query = Quote::where('organization_id', $organization_id)
-                ->with(['client']);
+            $quoteIds = null;
 
-            // If specific quote IDs provided, filter by them
+            // If specific quote IDs provided, use them
             if ($request->has('quote_ids') && is_array($request->quote_ids) && count($request->quote_ids) > 0) {
-                $query->whereIn('id', $request->quote_ids);
+                $quoteIds = $request->quote_ids;
             }
 
-            $quotes = $query->get();
+            // Use QuotesExport class with Maatwebsite\Excel
+            $export = new \App\Exports\QuotesExport([], $organization_id, $quoteIds);
 
-            if ($quotes->isEmpty()) {
-                return $this->failed([], 'No quotes found to export.');
-            }
+            $filename = 'devis_' . date('Y-m-d') . '.xlsx';
 
-            // Generate CSV
-            $csvData = [];
-
-            // Headers
-            $csvData[] = [
-                'N°',
-                'Date',
-                'Type',
-                'Client',
-                'Montant HT',
-                'Montant TVA',
-                'Montant TTC',
-                'Statut'
-            ];
-
-            // Data rows
-            foreach ($quotes as $quote) {
-                $clientName = '';
-                if ($quote->client) {
-                    $clientName = $quote->client->company_name ??
-                        trim(($quote->client->first_name ?? '') . ' ' . ($quote->client->last_name ?? ''));
-                }
-                if (empty($clientName)) {
-                    $clientName = $quote->client_name ?? 'N/A';
-                }
-
-                $type = $quote->client && $quote->client->type === 'company' ? 'Entreprise' : 'Particulier';
-
-                $status = match($quote->status) {
-                    'draft' => 'Créée',
-                    'sent' => 'Envoyé',
-                    'accepted' => 'Signé',
-                    'rejected' => 'Rejeté',
-                    'expired' => 'Expiré',
-                    'cancelled' => 'Annulé',
-                    default => $quote->status,
-                };
-
-                $csvData[] = [
-                    $quote->quote_number,
-                    \Carbon\Carbon::parse($quote->issue_date)->format('d/m/y'),
-                    $type,
-                    $clientName,
-                    number_format($quote->total_ht ?? 0, 2, ',', ' '),
-                    number_format($quote->total_tva ?? 0, 2, ',', ' '),
-                    number_format($quote->total_ttc ?? $quote->total_amount ?? 0, 2, ',', ' '),
-                    $status,
-                ];
-            }
-
-            // Create CSV content
-            $output = fopen('php://temp', 'r+');
-
-            // Add BOM for Excel UTF-8 compatibility
-            fputs($output, "\xEF\xBB\xBF");
-
-            foreach ($csvData as $row) {
-                fputcsv($output, $row, ',');
-            }
-
-            rewind($output);
-            $csv = stream_get_contents($output);
-            fclose($output);
-
-            $filename = 'devis_' . date('Y-m-d') . '.csv';
-
-            return response($csv, 200)
-                ->header('Content-Type', 'text/csv; charset=UTF-8')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
 
         } catch (\Exception $e) {
             return $this->failed([], 'Export failed: ' . $e->getMessage());

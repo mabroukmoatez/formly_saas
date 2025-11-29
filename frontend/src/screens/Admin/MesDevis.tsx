@@ -838,6 +838,28 @@ export const MesDevis = (): JSX.Element => {
 
               <Button
                 variant="outline"
+                onClick={handleRelancerSelected}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <RotateCw className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  Relancer
+                </span>
+              </Button>
+
+              <Button
+                variant="outline"
                 onClick={() => {
                   setQuoteToDelete('bulk');
                   setShowDeleteModal(true);
