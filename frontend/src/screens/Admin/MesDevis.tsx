@@ -518,19 +518,6 @@ export const MesDevis = (): JSX.Element => {
     }
   };
 
-  const handleRelancerSelected = async () => {
-    if (selectedQuotes.size === 0) {
-      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
-      return;
-    }
-    const firstQuoteId = Array.from(selectedQuotes)[0];
-    const firstQuote = quotes.find(q => String(q.id) === firstQuoteId);
-    if (firstQuote) {
-      setEmailModalQuote(firstQuote);
-      setShowEmailModal(true);
-    }
-  };
-
   const handleSendSelected = async () => {
     if (selectedQuotes.size === 0) {
       showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
@@ -856,29 +843,6 @@ export const MesDevis = (): JSX.Element => {
                   {t('dashboard.commercial.mes_devis.delete')}
                 </span>
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleRelancerSelected}
-                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
-                style={{
-                  borderColor: primaryColor,
-                  backgroundColor: primaryColor,
-                  color: 'white'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.9';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-              >
-                <RotateCw className="w-4 h-4" />
-                <span className="font-medium text-sm">
-                  {t('dashboard.commercial.mes_devis.relance')}
-                </span>
-              </Button>
-
-              
             </div>
           )}
 
