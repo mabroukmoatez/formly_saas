@@ -851,7 +851,7 @@ export const MesDevis = (): JSX.Element => {
               >
                 <RotateCw className="w-4 h-4" />
                 <span className="font-medium text-sm">
-                  Relancer
+                  {t('dashboard.commercial.mes_devis.relance')}
                 </span>
               </Button>
 
