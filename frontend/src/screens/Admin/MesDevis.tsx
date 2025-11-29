@@ -832,30 +832,7 @@ export const MesDevis = (): JSX.Element => {
                   {t('dashboard.commercial.mes_devis.export_pdf')}
                 </span>
               </Button>
-
-              <Button
-                variant="outline"
-                onClick={handleRelancerSelected}
-                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
-                style={{
-                  borderColor: primaryColor,
-                  backgroundColor: primaryColor,
-                  color: 'white'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.9';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-              >
-                <RotateCw className="w-4 h-4" />
-                <span className="font-medium text-sm">
-                  {t('dashboard.commercial.mes_devis.relance')}
-                </span>
-              </Button>
-
-              <Button
+<Button
                 variant="outline"
                 onClick={() => {
                   setQuoteToDelete('bulk');
@@ -879,6 +856,29 @@ export const MesDevis = (): JSX.Element => {
                   {t('dashboard.commercial.mes_devis.delete')}
                 </span>
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleRelancerSelected}
+                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
+                style={{
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <RotateCw className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  {t('dashboard.commercial.mes_devis.relance')}
+                </span>
+              </Button>
+
+              
             </div>
           )}
 
