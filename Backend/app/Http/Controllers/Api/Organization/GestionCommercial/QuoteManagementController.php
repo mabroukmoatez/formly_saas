@@ -425,7 +425,10 @@ class QuoteManagementController extends Controller
         $quote->status = $request->status;
         $quote->save();
 
-        return $this->success($quote, 'Quote status updated successfully.');
+        // Refresh the quote to ensure accessor is loaded
+        $quote = $quote->fresh(['client']);
+
+        return $this->success(['quote' => $quote], 'Quote status updated successfully.');
     }
 
     public function uploadSignedDocument(Request $request, $id)
@@ -444,14 +447,17 @@ class QuoteManagementController extends Controller
         }
 
         $filePath = $request->file('signed_document')->store('signed_quotes', 'public');
-        
+
         $quote->update([
             'signed_document_path' => $filePath,
             'status' => 'accepted',
             'accepted_date' => now()
         ]);
 
-        return $this->success($quote, 'Signed document uploaded successfully.');
+        // Refresh the quote to ensure accessor is loaded
+        $quote = $quote->fresh(['client']);
+
+        return $this->success(['quote' => $quote], 'Signed document uploaded successfully.');
     }
 
     public function deleteSignedDocument($id)
@@ -469,7 +475,10 @@ class QuoteManagementController extends Controller
             'status' => 'sent'
         ]);
 
-        return $this->success($quote, 'Signed document deleted successfully.');
+        // Refresh the quote to ensure accessor is loaded
+        $quote = $quote->fresh(['client']);
+
+        return $this->success(['quote' => $quote], 'Signed document deleted successfully.');
     }
 
     /**

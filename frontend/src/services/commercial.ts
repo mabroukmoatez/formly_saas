@@ -187,8 +187,8 @@ class CommercialService {
     return await apiService.post<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`, formData);
   }
 
-  async deleteSignedDocument(id: string): Promise<ApiResponse<null>> {
-    return await apiService.delete<ApiResponse<null>>(`/api/organization/commercial/quotes/${id}/signed-document`);
+  async deleteSignedDocument(id: string): Promise<ApiResponse<{ quote: Quote }>> {
+    return await apiService.delete<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`);
   }
 
   async exportQuotesExcel(quoteIds?: string[]): Promise<Blob> {

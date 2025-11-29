@@ -121,7 +121,8 @@ class Quote extends Model
             return null;
         }
 
-        return asset('storage/' . $this->signed_document_path);
+        // Use Storage::url() for more reliable URL generation
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->signed_document_path);
     }
 }
 
