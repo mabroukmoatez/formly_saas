@@ -183,7 +183,8 @@ class CommercialService {
   }
 
   async replaceSignedDocument(id: string, formData: FormData): Promise<ApiResponse<{ quote: Quote }>> {
-    return await apiService.put<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`, formData);
+    // Use POST for file uploads (PUT doesn't handle multipart/form-data well in Laravel)
+    return await apiService.post<ApiResponse<{ quote: Quote }>>(`/api/organization/commercial/quotes/${id}/signed-document`, formData);
   }
 
   async deleteSignedDocument(id: string): Promise<ApiResponse<null>> {
