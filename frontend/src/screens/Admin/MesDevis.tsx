@@ -770,7 +770,7 @@ export const MesDevis = (): JSX.Element => {
               <Button
                 variant="outline"
                 onClick={handleSendSelected}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                className="inline-flex items-center gap-2 px-4 py-2 h-auto rounded-lg border-2 border-dashed"
                 style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
@@ -792,7 +792,7 @@ export const MesDevis = (): JSX.Element => {
               <Button
                 variant="outline"
                 onClick={handleExportSelectedExcel}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
                 style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
@@ -814,7 +814,7 @@ export const MesDevis = (): JSX.Element => {
               <Button
                 variant="outline"
                 onClick={handleExportSelectedPDF}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
                 style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
@@ -836,7 +836,7 @@ export const MesDevis = (): JSX.Element => {
               <Button
                 variant="outline"
                 onClick={handleRelancerSelected}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
                 style={{
                   borderColor: primaryColor,
                   backgroundColor: primaryColor,
@@ -861,7 +861,7 @@ export const MesDevis = (): JSX.Element => {
                   setQuoteToDelete('bulk');
                   setShowDeleteModal(true);
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                className="inline-flex items-center gap-2 px-3 py-2 h-auto rounded-lg border-2 border-dashed"
                 style={{
                   borderColor: '#ef4444',
                   backgroundColor: '#ef4444',
@@ -888,7 +888,7 @@ export const MesDevis = (): JSX.Element => {
             <Button
               variant="outline"
               onClick={() => setShowFilterModal(true)}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
+              className={`inline-flex items-center gap-2 px-3 py-2 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
             >
               <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -902,7 +902,7 @@ export const MesDevis = (): JSX.Element => {
               <Button
                 variant="outline"
                 onClick={handleExportExcel}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
+                className={`inline-flex items-center gap-2 px-3 py-2 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
                 style={{
                   borderColor: isDark ? undefined : primaryColor,
                   borderStyle: 'dashed',
