@@ -4,7 +4,7 @@ import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
-import { X, Mail, FileUp, Upload } from 'lucide-react';
+import { X, Mail, FileUp, Upload, Download, Trash2, FileText } from 'lucide-react';
 
 interface QuoteStatusChangeModalProps {
   isOpen: boolean;
@@ -15,6 +15,9 @@ interface QuoteStatusChangeModalProps {
   quoteNumber: string;
   clientEmail?: string;
   clientName?: string;
+  documentUrl?: string | null;
+  onReplaceDocument?: (file: File) => Promise<void>;
+  onDeleteDocument?: () => Promise<void>;
 }
 
 export interface StatusChangeData {
@@ -37,6 +40,9 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
   quoteNumber,
   clientEmail = '',
   clientName = '',
+  documentUrl,
+  onReplaceDocument,
+  onDeleteDocument,
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
@@ -44,6 +50,7 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [loading, setLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Email fields (for 'sent' status)
   const [emailTo, setEmailTo] = useState(clientEmail);
@@ -56,6 +63,51 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
   // Document upload fields (for 'accepted' status)
   const [signedDocument, setSignedDocument] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  // Helper function to get full document URL
+  const getFullDocumentUrl = () => {
+    if (!documentUrl) return null;
+    if (documentUrl.startsWith('http')) return documentUrl;
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    return `${baseUrl}${documentUrl}`;
+  };
+
+  const handleDownload = () => {
+    const fullUrl = getFullDocumentUrl();
+    if (fullUrl) {
+      window.open(fullUrl, '_blank');
+    }
+  };
+
+  const handleReplaceDoc = async () => {
+    if (!signedDocument || !onReplaceDocument) return;
+
+    setLoading(true);
+    try {
+      await onReplaceDocument(signedDocument);
+      setSignedDocument(null);
+      onClose();
+    } catch (err) {
+      console.error('Error replacing document:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!onDeleteDocument) return;
+
+    setLoading(true);
+    try {
+      await onDeleteDocument();
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (err) {
+      console.error('Error deleting document:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -265,110 +317,261 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
 
           {targetStatus === 'accepted' && (
             <div className="space-y-4">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Document signé <span className="text-red-500">*</span>
-                </label>
-                <div
-                  className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all ${
-                    dragActive
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : isDark
-                      ? 'border-gray-600 hover:border-gray-500'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    type="file"
-                    id="signed-doc-upload"
-                    className="hidden"
-                    accept=".pdf"
-                    onChange={handleFileInputChange}
-                  />
-
-                  <div className="flex flex-col items-center space-y-3">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: `${primaryColor}15` }}
-                    >
-                      <Upload className="w-6 h-6" style={{ color: primaryColor }} />
+              {/* If document already exists, show viewer */}
+              {documentUrl && !showDeleteConfirm && !signedDocument ? (
+                <div className="space-y-4">
+                  {/* PDF Viewer */}
+                  <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className={`flex items-center justify-between p-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+                      <div className="flex items-center space-x-3">
+                        <FileText className="w-5 h-5" style={{ color: primaryColor }} />
+                        <div>
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Devis-{quoteNumber}-signé.pdf
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Document signé par le client
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownload}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Télécharger
+                      </Button>
                     </div>
 
-                    <div className="space-y-1">
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        Glissez-déposez le document signé ici
-                      </p>
-                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        ou
-                      </p>
-                      <label htmlFor="signed-doc-upload">
-                        <Button
-                          type="button"
-                          onClick={() => document.getElementById('signed-doc-upload')?.click()}
-                          className="mt-1"
-                          size="sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          Parcourir
-                        </Button>
-                      </label>
+                    {/* PDF Preview */}
+                    <div className="w-full" style={{ height: '400px' }}>
+                      <iframe
+                        src={getFullDocumentUrl() || ''}
+                        className="w-full h-full"
+                        title={`Devis ${quoteNumber} - Document signé`}
+                        style={{ border: 'none' }}
+                      />
                     </div>
-
-                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      PDF uniquement - Max 10MB
-                    </p>
                   </div>
-                </div>
 
-                {/* Selected File Info */}
-                {signedDocument && (
-                  <div className={`flex items-center justify-between p-3 rounded-lg mt-3 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                    <div className="flex items-center space-x-2">
-                      <FileUp className="w-5 h-5" style={{ color: primaryColor }} />
-                      <div>
-                        <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {signedDocument.name}
-                        </p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {(signedDocument.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+                  {/* Action Buttons for existing document */}
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      onClick={() => document.getElementById('replace-doc-upload')?.click()}
+                      variant="outline"
+                      className="w-full flex items-center justify-center gap-2"
+                      style={{ borderColor: primaryColor, color: primaryColor }}
+                    >
+                      <Upload className="w-4 h-4" />
+                      Remplacer le document
+                    </Button>
+
+                    <input
+                      type="file"
+                      id="replace-doc-upload"
+                      className="hidden"
+                      accept=".pdf"
+                      onChange={handleFileInputChange}
+                    />
+
+                    {onDeleteDocument && (
+                      <Button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        variant="outline"
+                        className="w-full flex items-center justify-center gap-2 border-red-500 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer le document
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Selected File Info for replacement */}
+                  {signedDocument && (
+                    <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                      <div className="flex items-center space-x-2">
+                        <FileUp className="w-5 h-5" style={{ color: primaryColor }} />
+                        <div>
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {signedDocument.name}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {(signedDocument.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSignedDocument(null)}
+                        className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : showDeleteConfirm ? (
+                /* Delete Confirmation */
+                <div className={`p-6 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="text-center space-y-4">
+                    <div className="flex justify-center">
+                      <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                        <Trash2 className="w-6 h-6 text-red-600" />
                       </div>
                     </div>
-                    <button
-                      onClick={() => setSignedDocument(null)}
-                      className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div>
+                      <h3 className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Confirmer la suppression
+                      </h3>
+                      <p className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Êtes-vous sûr de vouloir supprimer ce document signé ?
+                      </p>
+                      <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Le statut du devis passera à "Envoyé".
+                      </p>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1"
+                        disabled={loading}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        onClick={handleDeleteDoc}
+                        className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                        disabled={loading}
+                      >
+                        {loading ? 'Suppression...' : 'Supprimer'}
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                /* Upload new document (original behavior) */
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Document signé <span className="text-red-500">*</span>
+                  </label>
+                  <div
+                    className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all ${
+                      dragActive
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : isDark
+                        ? 'border-gray-600 hover:border-gray-500'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                  >
+                    <input
+                      type="file"
+                      id="signed-doc-upload"
+                      className="hidden"
+                      accept=".pdf"
+                      onChange={handleFileInputChange}
+                    />
+
+                    <div className="flex flex-col items-center space-y-3">
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: `${primaryColor}15` }}
+                      >
+                        <Upload className="w-6 h-6" style={{ color: primaryColor }} />
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          Glissez-déposez le document signé ici
+                        </p>
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          ou
+                        </p>
+                        <label htmlFor="signed-doc-upload">
+                          <Button
+                            type="button"
+                            onClick={() => document.getElementById('signed-doc-upload')?.click()}
+                            className="mt-1"
+                            size="sm"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            Parcourir
+                          </Button>
+                        </label>
+                      </div>
+
+                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        PDF uniquement - Max 10MB
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Selected File Info */}
+                  {signedDocument && (
+                    <div className={`flex items-center justify-between p-3 rounded-lg mt-3 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                      <div className="flex items-center space-x-2">
+                        <FileUp className="w-5 h-5" style={{ color: primaryColor }} />
+                        <div>
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {signedDocument.name}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {(signedDocument.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSignedDocument(null)}
+                        className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex space-x-3 pt-4 mt-6">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              className="flex-1"
-              disabled={loading}
-            >
-              Annuler
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className="flex-1"
-              style={{ backgroundColor: primaryColor }}
-              disabled={loading}
-            >
-              {loading ? 'En cours...' : targetStatus === 'sent' ? 'Envoyer' : 'Confirmer'}
-            </Button>
-          </div>
+          {!showDeleteConfirm && (
+            <div className="flex space-x-3 pt-4 mt-6">
+              <Button
+                variant="outline"
+                onClick={handleClose}
+                className="flex-1"
+                disabled={loading}
+              >
+                Annuler
+              </Button>
+
+              {/* If we're replacing a document, show Replace button */}
+              {documentUrl && signedDocument ? (
+                <Button
+                  onClick={handleReplaceDoc}
+                  className="flex-1"
+                  style={{ backgroundColor: primaryColor }}
+                  disabled={loading}
+                >
+                  {loading ? 'Remplacement...' : 'Remplacer'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  className="flex-1"
+                  style={{ backgroundColor: primaryColor }}
+                  disabled={loading}
+                >
+                  {loading ? 'En cours...' : targetStatus === 'sent' ? 'Envoyer' : 'Confirmer'}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

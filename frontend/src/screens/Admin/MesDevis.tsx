@@ -29,8 +29,7 @@ import {
   Calendar,
   X,
   FileDown,
-  RotateCw,
-  Eye
+  RotateCw
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
@@ -585,20 +584,15 @@ export const MesDevis = (): JSX.Element => {
   const handleStatusClick = (quote: Quote, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // If status is 'accepted', show signed document modal
-    if (quote.status === 'accepted') {
-      setSignedDocQuote(quote);
-      setShowSignedDocModal(true);
-      return;
-    }
-
-    // Otherwise, show status change options
     setStatusChangeQuote(quote);
 
-    // Determine next status based on current status
+    // Determine target status based on current status
     if (quote.status === 'draft') {
       setTargetStatus('sent');
     } else if (quote.status === 'sent') {
+      setTargetStatus('accepted');
+    } else if (quote.status === 'accepted') {
+      // If already accepted, keep target as 'accepted' to show document viewer
       setTargetStatus('accepted');
     }
 
@@ -644,13 +638,15 @@ export const MesDevis = (): JSX.Element => {
 
   // Handle signed document replace
   const handleDocumentReplace = async (file: File) => {
-    if (!signedDocQuote) return;
+    // Use either statusChangeQuote (from status change modal) or signedDocQuote (from old modal)
+    const quote = statusChangeQuote || signedDocQuote;
+    if (!quote) return;
 
     try {
       const formData = new FormData();
       formData.append('signed_document', file);
 
-      await commercialService.replaceSignedDocument(String(signedDocQuote.id), formData);
+      await commercialService.replaceSignedDocument(String(quote.id), formData);
       fetchQuotes();
     } catch (err: any) {
       showError(t('common.error'), err.message || 'Erreur lors du remplacement du document');
@@ -660,11 +656,13 @@ export const MesDevis = (): JSX.Element => {
 
   // Handle signed document delete
   const handleDocumentDelete = async () => {
-    if (!signedDocQuote) return;
+    // Use either statusChangeQuote (from status change modal) or signedDocQuote (from old modal)
+    const quote = statusChangeQuote || signedDocQuote;
+    if (!quote) return;
 
     try {
       // Delete document (backend automatically reverts status to 'sent')
-      await commercialService.deleteSignedDocument(String(signedDocQuote.id));
+      await commercialService.deleteSignedDocument(String(quote.id));
 
       fetchQuotes();
     } catch (err: any) {
@@ -1143,32 +1141,17 @@ export const MesDevis = (): JSX.Element => {
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge
-                            onClick={(e) => handleStatusClick(quote, e)}
-                            className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
-                            style={{
-                              backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
-                              color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
-                            }}
-                          >
-                            {quote.status === 'accepted' && <Check className="w-3 h-3" />}
-                            {getStatusLabel(quote.status)}
-                          </Badge>
-                          {quote.status === 'accepted' && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSignedDocQuote(quote);
-                                setShowSignedDocModal(true);
-                              }}
-                              className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
-                              title="Voir le document signé"
-                            >
-                              <Eye className="w-4 h-4" style={{ color: primaryColor }} />
-                            </button>
-                          )}
-                        </div>
+                        <Badge
+                          onClick={(e) => handleStatusClick(quote, e)}
+                          className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                          style={{
+                            backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
+                            color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
+                          }}
+                        >
+                          {quote.status === 'accepted' && <Check className="w-3 h-3" />}
+                          {getStatusLabel(quote.status)}
+                        </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
@@ -1531,6 +1514,9 @@ export const MesDevis = (): JSX.Element => {
           clientName={statusChangeQuote.client?.company_name ||
             `${statusChangeQuote.client?.first_name || ''} ${statusChangeQuote.client?.last_name || ''}`.trim() ||
             statusChangeQuote.client_name || ''}
+          documentUrl={(statusChangeQuote as any).signed_document_url}
+          onReplaceDocument={handleDocumentReplace}
+          onDeleteDocument={handleDocumentDelete}
         />
       )}
 
