@@ -129,7 +129,7 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={handleClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-[95%] max-w-[600px] overflow-hidden rounded-[20px] border border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-[0px_0px_69.41px_#19294a1a]`}
+        className={`relative w-[95%] max-w-[900px] overflow-hidden rounded-[20px] border border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-[0px_0px_69.41px_#19294a1a]`}
       >
         {/* Header */}
         <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'bg-gray-50'}`}>
@@ -164,12 +164,12 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
         <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
           {!showDeleteConfirm && !selectedFile && (
             <div className="space-y-4">
-              {/* Document Preview */}
+              {/* PDF Viewer */}
               {documentUrl && (
-                <div className={`rounded-lg border p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
-                  <div className="flex items-center justify-between">
+                <div className={`rounded-lg border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className={`flex items-center justify-between p-3 border-b ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                     <div className="flex items-center space-x-3">
-                      <FileText className="w-10 h-10" style={{ color: primaryColor }} />
+                      <FileText className="w-5 h-5" style={{ color: primaryColor }} />
                       <div>
                         <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           Devis-{quoteNumber}-signé.pdf
@@ -189,6 +189,25 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
                       Télécharger
                     </Button>
                   </div>
+
+                  {/* PDF Preview */}
+                  <div className="w-full" style={{ height: '500px' }}>
+                    <iframe
+                      src={documentUrl}
+                      className="w-full h-full"
+                      title={`Devis ${quoteNumber} - Document signé`}
+                      style={{ border: 'none' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!documentUrl && (
+                <div className={`rounded-lg border p-8 text-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" style={{ color: primaryColor }} />
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Aucun document signé disponible
+                  </p>
                 </div>
               )}
 
@@ -201,7 +220,7 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
                   style={{ borderColor: primaryColor, color: primaryColor }}
                 >
                   <Upload className="w-4 h-4" />
-                  Remplacer le document
+                  {documentUrl ? 'Remplacer le document' : 'Ajouter un document'}
                 </Button>
                 <input
                   type="file"
@@ -211,15 +230,17 @@ export const SignedDocumentModal: React.FC<SignedDocumentModalProps> = ({
                   onChange={handleFileInputChange}
                 />
 
-                <Button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  variant="outline"
-                  className="w-full flex items-center justify-center gap-2"
-                  style={{ borderColor: '#ef4444', color: '#ef4444' }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Supprimer le document
-                </Button>
+                {documentUrl && (
+                  <Button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
+                    style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Supprimer le document
+                  </Button>
+                )}
               </div>
             </div>
           )}
