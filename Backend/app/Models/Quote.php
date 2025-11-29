@@ -37,6 +37,8 @@ class Quote extends Model
         'total_ttc' => 'decimal:2',
     ];
 
+    protected $appends = ['signed_document_url'];
+
     public function client()
     {
         return $this->belongsTo(Client::class);
@@ -111,6 +113,15 @@ class Quote extends Model
     {
         if (!$this->valid_until) return null;
         return now()->diffInDays($this->valid_until, false);
+    }
+
+    public function getSignedDocumentUrlAttribute()
+    {
+        if (!$this->signed_document_path) {
+            return null;
+        }
+
+        return asset('storage/' . $this->signed_document_path);
     }
 }
 
