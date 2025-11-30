@@ -29,7 +29,8 @@ import {
   Calendar,
   X,
   FileDown,
-  RotateCw
+  RotateCw,
+  Eye
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
@@ -615,19 +616,26 @@ export const MesDevis = (): JSX.Element => {
   const handleStatusClick = (quote: Quote, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    setStatusChangeQuote(quote);
-
-    // Determine target status based on current status
+    // Only allow status change for 'draft' and 'sent' statuses
+    // For 'accepted', use the eye icon to view document
     if (quote.status === 'draft') {
+      setStatusChangeQuote(quote);
       setTargetStatus('sent');
+      setShowStatusChangeModal(true);
     } else if (quote.status === 'sent') {
+      setStatusChangeQuote(quote);
       setTargetStatus('accepted');
-    } else if (quote.status === 'accepted') {
-      // If already accepted, keep target as 'accepted' to show document viewer
-      setTargetStatus('accepted');
+      setShowStatusChangeModal(true);
     }
+    // For 'accepted' status, clicking on badge does nothing
+    // User should click the eye icon to view document
+  };
 
-    setShowStatusChangeModal(true);
+  // Handle eye icon click to view signed document
+  const handleViewSignedDocument = (quote: Quote, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSignedDocQuote(quote);
+    setShowSignedDocModal(true);
   };
 
   // Handle status change confirmation
@@ -1149,17 +1157,29 @@ export const MesDevis = (): JSX.Element => {
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <Badge
-                          onClick={(e) => handleStatusClick(quote, e)}
-                          className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
-                          style={{
-                            backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
-                            color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
-                          }}
-                        >
-                          {quote.status === 'accepted' && <Check className="w-3 h-3" />}
-                          {getStatusLabel(quote.status)}
-                        </Badge>
+                        <div className="flex items-center justify-center gap-2">
+                          <Badge
+                            onClick={(e) => handleStatusClick(quote, e)}
+                            className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex ${quote.status === 'draft' || quote.status === 'sent' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'} transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                            style={{
+                              backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
+                              color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
+                            }}
+                          >
+                            {quote.status === 'accepted' && <Check className="w-3 h-3" />}
+                            {getStatusLabel(quote.status)}
+                          </Badge>
+                          {/* Eye icon to view signed document */}
+                          {quote.status === 'accepted' && (quote as any).signed_document_url && (
+                            <button
+                              onClick={(e) => handleViewSignedDocument(quote, e)}
+                              className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
+                              title="Voir le document signé"
+                            >
+                              <Eye className={`w-4 h-4`} style={{ color: primaryColor }} />
+                            </button>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-2">
