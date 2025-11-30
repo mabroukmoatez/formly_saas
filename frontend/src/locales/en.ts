@@ -466,6 +466,8 @@ export default {
         individual: 'Individual',
         company: 'Company',
         apply_filters: 'Apply Filters',
+        applying_filters: 'Applying Filters',
+        please_wait: 'Please wait...',
         actions: 'Actions',
         total_ht: 'Total (Excl. Tax)',
         total_tva: 'Total VAT',

@@ -687,6 +687,8 @@ export default {
         individual: 'Particulier',
         company: 'Entreprise',
         apply_filters: 'Appliquer les filtres',
+        applying_filters: 'Application des filtres',
+        please_wait: 'Veuillez patienter...',
         actions: 'Actions',
         total_ht: 'Total HT',
         total_tva: 'Total TVA',

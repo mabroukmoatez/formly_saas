@@ -92,6 +92,19 @@ export const MesDevis = (): JSX.Element => {
   const [exportingPDF, setExportingPDF] = useState(false);
   const [exportProgress, setExportProgress] = useState('');
 
+  // Filter loading state
+  const [applyingFilters, setApplyingFilters] = useState(false);
+
+  // Store filter values when modal opens (to restore if closed without applying)
+  const filterBackupRef = useRef({
+    minAmount: '',
+    maxAmount: '',
+    dateFrom: '',
+    dateTo: '',
+    filterType: '',
+    filterStatus: ''
+  });
+
   // Format date for input (DD-MM-YYYY)
   const formatDateForInput = (date: Date): string => {
     const day = String(date.getDate()).padStart(2, '0');
@@ -364,11 +377,42 @@ export const MesDevis = (): JSX.Element => {
     setDateTo(formatDateForInput(today));
   };
 
-  // Apply filters
-  const applyFilters = () => {
+  // Apply filters with loading state
+  const applyFilters = async () => {
+    setApplyingFilters(true);
     setShowFilterModal(false);
     setPage(1);
-    fetchQuotes();
+
+    try {
+      await fetchQuotes();
+    } finally {
+      setApplyingFilters(false);
+    }
+  };
+
+  // Handle filter modal open/close
+  const handleFilterModalChange = (open: boolean) => {
+    if (open) {
+      // Store current filter values as backup when opening
+      filterBackupRef.current = {
+        minAmount,
+        maxAmount,
+        dateFrom,
+        dateTo,
+        filterType,
+        filterStatus
+      };
+      setShowFilterModal(true);
+    } else {
+      // Restore original filter values when closing without applying
+      setMinAmount(filterBackupRef.current.minAmount);
+      setMaxAmount(filterBackupRef.current.maxAmount);
+      setDateFrom(filterBackupRef.current.dateFrom);
+      setDateTo(filterBackupRef.current.dateTo);
+      setFilterType(filterBackupRef.current.filterType);
+      setFilterStatus(filterBackupRef.current.filterStatus);
+      setShowFilterModal(false);
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -1248,7 +1292,7 @@ export const MesDevis = (): JSX.Element => {
       />
 
       {/* Filter Modal */}
-      <Dialog open={showFilterModal} onOpenChange={setShowFilterModal}>
+      <Dialog open={showFilterModal} onOpenChange={handleFilterModalChange}>
         <DialogContent className={`sm:max-w-2xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
           <DialogHeader>
             <DialogTitle className={`text-xl font-bold ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
@@ -1521,6 +1565,30 @@ export const MesDevis = (): JSX.Element => {
                 </p>
                 <p className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {exportProgress}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Loading Overlay */}
+      {applyingFilters && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl border p-8 shadow-2xl min-w-[300px]`}>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative">
+                <div
+                  className="animate-spin rounded-full h-16 w-16 border-b-4 border-t-4"
+                  style={{ borderColor: primaryColor }}
+                ></div>
+              </div>
+              <div className="text-center">
+                <p className={`font-semibold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {t('dashboard.commercial.mes_devis.applying_filters')}
+                </p>
+                <p className={`text-sm mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {t('dashboard.commercial.mes_devis.please_wait')}
                 </p>
               </div>
             </div>
