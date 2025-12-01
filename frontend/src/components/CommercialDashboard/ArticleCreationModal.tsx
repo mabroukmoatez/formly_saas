@@ -37,9 +37,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
     category: '',
     price_ht: '',
     tva: '',
-    stock_quantity: '',
-    min_stock: '',
-    unit: 'unités',
   });
   const [saving, setSaving] = useState(false);
 
@@ -53,9 +50,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         category: article.category || '',
         price_ht: String(article.price_ht || article.unit_price || ''),
         tva: String(article.tva || article.tax_rate || '20'),
-        stock_quantity: String(article.stock_quantity || ''),
-        min_stock: String(article.min_stock || ''),
-        unit: article.unit || 'unités',
       });
     } else if (isOpen && !article) {
       // Reset to defaults when creating new
@@ -67,9 +61,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         category: '',
         price_ht: '',
         tva: '20',
-        stock_quantity: '',
-        min_stock: '',
-        unit: 'unités',
       });
     }
   }, [isOpen, article]);
@@ -96,9 +87,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         category: formData.category,
         price_ht: parseFloat(formData.price_ht),
         tva: parseFloat(formData.tva),
-        stock_quantity: formData.stock_quantity ? parseInt(formData.stock_quantity) : undefined,
-        min_stock: formData.min_stock ? parseInt(formData.min_stock) : undefined,
-        unit: formData.unit,
       };
 
       if (article?.id) {
@@ -250,16 +238,14 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
                   TVA (%) <span className="text-red-500">*</span>
                 </Label>
-                <select
+                <Input
+                  type="number"
+                  step="0.01"
                   value={formData.tva}
                   onChange={(e) => handleInputChange('tva', e.target.value)}
-                  className={`w-full px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                >
-                  <option value="0">0%</option>
-                  <option value="5.5">5.5%</option>
-                  <option value="10">10%</option>
-                  <option value="20">20%</option>
-                </select>
+                  placeholder="20"
+                  className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
+                />
               </div>
 
               <div className="space-y-2">
@@ -269,53 +255,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 <div className={`px-3 py-2 rounded-md border ${isDark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-300 text-gray-700'} font-semibold`}>
                   {calculatePriceTTC()}
                 </div>
-              </div>
-            </div>
-
-            {/* Stock Management */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Quantité en stock
-                </Label>
-                <Input
-                  type="number"
-                  value={formData.stock_quantity}
-                  onChange={(e) => handleInputChange('stock_quantity', e.target.value)}
-                  placeholder="0"
-                  className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Stock minimum
-                </Label>
-                <Input
-                  type="number"
-                  value={formData.min_stock}
-                  onChange={(e) => handleInputChange('min_stock', e.target.value)}
-                  placeholder="0"
-                  className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Unité
-                </Label>
-                <select
-                  value={formData.unit}
-                  onChange={(e) => handleInputChange('unit', e.target.value)}
-                  className={`w-full px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                >
-                  <option value="unités">Unités</option>
-                  <option value="heures">Heures</option>
-                  <option value="jours">Jours</option>
-                  <option value="kg">Kilogrammes</option>
-                  <option value="litres">Litres</option>
-                  <option value="mètres">Mètres</option>
-                </select>
               </div>
             </div>
 

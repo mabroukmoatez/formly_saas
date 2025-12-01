@@ -8,7 +8,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
 import { Article } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
-import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet, Filter } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import {
@@ -45,23 +45,28 @@ export const MesArticles = (): JSX.Element => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterMinTTC, setFilterMinTTC] = useState<string>('');
+  const [filterMaxTTC, setFilterMaxTTC] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
       }
     };
-    if (showSortDropdown) {
+    if (showFilterDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSortDropdown]);
+  }, [showFilterDropdown]);
 
   useEffect(() => {
     fetchArticles();
@@ -127,7 +132,42 @@ export const MesArticles = (): JSX.Element => {
   };
 
   const sortedArticles = useMemo(() => {
-    const sorted = [...articles];
+    // First apply filters
+    let filtered = [...articles];
+
+    // Filter by category
+    if (filterCategory) {
+      filtered = filtered.filter(article => article.category === filterCategory);
+    }
+
+    // Filter by TTC amount (min/max)
+    if (filterMinTTC || filterMaxTTC) {
+      filtered = filtered.filter(article => {
+        const priceHT = normalizeValue(article.price_ht || article.unit_price);
+        const tva = normalizeValue(article.tva || article.tax_rate);
+        const priceTTC = priceHT * (1 + tva / 100);
+
+        const min = filterMinTTC ? parseFloat(filterMinTTC) : -Infinity;
+        const max = filterMaxTTC ? parseFloat(filterMaxTTC) : Infinity;
+
+        return priceTTC >= min && priceTTC <= max;
+      });
+    }
+
+    // Filter by date range
+    if (filterStartDate || filterEndDate) {
+      filtered = filtered.filter(article => {
+        const articleDate = new Date(article.updated_at);
+        const startDate = filterStartDate ? new Date(filterStartDate) : new Date(0);
+        const endDate = filterEndDate ? new Date(filterEndDate) : new Date();
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+
+        return articleDate >= startDate && articleDate <= endDate;
+      });
+    }
+
+    // Then sort
+    const sorted = [...filtered];
     sorted.sort((a, b) => {
       let aValue: any;
       let bValue: any;
@@ -182,7 +222,7 @@ export const MesArticles = (): JSX.Element => {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     return sorted;
-  }, [articles, sortField, sortDirection]);
+  }, [articles, sortField, sortDirection, filterCategory, filterMinTTC, filterMaxTTC, filterStartDate, filterEndDate]);
 
   const confirmDeleteArticle = async () => {
     if (!articleToDelete) return;
@@ -240,7 +280,17 @@ export const MesArticles = (): JSX.Element => {
 
   const handleExportExcel = async () => {
     try {
-      const csvData = sortedArticles.map(article => {
+      // Export only selected articles if any, otherwise export all
+      const articlesToExport = selectedArticles.size > 0
+        ? sortedArticles.filter(article => selectedArticles.has(String(article.id)))
+        : sortedArticles;
+
+      if (articlesToExport.length === 0) {
+        showError('Erreur', 'Aucun article à exporter');
+        return;
+      }
+
+      const csvData = articlesToExport.map(article => {
         const priceHT = normalizeValue(article.price_ht || article.unit_price);
         const tva = normalizeValue(article.tva || article.tax_rate);
         const priceTTC = calculateTTC(priceHT, tva);
@@ -254,12 +304,12 @@ export const MesArticles = (): JSX.Element => {
           'Dernière MAJ': formatDate(article.updated_at),
         };
       });
-      
+
       const csv = [
         Object.keys(csvData[0]).join(','),
         ...csvData.map(row => Object.values(row).join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -267,7 +317,7 @@ export const MesArticles = (): JSX.Element => {
       a.download = `articles_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      success('Articles exportés avec succès');
+      success(`${articlesToExport.length} article(s) exporté(s) avec succès`);
     } catch (err) {
       showError('Erreur', 'Impossible d\'exporter les articles');
     }
@@ -367,61 +417,124 @@ export const MesArticles = (): JSX.Element => {
               </span>
             </Button>
 
-            {/* Delete Button */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (selectedArticles.size === 0) return;
-                setShowDeleteModal(true);
-                setArticleToDelete('bulk');
-              }}
-              disabled={selectedArticles.size === 0}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'} ${selectedArticles.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              style={{ 
-                borderColor: selectedArticles.size > 0 ? '#ef4444' : undefined,
-                borderStyle: 'dashed',
-              }}
-            >
-              <Trash2 className={`w-4 h-4 ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-              <span className={`font-medium text-sm ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Supprimer {selectedArticles.size > 0 && `(${selectedArticles.size})`}
-              </span>
-            </Button>
-          </div>
-
-          {/* Right: Sort */}
-          <div className="flex items-center gap-3">
-            <div className="relative" ref={sortDropdownRef}>
+            {/* Delete Button - Only show when articles are selected */}
+            {selectedArticles.size > 0 && (
               <Button
                 variant="outline"
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                onClick={() => {
+                  setShowDeleteModal(true);
+                  setArticleToDelete('bulk');
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'}`}
+                style={{
+                  borderColor: '#ef4444',
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+                <span className="font-medium text-sm text-red-500">
+                  Supprimer ({selectedArticles.size})
+                </span>
+              </Button>
+            )}
+          </div>
+
+          {/* Right: Filter */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={filterDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
               >
-                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+                <Filter className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
                 <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Trier
+                  Filtrer
                 </span>
                 <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               </Button>
-              {showSortDropdown && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                  <div className="p-2">
-                    {(['reference', 'designation', 'category', 'price_ttc', 'updated_at'] as SortField[]).map((field) => (
+              {showFilterDropdown && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2 mb-2" style={{ borderColor: isDark ? '#4b5563' : '#e5e7eb' }}>
+                      <h3 className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>Filtres</h3>
                       <button
-                        key={field}
                         onClick={() => {
-                          handleSort(field);
-                          setShowSortDropdown(false);
+                          setFilterCategory('');
+                          setFilterMinTTC('');
+                          setFilterMaxTTC('');
+                          setFilterStartDate('');
+                          setFilterEndDate('');
                         }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                        className={`text-xs ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
                       >
-                        {field === 'reference' && 'Référence'}
-                        {field === 'designation' && 'Désignation'}
-                        {field === 'category' && 'Catégorie'}
-                        {field === 'price_ttc' && 'Montant TTC'}
-                        {field === 'updated_at' && 'Dernière MAJ'}
+                        Réinitialiser
                       </button>
-                    ))}
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Catégorie
+                      </Label>
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      >
+                        <option value="">Toutes les catégories</option>
+                        <option value="Consultation">Consultation</option>
+                        <option value="Support">Support</option>
+                        <option value="Training">Formation</option>
+                        <option value="Services">Services</option>
+                        <option value="Subscription">Abonnement</option>
+                        <option value="Product">Produit</option>
+                      </select>
+                    </div>
+
+                    {/* TTC Amount Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Montant TTC
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={filterMinTTC}
+                          onChange={(e) => setFilterMinTTC(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={filterMaxTTC}
+                          onChange={(e) => setFilterMaxTTC(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Date Range Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Date de dernière MAJ
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="date"
+                          value={filterStartDate}
+                          onChange={(e) => setFilterStartDate(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                        <Input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(e) => setFilterEndDate(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -709,10 +822,12 @@ export const MesArticles = (): JSX.Element => {
         isOpen={showDeleteModal}
         onClose={cancelDeleteArticle}
         onConfirm={confirmDeleteArticle}
-        title={articleToDelete === 'bulk' 
+        title={articleToDelete === 'bulk'
           ? `Voulez-vous vraiment supprimer ${selectedArticles.size} article(s) ?`
           : "Voulez-vous vraiment supprimer cet article ?"}
-        message="Cette action est irréversible. L'article sera définitivement supprimé."
+        message={articleToDelete === 'bulk'
+          ? "Cette action est irréversible. Les articles seront définitivement supprimés."
+          : "Cette action est irréversible. L'article sera définitivement supprimé."}
         confirmText="Supprimer"
         cancelText="Annuler"
         type="danger"
