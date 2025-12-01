@@ -74,7 +74,7 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
   const handleSave = async () => {
     // Validation
     if (!formData.designation || !formData.price_ht || !formData.tva) {
-      showError('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      showError(t('common.error'), t('dashboard.commercial.mes_articles.modal.required_fields_error'));
       return;
     }
 
@@ -93,23 +93,23 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         // Update existing article
         const response = await commercialService.updateArticle(String(article.id), articleData);
         if (response.success) {
-          success('Article modifié avec succès');
+          success(t('dashboard.commercial.mes_articles.modal.edit_success'));
           onSave();
         } else {
-          showError('Erreur', 'Impossible de modifier l\'article');
+          showError(t('common.error'), t('dashboard.commercial.mes_articles.modal.edit_error'));
         }
       } else {
         // Create new article
         const response = await commercialService.createArticle(articleData);
         if (response.success) {
-          success('Article créé avec succès');
+          success(t('dashboard.commercial.mes_articles.modal.create_success'));
           onSave();
         } else {
-          showError('Erreur', 'Impossible de créer l\'article');
+          showError(t('common.error'), t('dashboard.commercial.mes_articles.modal.create_error'));
         }
       }
     } catch (err: any) {
-      showError('Erreur', err.message || 'Une erreur est survenue');
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_articles.modal.error_occurred'));
     } finally {
       setSaving(false);
     }
@@ -136,10 +136,10 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
             </div>
             <div>
               <h2 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {article ? 'Modifier l\'article' : 'Créer un article'}
+                {article ? t('dashboard.commercial.mes_articles.modal.edit_title') : t('dashboard.commercial.mes_articles.modal.create_title')}
               </h2>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                {article ? 'Modifiez les informations de l\'article' : 'Ajoutez un nouvel article à votre catalogue'}
+                {article ? t('dashboard.commercial.mes_articles.modal.edit_subtitle') : t('dashboard.commercial.mes_articles.modal.create_subtitle')}
               </p>
             </div>
           </div>
@@ -161,32 +161,32 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Référence <span className="text-red-500">*</span>
+                  {t('dashboard.commercial.mes_articles.modal.reference_label')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   value={formData.reference}
                   onChange={(e) => handleInputChange('reference', e.target.value)}
-                  placeholder="ART-2025-001"
+                  placeholder={t('dashboard.commercial.mes_articles.modal.reference_placeholder')}
                   className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Catégorie
+                  {t('dashboard.commercial.mes_articles.modal.category_label')}
                 </Label>
                 <select
                   value={formData.category}
                   onChange={(e) => handleInputChange('category', e.target.value)}
                   className={`w-full px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                 >
-                  <option value="">Sélectionner une catégorie</option>
-                  <option value="Consultation">Consultation</option>
-                  <option value="Support">Support</option>
-                  <option value="Training">Formation</option>
-                  <option value="Services">Services</option>
-                  <option value="Subscription">Abonnement</option>
-                  <option value="Product">Produit</option>
+                  <option value="">{t('dashboard.commercial.mes_articles.modal.category_placeholder')}</option>
+                  <option value="Consultation">{t('dashboard.commercial.mes_articles.categories.consultation')}</option>
+                  <option value="Support">{t('dashboard.commercial.mes_articles.categories.support')}</option>
+                  <option value="Training">{t('dashboard.commercial.mes_articles.categories.training')}</option>
+                  <option value="Services">{t('dashboard.commercial.mes_articles.categories.services')}</option>
+                  <option value="Subscription">{t('dashboard.commercial.mes_articles.categories.subscription')}</option>
+                  <option value="Product">{t('dashboard.commercial.mes_articles.categories.product')}</option>
                 </select>
               </div>
             </div>
@@ -194,12 +194,12 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
             {/* Designation */}
             <div className="space-y-2">
               <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                Désignation <span className="text-red-500">*</span>
+                {t('dashboard.commercial.mes_articles.modal.designation_label')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 value={formData.designation}
                 onChange={(e) => handleInputChange('designation', e.target.value)}
-                placeholder="Nom de l'article ou service"
+                placeholder={t('dashboard.commercial.mes_articles.modal.designation_placeholder')}
                 className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
               />
             </div>
@@ -207,12 +207,12 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
             {/* Description */}
             <div className="space-y-2">
               <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                Description
+                {t('dashboard.commercial.mes_articles.modal.description_label')}
               </Label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Description détaillée de l'article"
+                placeholder={t('dashboard.commercial.mes_articles.modal.description_placeholder')}
                 rows={3}
                 className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
               />
@@ -222,35 +222,35 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Prix HT <span className="text-red-500">*</span>
+                  {t('dashboard.commercial.mes_articles.modal.price_ht_label')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.price_ht}
                   onChange={(e) => handleInputChange('price_ht', e.target.value)}
-                  placeholder="0.00"
+                  placeholder={t('dashboard.commercial.mes_articles.modal.price_ht_placeholder')}
                   className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  TVA (%) <span className="text-red-500">*</span>
+                  {t('dashboard.commercial.mes_articles.modal.tva_label')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.tva}
                   onChange={(e) => handleInputChange('tva', e.target.value)}
-                  placeholder="20"
+                  placeholder={t('dashboard.commercial.mes_articles.modal.tva_placeholder')}
                   className={isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                  Prix TTC
+                  {t('dashboard.commercial.mes_articles.modal.price_ttc_label')}
                 </Label>
                 <div className={`px-3 py-2 rounded-md border ${isDark ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-300 text-gray-700'} font-semibold`}>
                   {calculatePriceTTC()}
@@ -266,7 +266,7 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 disabled={saving}
                 className={isDark ? 'border-gray-600 text-gray-300' : ''}
               >
-                Annuler
+                {t('dashboard.commercial.mes_articles.modal.cancel')}
               </Button>
               <Button
                 onClick={handleSave}
@@ -277,12 +277,12 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 {saving ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    <span>Enregistrement...</span>
+                    <span>{t('dashboard.commercial.mes_articles.modal.saving')}</span>
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    <span>{article ? 'Modifier' : 'Créer l\'article'}</span>
+                    <span>{article ? t('dashboard.commercial.mes_articles.modal.edit_button') : t('dashboard.commercial.mes_articles.modal.create_button')}</span>
                   </>
                 )}
               </Button>
