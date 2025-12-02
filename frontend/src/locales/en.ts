@@ -405,7 +405,7 @@ export default {
         },
       },
       mes_devis: {
-        title: 'My Quotes',
+        title: 'Quotes',
         subtitle: 'Create and manage your quotes',
         create: 'Create a quote',
         search_placeholder: 'Search for a quote',

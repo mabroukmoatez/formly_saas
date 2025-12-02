@@ -626,7 +626,7 @@ export default {
         },
       },
       mes_devis: {
-        title: 'Mes Devis',
+        title: 'Devis',
         subtitle: 'Créez et gérez vos devis',
         create: 'Créer un devis',
         search_placeholder: 'Rechercher un devis',

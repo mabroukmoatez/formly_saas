@@ -676,27 +676,14 @@ export const MesDevis = (): JSX.Element => {
   return (
     <div className="px-[27px] py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-4">
         <div className="flex items-center gap-4">
-          <div 
-            className="w-12 h-12 rounded-[12px] flex items-center justify-center"
-            style={{ backgroundColor: `${primaryColor}15` }}
-          >
-            <FileText className="w-6 h-6" style={{ color: primaryColor }} />
-          </div>
-          <div>
             <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+              className={`font-bold text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {t('dashboard.commercial.mes_devis.title')}
             </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              {t('dashboard.commercial.mes_devis.subtitle')}
-            </p>
-          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -755,28 +742,6 @@ export const MesDevis = (): JSX.Element => {
           {/* Middle: Action Buttons (shown when quotes are selected) */}
           {selectedQuotes.size > 0 && (
             <div className="flex items-center gap-3 flex-1 justify-start" style={{ marginLeft: '16px' }}>
-              <Button
-                variant="outline"
-                onClick={handleSendSelected}
-                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
-                style={{
-                  borderColor: primaryColor,
-                  backgroundColor: primaryColor,
-                  color: 'white'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.9';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                }}
-              >
-                <FileUp className="w-4 h-4" />
-                <span className="font-medium text-sm">
-                  {t('dashboard.commercial.mes_devis.send')}
-                </span>
-              </Button>
-
               <Button
                 variant="outline"
                 onClick={handleExportSelectedExcel}
@@ -880,6 +845,29 @@ export const MesDevis = (): JSX.Element => {
                 </span>
               </Button>
             )}
+            {selectedQuotes.size > 0 && (
+             <Button
+                variant="outline"
+                onClick={handleSendSelected}
+                className="inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-lg border-2 border-dashed"
+                style={{
+                  borderColor: primaryColor,
+                  backgroundColor: primaryColor,
+                  color: 'white'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                }}
+              >
+                <FileUp className="w-4 h-4" />
+                <span className="font-medium text-sm">
+                  {t('dashboard.commercial.mes_devis.send')}
+                </span>
+              </Button>
+               )}
           </div>
         </div>
 
