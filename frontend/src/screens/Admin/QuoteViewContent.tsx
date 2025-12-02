@@ -597,8 +597,12 @@ export const QuoteViewContent: React.FC = () => {
             </div>
           )}
 
-          {/* Convert to Invoice Button - Only visible if quote is sent or accepted */}
-          {currentQuote && (currentQuote.status === 'sent' || currentQuote.status === 'accepted') && (
+          {/* Convert to Invoice Button - Visible if quote is sent/accepted OR if it needs reconversion */}
+          {currentQuote && (
+            currentQuote.status === 'sent' ||
+            currentQuote.status === 'accepted' ||
+            currentQuote.status === 'draft' // Allow conversion from draft if previously converted and modified
+          ) && (
             <Button
               variant="ghost"
               onClick={handleConvertToInvoice}

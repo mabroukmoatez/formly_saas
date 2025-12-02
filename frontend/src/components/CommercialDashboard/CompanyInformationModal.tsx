@@ -46,6 +46,11 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     capital: '',
     legal_form: '',
     director_name: '',
+    // Bank details
+    bank_name: '',
+    bank_iban: '',
+    bank_bic: '',
+    bank_account_holder: '',
   });
 
   // Load settings data when modal opens and settings are available
@@ -72,6 +77,11 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         capital: (settings as any)?.capital || '',
         legal_form: (settings as any)?.legal_form || '',
         director_name: (settings as any)?.director_name || settings?.director_name || '',
+        // Bank details
+        bank_name: (settings as any)?.bank_name || '',
+        bank_iban: (settings as any)?.bank_iban || '',
+        bank_bic: (settings as any)?.bank_bic || '',
+        bank_account_holder: (settings as any)?.bank_account_holder || '',
       });
     }
   }, [settings, isOpen, organization]);
@@ -102,17 +112,23 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
             {/* Logo Upload */}
             <div>
               <Label>Logo de l'entreprise</Label>
-              <div className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                {organization?.organization_logo_url ? (
-                  <img src={fixImageUrl(organization.organization_logo_url)} alt="Logo" className="h-20 mx-auto" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Upload className="w-8 h-8 text-gray-400" />
-                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Cliquez ici pour ajouter votre logo
-                    </span>
-                  </div>
+              <div className="mt-2">
+                {organization?.organization_logo_url && (
+                  <img src={fixImageUrl(organization.organization_logo_url)} alt="Logo" className="h-20 mb-2" />
                 )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // Handle file upload here
+                      console.log('Logo file selected:', file);
+                      // TODO: Implement actual upload logic
+                    }
+                  }}
+                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                />
               </div>
             </div>
 
@@ -264,6 +280,49 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
                     value={formData.director_name}
                     onChange={(e) => setFormData({ ...formData, director_name: e.target.value })}
                     className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Bank Details */}
+            <div>
+              <Label className="text-lg font-semibold mb-4 block">COORDONNÉES BANCAIRES</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Nom de la banque</Label>
+                  <Input
+                    value={formData.bank_name}
+                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Nom de votre banque"
+                  />
+                </div>
+                <div>
+                  <Label>Titulaire du compte</Label>
+                  <Input
+                    value={formData.bank_account_holder}
+                    onChange={(e) => setFormData({ ...formData, bank_account_holder: e.target.value })}
+                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Nom du titulaire"
+                  />
+                </div>
+                <div>
+                  <Label>IBAN</Label>
+                  <Input
+                    value={formData.bank_iban}
+                    onChange={(e) => setFormData({ ...formData, bank_iban: e.target.value })}
+                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
+                  />
+                </div>
+                <div>
+                  <Label>BIC / SWIFT</Label>
+                  <Input
+                    value={formData.bank_bic}
+                    onChange={(e) => setFormData({ ...formData, bank_bic: e.target.value })}
+                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="BNPAFRPPXXX"
                   />
                 </div>
               </div>
