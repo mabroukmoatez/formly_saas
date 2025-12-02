@@ -281,8 +281,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                   {/* Company Name and SIRET */}
                   <div className="flex gap-4">
                     <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
-                      <div className="flex flex-col gap-[14px] h-full justify-center px-[14px] py-[10px]">
-                        <p className="text-[7px] text-[#6a90ba]">Raison Social</p>
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Raison Social</p>
                         <input
                           type="text"
                           value={formData.company_name}
@@ -294,8 +294,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     </div>
 
                     <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
-                      <div className="flex flex-col gap-[14px] h-full justify-center px-[14px] py-[10px]">
-                        <p className="text-[7px] text-[#6a90ba] uppercase">Siret</p>
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba] uppercase">Siret</p>
                         <input
                           type="text"
                           value={formData.siret}
@@ -449,8 +449,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                   {/* First Name and Last Name */}
                   <div className="flex gap-4">
                     <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
-                      <div className="flex flex-col gap-[14px] h-full justify-center px-[14px] py-[10px]">
-                        <p className="text-[7px] text-[#6a90ba]">Prénom</p>
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Prénom</p>
                         <input
                           type="text"
                           value={formData.first_name}
@@ -462,8 +462,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     </div>
 
                     <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
-                      <div className="flex flex-col gap-[14px] h-full justify-center px-[14px] py-[10px]">
-                        <p className="text-[7px] text-[#6a90ba]">Nom</p>
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Nom</p>
                         <input
                           type="text"
                           value={formData.last_name}
