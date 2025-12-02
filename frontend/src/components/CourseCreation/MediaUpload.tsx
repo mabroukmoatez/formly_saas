@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { FileUpload } from '../ui/file-upload';
@@ -7,7 +7,7 @@ import { Badge } from '../ui/badge';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
-import { InfoIcon } from 'lucide-react';
+import { InfoIcon, Video, Image, X } from 'lucide-react';
 
 interface MediaUploadProps {
   introVideo: File | null;
@@ -43,55 +43,166 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#007aff';
+  
+  const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
+
+  const hasVideo = introVideo || introVideoUrl;
+  const hasImage = introImage || introImageUrl;
 
   return (
-    <Card className={`rounded-[18px] border-[#dbd8d8] shadow-[0px_0px_75.7px_#19294a17] ${className}`}>
-      <CardContent className="p-5 flex flex-col gap-4">
-        <div className="flex flex-col gap-4">
-          <div className="inline-flex items-center gap-3">
-            <div className="inline-flex items-center gap-2">
-              <div className="w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid border-[#e2e2ea]" />
-              <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#19294a] text-[17px]">
-                {t('courseCreation.form.addIntroMedia')}
-              </span>
-              <InfoIcon className="w-4 h-4" />
-            </div>
+    <div className={`flex flex-col gap-6 ${className}`}>
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className={`w-[17px] h-[17px] rounded-full border-2 ${isDark ? 'border-gray-600' : 'border-[#e2e2ea]'}`} />
+        <span className={`font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+          Ajouter Photo Ou Video D'introduction
+        </span>
+        <InfoIcon className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`} />
+      </div>
+
+      {/* Toggle Buttons */}
+      <div className="flex justify-center items-center gap-4">
+        <Button
+          type="button"
+          onClick={() => setActiveTab('video')}
+          className={`h-auto inline-flex items-center gap-2.5 px-6 py-4 rounded-[15px] font-semibold text-[17px] transition-all ${
+            activeTab === 'video'
+              ? 'bg-[#FF7B00] text-white border-[#FF7B00] hover:bg-[#e66e00]'
+              : isDark
+                ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+                : 'bg-white text-[#6a90b9] border-[#e2e2ea] hover:bg-gray-50'
+          }`}
+          style={{
+            border: activeTab === 'video' ? '1px solid #FF7B00' : undefined
+          }}
+        >
+          <span>Vidéo D'introduction</span>
+          <Video className="w-6 h-6" />
+        </Button>
+
+        <Button
+          type="button"
+          onClick={() => setActiveTab('image')}
+          className={`h-auto inline-flex items-center gap-2.5 px-6 py-4 rounded-[15px] font-semibold text-[17px] transition-all ${
+            activeTab === 'image'
+              ? 'bg-[#FF7B00] text-white border-[#FF7B00] hover:bg-[#e66e00]'
+              : isDark
+                ? 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'
+                : 'bg-white text-[#6a90b9] border-[#e2e2ea] hover:bg-gray-50'
+          }`}
+          style={{
+            border: activeTab === 'image' ? '1px solid #FF7B00' : undefined
+          }}
+        >
+          <span>Image D'introduction</span>
+          <Image className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* Upload Zones - Side by Side */}
+      <div className="flex gap-6">
+        {/* Video Upload Zone */}
+        <div className="flex-1 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`font-semibold text-[15px] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
+              Vidéo D'introduction
+            </span>
+            <InfoIcon className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
           </div>
 
-          {/* Optional label */}
-          <p className={`text-sm italic ${isDark ? 'text-gray-400' : 'text-[#718096]'}`}>
-            Ajouter (Produ Vde Video (Optionnel))
-          </p>
-
-          {/* Upload Buttons */}
-          <div className="flex justify-center items-center gap-4">
+          {hasVideo ? (
+            // Video Preview
+            <div className={`relative rounded-[20px] overflow-hidden border-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-[#FFF5EB] border-[#FF7B00]'}`}>
+              <button
+                type="button"
+                onClick={onVideoRemove}
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="p-4">
+                <div className="h-[180px] rounded-lg overflow-hidden">
+                  <RobustVideoPlayer
+                    src={introVideo ? URL.createObjectURL(introVideo) : introVideoUrl || ''}
+                    title={introVideo?.name || 'Intro Video'}
+                    size="sm"
+                    className="w-full h-full"
+                    showControls={true}
+                  />
+                </div>
+                <p className={`mt-3 text-sm text-center truncate ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
+                  {introVideo?.name || 'Vidéo d\'introduction'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            // Video Upload Drop Zone
             <FileUpload
               accept="video/*"
-              maxSize={100}
+              maxSize={20}
               courseUuid={courseUuid}
               uploadType="intro-video"
               uploadIntroVideo={uploadIntroVideo}
               onFileUploaded={(file, url) => onVideoUpload(file, url)}
             >
-              <Button 
-                className="h-auto inline-flex items-center gap-2.5 px-[19px] py-[26px] rounded-[15px] border hover:opacity-90 cursor-pointer"
-                style={{ 
-                  backgroundColor: '#FFD7B5',
-                  color: '#2D3748',
-                  border: '1px solid #FFD7B5'
-                }}
-              >
-                <span className="[font-family:'Poppins',Helvetica] font-semibold text-[17px]">
-                  Vidéo D'introduction
-                </span>
-                <img
-                  className="w-[38.89px] h-[26.39px]"
-                  alt="Video"
-                  src="/assets/icons/video.png"
-                />
-              </Button>
+              <div className={`flex flex-col items-center justify-center gap-4 p-8 rounded-[20px] border-2 border-dashed cursor-pointer transition-all hover:border-[#FF7B00] ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-600 hover:bg-gray-750' 
+                  : 'bg-[#FFF5EB] border-[#FFB366] hover:bg-[#FFEAD9]'
+              }`}>
+                <div className="w-16 h-16 rounded-xl bg-[#FF7B00] flex items-center justify-center">
+                  <Video className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-[#4A5568]'}`}>
+                    glisser ou téléchargez la vidéo d'introduction
+                  </p>
+                  <p className="text-xs text-[#FF7B00] mt-1 font-medium">
+                    Max File Size Is 20Mb
+                  </p>
+                </div>
+              </div>
             </FileUpload>
+          )}
+        </div>
 
+        {/* Image/Thumbnail Upload Zone */}
+        <div className="flex-1 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`font-semibold text-[15px] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
+              Miniature Vidéo
+            </span>
+            <InfoIcon className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-[#6a90b9]'}`} />
+          </div>
+
+          {hasImage ? (
+            // Image Preview
+            <div className={`relative rounded-[20px] overflow-hidden border-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#007aff]'}`} style={{ borderColor: primaryColor }}>
+              <button
+                type="button"
+                onClick={onImageRemove}
+                className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="p-4">
+                <div className="h-[180px] rounded-lg overflow-hidden bg-gray-100">
+                  <img 
+                    src={introImage ? URL.createObjectURL(introImage) : introImageUrl || ''} 
+                    className="w-full h-full object-cover"
+                    alt="Miniature"
+                    onError={(e) => {
+                      e.currentTarget.src = '/uploads/default/course.jpg';
+                    }}
+                  />
+                </div>
+                <p className={`mt-3 text-sm text-center truncate ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}>
+                  {introImage?.name || 'Image d\'introduction'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            // Image Upload Drop Zone
             <FileUpload
               accept="image/*"
               maxSize={10}
@@ -100,164 +211,33 @@ export const MediaUpload: React.FC<MediaUploadProps> = ({
               uploadIntroImage={uploadIntroImage}
               onFileUploaded={(file, url) => onImageUpload(file, url)}
             >
-              <Button
-                variant="outline"
-                className="h-auto inline-flex items-center gap-2.5 px-[19px] py-[26px] rounded-[15px] hover:opacity-90 cursor-pointer"
-                style={{ 
-                  borderColor: '#E6D7FF', 
-                  color: '#2D3748',
-                  backgroundColor: '#E6D7FF'
-                }}
+              <div 
+                className={`flex flex-col items-center justify-center gap-4 p-8 rounded-[20px] border-2 border-dashed cursor-pointer transition-all ${
+                  isDark 
+                    ? 'bg-gray-800 border-gray-600 hover:bg-gray-750 hover:border-blue-500' 
+                    : 'bg-white border-[#93C5FD] hover:bg-[#EBF4FF] hover:border-[#007aff]'
+                }`}
+                style={{ borderColor: isDark ? undefined : primaryColor + '66' }}
               >
-                <span className="[font-family:'Poppins',Helvetica] font-semibold text-[17px]">
-                  Image D'introduction
-                </span>
-                <img
-                  className="w-[25.53px] h-[27px]"
-                  alt="Image"
-                  src="/assets/icons/image.png"
-                />
-              </Button>
+                <div 
+                  className="w-16 h-16 rounded-xl flex items-center justify-center border-2 border-dashed"
+                  style={{ borderColor: primaryColor }}
+                >
+                  <Image className="w-8 h-8" style={{ color: primaryColor }} />
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-[#4A5568]'}`}>
+                    glisser ou téléchargez la miniature
+                  </p>
+                  <p className="text-xs mt-1 font-medium" style={{ color: primaryColor }}>
+                    Image Size 1920x1080
+                  </p>
+                </div>
+              </div>
             </FileUpload>
-          </div>
+          )}
         </div>
-
-        {/* Media Preview Section */}
-        {(introVideo || introImage || introVideoUrl || introImageUrl) && (
-          <div className="flex flex-col gap-4 px-[22px] py-[15px] bg-[#fcf1e5] rounded-[20px]">
-            <div className="flex gap-7">
-              {/* Video Preview */}
-              {(introVideo || introVideoUrl) && (
-                <div className="flex-1 flex flex-col items-center gap-4">
-                  <div className="inline-flex items-center gap-3">
-                    <div className="inline-flex items-center gap-2">
-                      <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#6a90b9] text-[17px]">
-                        {t('courseCreation.form.introVideo')}
-                      </span>
-                      <InfoIcon className="w-4 h-4" />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 px-3.5 py-[13px] w-full bg-white rounded-[42px]">
-                    <div className="flex-1 h-[168px] rounded-lg overflow-hidden">
-                      <RobustVideoPlayer
-                        src={introVideo ? URL.createObjectURL(introVideo) : introVideoUrl || ''}
-                        title={introVideo?.name || 'Intro Video'}
-                        size="sm"
-                        className="w-full h-full"
-                        showControls={true}
-                      />
-                    </div>
-                    <div className="inline-flex flex-col gap-[22px]">
-                      <div className="inline-flex flex-col gap-4">
-                        <span className="[font-family:'Poppins',Helvetica] font-medium text-[#6a90b9] text-[17px]">
-                          {introVideo?.name || 'Intro Video'}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="inline-flex items-center justify-center gap-2.5 px-3 py-[7px] bg-white rounded-[70px] h-auto"
-                          style={{
-                            borderColor: primaryColor,
-                            color: primaryColor
-                          }}
-                        >
-                          <span className="[font-family:'Poppins',Helvetica] font-medium text-[17px]">
-                            {t('courseCreation.form.uploaded')}
-                          </span>
-                        </Badge>
-                      </div>
-                      <div className="inline-flex items-center gap-[12.37px]">
-                        <FileUpload
-                          accept="video/*"
-                          maxSize={100}
-                          onFileUploaded={(file, url) => onVideoUpload(file, url)}
-                        >
-                          <Button variant="ghost" size="icon" className="w-[37.92px] h-[37.92px] p-0">
-                            <img className="w-full h-full" alt="Edit" src="/assets/icons/edit.svg" />
-                          </Button>
-                        </FileUpload>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="w-[37.92px] h-[37.92px] p-0"
-                          onClick={onVideoRemove}
-                        >
-                          <img className="w-full h-full" alt="Delete" src="/assets/icons/delete.svg" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Image Preview */}
-              {(introImage || introImageUrl) && (
-                <div className="flex-1 flex flex-col items-center gap-4">
-                  <div className="inline-flex items-center gap-3">
-                    <div className="inline-flex items-center gap-2">
-                      <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#6a90b9] text-[17px]">
-                        {t('courseCreation.form.introImage')}
-                      </span>
-                      <InfoIcon className="w-4 h-4" />
-                    </div>
-                  </div>
-
-                  <div className="relative flex items-center gap-4 px-3.5 py-[13px] w-full bg-white rounded-[42px]">
-                    <div className="flex-1 h-[168px] bg-gray-100 rounded-[26px] flex items-center justify-center">
-                      <img 
-                        src={introImage ? URL.createObjectURL(introImage) : introImageUrl || ''} 
-                        className="w-full h-full object-cover rounded-[26px]"
-                        alt="Thumbnail"
-                        onError={(e) => {
-                          e.currentTarget.src = '/uploads/default/course.jpg';
-                        }}
-                      />
-                    </div>
-                    <div className="inline-flex flex-col gap-[22px] relative z-10">
-                      <div className="inline-flex flex-col gap-4">
-                        <span className="[font-family:'Poppins',Helvetica] font-medium text-[#6a90b9] text-[17px]">
-                          {introImage?.name || 'Intro Image'}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="inline-flex items-center justify-center gap-2.5 px-3 py-[7px] bg-white rounded-[70px] h-auto"
-                          style={{
-                            borderColor: primaryColor,
-                            color: primaryColor
-                          }}
-                        >
-                          <span className="[font-family:'Poppins',Helvetica] font-medium text-[17px]">
-                            {t('courseCreation.form.uploaded')}
-                          </span>
-                        </Badge>
-                      </div>
-                      <div className="inline-flex items-center gap-[12.37px]">
-                        <FileUpload
-                          accept="image/*"
-                          maxSize={10}
-                          onFileUploaded={(file, url) => onImageUpload(file, url)}
-                        >
-                          <Button variant="ghost" size="icon" className="w-[37.92px] h-[37.92px] p-0">
-                            <img className="w-full h-full" alt="Edit" src="/assets/icons/edit.svg" />
-                          </Button>
-                        </FileUpload>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="w-[37.92px] h-[37.92px] p-0"
-                          onClick={onImageRemove}
-                        >
-                          <img className="w-full h-full" alt="Delete" src="/assets/icons/delete.svg" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };

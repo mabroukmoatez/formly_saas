@@ -8,13 +8,26 @@ import { useCourseCreation } from '../../contexts/CourseCreationContext';
 import { useToast } from '../ui/toast';
 import { FlowActionModal, FlowActionData } from './FlowActionModal';
 import { courseCreation } from '../../services/courseCreation';
-import { Play, Trash2, Edit3, Plus, Clock, Paperclip, FileText, Users, Building2, Mail, MoreVertical, GraduationCap } from 'lucide-react';
+import { 
+  Play, 
+  Plus, 
+  User, 
+  Building2, 
+  Mail, 
+  Clock, 
+  MoreVertical, 
+  FileText, 
+  Paperclip,
+  Edit3,
+  Trash2,
+  CheckCircle
+} from 'lucide-react';
 
 interface FlowAction {
   id: number;
   title: string;
   course_id: number;
-  recipient: 'formateur' | 'apprenant' | 'entreprise' | 'admin';
+  dest?: string;
   dest_type: 'email' | 'notification' | 'webhook';
   n_days: number;
   ref_date: 'enrollment' | 'completion' | 'start' | 'custom';
@@ -24,10 +37,9 @@ interface FlowAction {
   email?: { id: number; name: string; subject?: string };
   files?: Array<{ id: number; file_name: string; file_size?: number }>;
   questionnaires?: Array<{ id: number; name: string }>;
+  recipient?: 'formateur' | 'apprenant' | 'entreprise';
   created_at: string;
 }
-
-type AudienceFilter = 'all' | 'apprenant' | 'formateur' | 'entreprise';
 
 export const Step6WorkflowNew: React.FC = () => {
   const { isDark } = useTheme();
@@ -38,15 +50,17 @@ export const Step6WorkflowNew: React.FC = () => {
 
   const [flowActions, setFlowActions] = useState<FlowAction[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
+  const [questionnaires, setQuestionnaires] = useState<Array<{ id: number; name: string; title?: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedAudience, setSelectedAudience] = useState<AudienceFilter>('all');
   const [editingAction, setEditingAction] = useState<FlowAction | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'apprenant' | 'formateur' | 'entreprise'>('all');
 
   useEffect(() => {
     if (formData.courseUuid) {
       loadFlowActions();
       loadEmailTemplates();
+      loadQuestionnaires();
     }
   }, [formData.courseUuid]);
 
@@ -54,33 +68,14 @@ export const Step6WorkflowNew: React.FC = () => {
     try {
       setLoading(true);
       if (formData.courseUuid) {
-        const response: any = await courseCreation.getFlowActions(formData.courseUuid);
+        const response = await courseCreation.getFlowActions(formData.courseUuid);
         if (response.success && response.data) {
-          // Map backend response to FlowAction interface
-          const actions = Array.isArray(response.data) ? response.data : [];
-          const mappedActions = actions.map((action: any) => ({
-            id: action.id,
-            title: action.title || 'Sans titre',
-            course_id: action.course_id,
-            recipient: action.recipient || 'apprenant',
-            dest_type: action.dest_type || 'email',
-            n_days: action.n_days || 0,
-            ref_date: action.ref_date || 'start',
-            time_type: action.time_type || 'on',
-            custom_time: action.custom_time,
-            email_id: action.email_id,
-            email: action.email,
-            files: action.files || action.attachments || [],
-            questionnaires: action.questionnaires || action.questionnaire_ids?.map((id: number) => ({ id, name: `Questionnaire ${id}` })) || [],
-            created_at: action.created_at
-          }));
-          setFlowActions(mappedActions);
+          setFlowActions(response.data);
         }
       }
     } catch (error: any) {
       console.error('Error loading flow actions:', error);
       showError('Erreur', 'Impossible de charger les workflows');
-      setFlowActions([]);
     } finally {
       setLoading(false);
     }
@@ -90,10 +85,37 @@ export const Step6WorkflowNew: React.FC = () => {
     try {
       const response = await courseCreation.getEmailTemplates();
       if (response.success && response.data) {
-        setEmailTemplates(response.data);
+        // La réponse a la structure { data: { templates: [...], pagination: {...} } }
+        const templates = response.data.templates || response.data;
+        // Filtrer "Course Reminder" (mocké/hardcodé)
+        const filteredTemplates = Array.isArray(templates) 
+          ? templates.filter((t: any) => 
+              t.name?.toLowerCase() !== 'course reminder' && 
+              t.name?.toLowerCase() !== 'reminder' &&
+              !t.name?.toLowerCase().includes('course reminder')
+            )
+          : [];
+        setEmailTemplates(filteredTemplates);
       }
     } catch (error: any) {
       console.error('Error loading email templates:', error);
+    }
+  };
+
+  const loadQuestionnaires = async () => {
+    try {
+      if (!formData.courseUuid) return;
+      const response = await courseCreation.getDocumentsEnhanced(formData.courseUuid, { questionnaires_only: true });
+      if (response.success && response.data) {
+        const questionnairesList = response.data.map((q: any) => ({
+          id: q.id,
+          name: q.name || q.title || `Questionnaire ${q.id}`,
+          title: q.title
+        }));
+        setQuestionnaires(questionnairesList);
+      }
+    } catch (error: any) {
+      console.error('Error loading questionnaires:', error);
     }
   };
 
@@ -115,40 +137,64 @@ export const Step6WorkflowNew: React.FC = () => {
       if (flowActionData.custom_time) {
         formDataToSend.append('custom_time', flowActionData.custom_time);
       }
+      // Gérer email_id (number) ou email_uuid (string)
       if (flowActionData.email_id) {
-        formDataToSend.append('email_id', flowActionData.email_id.toString());
+        // Vérifier si c'est un UUID (string avec tirets) ou un ID numérique
+        if (typeof flowActionData.email_id === 'string' && flowActionData.email_id.includes('-')) {
+          // C'est un UUID, utiliser email_uuid
+          formDataToSend.append('email_uuid', flowActionData.email_id);
+        } else {
+          // C'est un ID numérique
+          const emailIdNum = typeof flowActionData.email_id === 'number' 
+            ? flowActionData.email_id 
+            : Number(flowActionData.email_id);
+          
+          if (!isNaN(emailIdNum)) {
+            formDataToSend.append('email_id', emailIdNum.toString());
+          } else {
+            throw new Error('email_id doit être un nombre valide');
+          }
+        }
       }
-      if (flowActionData.dest) {
-        formDataToSend.append('dest', flowActionData.dest);
+      // Si email_uuid est fourni séparément, l'utiliser
+      if (flowActionData.email_uuid) {
+        formDataToSend.append('email_uuid', flowActionData.email_uuid);
       }
-      if (flowActionData.document_id) {
-        formDataToSend.append('document_id', flowActionData.document_id.toString());
+      // Only send dest if it's a valid URL (for webhook type)
+      // For document type, don't send dest - backend will construct URL from document_ids
+      if (flowActionData.dest && flowActionData.type !== 'document') {
+        // Validate that dest is a valid URL
+        try {
+          new URL(flowActionData.dest);
+          formDataToSend.append('dest', flowActionData.dest);
+        } catch (e) {
+          // If dest is not a valid URL, don't send it
+          console.warn('dest is not a valid URL, skipping:', flowActionData.dest);
+        }
       }
       if (flowActionData.files) {
         flowActionData.files.forEach(file => {
           formDataToSend.append('files[]', file);
         });
       }
+      if (flowActionData.document_ids && flowActionData.document_ids.length > 0) {
+        flowActionData.document_ids.forEach(docId => {
+          formDataToSend.append('document_ids[]', docId.toString());
+        });
+      }
       if (flowActionData.questionnaire_ids && flowActionData.questionnaire_ids.length > 0) {
-        flowActionData.questionnaire_ids.forEach(id => {
-          formDataToSend.append('questionnaire_ids[]', id.toString());
+        flowActionData.questionnaire_ids.forEach(qId => {
+          formDataToSend.append('questionnaire_ids[]', qId.toString());
         });
       }
 
-      if (editingAction) {
-        await courseCreation.updateFlowAction(formData.courseUuid, editingAction.id, formDataToSend);
-        showSuccess('Action automatique mise à jour');
-      } else {
-        await courseCreation.createFlowAction(formData.courseUuid, formDataToSend);
-        showSuccess('Action automatique créée');
-      }
-      
+      await courseCreation.createFlowAction(formData.courseUuid, formDataToSend);
+      showSuccess('Action automatique créée');
       await loadFlowActions();
       setShowCreateModal(false);
-      setEditingAction(null);
     } catch (error: any) {
-      console.error('Error saving flow action:', error);
-      showError('Erreur', error.message || 'Impossible de sauvegarder l\'action automatique');
+      console.error('Error creating flow action:', error);
+      showError('Erreur', error.message || 'Impossible de créer l\'action automatique');
       throw error;
     }
   };
@@ -170,399 +216,354 @@ export const Step6WorkflowNew: React.FC = () => {
     }
   };
 
-  const handleEditFlowAction = (action: FlowAction) => {
-    setEditingAction(action);
-    setShowCreateModal(true);
-  };
-
-  // Filter actions by audience
+  // Filter actions by recipient
   const filteredActions = flowActions.filter(action => {
-    if (selectedAudience === 'all') return true;
-    return action.recipient === selectedAudience;
+    if (activeFilter === 'all') return true;
+    return action.recipient === activeFilter;
   });
 
-  // Count actions by audience
-  const getAudienceCount = (audience: AudienceFilter): number => {
-    if (audience === 'all') return flowActions.length;
-    return flowActions.filter(a => a.recipient === audience).length;
+  // Count actions by recipient
+  const counts = {
+    all: flowActions.length,
+    apprenant: flowActions.filter(a => a.recipient === 'apprenant').length,
+    formateur: flowActions.filter(a => a.recipient === 'formateur').length,
+    entreprise: flowActions.filter(a => a.recipient === 'entreprise').length,
   };
 
-  // Get audience icon for recipient
-  const getRecipientIcon = (recipient: string) => {
-    switch (recipient) {
-      case 'apprenant': return <GraduationCap className="w-4 h-4" />;
-      case 'formateur': return <Users className="w-4 h-4" />;
-      case 'entreprise': return <Building2 className="w-4 h-4" />;
-      default: return <Users className="w-4 h-4" />;
-    }
-  };
-
-  // Get audience color
-  const getAudienceColor = (audience: AudienceFilter) => {
-    switch (audience) {
-      case 'apprenant': return '#EF4444'; // Red
-      case 'formateur': return '#F59E0B'; // Orange/Yellow
-      case 'entreprise': return '#3B82F6'; // Blue
-      default: return primaryColor;
-    }
-  };
-
-  // Format timing description - exact Figma format
-  const getTimingDescription = (action: FlowAction): string => {
-    if (action.time_type === 'on' && action.ref_date === 'start') {
-      return 'La Jour Même De La Premier Séance';
-    }
-    if (action.time_type === 'before' && action.n_days > 0) {
+  // Get trigger text (e.g., "3 jours avant la première séance")
+  const getTriggerText = (action: FlowAction) => {
+    if (action.ref_date === 'start' && action.time_type === 'before' && action.n_days > 0) {
       return `${action.n_days} jour${action.n_days > 1 ? 's' : ''} avant la première séance`;
     }
-    if (action.time_type === 'after' && action.n_days > 0) {
-      return `${action.n_days} jour${action.n_days > 1 ? 's' : ''} après la première séance`;
+    if (action.ref_date === 'start' && action.time_type === 'on') {
+      return 'Le jour même de la première séance';
     }
-    return '3 jours avant la première séance'; // Default
+    if (action.ref_date === 'enrollment' && action.time_type === 'after' && action.n_days > 0) {
+      return `${action.n_days} jour${action.n_days > 1 ? 's' : ''} après l'inscription`;
+    }
+    return 'Déclenchement personnalisé';
   };
 
-  // Format time
-  const formatTime = (time?: string): string => {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `At ${displayHour}:${minutes} ${ampm}`;
+  // Get time display (e.g., "At 20:30 PM")
+  const getTimeDisplay = (action: FlowAction) => {
+    if (action.custom_time) {
+      const [hours, minutes] = action.custom_time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      return `At ${displayHour}:${minutes} ${ampm}`;
+    }
+    return '';
+  };
+
+  // Get recipient icon
+  const getRecipientIcon = (recipient?: string) => {
+    switch (recipient) {
+      case 'formateur':
+        return <User className="w-4 h-4" />;
+      case 'apprenant':
+        return <User className="w-4 h-4" />;
+      case 'entreprise':
+        return <Building2 className="w-4 h-4" />;
+      default:
+        return <User className="w-4 h-4" />;
+    }
   };
 
   // Get recipient label
-  const getRecipientLabel = (recipient: string): string => {
+  const getRecipientLabel = (recipient?: string) => {
     switch (recipient) {
-      case 'apprenant': return 'Apprenant';
-      case 'formateur': return 'Formateur';
-      case 'entreprise': return 'Entreprise';
-      default: return 'Admin';
+      case 'formateur':
+        return 'Formateur';
+      case 'apprenant':
+        return 'Apprenant';
+      case 'entreprise':
+        return 'Entreprise';
+      default:
+        return 'Apprenant';
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Audience Filters */}
+    <div className="w-full space-y-6">
+      {/* Filters */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setSelectedAudience('all')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
-            selectedAudience === 'all'
-              ? 'border-blue-500 bg-blue-500 text-white'
+          onClick={() => setActiveFilter('all')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+            activeFilter === 'all'
+              ? 'bg-blue-500 text-white'
               : isDark
-                ? 'border-gray-600 bg-gray-700 text-gray-300'
-                : 'border-gray-300 bg-white text-gray-700'
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={activeFilter === 'all' ? { backgroundColor: primaryColor } : {}}
         >
           <Mail className="w-4 h-4" />
-          <span className="text-sm font-medium">Tout Afficher</span>
-          <Badge
-            className={`ml-1 ${
-              selectedAudience === 'all'
-                ? 'bg-white text-blue-500'
-                : isDark
-                  ? 'bg-gray-600 text-gray-300'
-                  : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {getAudienceCount('all')}
-          </Badge>
+          Tout Afficher {counts.all}
         </button>
-
         <button
-          onClick={() => setSelectedAudience('apprenant')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
-            selectedAudience === 'apprenant'
-              ? 'border-blue-500 bg-blue-500 text-white'
+          onClick={() => setActiveFilter('apprenant')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+            activeFilter === 'apprenant'
+              ? 'bg-blue-500 text-white'
               : isDark
-                ? 'border-gray-600 bg-gray-700 text-gray-300'
-                : 'border-gray-300 bg-white text-gray-700'
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={activeFilter === 'apprenant' ? { backgroundColor: primaryColor } : {}}
         >
-          <Users className="w-4 h-4" />
-          <span className="text-sm font-medium">Apprenant</span>
-          <Badge
-            className={`ml-1 ${
-              selectedAudience === 'apprenant'
-                ? 'bg-white text-blue-500'
-                : isDark
-                  ? 'bg-gray-600 text-gray-300'
-                  : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {getAudienceCount('apprenant')}
-          </Badge>
+          <User className="w-4 h-4" />
+          Apprenant {counts.apprenant}
         </button>
-
         <button
-          onClick={() => setSelectedAudience('formateur')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
-            selectedAudience === 'formateur'
-              ? 'border-blue-500 bg-blue-500 text-white'
+          onClick={() => setActiveFilter('formateur')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+            activeFilter === 'formateur'
+              ? 'bg-blue-500 text-white'
               : isDark
-                ? 'border-gray-600 bg-gray-700 text-gray-300'
-                : 'border-gray-300 bg-white text-gray-700'
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={activeFilter === 'formateur' ? { backgroundColor: primaryColor } : {}}
         >
-          <Users className="w-4 h-4" />
-          <span className="text-sm font-medium">Formateur</span>
-          <Badge
-            className={`ml-1 ${
-              selectedAudience === 'formateur'
-                ? 'bg-white text-blue-500'
-                : isDark
-                  ? 'bg-gray-600 text-gray-300'
-                  : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {getAudienceCount('formateur')}
-          </Badge>
+          <User className="w-4 h-4" />
+          Formateur {counts.formateur}
         </button>
-
         <button
-          onClick={() => setSelectedAudience('entreprise')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
-            selectedAudience === 'entreprise'
-              ? 'border-blue-500 bg-blue-500 text-white'
+          onClick={() => setActiveFilter('entreprise')}
+          className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+            activeFilter === 'entreprise'
+              ? 'bg-blue-500 text-white'
               : isDark
-                ? 'border-gray-600 bg-gray-700 text-gray-300'
-                : 'border-gray-300 bg-white text-gray-700'
+                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
+          style={activeFilter === 'entreprise' ? { backgroundColor: primaryColor } : {}}
         >
           <Building2 className="w-4 h-4" />
-          <span className="text-sm font-medium">Entreprise</span>
-          <Badge
-            className={`ml-1 ${
-              selectedAudience === 'entreprise'
-                ? 'bg-white text-blue-500'
-                : isDark
-                  ? 'bg-gray-600 text-gray-300'
-                  : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {getAudienceCount('entreprise')}
-          </Badge>
+          Entreprise {counts.entreprise}
         </button>
       </div>
 
-      {/* Timeline */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${primaryColor}40`, borderTopColor: primaryColor }} />
-        </div>
-      ) : (
+      {/* Timeline Container */}
+      <div className="relative">
+        {/* Background with dotted pattern */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+            opacity: 0.3
+          }}
+        />
+
+        {/* Timeline Content */}
         <div className="relative">
-          {/* Background Grid */}
-          <div 
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }}
-          />
+          {/* Start Button */}
+          <div className="flex justify-center mb-6">
+            <button
+              className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 ${
+                isDark ? 'bg-gray-800 text-white border-2 border-gray-700' : 'bg-black text-white border-2 border-black'
+              }`}
+            >
+              <Play className="w-5 h-5" />
+              Démarrage
+            </button>
+          </div>
 
-          {/* Timeline Content */}
-          <div className="relative space-y-4">
-            {/* Start Button */}
-            <div className="flex justify-center">
-              <Button
-                className="rounded-lg px-6 py-3 font-semibold"
-                style={{ backgroundColor: '#1F2937' }}
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Démarrage
-              </Button>
+          {/* Vertical Dotted Line */}
+          <div className="flex justify-center mb-4">
+            <div 
+              className="w-0.5"
+              style={{
+                height: `${Math.max(filteredActions.length * 200, 100)}px`,
+                borderLeft: `2px dashed ${isDark ? '#4b5563' : '#cbd5e1'}`,
+                marginLeft: 'auto',
+                marginRight: 'auto'
+              }}
+            />
+          </div>
+
+          {/* Actions */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${primaryColor}40`, borderTopColor: primaryColor }} />
             </div>
-
-            {/* Vertical Line */}
-            {filteredActions.length > 0 && (
-              <div className="flex justify-center">
-                <div className="w-0.5 h-full min-h-[40px]" style={{ borderLeft: '2px dashed #3B82F6' }} />
-              </div>
-            )}
-
-            {/* Action Cards */}
-            {filteredActions.length === 0 ? (
-              <Card className={isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}>
-                <CardContent className="py-12">
-                  <div className="text-center">
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Aucune action automatique
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              filteredActions.map((action, index) => (
-                <div key={action.id} className="relative">
-                  {/* Timing Label */}
-                  <div className="flex justify-center mb-2">
-                    <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {getTimingDescription(action)}
+          ) : filteredActions.length === 0 ? (
+            <div className="text-center py-12">
+              <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                Aucune action automatique
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {filteredActions.map((action, index) => (
+                <div key={action.id} className="flex flex-col items-center">
+                  {/* Trigger Text with Dotted Line Connection */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <div 
+                      className="h-0.5 flex-1"
+                      style={{
+                        borderTop: `1px dashed ${isDark ? '#4b5563' : '#cbd5e1'}`
+                      }}
+                    />
+                    <span className={`text-sm font-medium whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {getTriggerText(action)}
                     </span>
+                    <div 
+                      className="h-0.5 flex-1"
+                      style={{
+                        borderTop: `1px dashed ${isDark ? '#4b5563' : '#cbd5e1'}`
+                      }}
+                    />
                   </div>
 
-                  {/* Action Card - Exact Figma Design */}
-                  <div className="flex justify-center">
-                    <Card className="w-full max-w-md bg-yellow-50 border-yellow-200 shadow-sm">
-                      <CardContent className="p-4">
-                        {/* Header with title and menu */}
-                        <div className="flex items-start justify-between mb-3">
-                          <h4 className="font-semibold text-base text-gray-900">
-                            {action.title}
+                  {/* Action Card */}
+                  <Card 
+                    className={`w-full max-w-md ${isDark ? 'bg-yellow-50/10 border-gray-700' : 'bg-yellow-50 border-gray-200'} shadow-md`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          {/* Title */}
+                          <h4 className={`font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {action.title || 'Action sans titre'}
                           </h4>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 -mt-1 -mr-1">
-                            <MoreVertical className="w-4 h-4 text-gray-500" />
-                          </Button>
-                        </div>
 
-                        {/* Files and Questionnaires - Clickable links like Figma */}
-                        <div className="flex items-center gap-3 mb-3">
-                          {action.files && action.files.length > 0 ? (
-                            <button 
-                              className="text-green-600 text-sm font-medium hover:underline cursor-pointer"
-                              onClick={() => {
-                                // TODO: Open file preview/download
-                                console.log('View files:', action.files);
-                              }}
-                            >
-                              {action.files.length} Fichier Joint
-                            </button>
-                          ) : null}
-                          {action.questionnaires && action.questionnaires.length > 0 ? (
-                            <button 
-                              className="text-blue-600 text-sm font-medium hover:underline cursor-pointer"
-                              onClick={() => {
-                                // TODO: Open questionnaire preview
-                                console.log('View questionnaires:', action.questionnaires);
-                              }}
-                            >
-                              {action.questionnaires.length} Questionnaire
-                            </button>
-                          ) : null}
-                        </div>
+                          {/* Files and Questionnaires */}
+                          <div className="flex items-center gap-3 mb-3">
+                            {action.files && action.files.length > 0 && (
+                              <Badge className="bg-green-100 text-green-700 border-0">
+                                {action.files.length} Fichier{action.files.length > 1 ? 's' : ''} Joint{action.files.length > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                            {action.questionnaires && action.questionnaires.length > 0 && (
+                              <Badge className="bg-blue-100 text-blue-700 border-0">
+                                {action.questionnaires.length} Questionnaire{action.questionnaires.length > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                            {(!action.files || action.files.length === 0) && (!action.questionnaires || action.questionnaires.length === 0) && (
+                              <>
+                                <Badge className="bg-gray-100 text-gray-500 border-0">
+                                  Aucun Fichier Joint
+                                </Badge>
+                                <Badge className="bg-gray-100 text-gray-500 border-0">
+                                  Aucun Questionnaire
+                                </Badge>
+                              </>
+                            )}
+                          </div>
 
-                        {/* Recipient and Time - Bottom section */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white"
-                              style={{ backgroundColor: getAudienceColor(action.recipient) }}
-                            >
-                              {getRecipientIcon(action.recipient)}
+                          {/* Recipient and Time */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                action.recipient === 'formateur' 
+                                  ? 'bg-purple-100 text-purple-700' 
+                                  : action.recipient === 'entreprise'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-pink-100 text-pink-700'
+                              }`}>
+                                {getRecipientIcon(action.recipient)}
+                              </div>
+                              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {getRecipientLabel(action.recipient)}
+                              </span>
                             </div>
-                            <span className="text-sm font-medium text-gray-700">
-                              {getRecipientLabel(action.recipient)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-gray-500" />
-                            <span className="text-xs text-gray-600">
-                              {formatTime(action.custom_time)}
-                            </span>
+                            {getTimeDisplay(action) && (
+                              <div className="flex items-center gap-1">
+                                <Clock className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  {getTimeDisplay(action)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Action Buttons - Bottom border */}
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditFlowAction(action)}
-                            className="h-6 px-2 text-xs hover:bg-gray-100"
+                        {/* Actions Menu */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingAction(action)}
+                            className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                           >
-                            <Edit3 className="w-3 h-3 mr-1" />
-                            Modifier
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDeleteFlowAction(action.id)}
-                            className="h-6 px-2 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className={`p-2 rounded-lg text-red-500 ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                           >
-                            <Trash2 className="w-3 h-3 mr-1" />
-                            Retirer
-                          </Button>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Vertical Line between actions */}
-                  {index < filteredActions.length - 1 && (
-                    <div className="flex justify-center my-4">
-                      <div className="w-0.5 h-8" style={{ borderLeft: '2px dashed #3B82F6' }} />
-                    </div>
-                  )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-              ))
-            )}
-
-            {/* Add Action Button */}
-            <div className="flex justify-center pt-4">
-              <Button
-                onClick={() => {
-                  setEditingAction(null);
-                  setShowCreateModal(true);
-                }}
-                variant="outline"
-                className="border-2 border-dashed rounded-lg px-6 py-3"
-                style={{ borderColor: primaryColor }}
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                ajouter une action automatique
-              </Button>
+              ))}
             </div>
+          )}
 
-            {/* Quick Add Buttons */}
-            {filteredActions.length > 0 && (
-              <div className="flex justify-center gap-3 mt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingAction(null);
-                    setShowCreateModal(true);
-                  }}
-                  className="text-xs"
+          {/* Add Action Button */}
+          <div className="flex flex-col items-center mt-8">
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              className="gap-2 mb-4"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <Plus className="w-4 h-4" />
+              ajouter une action automatique
+            </Button>
+
+            {/* Recipient Icons */}
+            <div className="flex items-center gap-4">
+              <div className="flex flex-col items-center gap-1">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${primaryColor}20` }}
                 >
-                  <Users className="w-3 h-3 mr-1" />
+                  <User className="w-5 h-5" style={{ color: primaryColor }} />
+                </div>
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   Formateur
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingAction(null);
-                    setShowCreateModal(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Users className="w-3 h-3 mr-1" />
-                  Apprenant
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setEditingAction(null);
-                    setShowCreateModal(true);
-                  }}
-                  className="text-xs"
-                >
-                  <Building2 className="w-3 h-3 mr-1" />
-                  Entreprise
-                </Button>
+                </span>
               </div>
-            )}
+              <div className="flex flex-col items-center gap-1">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${primaryColor}20` }}
+                >
+                  <User className="w-5 h-5" style={{ color: primaryColor }} />
+                </div>
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Apprenant
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: `${primaryColor}20` }}
+                >
+                  <Building2 className="w-5 h-5" style={{ color: primaryColor }} />
+                </div>
+                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Entreprise
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Create/Edit Modal */}
       <FlowActionModal
-        isOpen={showCreateModal}
+        isOpen={showCreateModal || editingAction !== null}
         onClose={() => {
           setShowCreateModal(false);
           setEditingAction(null);
@@ -570,7 +571,7 @@ export const Step6WorkflowNew: React.FC = () => {
         onSave={handleCreateFlowAction}
         courseId={formData.courseUuid || ''}
         emailTemplates={emailTemplates}
-        editingAction={editingAction}
+        questionnaires={questionnaires}
       />
     </div>
   );

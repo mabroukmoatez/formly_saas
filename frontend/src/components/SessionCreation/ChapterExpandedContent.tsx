@@ -8,6 +8,10 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Plus, FileText, Upload, Trash2, ChevronDown, ChevronRight, Video, Image, Type, Calendar, Save, X, Edit, Clock } from 'lucide-react';
+import { SubChapterPill } from '../CourseCreation/SubChapterPill';
+import { QuizPill } from '../CourseCreation/QuizPill';
+import { DevoirPill } from '../CourseCreation/DevoirPill';
+import { ExaminPill } from '../CourseCreation/ExaminPill';
 
 interface Chapter {
   id: string;
@@ -16,8 +20,6 @@ interface Chapter {
   subChapters: any[];
   evaluations: any[];
   supportFiles: any[];
-  quizzes?: any[]; // Quiz associations
-  quiz_assignments?: any[]; // Alternative property name
   isExpanded: boolean;
   order: number;
 }
@@ -37,7 +39,12 @@ interface ChapterExpandedContentProps {
   isSectionCollapsed: (chapterId: string, sectionKey: string) => boolean;
   toggleEvaluationEditor: (chapterId: string) => void;
   isEvaluationEditorOpen: (chapterId: string) => boolean;
-  onAddQuiz?: (chapterId: string) => void; // Quiz association handler
+  onAddQuiz?: (chapterId: string) => void;
+  onAddSubChapter?: (chapterId: string) => void;
+  onAddDevoir?: (chapterId: string) => void;
+  onAddExamin?: (chapterId: string) => void;
+  pendingEvaluationType?: 'devoir' | 'examen' | null;
+  onPendingEvaluationTypeHandled?: () => void;
   children?: React.ReactNode; // For sub-chapters
 }
 
@@ -47,6 +54,10 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   onUpdateContent,
   onAddEvaluation,
   onUpdateEvaluation,
+  onAddQuiz,
+  onAddSubChapter,
+  onAddDevoir,
+  onAddExamin,
   onAddSupportFile,
   onDeleteContent,
   onDeleteEvaluation,
@@ -56,7 +67,8 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   isSectionCollapsed,
   toggleEvaluationEditor,
   isEvaluationEditorOpen,
-  onAddQuiz,
+  pendingEvaluationType,
+  onPendingEvaluationTypeHandled,
   children,
 }) => {
   const { t } = useLanguage();
@@ -66,6 +78,15 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
 
   // State for evaluation editor (local to this component)
   const [evaluationType, setEvaluationType] = useState<'devoir' | 'examen'>('devoir');
+  
+  // Handle pending evaluation type when component mounts or when it changes
+  React.useEffect(() => {
+    if (pendingEvaluationType && !isEvaluationEditorOpen(chapter.id)) {
+      setEvaluationType(pendingEvaluationType);
+      toggleEvaluationEditor(chapter.id);
+      onPendingEvaluationTypeHandled?.();
+    }
+  }, [pendingEvaluationType, chapter.id, isEvaluationEditorOpen, toggleEvaluationEditor, onPendingEvaluationTypeHandled]);
   const [editingEvaluation, setEditingEvaluation] = useState<any>(null);
   const [evaluationData, setEvaluationData] = useState({
     title: '',
@@ -75,6 +96,10 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   });
 
   const handleSaveEvaluation = () => {
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
     if (editingEvaluation) {
       // Update existing evaluation
       onUpdateEvaluation(chapter.id, editingEvaluation.id, evaluationData);
@@ -101,13 +126,26 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    const file = e.target.files?.[0];
-    if (file) {
-      onAddSupportFile(chapter.id, file);
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Upload all selected files
+      Array.from(files).forEach(file => {
+        onAddSupportFile(chapter.id, file);
+      });
+      // Reset input to allow selecting the same file again
+      e.target.value = '';
     }
   };
 
   const handleContentUpload = (type: 'text' | 'video' | 'image') => {
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
     if (type === 'text') {
       onAddContent(chapter.id, type);
     } else {
@@ -169,15 +207,15 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex items-center gap-2">
-                      {item.type === 'image' && item.file ? (
+                      {item.type === 'image' && (item.file || item.url) ? (
                         <img 
-                          src={URL.createObjectURL(item.file)} 
+                          src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                           alt={item.title || 'Image'} 
                           className="w-8 h-8 object-cover rounded"
                         />
-                      ) : item.type === 'video' && item.file ? (
+                      ) : item.type === 'video' && (item.file || item.url) ? (
                         <video 
-                          src={URL.createObjectURL(item.file)} 
+                          src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                           className="w-8 h-8 object-cover rounded"
                           controls={false}
                         />
@@ -212,12 +250,12 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                   </div>
 
                   {/* Media Preview */}
-                  {item.file && (
+                  {(item.file || item.url) && (
                     <div className="max-w-md">
                       {item.type === 'video' ? (
                         <div className="relative">
                           <RobustVideoPlayer 
-                            src={URL.createObjectURL(item.file)}
+                            src={item.url || (item.file ? URL.createObjectURL(item.file) : '')}
                             title={item.title || 'Video'}
                             size="md"
                           />
@@ -233,7 +271,7 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                       ) : item.type === 'image' ? (
                         <div className="relative">
                           <img 
-                            src={URL.createObjectURL(item.file)} 
+                            src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                             alt={item.title || 'Image'} 
                             className="w-full h-48 object-cover rounded"
                           />
@@ -264,16 +302,29 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
               ))}
 
               {/* Add Content Buttons */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium mr-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('courseSteps.step2.sections.contenus.addButtons.label')}:
+                </span>
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleContentUpload('video');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Video className="w-6 h-6" />
+                  <Video className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Vidéo</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -281,9 +332,19 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     handleContentUpload('text');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <FileText className="w-6 h-6" />
+                  <FileText className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Text</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -291,13 +352,20 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     handleContentUpload('image');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Image className="w-6 h-6" />
+                  <Image className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Image</span>
                 </Button>
-                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t('courseSteps.step2.sections.contenus.addButtons.label')}
-                </span>
               </div>
             </div>
           )}
@@ -423,20 +491,7 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('devoir');
-                    toggleEvaluationEditor(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.devoir')}
-                </Button>
-              )}
+              ) : null}
 
               {/* Examen Form */}
               {isEvaluationEditorOpen(chapter.id) && evaluationType === 'examen' ? (
@@ -490,23 +545,7 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                         onChange={(e) => setEvaluationData(prev => ({ ...prev, dueDate: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {t('courseSteps.step2.sections.evaluations.form.file')}
-                      </label>
-                      <Input
-                        type="file"
-                        className={isDark ? 'bg-gray-600 border-gray-500 text-white' : ''}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setEvaluationData(prev => ({ ...prev, file }));
-                          }
-                        }}
-                      />
-                    </div>
+                    {/* File upload removed for examen - only available in devoir */}
                     <div className="flex gap-2">
                       <Button
                         onClick={handleSaveEvaluation}
@@ -525,20 +564,156 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('examen');
-                    toggleEvaluationEditor(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.examin')}
-                </Button>
+              ) : null}
+
+              {/* Add Evaluation/Quiz Buttons */}
+              {!isEvaluationEditorOpen(chapter.id) && (
+                <div className="flex items-center gap-3 mt-4">
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Ajouter un:
+                  </span>
+                  {onAddQuiz && (
+                    <QuizPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddQuiz(chapter.id);
+                    }} />
+                  )}
+                  {onAddDevoir ? (
+                    <DevoirPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddDevoir(chapter.id);
+                    }} />
+                  ) : (
+                    <DevoirPill 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEvaluationType('devoir');
+                        toggleEvaluationEditor(chapter.id);
+                      }} 
+                    />
+                  )}
+                  {onAddExamin ? (
+                    <ExaminPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddExamin(chapter.id);
+                    }} />
+                  ) : (
+                    <ExaminPill 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEvaluationType('examen');
+                        toggleEvaluationEditor(chapter.id);
+                      }} 
+                    />
+                  )}
+                </div>
               )}
+
+              {/* Existing Associated Quizzes */}
+              {(() => {
+                const quizzes = chapter.quizzes || chapter.quiz_assignments || [];
+                console.log(`📊 Chapter ${chapter.id} quizzes:`, quizzes);
+                return quizzes.length > 0 ? (
+                  <div className="space-y-3 mb-4">
+                    <h4 className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Quiz Associés ({quizzes.length})
+                    </h4>
+                    {quizzes.map((quizAssignment: any) => {
+                    const quiz = quizAssignment.quiz || quizAssignment;
+                    return (
+                      <div
+                        key={quizAssignment.uuid || quizAssignment.id || quiz.uuid}
+                        className={`group relative p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
+                          isDark 
+                            ? 'bg-purple-900/20 border-purple-700 hover:bg-purple-800/30' 
+                            : 'bg-purple-50 border-purple-200 hover:bg-purple-100'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3 flex-1">
+                            {/* Quiz Icon */}
+                            <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                              isDark ? 'bg-purple-900/40 text-purple-400' : 'bg-purple-100 text-purple-600'
+                            }`}>
+                              <FileText className="w-5 h-5" />
+                            </div>
+                            
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className={`font-semibold text-sm truncate ${
+                                  isDark ? 'text-white' : 'text-gray-900'
+                                }`}>
+                                  {quiz.title}
+                                </h4>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  isDark ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  📝 Quiz
+                                </span>
+                              </div>
+                              
+                              {/* Quiz Info */}
+                              <div className="flex items-center gap-3 text-xs">
+                                {quiz.duration && (
+                                  <>
+                                    <span className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      <Clock className="w-3 h-3" />
+                                      {quiz.duration} min
+                                    </span>
+                                    <span className={isDark ? 'text-gray-600' : 'text-gray-300'}>•</span>
+                                  </>
+                                )}
+                                {quiz.total_questions !== undefined && (
+                                  <span className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                    <FileText className="w-3 h-3" />
+                                    {quiz.total_questions} questions
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Actions */}
+                          {onDeleteEvaluation && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    // Dissociate quiz using quizService
+                                    const { quizService } = await import('../../services/quiz');
+                                    await quizService.dissociateQuiz(quiz.uuid, chapter.id);
+                                    // Reload to show updated data
+                                    window.location.reload();
+                                  } catch (err) {
+                                    console.error('Error dissociating quiz:', err);
+                                  }
+                                }}
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Existing Evaluations */}
               {chapter.evaluations && chapter.evaluations.length > 0 && (
@@ -639,154 +814,6 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
           )}
         </CardContent>
       </Card>
-
-      {/* Quiz Association */}
-      {onAddQuiz && (
-      <Card className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] ${
-        isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#dbd8d8]'
-      }`}>
-        <CardContent className="p-5">
-          <div 
-            className="flex items-center gap-3 mb-6 cursor-pointer"
-            onClick={() => toggleSection(chapter.id, 'quizzes')}
-          >
-            <div 
-              className="w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid flex items-center justify-center"
-              style={{ 
-                backgroundColor: '#9333EA',
-                borderColor: '#9333EA'
-              }}
-            />
-            <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              Quiz Associés
-            </h3>
-            <button className="ml-auto p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded">
-              {isSectionCollapsed(chapter.id, 'quizzes') ? (
-                <ChevronRight className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
-          {!isSectionCollapsed(chapter.id, 'quizzes') && (
-            <div className="space-y-4">
-              {/* Quiz Association Button */}
-              {onAddQuiz && !isEvaluationEditorOpen(chapter.id) && (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddQuiz(chapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  style={{ borderColor: primaryColor, color: primaryColor }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Associer un Quiz
-                </Button>
-              )}
-
-              {/* Existing Associated Quizzes */}
-              {(() => {
-                const quizzes = chapter.quizzes || chapter.quiz_assignments || [];
-                return quizzes.length > 0 ? (
-                  <div className="space-y-3 mb-4">
-                    <h4 className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Quiz Associés ({quizzes.length})
-                    </h4>
-                    {quizzes.map((quizAssignment: any) => {
-                      const quiz = quizAssignment.quiz || quizAssignment;
-                      return (
-                        <div
-                          key={quizAssignment.uuid || quizAssignment.id || quiz.uuid}
-                          className={`group relative p-4 rounded-xl border transition-all duration-200 hover:shadow-md ${
-                            isDark 
-                              ? 'bg-purple-900/20 border-purple-700 hover:bg-purple-800/30' 
-                              : 'bg-purple-50 border-purple-200 hover:bg-purple-100'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3 flex-1">
-                              {/* Quiz Icon */}
-                              <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
-                                isDark ? 'bg-purple-900/40 text-purple-400' : 'bg-purple-100 text-purple-600'
-                              }`}>
-                                <FileText className="w-5 h-5" />
-                              </div>
-                              
-                              {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className={`font-semibold text-sm truncate ${
-                                    isDark ? 'text-white' : 'text-gray-900'
-                                  }`}>
-                                    {quiz.title}
-                                  </h4>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    isDark ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-700'
-                                  }`}>
-                                    📝 Quiz
-                                  </span>
-                                </div>
-                                
-                                {/* Quiz Info */}
-                                <div className="flex items-center gap-3 text-xs">
-                                  {quiz.duration && (
-                                    <>
-                                      <span className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                        <Clock className="w-3 h-3" />
-                                        {quiz.duration} min
-                                      </span>
-                                      <span className={isDark ? 'text-gray-600' : 'text-gray-300'}>•</span>
-                                    </>
-                                  )}
-                                  {quiz.total_questions !== undefined && (
-                                    <span className={`flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                                      <FileText className="w-3 h-3" />
-                                      {quiz.total_questions} questions
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Actions */}
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    // Dissociate quiz using quizService
-                                    const { quizService } = await import('../../services/quiz');
-                                    await quizService.dissociateQuiz(quiz.uuid, chapter.id);
-                                    // Reload to show updated data
-                                    window.location.reload();
-                                  } catch (err) {
-                                    console.error('Error dissociating quiz:', err);
-                                  }
-                                }}
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null;
-              })()}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
 
       {/* Support Files */}
       <Card className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] ${
@@ -957,6 +984,24 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Zone d'Ajout Enfant - SubChapterPill et QuizPill */}
+      <div className="flex items-center gap-3 mb-4">
+        <SubChapterPill onClick={() => {
+          if (!chapter.id) {
+            console.error('ChapterExpandedContent: chapter.id is undefined');
+            return;
+          }
+          onAddSubChapter?.(chapter.id);
+        }} />
+        <QuizPill onClick={() => {
+          if (!chapter.id) {
+            console.error('ChapterExpandedContent: chapter.id is undefined');
+            return;
+          }
+          onAddQuiz?.(chapter.id);
+        }} />
+      </div>
 
       {/* Sub-chapters */}
       {children}

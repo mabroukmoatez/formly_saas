@@ -30,11 +30,20 @@ class CorsMiddleware
         $response = $next($request);
 
         // Add CORS headers to the response
-        $response->header('Access-Control-Allow-Origin', '*');
-        $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-        $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-        $response->header('Access-Control-Allow-Credentials', 'false');
-        $response->header('Vary', 'Origin');
+        // BinaryFileResponse (file downloads) uses headers property, regular Response uses header() method
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
+            $response->headers->set('Access-Control-Allow-Origin', '*');
+            $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+            $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            $response->headers->set('Access-Control-Allow-Credentials', 'false');
+            $response->headers->set('Vary', 'Origin');
+        } else {
+            $response->header('Access-Control-Allow-Origin', '*');
+            $response->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+            $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+            $response->header('Access-Control-Allow-Credentials', 'false');
+            $response->header('Vary', 'Origin');
+        }
 
         return $response;
     }

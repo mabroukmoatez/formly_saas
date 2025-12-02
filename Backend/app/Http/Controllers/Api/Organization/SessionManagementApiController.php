@@ -768,7 +768,23 @@ class SessionManagementApiController extends Controller
                 ], 422);
             }
 
-            $session->delete();
+            // Delete related data first (to avoid foreign key constraints)
+            DB::beginTransaction();
+            try {
+                // Delete session instances
+                SessionInstance::where('session_uuid', $uuid)->delete();
+                
+                // Delete session participants (non-active ones)
+                SessionParticipant::where('session_uuid', $uuid)->delete();
+                
+                // Delete the session
+                $session->delete();
+                
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
 
             return response()->json([
                 'success' => true,

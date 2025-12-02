@@ -69,7 +69,7 @@ export const QualityHeader: React.FC<QualityHeaderProps> = ({ className = '', on
           }}
         >
           <ArrowLeft className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
-          <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Dashboard Commercial</span>
+          <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{t('quality.header.commercialDashboard')}</span>
         </Button>
 
         {/* Onboarding Button */}

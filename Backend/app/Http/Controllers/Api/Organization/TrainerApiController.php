@@ -63,28 +63,29 @@ class TrainerApiController extends Controller
                 });
             }
 
-            // Load relationships with counts
-            $query->withCount(['sessions', 'courses', 'evaluations', 'documents'])
-                  ->with(['sessions']);
+            // Load relationships with counts (using new course_sessions relationship)
+            $query->withCount(['courseSessions', 'evaluations', 'documents'])
+                  ->with(['courseSessions']);
 
             $trainers = $query->orderBy('name', 'asc')->get();
 
             // Enrich each trainer with computed statistics
             $trainers = $trainers->map(function($trainer) {
-                // Calculate real-time statistics
-                $upcomingSessions = $trainer->sessions->where('status', 'upcoming')->count();
-                $ongoingSessions = $trainer->sessions->where('status', 'ongoing')->count();
-                $completedSessions = $trainer->sessions->where('status', 'completed')->count();
-                $totalSessions = $trainer->sessions->count();
+                // Calculate real-time statistics using courseSessions (new system)
+                $sessions = $trainer->courseSessions;
+                $upcomingSessions = $sessions->whereIn('status', ['planned', 'open', 'confirmed'])->count();
+                $ongoingSessions = $sessions->where('status', 'in_progress')->count();
+                $completedSessions = $sessions->where('status', 'completed')->count();
+                $totalSessions = $sessions->count();
 
-                // Get assigned courses count (only existing courses)
-                // Check both course_trainers (new) and course_instructor (old) tables
-                $coursesFromTrainers = $trainer->courses_count ?? 0;
-                $coursesFromInstructors = DB::table('course_instructor')
-                    ->join('courses', 'course_instructor.course_id', '=', 'courses.id')
-                    ->where('course_instructor.instructor_id', $trainer->user_id)
-                    ->count();
-                $assignedCoursesCount = $coursesFromTrainers + $coursesFromInstructors;
+                // Get assigned courses count from course_instructor table
+                $assignedCoursesCount = 0;
+                if ($trainer->user_id) {
+                    $assignedCoursesCount = DB::table('course_instructor')
+                        ->join('courses', 'course_instructor.course_id', '=', 'courses.id')
+                        ->where('course_instructor.instructor_id', $trainer->user_id)
+                        ->count();
+                }
 
                 return [
                     'id' => $trainer->id,
@@ -228,8 +229,8 @@ class TrainerApiController extends Controller
             $trainer = Trainer::where('uuid', $trainerId)
                 ->where('is_active', true)
                 ->with([
-                    'courses',
-                    'sessions',
+                    'courseSessions',
+                    'courseSessions.course',
                     'documents',
                     'evaluations' => function($q) {
                         $q->latest()->limit(10);
@@ -238,7 +239,7 @@ class TrainerApiController extends Controller
                         $q->where('end_date', '>=', now())->orderBy('start_date');
                     }
                 ])
-                ->withCount(['sessions', 'evaluations', 'documents', 'courses'])
+                ->withCount(['courseSessions', 'evaluations', 'documents'])
                 ->first();
 
             if (!$trainer) {
@@ -248,19 +249,21 @@ class TrainerApiController extends Controller
                 ], 404);
             }
 
-            // Calculate real-time statistics
-            $upcomingSessions = $trainer->sessions->where('status', 'upcoming')->count();
-            $ongoingSessions = $trainer->sessions->where('status', 'ongoing')->count();
-            $completedSessions = $trainer->sessions->where('status', 'completed')->count();
-            $totalSessions = $trainer->sessions->count();
+            // Calculate real-time statistics using courseSessions
+            $sessions = $trainer->courseSessions;
+            $upcomingSessions = $sessions->whereIn('status', ['planned', 'open', 'confirmed'])->count();
+            $ongoingSessions = $sessions->where('status', 'in_progress')->count();
+            $completedSessions = $sessions->where('status', 'completed')->count();
+            $totalSessions = $sessions->count();
             
-            // Count courses from both systems (new trainers + old instructors)
-            $coursesFromTrainers = $trainer->courses->count();
-            $coursesFromInstructors = DB::table('course_instructor')
-                ->join('courses', 'course_instructor.course_id', '=', 'courses.id')
-                ->where('course_instructor.instructor_id', $trainer->user_id)
-                ->count();
-            $assignedCoursesCount = $coursesFromTrainers + $coursesFromInstructors;
+            // Count courses from course_instructor table
+            $assignedCoursesCount = 0;
+            if ($trainer->user_id) {
+                $assignedCoursesCount = DB::table('course_instructor')
+                    ->join('courses', 'course_instructor.course_id', '=', 'courses.id')
+                    ->where('course_instructor.instructor_id', $trainer->user_id)
+                    ->count();
+            }
 
             // Format response with all data
             $response = [
@@ -338,11 +341,14 @@ class TrainerApiController extends Controller
                         'notes' => $unavail->notes
                     ];
                 }),
-                'assigned_courses' => $trainer->courses->map(function($course) {
+                'assigned_sessions' => $trainer->courseSessions->map(function($session) {
                     return [
-                        'uuid' => $course->uuid,
-                        'name' => $course->name,
-                        'status' => $course->status ?? 'active'
+                        'uuid' => $session->uuid,
+                        'title' => $session->display_title,
+                        'course_title' => $session->course?->title,
+                        'start_date' => $session->start_date?->format('Y-m-d'),
+                        'end_date' => $session->end_date?->format('Y-m-d'),
+                        'status' => $session->status
                     ];
                 })
             ];
@@ -1129,7 +1135,7 @@ class TrainerApiController extends Controller
                 ], 403);
             }
 
-            $trainer = Trainer::where('uuid', $trainerId)->with('sessions.course')->first();
+            $trainer = Trainer::where('uuid', $trainerId)->with('courseSessions.course')->first();
 
             if (!$trainer) {
                 return response()->json([
@@ -1139,7 +1145,7 @@ class TrainerApiController extends Controller
             }
 
             $status = $request->get('status', null);
-            $sessions = $trainer->sessions;
+            $sessions = $trainer->courseSessions;
 
             if ($status) {
                 $sessions = $sessions->filter(function($session) use ($status) {
@@ -1150,12 +1156,12 @@ class TrainerApiController extends Controller
             $trainings = $sessions->map(function($session) {
                 return [
                     'id' => $session->uuid,
-                    'course_name' => $session->course->name ?? 'N/A',
-                    'session_name' => $session->name,
+                    'course_name' => $session->course->title ?? 'N/A',
+                    'session_name' => $session->display_title,
                     'status' => $session->status,
-                    'start_date' => $session->start_date,
-                    'end_date' => $session->end_date,
-                    'student_count' => $session->students_count ?? 0,
+                    'start_date' => $session->start_date?->format('Y-m-d'),
+                    'end_date' => $session->end_date?->format('Y-m-d'),
+                    'participant_count' => $session->confirmed_participants ?? 0,
                     'course_id' => $session->course->uuid ?? null,
                     'session_id' => $session->uuid
                 ];
@@ -1358,7 +1364,7 @@ class TrainerApiController extends Controller
                 ], 403);
             }
 
-            $trainer = Trainer::where('uuid', $trainerId)->with(['sessions', 'evaluations'])->first();
+            $trainer = Trainer::where('uuid', $trainerId)->with(['courseSessions', 'evaluations'])->first();
 
             if (!$trainer) {
                 return response()->json([
@@ -1367,11 +1373,12 @@ class TrainerApiController extends Controller
                 ], 404);
             }
 
+            $sessions = $trainer->courseSessions;
             $stats = [
-                'total_sessions' => $trainer->sessions->count(),
-                'upcoming_sessions' => $trainer->sessions->where('status', 'upcoming')->count(),
-                'ongoing_sessions' => $trainer->sessions->where('status', 'ongoing')->count(),
-                'completed_sessions' => $trainer->sessions->where('status', 'completed')->count(),
+                'total_sessions' => $sessions->count(),
+                'upcoming_sessions' => $sessions->whereIn('status', ['planned', 'open', 'confirmed'])->count(),
+                'ongoing_sessions' => $sessions->where('status', 'in_progress')->count(),
+                'completed_sessions' => $sessions->where('status', 'completed')->count(),
                 'average_rating' => $trainer->average_rating ?? 0,
                 'total_evaluations' => $trainer->evaluations->count(),
                 'total_hours_taught' => $trainer->total_hours_taught ?? 0

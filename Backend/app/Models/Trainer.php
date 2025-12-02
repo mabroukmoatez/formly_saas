@@ -95,10 +95,15 @@ class Trainer extends Model
         return $this->belongsTo(Organization::class);
     }
 
+    /**
+     * Courses assigned to this trainer via course_instructor table
+     * (Legacy system - uses instructor_id which may be user_id)
+     */
     public function courses()
     {
-        return $this->belongsToMany(Course::class, 'course_trainers', 'trainer_id', 'course_uuid', 'uuid', 'uuid')
-                    ->withPivot('permissions', 'assigned_at');
+        return $this->belongsToMany(Course::class, 'course_instructor', 'instructor_id', 'course_id', 'user_id', 'id')
+                    ->withPivot('permissions', 'status')
+                    ->withTimestamps();
     }
 
     // Relationships
@@ -132,9 +137,35 @@ class Trainer extends Model
         return $this->hasMany(TrainerStakeholder::class);
     }
 
+    /**
+     * Course Sessions assigned to this trainer (NEW - correct relationship)
+     * Links to course_session_trainers pivot table
+     */
+    public function courseSessions()
+    {
+        return $this->belongsToMany(CourseSession::class, 'course_session_trainers', 'trainer_uuid', 'session_uuid', 'uuid', 'uuid')
+                    ->withPivot('role', 'is_primary', 'daily_rate', 'notes')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Session Instances where this trainer is assigned
+     */
+    public function sessionInstances()
+    {
+        return $this->belongsToMany(SessionInstance::class, 'session_instance_trainers', 'trainer_id', 'instance_uuid', 'uuid', 'uuid')
+                    ->withPivot('role', 'is_primary', 'assigned_at')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Legacy sessions relationship - returns empty collection if table doesn't exist
+     * @deprecated Use courseSessions() instead
+     */
     public function sessions()
     {
-        return $this->belongsToMany(Session::class, 'session_trainers', 'trainer_id', 'session_uuid', 'uuid', 'uuid');
+        // Return course sessions instead of old sessions_training
+        return $this->courseSessions();
     }
 
     // Accessors

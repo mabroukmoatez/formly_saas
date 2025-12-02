@@ -18,6 +18,8 @@ class SessionParticipant extends Model
         'owner_user_id',
         'session_id',
         'session_uuid',
+        'course_session_uuid',
+        'course_session_id',
         'bundle_id',
         'user_package_id',
         'enrollment_date',
@@ -90,6 +92,14 @@ class SessionParticipant extends Model
     public function sessionByUuid()
     {
         return $this->belongsTo(Session::class, 'session_uuid', 'uuid');
+    }
+
+    /**
+     * The course session this participant is enrolled in (NEW - correct relationship)
+     */
+    public function courseSession()
+    {
+        return $this->belongsTo(CourseSession::class, 'course_session_uuid', 'uuid');
     }
     
     public function bundle()

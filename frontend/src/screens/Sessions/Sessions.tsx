@@ -454,6 +454,37 @@ export const Sessions: React.FC = () => {
     }
   };
 
+  const formatDuration = (duration?: string | number, durationDays?: number) => {
+    // If duration_days is provided, show it
+    if (durationDays && durationDays > 0) {
+      return `${durationDays} jour${durationDays > 1 ? 's' : ''}`;
+    }
+    
+    // If duration is provided (in minutes or as string)
+    if (duration) {
+      // If it's a string like "2 jours" or "40h", return as-is
+      if (typeof duration === 'string' && isNaN(Number(duration))) {
+        return duration;
+      }
+      
+      // If it's a number (minutes), convert to readable format
+      const minutes = typeof duration === 'string' ? parseInt(duration) : duration;
+      if (!isNaN(minutes) && minutes > 0) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        if (hours > 0 && mins > 0) {
+          return `${hours}h ${mins}min`;
+        } else if (hours > 0) {
+          return `${hours}h`;
+        } else {
+          return `${mins}min`;
+        }
+      }
+    }
+    
+    return '-';
+  };
+
   const getTrainerNames = (session: Session) => {
     if (session.trainers && session.trainers.length > 0) {
       const names = session.trainers.map(t => t.name).join(', ');
@@ -971,7 +1002,7 @@ export const Sessions: React.FC = () => {
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-sm text-[#19294a] [font-family:'Poppins',Helvetica]">
-                            {getTrainerNames(session)}
+                            {formatDuration(session.duration, session.duration_days)}
                           </span>
                         </td>
                         <td className="px-4 py-4">

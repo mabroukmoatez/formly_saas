@@ -8,6 +8,7 @@ import { ChevronDownIcon, InfoIcon } from 'lucide-react';
 import { 
   ModulesSection, 
   ObjectivesSection, 
+  TargetAudienceSection,
   PrerequisitesSection, 
   MethodsSection, 
   PricingSection, 
@@ -133,7 +134,12 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
     },
     {
       id: 3,
-      title: t('sessionCreation.sections.prerequisites'),
+      title: "Public Visé",
+      icon: '/assets/icons/expand-public.png',
+    },
+    {
+      id: 12, // New separate section for Prerequisites
+      title: "Prérequis",
       icon: '/assets/icons/expand-public.png',
     },
     {
@@ -176,12 +182,17 @@ export const CollapsibleSections: React.FC<CollapsibleSectionsProps> = ({
             onRemoveObjective={onRemoveObjective}
           />
         );
-      case 3: // Prerequisites
+      case 3: // Public Visé (Target Audience)
+        return (
+          <TargetAudienceSection
+            targetAudience={targetAudience}
+            onUpdateTargetAudience={onUpdateTargetAudience}
+          />
+        );
+      case 12: // Prérequis (Prerequisites) - Separate section
         return (
           <PrerequisitesSection
-            targetAudience={targetAudience}
             prerequisites={prerequisites}
-            onUpdateTargetAudience={onUpdateTargetAudience}
             onUpdatePrerequisites={onUpdatePrerequisites}
           />
         );

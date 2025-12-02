@@ -3,9 +3,9 @@ import { Button } from '../ui/button';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { CategoryCreationModal } from './CategoryCreationModal';
-import { SubcategoryCreationModal } from './SubcategoryCreationModal';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronDown, Check } from 'lucide-react';
 import { courseCreation } from '../../services/courseCreation';
+import { sessionCreation } from '../../services/sessionCreation';
 import { useToast } from '../ui/toast';
 
 interface CategoryButtonsProps {
@@ -18,6 +18,8 @@ interface CategoryButtonsProps {
   onCategoryCreated?: () => void;
   onSubcategoryCreated?: () => void;
   courseUuid?: string;
+  sessionUuid?: string;
+  isSession?: boolean;
   selectedPracticeIds?: number[];
   onPracticesChanged?: (practiceIds: number[]) => void;
 }
@@ -32,6 +34,8 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   onCategoryCreated,
   onSubcategoryCreated: _onSubcategoryCreated,
   courseUuid,
+  sessionUuid,
+  isSession = false,
   selectedPracticeIds = [],
   onPracticesChanged
 }) => {
@@ -41,17 +45,27 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   const primaryColor = organization?.primary_color || '#0066FF';
   
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   
   // Pratiques de formation avec checkboxes
   const [formationPractices, setFormationPractices] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [selectedPracticeIdsLocal, setSelectedPracticeIdsLocal] = useState<Set<number>>(new Set(selectedPracticeIds));
+  const onPracticesChangedRef = useRef(onPracticesChanged);
+  const hasLoadedPracticesRef = useRef(false);
+  
+  // Keep ref updated
+  useEffect(() => {
+    onPracticesChangedRef.current = onPracticesChanged;
+  }, [onPracticesChanged]);
   
   // Load formation practices from API
   useEffect(() => {
     const loadPractices = async () => {
       try {
-        const response = await courseCreation.getFormationPractices() as { success: boolean; data?: Array<{ id: number; code: string; name: string }> };
+        const response = isSession 
+          ? await sessionCreation.getFormationPractices() as { success: boolean; data?: Array<{ id: number; code: string; name: string }> }
+          : await courseCreation.getFormationPractices() as { success: boolean; data?: Array<{ id: number; code: string; name: string }> };
         if (response.success && response.data) {
           setFormationPractices(response.data);
         }
@@ -60,33 +74,57 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
       }
     };
     loadPractices();
-  }, []);
+  }, [isSession]);
   
-  // Load course practices if courseUuid is provided
+  // Load course/session practices if courseUuid or sessionUuid is provided
   useEffect(() => {
-    if (courseUuid) {
-      const loadCoursePractices = async () => {
-        try {
-          const response = await courseCreation.getCourseFormationPractices(courseUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } };
-          if (response.success && response.data?.practices) {
-            const practiceIds = response.data.practices.map((p: { id: number }) => p.id);
-            setSelectedPracticeIdsLocal(new Set(practiceIds));
-            if (onPracticesChanged) {
-              onPracticesChanged(practiceIds);
-            }
+    const currentUuid = isSession ? sessionUuid : courseUuid;
+    if (!currentUuid || hasLoadedPracticesRef.current) return;
+    
+    const loadPractices = async () => {
+      try {
+        const response = isSession && sessionUuid
+          ? await sessionCreation.getSessionFormationPractices(sessionUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } }
+          : !isSession && courseUuid
+          ? await courseCreation.getCourseFormationPractices(courseUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } }
+          : null;
+          
+        if (response?.success && response.data?.practices) {
+          const practiceIds = response.data.practices.map((p: { id: number }) => p.id);
+          setSelectedPracticeIdsLocal(new Set(practiceIds));
+          hasLoadedPracticesRef.current = true;
+          // Only call onPracticesChanged if values actually changed
+          const currentIds = Array.from(selectedPracticeIdsLocal).sort().join(',');
+          const newIds = practiceIds.sort().join(',');
+          if (currentIds !== newIds && onPracticesChangedRef.current) {
+            onPracticesChangedRef.current(practiceIds);
           }
-        } catch (error) {
-          console.error('Error loading course practices:', error);
         }
-      };
-      loadCoursePractices();
-    }
-  }, [courseUuid, onPracticesChanged]);
+      } catch (error) {
+        console.error(`Error loading ${isSession ? 'session' : 'course'} practices:`, error);
+      }
+    };
+    
+    loadPractices();
+  }, [courseUuid, sessionUuid, isSession]);
   
-  // Sync with prop changes
+  // Reset hasLoadedPracticesRef when UUID changes
   useEffect(() => {
-    setSelectedPracticeIdsLocal(new Set(selectedPracticeIds));
-  }, [selectedPracticeIds]);
+    hasLoadedPracticesRef.current = false;
+  }, [courseUuid, sessionUuid]);
+  
+  // Sync with prop changes (but avoid infinite loop)
+  useEffect(() => {
+    const propIds = new Set(selectedPracticeIds);
+    const localIds = selectedPracticeIdsLocal;
+    const propIdsStr = Array.from(propIds).sort().join(',');
+    const localIdsStr = Array.from(localIds).sort().join(',');
+    
+    // Only update if they're actually different
+    if (propIdsStr !== localIdsStr) {
+      setSelectedPracticeIdsLocal(propIds);
+    }
+  }, [selectedPracticeIds, selectedPracticeIdsLocal]);
   
   const togglePractice = async (practiceId: number) => {
     const newSet = new Set(selectedPracticeIdsLocal);
@@ -102,12 +140,20 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
       onPracticesChanged(practiceIdsArray);
     }
     
-    // Save to backend if courseUuid exists
-    if (courseUuid) {
+    // Save to backend if courseUuid or sessionUuid exists
+    if (isSession && sessionUuid) {
+      try {
+        await sessionCreation.updateSessionFormationPractices(sessionUuid, practiceIdsArray);
+      } catch (error) {
+        console.error('Error updating session formation practices:', error);
+        // Revert on error
+        setSelectedPracticeIdsLocal(new Set(selectedPracticeIds));
+      }
+    } else if (!isSession && courseUuid) {
       try {
         await courseCreation.updateCourseFormationPractices(courseUuid, practiceIdsArray);
       } catch (error) {
-        console.error('Error updating formation practices:', error);
+        console.error('Error updating course formation practices:', error);
         // Revert on error
         setSelectedPracticeIdsLocal(new Set(selectedPracticeIds));
       }
@@ -116,7 +162,22 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
   
   const customCategoriesCount = categories.filter(cat => cat.is_custom).length;
 
-  // Close dropdowns on outside click
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    if (showCategoryDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCategoryDropdown]);
 
   const handleCategoryCreated = async (newCategory: { id: number; name: string }) => {
     // Select the new category immediately (it will be in the list after refresh)
@@ -127,18 +188,6 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
       // Call it but don't wait - selection is already done
       onCategoryCreated();
     }
-  };
-
-  const handleSubcategoryCreated = (newSubcategory: { id: number; name: string; category_id: number }) => {
-    // Select the subcategory
-    if (_onSubcategorySelected) {
-      _onSubcategorySelected(newSubcategory);
-    }
-    // Refresh subcategories list
-    if (_onSubcategoryCreated) {
-      _onSubcategoryCreated();
-    }
-    setIsSubcategoryModalOpen(false);
   };
 
   return (
@@ -153,9 +202,70 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
           </span>
         </div>
 
-        {/* Deux grands boutons */}
+        {/* Deux boutons */}
         <div className="flex gap-4">
-          {/* Bouton Ajouter Catégorie */}
+          {/* Bouton Sélecteur de Catégorie (dropdown) */}
+          <div className="relative flex-1" ref={categoryDropdownRef}>
+            <Button
+              type="button"
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className={`w-full h-auto py-4 px-6 rounded-[18px] border-2 border-dashed font-semibold text-[17px] transition-all ${
+                isDark 
+                  ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
+                  : 'bg-white border-[#0066FF] hover:bg-[#E8F3FF]'
+              }`}
+              style={{ 
+                borderColor: primaryColor,
+                color: primaryColor
+              }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                {selectedCategory ? selectedCategory.name : 'Ajouter Catégorie'}
+                <ChevronDown className={`w-5 h-5 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+              </span>
+            </Button>
+            
+            {/* Dropdown des catégories */}
+            {showCategoryDropdown && (
+              <div className={`absolute left-0 top-full mt-2 w-full rounded-lg shadow-lg border z-50 max-h-[300px] overflow-y-auto ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700' 
+                  : 'bg-white border-gray-200'
+              }`}>
+                <div className="py-1">
+                  {categories.filter(cat => !cat.is_custom).map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => {
+                        onCategorySelected(category);
+                        setShowCategoryDropdown(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${
+                        selectedCategory?.id === category.id
+                          ? 'bg-[#DBEAFE] text-[#2563EB] font-medium'
+                          : isDark
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span>{category.name}</span>
+                      {selectedCategory?.id === category.id && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </button>
+                  ))}
+                  {categories.filter(cat => !cat.is_custom).length === 0 && (
+                    <div className={`px-4 py-3 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Aucune catégorie disponible
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton Ajouter Catégorie personnalisée */}
           <Button
             type="button"
             onClick={() => setIsCategoryModalOpen(true)}
@@ -170,96 +280,37 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
             }}
           >
             <Plus className="w-5 h-5 mr-2" />
-            Ajouter Catégorie
-          </Button>
-
-          {/* Bouton Ajouter Sous-catégorie */}
-          <Button
-            type="button"
-            onClick={() => {
-              if (!selectedCategory && categories.length > 0) {
-                showError('Erreur', 'Veuillez d\'abord sélectionner une catégorie');
-                return;
-              }
-              setIsSubcategoryModalOpen(true);
-            }}
-            disabled={!selectedCategory && categories.length === 0}
-            className={`flex-1 h-auto py-4 px-6 rounded-[18px] border-2 border-dashed font-semibold text-[17px] transition-all ${
-              (!selectedCategory && categories.length === 0)
-                ? 'opacity-50 cursor-not-allowed'
-                : isDark
-                  ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                  : 'bg-white border-[#0066FF] hover:bg-[#E8F3FF]'
-            }`}
-            style={{ 
-              borderColor: (selectedCategory || categories.length > 0) ? primaryColor : undefined,
-              color: (selectedCategory || categories.length > 0) ? primaryColor : undefined
-            }}
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Ajouter Sous-catégorie
+            Ajouter Catégorie personnalisée
           </Button>
         </div>
 
-        {/* Affichage de la catégorie sélectionnée */}
-        {selectedCategory && (
+        {/* Affichage de la catégorie sélectionnée (si personnalisée) */}
+        {selectedCategory && selectedCategory.is_custom && (
           <div className={`px-[17px] py-3 rounded-[18px] border border-solid ${
             isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-[#e2e2ea]'
           }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
-                  isDark ? 'text-gray-400' : 'text-[#718096]'
-                }`}>
-                  Catégorie sélectionnée:
-                </span>
-                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${
-                  isDark ? 'text-white' : 'text-[#19294a]'
-                }`}>
-                  {selectedCategory.name}
-                  {selectedCategory.is_custom && (
-                    <span className={`ml-2 text-sm font-normal ${
-                      isDark ? 'text-blue-400' : 'text-blue-600'
-                    }`}>
-                      (Personnalisée)
-                    </span>
-                  )}
-                </span>
-              </div>
-              {selectedSubcategory && (
-                <div className="flex items-center gap-2">
-                  <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
-                    isDark ? 'text-gray-400' : 'text-[#718096]'
-                  }`}>
-                    Sous-catégorie:
-                  </span>
-                  <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[15px] ${
-                    isDark ? 'text-gray-300' : 'text-[#19294a]'
-                  }`}>
-                    {selectedSubcategory.name}
-                  </span>
-                </div>
-              )}
+            <div className="flex items-center gap-2">
+              <span className={`[font-family:'Poppins',Helvetica] font-medium text-[15px] ${
+                isDark ? 'text-gray-400' : 'text-[#718096]'
+              }`}>
+                Catégorie personnalisée:
+              </span>
+              <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${
+                isDark ? 'text-white' : 'text-[#19294a]'
+              }`}>
+                {selectedCategory.name}
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Modal création catégorie */}
+      {/* Modal création catégorie personnalisée */}
       <CategoryCreationModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onSuccess={handleCategoryCreated}
         existingCustomCount={customCategoriesCount}
-      />
-
-      {/* Modal création sous-catégorie */}
-      <SubcategoryCreationModal
-        isOpen={isSubcategoryModalOpen}
-        onClose={() => setIsSubcategoryModalOpen(false)}
-        onSuccess={handleSubcategoryCreated}
-        categoryId={selectedCategory?.id || null}
-        categories={categories}
       />
     </>
   );

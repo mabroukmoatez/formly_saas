@@ -15,6 +15,8 @@ class SessionInstance extends Model
         'uuid',
         'session_uuid',
         'session_id',
+        'course_session_uuid',
+        'course_session_id',
         'instance_type', // presentiel, distanciel, e-learning
         'title',
         'description',
@@ -110,6 +112,14 @@ class SessionInstance extends Model
     public function session()
     {
         return $this->belongsTo(Session::class, 'session_uuid', 'uuid');
+    }
+
+    /**
+     * The course session this instance/slot belongs to (NEW - correct relationship)
+     */
+    public function courseSession()
+    {
+        return $this->belongsTo(CourseSession::class, 'course_session_uuid', 'uuid');
     }
 
     public function trainers()

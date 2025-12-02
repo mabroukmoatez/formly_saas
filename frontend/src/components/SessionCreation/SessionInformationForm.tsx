@@ -2,23 +2,24 @@ import React from 'react';
 import { Card, CardContent } from '../ui/card';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LegacyCollapsible } from '../ui/collapsible';
-import { FormField } from './FormField';
-import { SelectField } from './SelectField';
-import { DurationField } from './DurationField';
-import { MediaUpload } from './MediaUpload';
-import { RichTextField } from './RichTextField';
+import { FormField } from '../CourseCreation/FormField';
+import { DurationField } from '../CourseCreation/DurationField';
+import { MediaUpload } from '../CourseCreation/MediaUpload';
+import { RichTextField } from '../CourseCreation/RichTextField';
+import { CategoryButtons } from '../CourseCreation/CategoryButtons';
+import { FormationActionBadge } from '../CourseCreation/FormationActionBadge';
 
 interface SessionInformationFormProps {
   formData: {
     title: string;
     subtitle: string;
     description: string;
+    formation_action?: string;
     category_id: number | null;
     subcategory_id: number | null;
     session_language_id: number | null;
     difficulty_level_id: number | null;
-    duration: string;
+    duration: number;
     duration_days: number;
     session_start_date: string;
     session_end_date: string;
@@ -35,7 +36,7 @@ interface SessionInformationFormProps {
     intro_image_url?: string;
     sessionUuid?: string;
   };
-  categories: Array<{ id: number; name: string }>;
+  categories: Array<{ id: number; name: string; is_custom?: boolean }>;
   subcategories?: Array<{ id: number; name: string; category_id: number }>;
   onInputChange: (field: string, value: any) => void;
   onFileUpload: (field: 'intro_video' | 'intro_image', file: File) => void;
@@ -43,6 +44,10 @@ interface SessionInformationFormProps {
   // Context upload functions
   uploadIntroVideo?: (file: File) => Promise<boolean>;
   uploadIntroImage?: (file: File) => Promise<boolean>;
+  onCategoryCreated?: () => void;
+  onSubcategoryCreated?: () => void;
+  selectedPracticeIds?: number[];
+  onPracticesChanged?: (practiceIds: number[]) => void;
 }
 
 export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
@@ -53,47 +58,14 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
   onFileUpload,
   onFileUrlUpdate,
   uploadIntroVideo,
-  uploadIntroImage
+  uploadIntroImage,
+  onCategoryCreated,
+  onSubcategoryCreated,
+  selectedPracticeIds = [],
+  onPracticesChanged
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
-
-  // Helper function to check if a section has data
-  const hasSectionData = (section: string) => {
-    switch (section) {
-      case 'title':
-        return formData.title && formData.title.trim().length > 0;
-      case 'subtitle':
-        return formData.subtitle && formData.subtitle.trim().length > 0;
-      case 'description':
-        return formData.description && formData.description.trim().length > 0;
-      case 'category':
-        return formData.category_id !== null;
-      case 'subcategory':
-        return formData.subcategory_id !== null;
-      case 'language':
-        return formData.session_language_id !== null;
-      case 'difficulty':
-        return formData.difficulty_level_id !== null;
-      case 'duration':
-        return formData.duration && formData.duration.trim().length > 0;
-      case 'duration_days':
-        return formData.duration_days > 0;
-      case 'session_dates':
-        return formData.session_start_date && formData.session_end_date;
-      case 'session_times':
-        return formData.session_start_time && formData.session_end_time;
-      case 'capacity':
-        return formData.max_participants > 0;
-      case 'tags':
-        return formData.tags && formData.tags.length > 0;
-      case 'media':
-        return formData.intro_video !== null || formData.intro_image !== null || 
-               formData.intro_video_url !== '' || formData.intro_image_url !== '';
-      default:
-        return false;
-    }
-  };
 
   const handleVideoUpload = (file: File, url: string) => {
     onFileUpload('intro_video', file);
@@ -115,138 +87,205 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
 
   return (
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
-      <div className="w-full max-w-[1396px] flex flex-col gap-6">
+      <div className="w-full max-w-[1396px] flex flex-col gap-6 bg-white">
         {/* Session Basic Information */}
-        <div className='border text-card-foreground rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] transition-all duration-200 bg-white border-[#dbd8d8]'>
-          <div className='p-5 flex flex-col gap-4'>
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
             <div className="space-y-4">
               <FormField
                 label={t('sessionCreation.form.title')}
                 value={formData.title}
                 onChange={(value) => onInputChange('title', value)}
-                placeholder={t('sessionCreation.form.titlePlaceholder')}
+                placeholder="Your Session Title"
                 maxLength={110}
               />
 
-              <SelectField
-                label={t('sessionCreation.form.category')}
-                value={formData.category_id}
-                onChange={(value) => onInputChange('category_id', value)}
-                options={categories}
-                placeholder={t('sessionCreation.form.selectCategory')}
+              <FormationActionBadge
+                selectedAction={formData.formation_action || "Actions de formation"}
+                onActionChange={(action) => onInputChange('formation_action', action)}
               />
 
-              {formData.category_id && (
-                <SelectField
-                  label={t('sessionCreation.form.subcategory')}
-                  value={formData.subcategory_id}
-                  onChange={(value) => onInputChange('subcategory_id', value)}
-                  options={subcategories.filter(sc => sc.category_id === formData.category_id)}
-                  placeholder={t('sessionCreation.form.selectSubcategory')}
-                />
-              )}
+              <CategoryButtons
+                selectedCategory={formData.category_id ? categories.find(c => c.id === formData.category_id) || null : null}
+                selectedSubcategory={formData.subcategory_id ? subcategories.find(s => s.id === formData.subcategory_id) || null : null}
+                categories={categories}
+                subcategories={subcategories}
+                onCategorySelected={(category) => onInputChange('category_id', category?.id || null)}
+                onSubcategorySelected={(subcategory) => onInputChange('subcategory_id', subcategory?.id || null)}
+                onCategoryCreated={onCategoryCreated}
+                onSubcategoryCreated={onSubcategoryCreated}
+                sessionUuid={formData.sessionUuid}
+                isSession={true}
+                selectedPracticeIds={selectedPracticeIds}
+                onPracticesChanged={onPracticesChanged}
+              />
 
               <RichTextField
                 label={t('sessionCreation.form.description')}
                 value={formData.description}
                 onChange={(content) => onInputChange('description', content)}
-                placeholder={t('sessionCreation.form.descriptionPlaceholder')}
+                placeholder="Text Comes Here.."
                 minHeight="200px"
               />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Session Dates and Times */}
-        <LegacyCollapsible
-          id="session-dates"
-          title={t('sessionCreation.form.sessionDates')}
-          hasData={hasSectionData('session_dates') || hasSectionData('session_times')}
-          showCheckmark={true}
-        >
-          <div className="space-y-4">
+        {/* Session Schedule - Session-specific dates and times (after description) */}
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+              {t('sessionCreation.form.schedule')}
+            </h3>
+            <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              {t('sessionCreation.form.scheduleDescription')}
+            </p>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                label={t('sessionCreation.form.startDate')}
-                type="date"
-                value={formData.session_start_date}
-                onChange={(value) => onInputChange('session_start_date', value)}
-                placeholder={t('sessionCreation.form.selectStartDate')}
-              />
-              
-              <FormField
-                label={t('sessionCreation.form.endDate')}
-                type="date"
-                value={formData.session_end_date}
-                onChange={(value) => onInputChange('session_end_date', value)}
-                placeholder={t('sessionCreation.form.selectEndDate')}
-              />
-            </div>
+              {/* Start Date */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('sessionCreation.form.startDate')}
+                </label>
+                <input
+                  type="date"
+                  value={formData.session_start_date || ''}
+                  onChange={(e) => onInputChange('session_start_date', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                label={t('sessionCreation.form.startTime')}
-                type="time"
-                value={formData.session_start_time}
-                onChange={(value) => onInputChange('session_start_time', value)}
-                placeholder={t('sessionCreation.form.selectStartTime')}
-              />
-              
-              <FormField
-                label={t('sessionCreation.form.endTime')}
-                type="time"
-                value={formData.session_end_time}
-                onChange={(value) => onInputChange('session_end_time', value)}
-                placeholder={t('sessionCreation.form.selectEndTime')}
-              />
-            </div>
+              {/* End Date */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('sessionCreation.form.endDate')}
+                </label>
+                <input
+                  type="date"
+                  value={formData.session_end_date || ''}
+                  onChange={(e) => onInputChange('session_end_date', e.target.value)}
+                  min={formData.session_start_date || undefined}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
 
-            <FormField
-              label={t('sessionCreation.form.maxParticipants')}
-              type="number"
-              value={formData.max_participants}
-              onChange={(value) => onInputChange('max_participants', parseInt(value))}
-              placeholder={t('sessionCreation.form.maxParticipantsPlaceholder')}
-            />
-          </div>
-        </LegacyCollapsible>
+              {/* Start Time */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('sessionCreation.form.startTime')}
+                </label>
+                <input
+                  type="time"
+                  value={formData.session_start_time || '09:00'}
+                  onChange={(e) => onInputChange('session_start_time', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              {/* End Time */}
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('sessionCreation.form.endTime')}
+                </label>
+                <input
+                  type="time"
+                  value={formData.session_end_time || '17:00'}
+                  onChange={(e) => onInputChange('session_end_time', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              {/* Max Participants */}
+              <div className="md:col-span-2">
+                <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {t('sessionCreation.form.maxParticipants')}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={formData.max_participants || 20}
+                  onChange={(e) => onInputChange('max_participants', parseInt(e.target.value) || 20)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Media Upload */}
-        <LegacyCollapsible
-          id="media-upload"
-          title={t('sessionCreation.form.addIntroMedia')}
-          hasData={hasSectionData('media')}
-          showCheckmark={true}
-        >
-          <MediaUpload
-            introVideo={formData.intro_video}
-            introImage={formData.intro_image}
-            introVideoUrl={formData.intro_video_url}
-            introImageUrl={formData.intro_image_url}
-            courseUuid={formData.sessionUuid}
-            uploadIntroVideo={uploadIntroVideo}
-            uploadIntroImage={uploadIntroImage}
-            onVideoUpload={handleVideoUpload}
-            onImageUpload={handleImageUpload}
-            onVideoRemove={handleVideoRemove}
-            onImageRemove={handleImageRemove}
-          />
-        </LegacyCollapsible>
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-[#19294a] mb-4">
+              {t('sessionCreation.form.addIntroMedia')}
+            </h3>
+            <MediaUpload
+              introVideo={formData.intro_video}
+              introImage={formData.intro_image}
+              introVideoUrl={formData.intro_video_url}
+              introImageUrl={formData.intro_image_url}
+              courseUuid={formData.sessionUuid}
+              uploadIntroVideo={uploadIntroVideo}
+              uploadIntroImage={uploadIntroImage}
+              onVideoUpload={handleVideoUpload}
+              onImageUpload={handleImageUpload}
+              onVideoRemove={handleVideoRemove}
+              onImageRemove={handleImageRemove}
+            />
+          </CardContent>
+        </Card>
 
         {/* Session Duration */}
-        <LegacyCollapsible
-          id="duration"
-          title={t('sessionCreation.form.duration')}
-          hasData={hasSectionData('duration')}
-          showCheckmark={true}
-        >
-          <DurationField
-            duration={formData.duration}
-            onDurationChange={(value) => onInputChange('duration', value)}
-          />
-        </LegacyCollapsible>
-
-        {/* Session Details - Moved to CollapsibleSections */}
+        <Card className="border border-[#e2e2ea] rounded-[18px]">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-[#19294a] mb-4">
+              {t('sessionCreation.form.duration')}
+            </h3>
+            <DurationField
+              duration={formData.duration}
+              durationDays={formData.duration_days || 0}
+              durationHours={Math.floor((formData.duration || 0) / 60)}
+              durationMinutes={(formData.duration || 0) % 60}
+              onDurationDaysChange={(days) => {
+                onInputChange('duration_days', days);
+                // Calculate total duration in minutes
+                const hours = Math.floor((formData.duration || 0) / 60);
+                const minutes = (formData.duration || 0) % 60;
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
+              onDurationHoursChange={(hours) => {
+                const days = formData.duration_days || 0;
+                const minutes = (formData.duration || 0) % 60;
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
+              onDurationMinutesChange={(minutes) => {
+                const days = formData.duration_days || 0;
+                const hours = Math.floor((formData.duration || 0) / 60);
+                onInputChange('duration', days * 24 * 60 + hours * 60 + minutes);
+              }}
+            />
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

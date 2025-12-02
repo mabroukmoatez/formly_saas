@@ -34,8 +34,7 @@ import {
   GraduationCap,
   Monitor,
   Laptop,
-  Plus,
-  List
+  Plus
 } from 'lucide-react';
 
 interface Filters {
@@ -89,7 +88,6 @@ export const Planning = (): JSX.Element => {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [viewType, setViewType] = useState<'all' | 'sessions' | 'events'>('all');
-  const [showListView, setShowListView] = useState(false);
   const [filters, setFilters] = useState<Filters>({
     search: '',
     type: 'all',
@@ -447,17 +445,6 @@ export const Planning = (): JSX.Element => {
             Créer Une Nouvelle Session
           </Button>
           
-          {/* Bouton View List */}
-          <Button
-            variant="outline"
-            onClick={() => setShowListView(!showListView)}
-            className={`h-[42px] px-4 rounded-[12px] ${
-              isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-[#e2e2ea] hover:bg-gray-50'
-            }`}
-          >
-            <List className="w-5 h-5 mr-2" />
-            View List
-          </Button>
           {/* Onglets Sessions/Événements/Tout */}
           <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-[12px] p-1">
             {[

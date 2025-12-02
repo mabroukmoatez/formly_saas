@@ -69,6 +69,7 @@ import { QuizEditPage } from '../pages/QuizEditPage';
 import { SessionCreationPage } from '../pages/SessionCreationPage';
 import { SessionViewPage } from '../pages/SessionViewPage';
 import { SessionEditPage } from '../pages/SessionEditPage';
+import { CourseSessionCreationPage } from '../pages/CourseSessionCreationPage';
 import { QualityPage } from '../pages/QualityPage';
 import { IndicateursPage } from '../pages/IndicateursPage';
 import { IndicatorDetailPage } from '../pages/IndicatorDetailPage';
@@ -1363,6 +1364,27 @@ export const AppRouter: React.FC = () => {
             <OrganizationRoute>
               <ProtectedRoute>
                 <SessionCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        {/* NEW: Course Session Creation (correct architecture) */}
+        <Route
+          path="/:subdomain/course-session-creation"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <CourseSessionCreationPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/course-session-creation/:uuid"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <CourseSessionCreationPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }

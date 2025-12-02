@@ -151,7 +151,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       { 
         id: 1, 
         idKey: "quality",
-        label: "Accueil", 
+        label: t('quality.sidebar.home'), 
         icon: Home,
         path: "/quality",
         active: location.pathname.endsWith('/quality')
@@ -159,7 +159,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       { 
         id: 2, 
         idKey: "indicateurs",
-        label: "Indicateurs", 
+        label: t('quality.sidebar.indicators'), 
         icon: CheckCircle2, // Coche dans un cercle selon documentation ligne 50
         path: "/quality/indicateurs",
         active: location.pathname.includes('/quality/indicateurs')
@@ -167,7 +167,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       { 
         id: 3, 
         idKey: "documents",
-        label: "Documents", 
+        label: t('quality.sidebar.documents'), 
         icon: FileText,
         path: "/quality/documents",
         active: location.pathname.includes('/quality/documents')
@@ -175,7 +175,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       { 
         id: 4, 
         idKey: "articles",
-        label: "Articles", 
+        label: t('quality.sidebar.articles'), 
         icon: Newspaper,
         path: "/quality/articles",
         active: location.pathname.includes('/quality/articles')
@@ -183,7 +183,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
       { 
         id: 5, 
         idKey: "bpf",
-        label: "Bilan pédagogique et financier (BPF)", 
+        label: t('quality.sidebar.bpf'), 
         icon: FileBarChartIcon, // Document avec graphique selon documentation ligne 77
         path: "/quality/bpf",
         active: location.pathname.includes('/quality/bpf')
@@ -209,7 +209,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
   };
 
   const handleDeleteCategory = async (category: QualityTaskCategory) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer la famille "${category.name}" ?`)) {
+    if (!window.confirm(`${t('quality.sidebar.familyDeleteConfirm')} "${category.name}" ?`)) {
       return;
     }
 
@@ -217,14 +217,14 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
     try {
       const response = await deleteTaskCategory(category.id);
       if (response.success) {
-        success('Famille supprimée avec succès');
+        success(t('quality.sidebar.familyDeleteSuccess'));
         refetchCategories();
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.documents.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error deleting category:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de la suppression');
+      showError(t('quality.documents.error'), err.message || t('quality.documents.genericError'));
     } finally {
       setDeleting(false);
     }
@@ -370,7 +370,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                     style={{ backgroundColor: organization?.primary_color || '#007aff' }}
                   />
                   <span className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-gray-200' : 'text-slate-800'}`}>
-                    Les Actions & Taches
+                    {t('quality.sidebar.actionsAndTasks')}
                   </span>
                 </button>
 
@@ -387,7 +387,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                   </svg>
                   <input
                     type="text"
-                    placeholder="Recherche"
+                    placeholder={t('quality.sidebar.search')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className={`[font-family:'Poppins',Helvetica] font-medium text-[11.6px] bg-transparent border-none outline-none flex-1 ${isDark ? 'text-[#ff9500] placeholder:text-[#ff9500]/50' : 'text-[#ff7700] placeholder:text-[#ff7700]/50'}`}
@@ -405,7 +405,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                   ) : filteredCategories.length === 0 ? (
                     <div className="text-center py-4">
                       <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
-                        {searchTerm ? 'Aucune famille trouvée' : 'Aucune famille'}
+                        {searchTerm ? t('quality.sidebar.noFamilyFound') : t('quality.sidebar.noFamily')}
                       </p>
                     </div>
                   ) : (
@@ -447,7 +447,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                                 className={isDark ? 'text-gray-200 hover:bg-gray-600' : ''}
                               >
                                 <Edit className="w-4 h-4 mr-2" />
-                                Renommer
+                                {t('quality.sidebar.rename')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => {
@@ -458,7 +458,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                                 disabled={deleting}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Supprimer
+                                {t('quality.sidebar.delete')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -477,7 +477,7 @@ export const QualitySidebar: React.FC<QualitySidebarProps> = ({
                     <path d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
                   </svg>
                   <span className="[font-family:'Poppins',Helvetica] font-medium text-[#ff7700] text-[11.6px]">
-                    Ajouter Une Famille
+                    {t('quality.sidebar.addFamily')}
                   </span>
                 </button>
               </div>

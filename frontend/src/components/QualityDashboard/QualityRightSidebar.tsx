@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRightIcon, CheckIcon, CalendarIcon } from '../ui/qualite/RightSidebarIcons';
 import { deleteAudit } from '../../services/qualityManagement';
 import { useToast } from '../ui/toast';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { fixImageUrl } from '../../lib/utils';
 
 interface Article {
     id: string | number;
@@ -42,6 +44,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
 }) => {
     const navigate = useNavigate();
     const { success: showSuccess, error: showError } = useToast();
+    const { t } = useLanguage();
     const [deleting, setDeleting] = useState(false);
 
     // Format date for display
@@ -58,19 +61,19 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
     const handleDeleteAudit = async () => {
         if (!nextAudit?.id) return;
 
-        const confirmed = window.confirm('Êtes-vous sûr de vouloir supprimer cet audit ?');
+        const confirmed = window.confirm(t('quality.rightSidebar.deleteAuditConfirm'));
         if (!confirmed) return;
 
         setDeleting(true);
         try {
             await deleteAudit(nextAudit.id);
-            showSuccess('Audit supprimé avec succès');
+            showSuccess(t('quality.rightSidebar.auditDeleteSuccess'));
             if (onRefresh) {
                 onRefresh();
             }
         } catch (error: any) {
             console.error('Error deleting audit:', error);
-            showError('Erreur', error.message || 'Impossible de supprimer l\'audit');
+            showError(t('quality.documents.error'), error.message || t('quality.rightSidebar.auditDeleteError'));
         } finally {
             setDeleting(false);
         }
@@ -86,7 +89,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                         {/* Header: Prochain audit */}
                         <div className="box-border content-stretch flex items-center relative w-full justify-center">
                             <p className="font-['Poppins'] font-semibold leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[17px] text-nowrap whitespace-pre">
-                                Prochain audit
+                                {t('quality.rightSidebar.nextAudit')}
                             </p>
                         </div>
 
@@ -98,7 +101,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                                         <div className="box-border content-stretch flex items-center justify-between px-[24px] py-[16px] relative w-full">
                                             <div className="content-stretch flex flex-col items-end justify-center relative shrink-0 ml-auto">
                                                 <p className="font-['Poppins'] font-semibold leading-[normal] not-italic relative shrink-0 text-[#007aff] text-[20px] text-nowrap whitespace-pre">
-                                                    J - {nextAudit.daysRemaining}
+                                                    {t('quality.rightSidebar.daysRemaining')} {nextAudit.daysRemaining}
                                                 </p>
                                             </div>
                                         </div>
@@ -125,7 +128,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                                                 <div
                                                     className="bg-[#e5f3ff] box-border content-stretch flex gap-[16px] items-center justify-center p-[12px] relative rounded-[43px] shrink-0 size-[30.667px] border border-[#007aff] cursor-pointer hover:opacity-80 transition-opacity"
                                                     onClick={onEditAudit}
-                                                    title="Modifier l'audit"
+                                                    title={t('quality.rightSidebar.editAudit')}
                                                 >
                                                     <div className="h-[12.705px] relative shrink-0 w-[12.789px]">
                                                         <CheckIcon className="block size-full text-[#007aff]" />
@@ -136,7 +139,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                                                 <div
                                                     className={`bg-[#fee3e2] box-border content-stretch flex gap-[16px] items-center justify-center p-[12px] relative rounded-[43px] shrink-0 size-[30.667px] border border-[#fe2f40] ${deleting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80 transition-opacity'}`}
                                                     onClick={deleting ? undefined : handleDeleteAudit}
-                                                    title="Supprimer l'audit"
+                                                    title={t('quality.rightSidebar.deleteAudit')}
                                                 >
                                                     <div className="h-[15px] relative shrink-0 w-[13.333px]">
                                                         <CalendarIcon className="block size-full text-[#fe2f40]" />
@@ -150,12 +153,12 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                         ) : (
                             /* No Audit - Show Button */
                             <div className="text-center py-8 w-full">
-                                <p className="font-['Poppins'] text-[#6a90b9] mb-4">Aucun audit programmé</p>
+                                <p className="font-['Poppins'] text-[#6a90b9] mb-4">{t('quality.rightSidebar.noAuditScheduled')}</p>
                                 <button
                                     onClick={onOpenAuditModal}
                                     className="px-6 py-2 bg-[#007aff] text-white rounded-lg font-['Poppins'] font-medium hover:opacity-90 transition-opacity"
                                 >
-                                    Planifier un audit
+                                    {t('quality.rightSidebar.scheduleAudit')}
                                 </button>
                             </div>
                         )}
@@ -178,13 +181,13 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                 {/* Header: Articles */}
                 <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
                     <p className="font-['Poppins'] font-semibold leading-[normal] not-italic relative shrink-0 text-[#19294a] text-[17px] text-nowrap whitespace-pre">
-                        Articles
+                        {t('quality.rightSidebar.articles')}
                     </p>
                     <div className="content-stretch flex gap-[8px] items-center relative shrink-0 cursor-pointer" onClick={() => navigate('/quality/articles')}>
                         <div className="bg-[rgba(229,243,255,0.5)] box-border content-stretch flex gap-[16px] h-[30.667px] items-center justify-center p-[12px] relative rounded-[43px] shrink-0 border border-[#6a90ba]">
                             <div className="content-stretch flex gap-[10px] items-center relative shrink-0">
                                 <p className="font-['Inter'] font-semibold leading-[20px] not-italic relative shrink-0 text-[#6a90ba] text-[14px] text-nowrap whitespace-pre">
-                                    voir tous les articles
+                                    {t('quality.rightSidebar.viewAllArticles')}
                                 </p>
                                 <div className="h-[11.83px] relative shrink-0 w-[6.634px]">
                                     <ArrowRightIcon className="block size-full text-[#6a90ba]" />
@@ -196,7 +199,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
 
                 {/* Articles List */}
                 {loadingArticles ? (
-                    <div className="w-full text-center py-4 text-gray-500">Chargement...</div>
+                    <div className="w-full text-center py-4 text-gray-500">{t('quality.rightSidebar.loading')}</div>
                 ) : articles.length > 0 ? (
                     <div className="flex flex-col gap-[7px] w-full">
                         {/* First Article - Featured with vertical layout */}
@@ -214,7 +217,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                                                 <img
                                                     alt={articles[0].title}
                                                     className="absolute inset-0 object-cover w-full h-full"
-                                                    src={articles[0].image}
+                                                    src={fixImageUrl(articles[0].image)}
                                                     onError={(e) => {
                                                         (e.target as HTMLImageElement).src = '/assets/images/sidebar-bg.png';
                                                     }}
@@ -270,7 +273,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                                                 <img
                                                     alt={article.title}
                                                     className="absolute inset-0 object-cover w-full h-full"
-                                                    src={article.image}
+                                                    src={fixImageUrl(article.image)}
                                                     onError={(e) => {
                                                         (e.target as HTMLImageElement).src = '/assets/images/sidebar-bg.png';
                                                     }}
@@ -309,7 +312,7 @@ export const QualityRightSidebar: React.FC<QualityRightSidebarProps> = ({
                         ))}
                     </div>
                 ) : (
-                    <div className="w-full text-center py-4 text-gray-500">Aucun article</div>
+                    <div className="w-full text-center py-4 text-gray-500">{t('quality.rightSidebar.noArticles')}</div>
                 )}
             </div>
         </aside>

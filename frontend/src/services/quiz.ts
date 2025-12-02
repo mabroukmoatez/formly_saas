@@ -164,15 +164,27 @@ class QuizService {
     return apiService.delete(`${this.baseUrl}/${quizUuid}/questions/${questionUuid}/options/${optionUuid}`);
   }
 
-  // Association with Courses
+  // Association with Courses or Sessions
   async associateQuiz(quizUuid: string, data: {
-    course_uuid: string;
+    course_uuid?: string;
+    session_uuid?: string;
     chapter_uuid?: string;
     sub_chapter_uuid?: string;
     placement?: 'before' | 'after';
     reference_element_uuid?: string;
   }) {
-    return apiService.post(`${this.baseUrl}/${quizUuid}/associate`, data);
+    // If session_uuid is provided, use it; otherwise use course_uuid
+    const payload: any = {
+      ...data
+    };
+    
+    // If session_uuid is provided, include it in the payload
+    // Backend should accept either course_uuid or session_uuid
+    if (data.session_uuid && !data.course_uuid) {
+      payload.session_uuid = data.session_uuid;
+    }
+    
+    return apiService.post(`${this.baseUrl}/${quizUuid}/associate`, payload);
   }
 
   async dissociateQuiz(quizUuid: string, courseUuid: string) {

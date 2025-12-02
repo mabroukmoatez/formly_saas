@@ -1,8 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Button } from './button';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useOrganization } from '../../contexts/OrganizationContext';
-import { useLanguage } from '../../contexts/LanguageContext';
 import { apiService } from '../../services/api';
 
 interface FileUploadProps {
@@ -31,15 +28,38 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   uploadIntroImage
 }) => {
   const { isDark } = useTheme();
-  const { organization } = useOrganization();
-  const { t } = useLanguage();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // Validate file type based on accept prop
+  const isValidFileType = (file: File): boolean => {
+    if (!accept || accept === '*') return true;
+    
+    const acceptTypes = accept.split(',').map(t => t.trim().toLowerCase());
+    const fileType = file.type.toLowerCase();
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    return acceptTypes.some(acceptType => {
+      if (acceptType.startsWith('.')) {
+        return fileExt === acceptType;
+      }
+      if (acceptType.endsWith('/*')) {
+        const category = acceptType.replace('/*', '');
+        return fileType.startsWith(category);
+      }
+      return fileType === acceptType;
+    });
+  };
+
+  // Process file (shared between click and drag & drop)
+  const processFile = async (file: File) => {
+    // Validate file type
+    if (!isValidFileType(file)) {
+      alert(`Type de fichier non accepté. Types acceptés: ${accept}`);
+      return;
+    }
 
     // Validate file size
     if (file.size > maxSize * 1024 * 1024) {
@@ -148,6 +168,47 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     }
   };
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+  };
+
+  // Drag & Drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set drag over to false if we're leaving the container entirely
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      await processFile(files[0]);
+    }
+  };
+
   const handleClick = () => {
     if (!isUploading) {
       fileInputRef.current?.click();
@@ -155,7 +216,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   return (
-    <div className={className}>
+    <div 
+      className={`${className} ${isDragOver ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <input
         ref={fileInputRef}
         type="file"

@@ -43,6 +43,8 @@ interface ChapterExpandedContentProps {
   onAddSubChapter?: (chapterId: string) => void;
   onAddDevoir?: (chapterId: string) => void;
   onAddExamin?: (chapterId: string) => void;
+  pendingEvaluationType?: 'devoir' | 'examen' | null;
+  onPendingEvaluationTypeHandled?: () => void;
   children?: React.ReactNode; // For sub-chapters
 }
 
@@ -94,6 +96,10 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   });
 
   const handleSaveEvaluation = () => {
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
     if (editingEvaluation) {
       // Update existing evaluation
       onUpdateEvaluation(chapter.id, editingEvaluation.id, evaluationData);
@@ -120,6 +126,10 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
     const file = e.target.files?.[0];
     if (file) {
       onAddSupportFile(chapter.id, file);
@@ -127,6 +137,10 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
   };
 
   const handleContentUpload = (type: 'text' | 'video' | 'image') => {
+    if (!chapter.id) {
+      console.error('ChapterExpandedContent: chapter.id is undefined');
+      return;
+    }
     if (type === 'text') {
       onAddContent(chapter.id, type);
     } else {
@@ -554,10 +568,22 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     Ajouter un:
                   </span>
                   {onAddQuiz && (
-                    <QuizPill onClick={() => onAddQuiz(chapter.id)} />
+                    <QuizPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddQuiz(chapter.id);
+                    }} />
                   )}
                   {onAddDevoir ? (
-                    <DevoirPill onClick={() => onAddDevoir(chapter.id)} />
+                    <DevoirPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddDevoir(chapter.id);
+                    }} />
                   ) : (
                     <DevoirPill 
                       onClick={(e) => {
@@ -568,7 +594,13 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                     />
                   )}
                   {onAddExamin ? (
-                    <ExaminPill onClick={() => onAddExamin(chapter.id)} />
+                    <ExaminPill onClick={() => {
+                      if (!chapter.id) {
+                        console.error('ChapterExpandedContent: chapter.id is undefined');
+                        return;
+                      }
+                      onAddExamin(chapter.id);
+                    }} />
                   ) : (
                     <ExaminPill 
                       onClick={(e) => {
@@ -950,8 +982,20 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
 
       {/* Zone d'Ajout Enfant - SubChapterPill et QuizPill */}
       <div className="flex items-center gap-3 mb-4">
-        <SubChapterPill onClick={() => onAddSubChapter?.(chapter.id)} />
-        <QuizPill onClick={() => onAddQuiz?.(chapter.id)} />
+        <SubChapterPill onClick={() => {
+          if (!chapter.id) {
+            console.error('ChapterExpandedContent: chapter.id is undefined');
+            return;
+          }
+          onAddSubChapter?.(chapter.id);
+        }} />
+        <QuizPill onClick={() => {
+          if (!chapter.id) {
+            console.error('ChapterExpandedContent: chapter.id is undefined');
+            return;
+          }
+          onAddQuiz?.(chapter.id);
+        }} />
       </div>
 
       {/* Sub-chapters */}

@@ -1,530 +1,861 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
 import { useTheme } from '../../contexts/ThemeContext';
-import { LegacyCollapsible } from '../ui/collapsible';
-import { FormField } from './FormField';
-import { SelectField } from './SelectField';
+import { useOrganization } from '../../contexts/OrganizationContext';
+import { useToast } from '../ui/toast';
+import { apiService } from '../../services/api';
+import { sessionCreation } from '../../services/sessionCreation';
+import { 
+  Plus, 
+  Trash2, 
+  Search, 
+  X, 
+  Edit2,
+  Mail,
+  Upload,
+  CheckCircle,
+  AlertCircle
+} from 'lucide-react';
 import type { SessionParticipant, SessionInstance } from '../../services/sessionCreation.types';
 
 interface Step7ParticipantsProps {
   participants: SessionParticipant[];
   instances: SessionInstance[];
   onEnrollParticipant: (userId: number) => Promise<boolean>;
+  onEnrollMultipleParticipants?: (userIds: number[]) => Promise<boolean>;
   onUpdateParticipantStatus: (participantId: number, status: string) => Promise<boolean>;
+  onUpdateParticipantTarif?: (participantId: number, tarif: number) => Promise<boolean>;
+  onUpdateParticipantType?: (participantId: number, type: string) => Promise<boolean>;
+  onDeleteParticipant?: (participantId: number) => Promise<boolean>;
+  onDeleteMultipleParticipants?: (participantIds: number[]) => Promise<boolean>;
+  onExportParticipants?: (format?: 'xlsx' | 'csv') => Promise<void>;
   onMarkAttendance: (instanceUuid: string, data: any) => Promise<boolean>;
   onGetAttendanceReport: () => Promise<any>;
   isLoading?: boolean;
 }
 
-interface User {
+interface StudentUser {
   id: number;
   name: string;
   email: string;
+  avatar_url?: string;
+  role?: string;
+}
+
+interface ParticipantWithDetails extends SessionParticipant {
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    avatar_url?: string;
+  };
+  tarif?: number;
+  type?: string;
 }
 
 export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   participants,
   instances,
   onEnrollParticipant,
+  onEnrollMultipleParticipants,
   onUpdateParticipantStatus,
+  onUpdateParticipantTarif,
+  onUpdateParticipantType,
+  onDeleteParticipant,
+  onDeleteMultipleParticipants,
+  onExportParticipants,
   onMarkAttendance,
   onGetAttendanceReport,
   isLoading = false
 }) => {
-  const { t } = useLanguage();
   const { isDark } = useTheme();
+  const { organization } = useOrganization();
+  const { success, error: showError } = useToast();
+  const primaryColor = organization?.primary_color || '#007aff';
 
-  const [showEnrollmentForm, setShowEnrollmentForm] = useState(false);
-  const [showAttendanceForm, setShowAttendanceForm] = useState(false);
-  const [showAttendanceReport, setShowAttendanceReport] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedInstance, setSelectedInstance] = useState<SessionInstance | null>(null);
-  const [attendanceData, setAttendanceData] = useState({
-    participant_id: 0,
-    user_id: 0,
-    status: 'present' as 'present' | 'absent' | 'late' | 'excused',
-    check_in_time: '',
-    notes: ''
-  });
-  const [attendanceReport, setAttendanceReport] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [availableStudents, setAvailableStudents] = useState<StudentUser[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [editingTarif, setEditingTarif] = useState<{ participantId: number; value: string } | null>(null);
+  const [selectedParticipants, setSelectedParticipants] = useState<number[]>([]);
+  const [exporting, setExporting] = useState(false);
 
-  // Search users using real API
-  const searchUsers = async (query: string) => {
-    if (query.trim().length < 2) {
-      setAvailableUsers([]);
-      return;
-    }
-    
+  // Load students with role "student"
+  const loadStudents = async (query: string = '') => {
     try {
-      const { sessionCreation } = await import('../../services/sessionCreation');
-      const response = await sessionCreation.searchUsers(query, 20);
+      setLoadingStudents(true);
+      const response = await apiService.getOrganizationUsers({
+        role: 'student',
+        search: query,
+        per_page: 100
+      });
+
       if (response.success && response.data) {
-        // Filter out already enrolled participants
-        const enrolledUserIds = participants.map(p => p.user_id);
-        const availableUsers = response.data
-          .filter((user: any) => !enrolledUserIds.includes(user.id))
+        const users = response.data.users?.data || response.data.users || response.data || [];
+        const students: StudentUser[] = users
+          .filter((user: any) => {
+            // Filter by role - check if role is student
+            const roleStr = user.role?.name || user.role_name || user.role || '';
+            const roleLower = roleStr.toLowerCase();
+            return roleLower.includes('student') || roleLower.includes('apprenant') || roleLower === 'student';
+          })
           .map((user: any) => ({
             id: user.id,
-            name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Utilisateur',
-            email: user.email || ''
+            name: user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Utilisateur',
+            email: user.email || '',
+            avatar_url: user.avatar_url || user.avatar || '',
+            role: user.role?.name || user.role_name || user.role
           }));
-        setAvailableUsers(availableUsers);
-      } else {
-        setAvailableUsers([]);
+
+        // Filter out already enrolled participants
+        const enrolledUserIds = participants.map(p => p.user_id);
+        const availableStudents = students.filter(s => !enrolledUserIds.includes(s.id));
+        
+        setAvailableStudents(availableStudents);
       }
     } catch (error: any) {
-      console.error('Error searching users:', error);
-      setAvailableUsers([]);
+      console.error('Error loading students:', error);
+      setAvailableStudents([]);
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
   useEffect(() => {
+    if (showAddModal) {
+      loadStudents(searchQuery);
+    }
+  }, [showAddModal, searchQuery]);
+
+  // Debounce search
+  useEffect(() => {
+    if (!showAddModal) return;
+    
     const timeoutId = setTimeout(() => {
-      searchUsers(searchQuery);
+      loadStudents(searchQuery);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
+  }, [searchQuery, showAddModal]);
 
-  const handleEnrollParticipant = async () => {
-    if (!selectedUser) {
+  // Handle select all
+  useEffect(() => {
+    if (selectAll) {
+      const allIds = availableStudents
+        .filter(s => !participants.some(p => p.user_id === s.id))
+        .map(s => s.id);
+      setSelectedStudentIds(allIds);
+    } else {
+      setSelectedStudentIds([]);
+    }
+  }, [selectAll, availableStudents, participants]);
+
+  const handleToggleStudent = (studentId: number) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+    setSelectAll(false);
+  };
+
+  const handleAddParticipants = async () => {
+    if (selectedStudentIds.length === 0) {
+      showError('Veuillez sélectionner au moins un participant');
       return;
     }
-    
+
     try {
-      const success = await onEnrollParticipant(selectedUser.id);
-      if (success) {
-        setShowEnrollmentForm(false);
-        setSelectedUser(null);
-        setSearchQuery('');
-        setAvailableUsers([]);
-        // Note: The parent component should reload participants after enrollment
+      if (onEnrollMultipleParticipants) {
+        // Use bulk enrollment if available
+        const result = await onEnrollMultipleParticipants(selectedStudentIds);
+        if (result) {
+          success(`${selectedStudentIds.length} participant(s) ajouté(s) avec succès`);
+          setShowAddModal(false);
+          setSelectedStudentIds([]);
+          setSelectAll(false);
+          setSearchQuery('');
+        } else {
+          showError('Erreur lors de l\'ajout des participants');
+        }
+      } else {
+        // Fallback to individual enrollment
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const userId of selectedStudentIds) {
+          try {
+            const result = await onEnrollParticipant(userId);
+            if (result) {
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          } catch (error) {
+            errorCount++;
+          }
+        }
+
+        if (successCount > 0) {
+          success(`${successCount} participant(s) ajouté(s) avec succès`);
+        }
+        if (errorCount > 0) {
+          showError(`${errorCount} participant(s) n'ont pas pu être ajouté(s)`);
+        }
+
+        if (successCount > 0) {
+          setShowAddModal(false);
+          setSelectedStudentIds([]);
+          setSelectAll(false);
+          setSearchQuery('');
+        }
       }
     } catch (error: any) {
-      console.error('Error enrolling participant:', error);
-      // Error handling is done by parent component
+      console.error('Error adding participants:', error);
+      showError('Erreur lors de l\'ajout des participants');
     }
   };
 
-  const handleMarkAttendance = async () => {
-    if (!selectedInstance || !attendanceData.participant_id || !attendanceData.user_id) {
+  const handleDeleteParticipant = async (participantId: number) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce participant ?')) {
       return;
     }
-    
+
     try {
-      const success = await onMarkAttendance(selectedInstance.uuid, attendanceData);
-      if (success) {
-        setShowAttendanceForm(false);
-        setSelectedInstance(null);
-        setAttendanceData({
-          participant_id: 0,
-          user_id: 0,
-          status: 'present',
-          check_in_time: '',
-          notes: ''
-        });
-        // Note: The parent component should reload participants after marking attendance
+      if (onDeleteParticipant) {
+        const result = await onDeleteParticipant(participantId);
+        if (result) {
+          success('Participant supprimé avec succès');
+        } else {
+          showError('Erreur lors de la suppression du participant');
+        }
+      } else {
+        showError('Fonctionnalité de suppression non disponible');
       }
     } catch (error: any) {
-      console.error('Error marking attendance:', error);
-      // Error handling is done by parent component
+      console.error('Error deleting participant:', error);
+      showError('Erreur lors de la suppression du participant');
     }
   };
 
-  const handleGetAttendanceReport = async () => {
+  const handleDeleteMultiple = async () => {
+    if (selectedParticipants.length === 0) {
+      showError('Veuillez sélectionner au moins un participant');
+      return;
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedParticipants.length} participant(s) ?`)) {
+      return;
+    }
+
     try {
-      const report = await onGetAttendanceReport();
-      if (report) {
-        setAttendanceReport(report);
-        setShowAttendanceReport(true);
+      if (onDeleteMultipleParticipants) {
+        const result = await onDeleteMultipleParticipants(selectedParticipants);
+        if (result) {
+          success(`${selectedParticipants.length} participant(s) supprimé(s) avec succès`);
+          setSelectedParticipants([]);
+        } else {
+          showError('Erreur lors de la suppression des participants');
+        }
+      } else if (onDeleteParticipant) {
+        // Fallback to individual deletion
+        let successCount = 0;
+        for (const id of selectedParticipants) {
+          try {
+            const result = await onDeleteParticipant(id);
+            if (result) successCount++;
+          } catch (error) {
+            console.error('Error deleting participant:', error);
+          }
+        }
+        if (successCount > 0) {
+          success(`${successCount} participant(s) supprimé(s) avec succès`);
+          setSelectedParticipants([]);
+        }
+      } else {
+        showError('Fonctionnalité de suppression non disponible');
       }
     } catch (error: any) {
-      console.error('Error getting attendance report:', error);
-      // Error handling is done by parent component
+      console.error('Error deleting participants:', error);
+      showError('Erreur lors de la suppression des participants');
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'enrolled': return 'Inscrit';
-      case 'active': return 'Actif';
-      case 'completed': return 'Terminé';
-      case 'suspended': return 'Suspendu';
-      case 'cancelled': return 'Annulé';
-      default: return status;
+  const handleUpdateTarif = async (participantId: number, newTarif: string) => {
+    const tarifValue = parseFloat(newTarif.replace(/[^\d.,]/g, '').replace(',', '.'));
+    if (isNaN(tarifValue) || tarifValue < 0) {
+      showError('Veuillez entrer un montant valide');
+      setEditingTarif(null);
+      return;
+    }
+
+    try {
+      if (onUpdateParticipantTarif) {
+        const result = await onUpdateParticipantTarif(participantId, tarifValue);
+        if (result) {
+          success('Tarif mis à jour avec succès');
+          setEditingTarif(null);
+        } else {
+          showError('Erreur lors de la mise à jour du tarif');
+        }
+      } else {
+        showError('Fonctionnalité de mise à jour du tarif non disponible');
+        setEditingTarif(null);
+      }
+    } catch (error: any) {
+      console.error('Error updating tarif:', error);
+      showError('Erreur lors de la mise à jour du tarif');
+      setEditingTarif(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'enrolled': return 'bg-blue-100 text-blue-800';
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'completed': return 'bg-gray-100 text-gray-800';
-      case 'suspended': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      if (onExportParticipants) {
+        await onExportParticipants('xlsx');
+        success('Export Excel généré avec succès');
+      } else {
+        showError('Fonctionnalité d\'export Excel non disponible');
+      }
+    } catch (error: any) {
+      console.error('Error exporting to Excel:', error);
+      showError('Erreur lors de l\'export Excel');
+    } finally {
+      setExporting(false);
     }
   };
 
-  const getAttendanceStatusLabel = (status: string) => {
-    switch (status) {
-      case 'present': return 'Présent';
-      case 'absent': return 'Absent';
-      case 'late': return 'En retard';
-      case 'excused': return 'Excusé';
-      default: return status;
-    }
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
 
-  const getAttendanceStatusColor = (status: string) => {
-    switch (status) {
-      case 'present': return 'bg-green-100 text-green-800';
-      case 'absent': return 'bg-red-100 text-red-800';
-      case 'late': return 'bg-yellow-100 text-yellow-800';
-      case 'excused': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined || amount === null) return '0,00 €';
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR');
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('fr-FR');
-  };
-
-  const filteredParticipants = participants.filter(participant => {
-    if (statusFilter === 'all') return true;
-    return participant.status === statusFilter;
-  });
-
-  return (
-    <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
-      <div className="w-full max-w-[1396px] flex flex-col gap-6">
-        {/* Enrollment */}
-        <LegacyCollapsible
-          id="enrollment"
-          title={t('sessionCreation.participants.enrollment')}
-          hasData={false}
-          showCheckmark={false}
-        >
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">{t('sessionCreation.participants.enrollNewParticipant')}</h3>
-              <Button
-                onClick={() => setShowEnrollmentForm(!showEnrollmentForm)}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                {showEnrollmentForm ? t('common.cancel') : t('sessionCreation.participants.enrollParticipant')}
-              </Button>
-            </div>
-
-            {showEnrollmentForm && (
-              <Card className="p-6">
-                <CardContent className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">{t('sessionCreation.participants.searchUser')}</label>
-                    <FormField
-                      value={searchQuery}
-                      onChange={(value) => setSearchQuery(value)}
-                      placeholder={t('sessionCreation.participants.searchUserPlaceholder')}
-                    />
-                    
-                    {availableUsers.length > 0 && (
-                      <div className="mt-2 border rounded-md max-h-48 overflow-y-auto">
-                        {availableUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            onClick={() => setSelectedUser(user)}
-                            className={`p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 ${
-                              selectedUser?.id === user.id ? 'bg-blue-50' : ''
-                            }`}
-                          >
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-gray-600">{user.email}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedUser && (
-                    <div className="p-4 bg-gray-50 rounded-md">
-                      <h4 className="font-medium">{t('sessionCreation.participants.selectedUser')}</h4>
-                      <div className="text-sm text-gray-600">
-                        <div>{selectedUser.name}</div>
-                        <div>{selectedUser.email}</div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleEnrollParticipant}
-                      disabled={!selectedUser || isLoading}
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                    >
-                      {isLoading ? t('common.enrolling') : t('sessionCreation.participants.enrollParticipant')}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+  // Empty state
+  if (participants.length === 0 && !showAddModal) {
+    return (
+      <>
+        <div className="w-full flex flex-col items-center justify-center py-8 px-6">
+          <div className="text-center px-6 max-w-2xl mb-6">
+            <p className={`text-lg ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+              Aucun participant pour le moment
+            </p>
           </div>
-        </LegacyCollapsible>
+          
+          <Button
+            onClick={() => setShowAddModal(true)}
+            style={{ backgroundColor: primaryColor }}
+            className="gap-2 px-6 py-3 text-base"
+          >
+            <Plus className="w-5 h-5" />
+            Ajouter Participants
+          </Button>
+        </div>
 
-        {/* Participants List */}
-        <LegacyCollapsible
-          id="participants-list"
-          title={t('sessionCreation.participants.participantsList')}
-          hasData={participants.length > 0}
-          showCheckmark={true}
-        >
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <div className="flex gap-2">
-                <SelectField
-                  value={statusFilter}
-                  onChange={(value) => setStatusFilter(value)}
-                  options={[
-                    { id: 'all', name: t('sessionCreation.participants.allStatuses') },
-                    { id: 'enrolled', name: t('sessionCreation.participants.enrolled') },
-                    { id: 'active', name: t('sessionCreation.participants.active') },
-                    { id: 'completed', name: t('sessionCreation.participants.completed') },
-                    { id: 'suspended', name: t('sessionCreation.participants.suspended') },
-                    { id: 'cancelled', name: t('sessionCreation.participants.cancelled') }
-                  ]}
-                  placeholder={t('sessionCreation.participants.filterByStatus')}
-                />
-              </div>
-              <Button
-                onClick={handleGetAttendanceReport}
-                className="bg-purple-500 hover:bg-purple-600 text-white"
-              >
-                {t('sessionCreation.participants.attendanceReport')}
-              </Button>
-            </div>
-
-            {filteredParticipants.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">{t('sessionCreation.participants.noParticipants')}</p>
-            ) : (
-              <div className="space-y-3">
-                {filteredParticipants.map((participant) => (
-                  <Card key={participant.uuid} className="p-4">
-                    <CardContent className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{participant.user?.name || 'Utilisateur inconnu'}</span>
-                            <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(participant.status)}`}>
-                              {getStatusLabel(participant.status)}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {participant.user?.email}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            📅 Inscrit le {formatDate(participant.enrollment_date)}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            📊 Progrès: {participant.progress_percentage.toFixed(1)}%
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <SelectField
-                            value={participant.status}
-                            onChange={(value) => onUpdateParticipantStatus(participant.id, value)}
-                            options={[
-                              { id: 'enrolled', name: 'Inscrit' },
-                              { id: 'active', name: 'Actif' },
-                              { id: 'completed', name: 'Terminé' },
-                              { id: 'suspended', name: 'Suspendu' },
-                              { id: 'cancelled', name: 'Annulé' }
-                            ]}
-                            placeholder={t('sessionCreation.participants.updateStatus')}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Attendance History */}
-                      {participant.attendances && participant.attendances.length > 0 && (
-                        <div className="mt-4">
-                          <h5 className="text-sm font-medium mb-2">{t('sessionCreation.participants.attendanceHistory')}</h5>
-                          <div className="space-y-2">
-                            {participant.attendances.map((attendance, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-1 text-xs rounded-full ${getAttendanceStatusColor(attendance.status)}`}>
-                                    {getAttendanceStatusLabel(attendance.status)}
-                                  </span>
-                                  <span className="text-sm text-gray-600">
-                                    {attendance.check_in_time && formatDateTime(attendance.check_in_time)}
-                                  </span>
-                                </div>
-                                {attendance.notes && (
-                                  <span className="text-sm text-gray-500">{attendance.notes}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        </LegacyCollapsible>
-
-        {/* Mark Attendance */}
-        <LegacyCollapsible
-          id="mark-attendance"
-          title={t('sessionCreation.participants.markAttendance')}
-          hasData={false}
-          showCheckmark={false}
-        >
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">{t('sessionCreation.participants.markAttendanceForInstance')}</h3>
-              <Button
-                onClick={() => setShowAttendanceForm(!showAttendanceForm)}
-                className="bg-green-500 hover:bg-green-600 text-white"
-              >
-                {showAttendanceForm ? t('common.cancel') : t('sessionCreation.participants.markAttendance')}
-              </Button>
-            </div>
-
-            {showAttendanceForm && (
-              <Card className="p-6">
-                <CardContent className="space-y-4">
-                  <SelectField
-                    label={t('sessionCreation.participants.selectInstance')}
-                    value={selectedInstance?.uuid || ''}
-                    onChange={(value) => {
-                      const instance = instances.find(i => i.uuid === value);
-                      setSelectedInstance(instance || null);
-                    }}
-                    options={instances.map(instance => ({
-                      id: instance.uuid,
-                      name: `${instance.start_date} - ${instance.start_time} (${instance.instance_type})`
-                    }))}
-                    placeholder={t('sessionCreation.participants.selectInstancePlaceholder')}
-                  />
-
-                  {selectedInstance && (
-                    <>
-                      <SelectField
-                        label={t('sessionCreation.participants.selectParticipant')}
-                        value={attendanceData.participant_id}
-                        onChange={(value) => {
-                          const participant = participants.find(p => p.id === parseInt(value));
-                          setAttendanceData({
-                            ...attendanceData,
-                            participant_id: parseInt(value),
-                            user_id: participant?.user_id || 0
-                          });
-                        }}
-                        options={participants.map(participant => ({
-                          id: participant.id,
-                          name: participant.user?.name || 'Utilisateur inconnu'
-                        }))}
-                        placeholder={t('sessionCreation.participants.selectParticipantPlaceholder')}
-                      />
-
-                      <SelectField
-                        label={t('sessionCreation.participants.attendanceStatus')}
-                        value={attendanceData.status}
-                        onChange={(value) => setAttendanceData({ ...attendanceData, status: value as any })}
-                        options={[
-                          { id: 'present', name: 'Présent' },
-                          { id: 'absent', name: 'Absent' },
-                          { id: 'late', name: 'En retard' },
-                          { id: 'excused', name: 'Excusé' }
-                        ]}
-                        placeholder={t('sessionCreation.participants.selectStatus')}
-                      />
-
-                      <FormField
-                        label={t('sessionCreation.participants.checkInTime')}
-                        type="datetime-local"
-                        value={attendanceData.check_in_time}
-                        onChange={(value) => setAttendanceData({ ...attendanceData, check_in_time: value })}
-                      />
-
-                      <FormField
-                        label={t('sessionCreation.participants.notes')}
-                        value={attendanceData.notes}
-                        onChange={(value) => setAttendanceData({ ...attendanceData, notes: value })}
-                        placeholder={t('sessionCreation.participants.notesPlaceholder')}
-                      />
-
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={handleMarkAttendance}
-                          disabled={!attendanceData.participant_id || !attendanceData.user_id || isLoading}
-                          className="bg-green-500 hover:bg-green-600 text-white"
-                        >
-                          {isLoading ? t('common.marking') : t('sessionCreation.participants.markAttendance')}
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </LegacyCollapsible>
-
-        {/* Attendance Report Modal */}
-        {showAttendanceReport && attendanceReport && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-4xl p-6 max-h-[80vh] overflow-y-auto">
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">{t('sessionCreation.participants.attendanceReport')}</h3>
+        {/* Add Participants Modal */}
+        {showAddModal && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowAddModal(false);
+                setSelectedStudentIds([]);
+                setSelectAll(false);
+                setSearchQuery('');
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setShowAddModal(false);
+                setSelectedStudentIds([]);
+                setSelectAll(false);
+                setSearchQuery('');
+              }
+            }}
+          >
+            <Card 
+              className={`w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CardContent className="p-6 space-y-4 flex flex-col h-full">
+                {/* Modal Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold">Ajouter Participants</h3>
                   <Button
-                    variant="outline"
-                    onClick={() => setShowAttendanceReport(false)}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setSelectedStudentIds([]);
+                      setSelectAll(false);
+                      setSearchQuery('');
+                    }}
                   >
-                    {t('common.close')}
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
 
-                <div className="space-y-4">
-                  {attendanceReport.map((report: any, index: number) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{report.participant.user.name}</h4>
-                          <div className="text-sm text-gray-600 mt-1">
-                            <div>Total sessions: {report.total_sessions}</div>
-                            <div>Présent: {report.present_count}</div>
-                            <div>Absent: {report.absent_count}</div>
-                            <div>En retard: {report.late_count}</div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {report.attendance_rate.toFixed(1)}%
-                          </div>
-                          <div className="text-sm text-gray-600">Taux de présence</div>
-                        </div>
-                      </div>
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Rechercher Un Nom, Un Prénom, Un Email"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Select All Checkbox */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="select-all"
+                    checked={selectAll}
+                    onChange={(e) => setSelectAll(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="select-all" className="cursor-pointer">
+                    Tout sélectionner
+                  </Label>
+                  <div className="ml-auto">
+                    <Button
+                      onClick={handleAddParticipants}
+                      disabled={selectedStudentIds.length === 0 || isLoading}
+                      style={{ backgroundColor: primaryColor }}
+                      className="gap-2"
+                    >
+                      Ajouter À Cette Session
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Students List */}
+                <div className="flex-1 overflow-y-auto border rounded-lg">
+                  {loadingStudents ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
                     </div>
-                  ))}
+                  ) : availableStudents.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Aucun étudiant trouvé
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {availableStudents.map((student) => (
+                        <div
+                          key={student.id}
+                          className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                          onClick={() => handleToggleStudent(student.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentIds.includes(student.id)}
+                            onChange={() => handleToggleStudent(student.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4"
+                          />
+                          {student.avatar_url ? (
+                            <img 
+                              src={student.avatar_url} 
+                              alt={student.name}
+                              className="w-10 h-10 rounded-full"
+                            />
+                          ) : (
+                            <div 
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              {getInitials(student.name)}
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium">{student.name}</div>
+                            <div className="text-sm text-gray-500 flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {student.email}
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="ml-auto">
+                            {student.role || 'Student'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
-      </div>
-    </section>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
+        <div className="w-full max-w-[1396px] flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid flex items-center justify-center"
+                style={{
+                  backgroundColor: primaryColor,
+                  borderColor: primaryColor
+                }}
+              />
+              <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${
+                isDark ? 'text-white' : 'text-[#19294a]'
+              }`}>
+                Participants
+              </h2>
+              <AlertCircle className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                disabled={selectedParticipants.length === 0}
+                onClick={handleDeleteMultiple}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                disabled={exporting}
+                style={{ borderColor: primaryColor, color: primaryColor }}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button
+                onClick={() => setShowAddModal(true)}
+                style={{ backgroundColor: primaryColor }}
+                className="gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Ajouter Les Participants
+              </Button>
+            </div>
+          </div>
+
+          {/* Participants Summary */}
+          <div className="flex items-center gap-2">
+            <div
+              className="w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid flex items-center justify-center"
+              style={{
+                backgroundColor: primaryColor,
+                borderColor: primaryColor
+              }}
+            />
+            <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${
+              isDark ? 'text-white' : 'text-[#19294a]'
+            }`}>
+              Participants
+            </h2>
+            <AlertCircle className="w-4 h-4 text-gray-400" />
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {participants.length} participant{participants.length > 1 ? 's' : ''}
+              </span>
+              <button className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-4 h-4 rotate-45" />
+              </button>
+            </div>
+          </div>
+
+          {/* Participants Table */}
+          <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <CardContent className="p-0">
+              {/* Table Header */}
+              <div className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 border-b ${
+                isDark ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'
+              }`}>
+                <div></div>
+                <div className="font-medium">Nom&prenom</div>
+                <div className="font-medium">email</div>
+                <div className="font-medium">Tarif De la Formation</div>
+                <div className="font-medium">Type</div>
+                <div></div>
+              </div>
+
+              {/* Table Rows */}
+              <div className="divide-y">
+                {participants.map((participant) => {
+                  const participantWithDetails = participant as ParticipantWithDetails;
+                  const isEditing = editingTarif?.participantId === participant.id;
+                  const tarifValue = participantWithDetails.tarif || 0;
+                  
+                  return (
+                    <div
+                      key={participant.uuid}
+                      className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        selectedParticipants.includes(participant.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <input
+                        type="checkbox"
+                        checked={selectedParticipants.includes(participant.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedParticipants(prev => [...prev, participant.id]);
+                          } else {
+                            setSelectedParticipants(prev => prev.filter(id => id !== participant.id));
+                          }
+                        }}
+                        className="w-4 h-4"
+                      />
+
+                      {/* Name */}
+                      <div className="flex items-center gap-2">
+                        {participant.user?.avatar_url ? (
+                          <img 
+                            src={participant.user.avatar_url} 
+                            alt={participant.user.name}
+                            className="w-8 h-8 rounded-full"
+                          />
+                        ) : (
+                          <div 
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            {getInitials(participant.user?.name || 'U')}
+                          </div>
+                        )}
+                        <span className="font-medium">{participant.user?.name || 'Utilisateur inconnu'}</span>
+                      </div>
+
+                      {/* Email */}
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Mail className="w-4 h-4" />
+                        <span>{participant.user?.email || ''}</span>
+                      </div>
+
+                      {/* Tarif */}
+                      <div className="flex items-center gap-2">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              type="text"
+                              value={editingTarif.value}
+                              onChange={(e) => setEditingTarif({ ...editingTarif, value: e.target.value })}
+                              onBlur={() => {
+                                if (editingTarif) {
+                                  handleUpdateTarif(editingTarif.participantId, editingTarif.value);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  if (editingTarif) {
+                                    handleUpdateTarif(editingTarif.participantId, editingTarif.value);
+                                  }
+                                } else if (e.key === 'Escape') {
+                                  setEditingTarif(null);
+                                }
+                              }}
+                              className="w-24"
+                              autoFocus
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <span>{formatCurrency(tarifValue)}</span>
+                            <button
+                              onClick={() => setEditingTarif({ 
+                                participantId: participant.id, 
+                                value: tarifValue.toString() 
+                              })}
+                              className="p-1 hover:bg-gray-200 rounded"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Type */}
+                      <Badge variant="outline">
+                        {participantWithDetails.type || 'Particulier'}
+                      </Badge>
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => handleDeleteParticipant(participant.id)}
+                        className="p-1 hover:bg-red-50 hover:text-red-600 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Add Participants Modal */}
+      {showAddModal && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddModal(false);
+              setSelectedStudentIds([]);
+              setSelectAll(false);
+              setSearchQuery('');
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setShowAddModal(false);
+              setSelectedStudentIds([]);
+              setSelectAll(false);
+              setSearchQuery('');
+            }
+          }}
+        >
+          <Card 
+            className={`w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col ${isDark ? 'bg-gray-800' : 'bg-white'}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardContent className="p-6 space-y-4 flex flex-col h-full">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Ajouter Participants</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setSelectedStudentIds([]);
+                    setSelectAll(false);
+                    setSearchQuery('');
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Rechercher Un Nom, Un Prénom, Un Email"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Select All Checkbox and Add Button */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="select-all"
+                  checked={selectAll}
+                  onChange={(e) => setSelectAll(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="select-all" className="cursor-pointer">
+                  Tout sélectionner
+                </Label>
+                <div className="ml-auto">
+                  <Button
+                    onClick={handleAddParticipants}
+                    disabled={selectedStudentIds.length === 0 || isLoading}
+                    style={{ backgroundColor: primaryColor }}
+                    className="gap-2"
+                  >
+                    Ajouter À Cette Session
+                  </Button>
+                </div>
+              </div>
+
+              {/* Students List */}
+              <div className="flex-1 overflow-y-auto border rounded-lg">
+                {loadingStudents ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: primaryColor }} />
+                  </div>
+                ) : availableStudents.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucun étudiant trouvé
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {availableStudents.map((student) => (
+                      <div
+                        key={student.id}
+                        className="flex items-center gap-3 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                        onClick={() => handleToggleStudent(student.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.includes(student.id)}
+                          onChange={() => handleToggleStudent(student.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4"
+                        />
+                        {student.avatar_url ? (
+                          <img 
+                            src={student.avatar_url} 
+                            alt={student.name}
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            {getInitials(student.name)}
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="font-medium">{student.name}</div>
+                          <div className="text-sm text-gray-500 flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {student.email}
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="ml-auto">
+                          {student.role || 'Student'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
   );
 };

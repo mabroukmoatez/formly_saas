@@ -596,38 +596,56 @@ class SessionPlanningController extends Controller
             $startDate = $request->input('start_date', now()->startOfMonth());
             $endDate = $request->input('end_date', now()->endOfMonth());
 
-            // Get sessions with upcoming instances
-            $sessions = Session::with(['sessionInstances' => function($q) use ($startDate, $endDate) {
-                $q->whereBetween('start_date', [$startDate, $endDate])
-                  ->where('is_active', true)
-                  ->where('is_cancelled', false);
-            }])
+            // Get sessions with all instances (not just filtered by date range)
+            $sessions = Session::with([
+                'sessionInstances',
+                'sessionInstances.trainers',
+                'trainers',
+                'category',
+                'subcategory',
+                'language',
+                'difficultyLevel',
+                'participants'
+            ])
             ->where('organization_id', $organizationId)
-            ->where('status', 'active')
+            ->where('status', 1) // Status 1 = active (fixed from 'active' string)
+            ->orderBy('created_at', 'desc')
             ->get();
 
-            // Get upcoming instances
-            $upcomingInstances = SessionInstance::with(['session', 'trainers'])
+            // Get all instances (including those without date filter for complete view)
+            $allInstances = SessionInstance::with(['session', 'trainers', 'participants'])
                 ->whereHas('session', function($q) use ($organizationId) {
                     $q->where('organization_id', $organizationId);
                 })
-                ->whereBetween('start_date', [$startDate, $endDate])
-                ->where('is_active', true)
-                ->where('is_cancelled', false)
                 ->orderBy('start_date')
                 ->orderBy('start_time')
                 ->get();
 
-            // Get courses
-            $courses = Course::with(['liveClasses' => function($q) use ($startDate, $endDate) {
-                $q->whereBetween('date', [$startDate, $endDate]);
-            }])
+            // Get upcoming instances within date range
+            $upcomingInstances = $allInstances->filter(function($instance) use ($startDate, $endDate) {
+                return $instance->start_date >= $startDate 
+                    && $instance->start_date <= $endDate 
+                    && $instance->is_active 
+                    && !$instance->is_cancelled;
+            });
+
+            // Get courses with all related data
+            $courses = Course::with([
+                'liveClasses',
+                'category',
+                'subcategory',
+                'language',
+                'difficultyLevel',
+                'course_instructors.instructor',
+                'enrollments'
+            ])
             ->where('organization_id', $organizationId)
             ->where('status', 1) // Status 1 = active/published
+            ->orderBy('created_at', 'desc')
             ->get();
 
-            // Get upcoming live classes
-            $upcomingLiveClasses = LiveClass::with(['course'])
+            // Get upcoming live classes within date range
+            $upcomingLiveClasses = LiveClass::with(['course', 'course.category'])
                 ->whereHas('course', function($q) use ($organizationId) {
                     $q->where('organization_id', $organizationId);
                 })
@@ -642,17 +660,41 @@ class SessionPlanningController extends Controller
                 ->where('status', 'upcoming')
                 ->get();
 
+            // Get trainers summary
+            $trainersWithSessions = Trainer::whereHas('sessions', function($q) use ($organizationId) {
+                $q->where('organization_id', $organizationId)->where('status', 1);
+            })->with(['sessions' => function($q) use ($organizationId) {
+                $q->where('organization_id', $organizationId)->where('status', 1);
+            }])->get();
+
+            // Calculate comprehensive statistics
+            $totalParticipants = $sessions->sum(function($s) { return $s->participants->count(); });
+            $totalMaxCapacity = $sessions->sum('max_participants');
+            $totalInstanceParticipants = $allInstances->sum('current_participants');
+            $totalInstanceCapacity = $allInstances->sum('max_participants');
+
             // Statistics
             $stats = [
                 'total_sessions' => $sessions->count(),
                 'total_courses' => $courses->count(),
-                'total_instances' => $upcomingInstances->count(),
+                'total_instances' => $allInstances->count(),
+                'upcoming_instances_count' => $upcomingInstances->count(),
                 'total_live_classes' => $upcomingLiveClasses->count(),
                 'total_events' => $events->count(),
-                'instances_by_type' => $upcomingInstances->groupBy('instance_type')->map->count(),
-                'instances_by_status' => $upcomingInstances->groupBy('status')->map->count(),
-                'total_participants' => $upcomingInstances->sum('current_participants') + $upcomingLiveClasses->sum(function($lc) { return $lc->current_participants ?? 0; }),
-                'max_capacity' => $upcomingInstances->sum('max_participants') + $upcomingLiveClasses->sum(function($lc) { return $lc->max_participants ?? 0; })
+                'total_trainers' => $trainersWithSessions->count(),
+                'instances_by_type' => $allInstances->groupBy('instance_type')->map->count(),
+                'instances_by_status' => $allInstances->groupBy('status')->map->count(),
+                'total_participants' => $totalParticipants + $totalInstanceParticipants,
+                'max_capacity' => $totalMaxCapacity + $totalInstanceCapacity,
+                'sessions_by_status' => [
+                    'active' => $sessions->count(),
+                    'with_instances' => $sessions->filter(fn($s) => $s->sessionInstances->count() > 0)->count(),
+                    'without_instances' => $sessions->filter(fn($s) => $s->sessionInstances->count() === 0)->count(),
+                ],
+                'date_range' => [
+                    'start' => $startDate,
+                    'end' => $endDate
+                ]
             ];
 
             return response()->json([
@@ -660,12 +702,97 @@ class SessionPlanningController extends Controller
                 'data' => [
                     'stats' => $stats,
                     'sessions' => $sessions->map(function($session) {
+                        $instances = $session->sessionInstances;
+                        $upcomingInstances = $instances->where('start_date', '>=', now())->where('is_cancelled', false);
+                        
                         return [
                             'id' => $session->id,
                             'uuid' => $session->uuid,
                             'title' => $session->title,
-                            'instances_count' => $session->sessionInstances->count(),
-                            'upcoming_instances' => $session->sessionInstances->where('start_date', '>=', now())->count()
+                            'subtitle' => $session->subtitle,
+                            'description' => $session->description,
+                            'status' => $session->status,
+                            'price' => $session->price,
+                            'price_ht' => $session->price_ht,
+                            'vat_percentage' => $session->vat_percentage,
+                            'currency' => $session->currency,
+                            'duration' => $session->duration,
+                            'duration_days' => $session->duration_days,
+                            'session_start_date' => $session->session_start_date,
+                            'session_end_date' => $session->session_end_date,
+                            'session_start_time' => $session->session_start_time,
+                            'session_end_time' => $session->session_end_time,
+                            'max_participants' => $session->max_participants,
+                            'current_participants' => $session->current_participants,
+                            'target_audience' => $session->target_audience,
+                            'prerequisites' => $session->prerequisites,
+                            'methods' => $session->methods,
+                            'is_featured' => $session->is_featured,
+                            'image_url' => $session->image_url,
+                            'category' => $session->category ? [
+                                'id' => $session->category->id,
+                                'name' => $session->category->name
+                            ] : null,
+                            'subcategory' => $session->subcategory ? [
+                                'id' => $session->subcategory->id,
+                                'name' => $session->subcategory->name
+                            ] : null,
+                            'language' => $session->language ? [
+                                'id' => $session->language->id,
+                                'name' => $session->language->name
+                            ] : null,
+                            'difficulty_level' => $session->difficultyLevel ? [
+                                'id' => $session->difficultyLevel->id,
+                                'name' => $session->difficultyLevel->name
+                            ] : null,
+                            'trainers' => $session->trainers->map(function($trainer) {
+                                return [
+                                    'id' => $trainer->id,
+                                    'uuid' => $trainer->uuid,
+                                    'name' => $trainer->first_name . ' ' . $trainer->last_name,
+                                    'email' => $trainer->email,
+                                    'phone' => $trainer->phone ?? null,
+                                    'image' => $trainer->image ?? null,
+                                    'permissions' => $trainer->pivot->permissions ?? null
+                                ];
+                            }),
+                            'instances_count' => $instances->count(),
+                            'upcoming_instances' => $upcomingInstances->count(),
+                            'participants_count' => $session->participants->count(),
+                            'next_instance_date' => $upcomingInstances->sortBy('start_date')->first()?->start_date,
+                            'instances' => $instances->map(function($instance) {
+                                return [
+                                    'id' => $instance->id,
+                                    'uuid' => $instance->uuid,
+                                    'title' => $instance->title,
+                                    'instance_type' => $instance->instance_type,
+                                    'start_date' => $instance->start_date,
+                                    'end_date' => $instance->end_date,
+                                    'start_time' => $instance->start_time,
+                                    'end_time' => $instance->end_time,
+                                    'duration_minutes' => $instance->duration_minutes,
+                                    'location_type' => $instance->location_type,
+                                    'location_address' => $instance->location_address,
+                                    'location_city' => $instance->location_city,
+                                    'location_room' => $instance->location_room,
+                                    'platform_type' => $instance->platform_type,
+                                    'meeting_link' => $instance->meeting_link,
+                                    'max_participants' => $instance->max_participants,
+                                    'current_participants' => $instance->current_participants,
+                                    'status' => $instance->status,
+                                    'is_active' => $instance->is_active,
+                                    'is_cancelled' => $instance->is_cancelled,
+                                    'trainers' => $instance->trainers->map(function($trainer) {
+                                        return [
+                                            'id' => $trainer->id,
+                                            'name' => $trainer->first_name . ' ' . $trainer->last_name,
+                                            'is_primary' => $trainer->pivot->is_primary ?? false
+                                        ];
+                                    })
+                                ];
+                            }),
+                            'created_at' => $session->created_at,
+                            'updated_at' => $session->updated_at
                         ];
                     }),
                     'courses' => $courses->map(function($course) {
@@ -683,6 +810,9 @@ class SessionPlanningController extends Controller
                             'duration' => $course->duration,
                             'duration_days' => $course->duration_days,
                             'course_type' => $course->course_type,
+                            'target_audience' => $course->target_audience,
+                            'prerequisites' => $course->prerequisites,
+                            'image' => $course->image,
                             'created_at' => $course->created_at,
                             'updated_at' => $course->updated_at,
                             'live_classes_count' => $liveClasses->count(),
@@ -695,12 +825,37 @@ class SessionPlanningController extends Controller
                                 'id' => $course->category->id,
                                 'name' => $course->category->name
                             ] : null,
+                            'subcategory' => $course->subcategory ? [
+                                'id' => $course->subcategory->id,
+                                'name' => $course->subcategory->name
+                            ] : null,
+                            'language' => $course->language ? [
+                                'id' => $course->language->id,
+                                'name' => $course->language->name
+                            ] : null,
+                            'difficulty_level' => $course->difficultyLevel ? [
+                                'id' => $course->difficultyLevel->id,
+                                'name' => $course->difficultyLevel->name
+                            ] : null,
                             'instructors' => $course->course_instructors->map(function($ci) {
                                 return [
                                     'id' => $ci->instructor->id ?? null,
                                     'name' => $ci->instructor ? ($ci->instructor->first_name . ' ' . $ci->instructor->last_name) : 'N/A',
                                     'email' => $ci->instructor->email ?? null,
+                                    'image' => $ci->instructor->image ?? null,
                                     'is_primary' => $ci->is_primary ?? false
+                                ];
+                            }),
+                            'live_classes' => $liveClasses->map(function($lc) {
+                                return [
+                                    'id' => $lc->id,
+                                    'title' => $lc->class_topic ?? 'Live Class',
+                                    'date' => $lc->date,
+                                    'time' => $lc->time,
+                                    'end_time' => $lc->end_time,
+                                    'duration' => $lc->duration,
+                                    'meeting_link' => $lc->join_url,
+                                    'status' => $lc->status ?? 'upcoming'
                                 ];
                             })
                         ];
@@ -710,40 +865,59 @@ class SessionPlanningController extends Controller
                             'id' => $instance->id,
                             'uuid' => $instance->uuid,
                             'title' => $instance->title,
+                            'description' => $instance->description,
                             'instance_type' => $instance->instance_type,
                             'start_date' => $instance->start_date,
+                            'end_date' => $instance->end_date,
                             'start_time' => $instance->start_time,
+                            'end_time' => $instance->end_time,
+                            'duration_minutes' => $instance->duration_minutes,
+                            'location_type' => $instance->location_type,
                             'location_address' => $instance->location_address,
+                            'location_city' => $instance->location_city,
+                            'location_room' => $instance->location_room,
+                            'platform_type' => $instance->platform_type,
                             'meeting_link' => $instance->meeting_link,
                             'max_participants' => $instance->max_participants,
                             'current_participants' => $instance->current_participants,
                             'status' => $instance->status,
-                            'session' => [
+                            'is_active' => $instance->is_active,
+                            'session' => $instance->session ? [
                                 'id' => $instance->session->id,
-                                'title' => $instance->session->title
-                            ],
+                                'uuid' => $instance->session->uuid,
+                                'title' => $instance->session->title,
+                                'category' => $instance->session->category?->name
+                            ] : null,
                             'trainers' => $instance->trainers->map(function($trainer) {
                                 return [
+                                    'id' => $trainer->id,
                                     'name' => $trainer->first_name . ' ' . $trainer->last_name,
+                                    'email' => $trainer->email,
                                     'is_primary' => $trainer->pivot->is_primary ?? false
                                 ];
-                            })
+                            }),
+                            'participants_count' => $instance->participants->count()
                         ];
-                    }),
+                    })->values(),
                     'upcoming_live_classes' => $upcomingLiveClasses->map(function($liveClass) {
                         return [
                             'id' => $liveClass->id,
                             'title' => $liveClass->class_topic ?? 'Live Class',
+                            'description' => $liveClass->description ?? null,
                             'start_date' => $liveClass->date ?? $liveClass->start_date,
                             'start_time' => $liveClass->time ?? $liveClass->start_time,
                             'end_time' => $liveClass->end_time,
+                            'duration' => $liveClass->duration,
                             'meeting_link' => $liveClass->join_url,
+                            'start_url' => $liveClass->start_url ?? null,
                             'max_participants' => $liveClass->max_participants ?? 0,
                             'current_participants' => $liveClass->current_participants ?? 0,
                             'status' => $liveClass->status ?? 'upcoming',
                             'course' => $liveClass->course ? [
                                 'id' => $liveClass->course->id,
-                                'title' => $liveClass->course->title
+                                'uuid' => $liveClass->course->uuid,
+                                'title' => $liveClass->course->title,
+                                'category' => $liveClass->course->category?->name
                             ] : null
                         ];
                     }),
@@ -751,11 +925,34 @@ class SessionPlanningController extends Controller
                         return [
                             'id' => $event->id,
                             'title' => $event->title,
+                            'description' => $event->description,
                             'start_date' => $event->start_date,
                             'end_date' => $event->end_date,
+                            'start_time' => $event->start_time,
+                            'end_time' => $event->end_time,
                             'event_type' => $event->event_type,
                             'location' => $event->location,
-                            'meeting_link' => $event->meeting_link
+                            'meeting_link' => $event->meeting_link,
+                            'max_participants' => $event->max_participants,
+                            'current_participants' => $event->current_participants ?? 0,
+                            'status' => $event->status
+                        ];
+                    }),
+                    'trainers' => $trainersWithSessions->map(function($trainer) {
+                        return [
+                            'id' => $trainer->id,
+                            'uuid' => $trainer->uuid,
+                            'name' => $trainer->first_name . ' ' . $trainer->last_name,
+                            'email' => $trainer->email,
+                            'phone' => $trainer->phone,
+                            'image' => $trainer->image,
+                            'sessions_count' => $trainer->sessions->count(),
+                            'sessions' => $trainer->sessions->map(function($s) {
+                                return [
+                                    'id' => $s->id,
+                                    'title' => $s->title
+                                ];
+                            })
                         ];
                     })
                 ]

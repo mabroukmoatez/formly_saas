@@ -59,6 +59,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     initializeCourse,
     uploadIntroVideo,
     uploadIntroImage,
+    deleteIntroVideo,
+    deleteIntroImage,
     updateCourseStatus
   } = useCourseCreation();
 
@@ -605,6 +607,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
               onFileUrlUpdate={handleFileUrlUpdate}
               uploadIntroVideo={uploadIntroVideo}
               uploadIntroImage={uploadIntroImage}
+              deleteIntroVideo={deleteIntroVideo}
+              deleteIntroImage={deleteIntroImage}
               onCategoryCreated={loadCategories}
               onSubcategoryCreated={() => {
                 if (formData.category_id) {

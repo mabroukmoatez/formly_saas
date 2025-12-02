@@ -9,6 +9,7 @@ import {
   MoreVertical,
   User
 } from 'lucide-react';
+import { fixImageUrl } from '../../lib/utils';
 
 interface NewsItem {
   id: string;
@@ -155,7 +156,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
           <div className="relative w-80 overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 flex-shrink-0 self-stretch">
             {news.image_url ? (
               <img 
-                src={news.image_url} 
+                src={fixImageUrl(news.image_url)} 
                 alt={news.title}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 style={{ minHeight: '100%' }}
@@ -345,7 +346,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       <div className="relative h-[200px] overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
         {news.image_url ? (
           <img 
-            src={news.image_url} 
+            src={fixImageUrl(news.image_url)} 
             alt={news.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

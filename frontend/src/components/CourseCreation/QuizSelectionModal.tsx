@@ -95,11 +95,16 @@ export const QuizSelectionModal: React.FC<QuizSelectionModalProps> = ({
     
     setAssociating(true);
     try {
-      // Backend always expects course_uuid, even for sessions
-      // For sessions, use the session UUID as course_uuid
-      const associationData: any = {
-        course_uuid: courseUuid
-      };
+      // Build association data based on whether it's a session or course
+      const associationData: any = {};
+      
+      if (isSession) {
+        // For sessions, use session_uuid
+        associationData.session_uuid = courseUuid;
+      } else {
+        // For courses, use course_uuid
+        associationData.course_uuid = courseUuid;
+      }
       
       // Always include chapter_uuid if available (even when we have sub_chapter_uuid)
       if (chapterUuid) {
@@ -111,9 +116,9 @@ export const QuizSelectionModal: React.FC<QuizSelectionModalProps> = ({
         associationData.sub_chapter_uuid = subChapterUuid;
       }
       
-      // Validate that we have at least course_uuid and chapter_uuid
-      if (!associationData.course_uuid) {
-        throw new Error('Course UUID is required');
+      // Validate that we have at least course_uuid or session_uuid and chapter_uuid
+      if (!associationData.course_uuid && !associationData.session_uuid) {
+        throw new Error('Course UUID or Session UUID is required');
       }
       if (!associationData.chapter_uuid && !associationData.sub_chapter_uuid) {
         throw new Error('Chapter UUID or Sub-chapter UUID is required');

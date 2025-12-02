@@ -141,6 +141,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Formatting buttons */}
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('bold')}
           className={`px-3 py-1.5 rounded transition-colors ${
             isBold
@@ -153,6 +154,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('italic')}
           className={`px-3 py-1.5 rounded transition-colors ${
             isItalic
@@ -165,6 +167,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('underline')}
           className={`px-3 py-1.5 rounded transition-colors ${
             isUnderline
@@ -181,7 +184,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Lists */}
         <button
           type="button"
-          onClick={() => execCommand('insertUnorderedList')}
+          onMouseDown={(e) => {
+            e.preventDefault(); // Prevent losing focus
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            execCommand('insertUnorderedList');
+          }}
           className={`px-3 py-1.5 rounded transition-colors ${
             isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
           }`}
@@ -191,7 +202,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('insertOrderedList')}
+          onMouseDown={(e) => {
+            e.preventDefault(); // Prevent losing focus
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            execCommand('insertOrderedList');
+          }}
           className={`px-3 py-1.5 rounded transition-colors ${
             isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
           }`}

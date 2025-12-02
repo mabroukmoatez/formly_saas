@@ -7,7 +7,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { useSessionCreation } from '../../contexts/SessionCreationContext';
 import { useToast } from '../ui/toast';
 import { TrainerPermissionsModal, TrainerPermissions } from './TrainerPermissionsModal';
-import { sessionCreation } from '../../services/sessionCreation';
+import { courseCreation } from '../../services/courseCreation';
 import { CourseTrainerEnhanced } from '../../services/courseCreation.types';
 import { User, Trash2, Edit3, Plus, Eye, Shield, Users, Award } from 'lucide-react';
 
@@ -50,17 +50,18 @@ export const Step5Formateur: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingTrainer, setEditingTrainer] = useState<CourseTrainer | null>(null);
 
+  // Use courseUuid for trainer operations
   useEffect(() => {
-    if (formData.sessionUuid) {
+    if (formData.courseUuid) {
       loadCourseTrainers();
       loadAvailableTrainers();
     }
-  }, [formData.sessionUuid]);
+  }, [formData.courseUuid]);
 
   const loadCourseTrainers = async () => {
     try {
       setLoading(true);
-      const response = await sessionCreation.getSessionTrainers(formData.sessionUuid!);
+      const response = await courseCreation.getCourseTrainers(formData.courseUuid!);
       if (response.success && response.data) {
         // Backend may return trainer data in two formats:
         // 1. Nested: { trainer: { id, uuid, name, ... } }
@@ -94,7 +95,7 @@ export const Step5Formateur: React.FC = () => {
 
   const loadAvailableTrainers = async () => {
     try {
-      const response = await sessionCreation.getAllTrainers({ is_active: true });
+      const response = await courseCreation.getAllTrainers({ is_active: true });
       if (response.success && response.data) {
         setAvailableTrainers(response.data);
       }
@@ -104,7 +105,7 @@ export const Step5Formateur: React.FC = () => {
 
   const handleAssignTrainer = async (trainerId: number | string, permissions: TrainerPermissions) => {
     try {
-      if (!formData.sessionUuid) {
+      if (!formData.courseUuid) {
         throw new Error('UUID du cours manquant');
       }
 
@@ -134,7 +135,7 @@ export const Step5Formateur: React.FC = () => {
       // Backend expects instructor_id - assignSessionTrainer will handle the conversion
       const assignmentData = { instructor_id: trainerIdentifier, permissions };
       
-      const response = await sessionCreation.assignSessionTrainer(formData.sessionUuid!, assignmentData);
+      const response = await courseCreation.assignTrainer(formData.courseUuid!, assignmentData);
       
       showSuccess('Formateur assigné avec succès');
       await loadCourseTrainers();
@@ -179,7 +180,7 @@ export const Step5Formateur: React.FC = () => {
     try {
       // Convert to string for API call (API expects string UUID or numeric ID as string)
       const trainerIdStr = String(trainerId);
-      await sessionCreation.removeSessionTrainer(formData.sessionUuid!, trainerIdStr);
+      await courseCreation.removeTrainer(formData.courseUuid!, trainerIdStr);
       // Reload trainers to get updated list from backend
       await loadCourseTrainers();
       showSuccess('Formateur retiré');
@@ -386,7 +387,7 @@ export const Step5Formateur: React.FC = () => {
         isOpen={showAssignModal}
         onClose={() => setShowAssignModal(false)}
         onSave={handleAssignTrainer}
-        sessionUuid={formData.sessionUuid || ''}
+        sessionUuid={formData.courseUuid || ''}
         availableTrainers={availableTrainers}
         assignedTrainers={courseTrainers}
       />

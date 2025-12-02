@@ -22,11 +22,13 @@ interface ChapterItemProps {
   isDragOver?: boolean;
   onTitleChange: (id: string, title: string) => void;
   onToggleExpanded: (id: string) => void;
-  onAddSubChapter: (chapterId: string) => void;
   onDeleteChapter: (id: string) => void;
   onDragStart: (e: React.DragEvent, item: any) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
+  onAddQuiz?: (chapterId: string) => void;
+  onAddDevoir?: (chapterId: string) => void;
+  onAddExamin?: (chapterId: string) => void;
   children?: React.ReactNode;
 }
 

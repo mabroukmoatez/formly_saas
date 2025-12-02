@@ -59,4 +59,11 @@ return [
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
+
+    'godaddy' => [
+        'api_key' => env('GODADDY_API_KEY', 'e4sDbLC9kJXj_DRDQoTxKe4L5U8wRtiEQ91'),
+        'api_secret' => env('GODADDY_API_SECRET', 'SeQ9eFsH6aPsTXbeJNiJwS'),
+        'domain' => env('GODADDY_DOMAIN', 'formly.fr'),
+        'default_ip' => env('GODADDY_DEFAULT_IP', null),
+    ],
 ];

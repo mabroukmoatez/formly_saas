@@ -1,3 +1,13 @@
+/**
+ * @deprecated This file is DEPRECATED.
+ * 
+ * ⚠️ DO NOT USE THIS FOR NEW CODE ⚠️
+ * 
+ * USE INSTEAD: src/services/courseSession.types.ts
+ * 
+ * See: docs/COURSE_SESSIONS_FRONTEND.md
+ */
+
 // Session Creation Types based on sessions.md API documentation
 
 export interface SessionCreationFormData {
@@ -5,14 +15,16 @@ export interface SessionCreationFormData {
   title: string;
   subtitle: string;
   description: string;
+  formation_action?: string;
   category_id: number | null;
+  subcategory_id?: number | null;
   session_language_id: number | null;
   difficulty_level_id: number | null;
   price: number;
   price_ht: number;
   vat_percentage: number;
   currency: string;
-  duration: string;
+  duration: number;
   duration_days: number;
   session_start_date: string;
   session_end_date: string;
@@ -21,11 +33,26 @@ export interface SessionCreationFormData {
   max_participants: number;
   target_audience: string;
   prerequisites: string;
+  methods?: string;
+  specifics?: string;
+  evaluation_modalities?: string;
+  access_modalities?: string;
+  accessibility?: string;
+  contacts?: string;
+  update_date?: string;
   key_points: Array<{ name: string }>;
   trainer_ids: string[];
+  formation_practice_ids?: number[];
+  intro_video?: File | null;
+  intro_image?: File | null;
+  intro_video_url?: string;
+  intro_image_url?: string;
+  youtube_video_id?: string;
+  tags?: string[];
   isPublished: boolean;
   isDraft: boolean;
   sessionUuid?: string;
+  courseUuid?: string; // UUID of the source course when creating session from a course
 }
 
 export interface SessionInstance {
@@ -67,10 +94,13 @@ export interface SessionParticipant {
   enrollment_date: string;
   status: 'enrolled' | 'active' | 'completed' | 'suspended' | 'cancelled';
   progress_percentage: number;
+  tarif?: number;
+  type?: string;
   user?: {
     id: number;
     name: string;
     email: string;
+    avatar_url?: string;
   };
   attendances?: SessionAttendance[];
   created_at?: string;
@@ -171,6 +201,7 @@ export interface SessionDifficultyLevel {
 
 export interface SessionMetadata {
   categories: SessionCategory[];
+  subcategories?: Array<{ id: number; name: string; category_id: number }>;
   languages: SessionLanguage[];
   difficulty_levels: SessionDifficultyLevel[];
   currencies: Array<{ code: string; name: string; symbol: string }>;

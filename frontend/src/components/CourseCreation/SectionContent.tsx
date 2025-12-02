@@ -299,41 +299,44 @@ export const ObjectivesSection: React.FC<{
   );
 };
 
-// Prerequisites Section
-export const PrerequisitesSection: React.FC<{
+// Target Audience Section (Public Visé) - Separate block
+export const TargetAudienceSection: React.FC<{
   targetAudience: string;
-  prerequisites: string;
   onUpdateTargetAudience: (content: string) => void;
-  onUpdatePrerequisites: (content: string) => void;
-}> = ({ targetAudience, prerequisites, onUpdateTargetAudience, onUpdatePrerequisites }) => {
+}> = ({ targetAudience, onUpdateTargetAudience }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.form.targetAudience')}
-        </h3>
-        <RichTextEditor
-          content={targetAudience}
-          onChange={onUpdateTargetAudience}
-          placeholder="Aucun"
-          className="min-h-[150px]"
-        />
-      </div>
+    <div className="space-y-4">
+      <RichTextEditor
+        content={targetAudience}
+        onChange={onUpdateTargetAudience}
+        placeholder="Décrivez le public visé par cette formation..."
+        className="min-h-[150px]"
+      />
+    </div>
+  );
+};
 
-      <div>
-        <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.form.prerequisites')}
-        </h3>
-        <RichTextEditor
-          content={prerequisites}
-          onChange={onUpdatePrerequisites}
-          placeholder="Aucun"
-          className="min-h-[150px]"
-        />
-      </div>
+// Prerequisites Section (Prérequis) - Separate block
+export const PrerequisitesSection: React.FC<{
+  targetAudience?: string;
+  prerequisites: string;
+  onUpdateTargetAudience?: (content: string) => void;
+  onUpdatePrerequisites: (content: string) => void;
+}> = ({ prerequisites, onUpdatePrerequisites }) => {
+  const { t } = useLanguage();
+  const { isDark } = useTheme();
+
+  return (
+    <div className="space-y-4">
+      <RichTextEditor
+        content={prerequisites}
+        onChange={onUpdatePrerequisites}
+        placeholder="Décrivez les prérequis nécessaires..."
+        className="min-h-[150px]"
+      />
     </div>
   );
 };

@@ -1355,7 +1355,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                       }}
                     >
                       <Plus className="w-4 h-4" />
-                      + Ajouter un Bloc
+                      Ajouter un Bloc
                     </Button>
                     <Button
                       onClick={() => handleAddChapter()}
@@ -1366,7 +1366,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
                       }}
                     >
                       <Plus className="w-4 h-4" />
-                      + Ajouter chapiter
+                      Ajouter un chapitre
                     </Button>
                   </div>
                 </div>

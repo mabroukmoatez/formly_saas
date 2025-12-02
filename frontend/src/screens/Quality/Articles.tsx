@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Newspaper, BookOpen, TrendingUp, Eye, Award, Users, GraduationCap, CheckCircle, Building2, Car, Laptop, Loader2 } from 'lucide-react';
 import { useQualityArticles } from '../../hooks/useQualityArticles';
@@ -59,6 +60,7 @@ const calculateReadTime = (content: string | null | undefined): string => {
 
 export const Articles = (): JSX.Element => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const { navigateToRoute } = useSubdomainNavigation();
   const primaryColor = organization?.primary_color || '#007aff';
@@ -110,7 +112,7 @@ export const Articles = (): JSX.Element => {
                   onClick={() => setSelectedCategoryId(null)}
                   className={isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-900'}
                 >
-                  Effacer le filtre
+                  {t('quality.articles.clearFilter')}
                 </Button>
               )}
             </CardHeader>
@@ -123,12 +125,12 @@ export const Articles = (): JSX.Element => {
                 <div className="text-center py-20">
                   <Newspaper className={`h-16 w-16 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`} />
                   <p className={`text-lg font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'} [font-family:'Poppins',Helvetica]`}>
-                    {searchTerm || selectedCategoryId ? 'Aucun article trouvé' : 'Aucun article disponible'}
+                    {searchTerm || selectedCategoryId ? t('quality.articles.noArticlesFound') : t('quality.articles.noArticlesAvailable')}
                   </p>
                   <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
                     {searchTerm || selectedCategoryId
-                      ? 'Essayez de modifier vos critères de recherche'
-                      : 'Les articles seront disponibles prochainement'}
+                      ? t('quality.articles.noArticlesSearchHint')
+                      : t('quality.articles.noArticlesComingSoon')}
                   </p>
                 </div>
               ) : (

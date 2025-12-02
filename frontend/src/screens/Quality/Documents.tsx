@@ -10,10 +10,12 @@ import { Loader2, Eye, Download, Trash2, Search, Filter, Calendar, FileText } fr
 import { useToast } from '../../components/ui/toast';
 import { deleteQualityDocument, downloadQualityDocument } from '../../services/qualityManagement';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 
 export const Documents = (): JSX.Element => {
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#007aff';
   const [selectedType, setSelectedType] = useState<'procedure' | 'model' | 'evidence' | undefined>(undefined);
@@ -77,11 +79,11 @@ export const Documents = (): JSX.Element => {
         window.open(url, '_blank');
       } else {
         console.error('No URL in response:', response);
-        showError('Erreur', 'Impossible d\'ouvrir le document - URL non disponible');
+        showError(t('quality.documents.error'), t('quality.documents.viewError'));
       }
     } catch (err: any) {
       console.error('Error viewing document:', err);
-      showError('Erreur', err.response?.data?.error?.message || err.message || 'Une erreur est survenue');
+      showError(t('quality.documents.error'), err.response?.data?.error?.message || err.message || t('quality.documents.genericError'));
     }
   };
 
@@ -101,33 +103,33 @@ export const Documents = (): JSX.Element => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        success('Téléchargement démarré');
+        success(t('quality.documents.downloadSuccess'));
       } else {
         console.error('No URL in response:', response);
-        showError('Erreur', 'Impossible de télécharger le document - URL non disponible');
+        showError(t('quality.documents.error'), t('quality.documents.downloadError'));
       }
     } catch (err: any) {
       console.error('Error downloading document:', err);
-      showError('Erreur', err.response?.data?.error?.message || err.message || 'Une erreur est survenue lors du téléchargement');
+      showError(t('quality.documents.error'), err.response?.data?.error?.message || err.message || t('quality.documents.genericError'));
     }
   };
 
   const handleDelete = async (docId: number) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce document ?')) {
+    if (!window.confirm(t('quality.documents.deleteConfirm'))) {
       return;
     }
 
     try {
       const response = await deleteQualityDocument(docId);
       if (response.success) {
-        success('Document supprimé avec succès');
+        success(t('quality.documents.deleteSuccess'));
         refetch();
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.documents.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error deleting document:', err);
-      showError('Erreur', 'Une erreur est survenue lors de la suppression');
+      showError(t('quality.documents.error'), t('quality.documents.deleteError'));
     }
   };
 
@@ -172,7 +174,7 @@ export const Documents = (): JSX.Element => {
       <div className="px-[27px] py-8">
         <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
           <CardContent className="text-center py-8">
-            <p className={isDark ? 'text-red-400' : 'text-red-500'}>Erreur: {error}</p>
+            <p className={isDark ? 'text-red-400' : 'text-red-500'}>{t('quality.documents.error')}: {error}</p>
           </CardContent>
         </Card>
       </div>
@@ -195,12 +197,12 @@ export const Documents = (): JSX.Element => {
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
-              Bibliothèque de Documents
+              {t('quality.documents.title')}
             </h1>
             <p 
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
-              Gérez vos procédures, modèles et preuves Qualiopi
+              {t('quality.documents.subtitle')}
             </p>
           </div>
         </div>
@@ -214,7 +216,7 @@ export const Documents = (): JSX.Element => {
             <div className="flex-1 relative">
               <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
               <Input
-                placeholder="Rechercher un document..."
+                placeholder={t('quality.documents.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
@@ -227,7 +229,7 @@ export const Documents = (): JSX.Element => {
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4 mr-2" />
-              Filtres
+              {t('quality.documents.filters')}
               {selectedType && (
                 <Badge className="ml-2 bg-blue-500 text-white">
                   1
@@ -240,7 +242,7 @@ export const Documents = (): JSX.Element => {
               className="text-white hover:opacity-90"
               onClick={handleAddDocument}
             >
-              Ajouter Un Document
+              {t('quality.documents.addDocument')}
             </Button>
           </div>
 
@@ -250,7 +252,7 @@ export const Documents = (): JSX.Element => {
               <div className="flex flex-wrap gap-4">
                 <div className="flex items-center gap-2">
                   <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'} [font-family:'Poppins',Helvetica]`}>
-                    Type:
+                    {t('quality.documents.type')}
                   </span>
                   <div className="flex gap-2">
             <Button 
@@ -261,7 +263,7 @@ export const Documents = (): JSX.Element => {
                 : `${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-[#dadfe8] text-[#6a90b9]'}`}
               onClick={() => setSelectedType(undefined)}
             >
-              Tous
+              {t('quality.documents.all')}
             </Button>
             <Button 
               variant="outline" 
@@ -271,7 +273,7 @@ export const Documents = (): JSX.Element => {
                 : `${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-[#dadfe8] text-[#6a90b9]'}`}
               onClick={() => setSelectedType('procedure')}
             >
-              Procédures
+              {t('quality.documents.typeProcedure')}
             </Button>
             <Button 
               variant="outline" 
@@ -281,7 +283,7 @@ export const Documents = (): JSX.Element => {
                 : `${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-[#dadfe8] text-[#6a90b9]'}`}
               onClick={() => setSelectedType('model')}
             >
-              Modèles
+              {t('quality.documents.typeModel')}
             </Button>
             <Button 
               variant="outline" 
@@ -291,7 +293,7 @@ export const Documents = (): JSX.Element => {
                 : `${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-[#dadfe8] text-[#6a90b9]'}`}
               onClick={() => setSelectedType('evidence')}
             >
-              Preuves
+              {t('quality.documents.typeEvidence')}
             </Button>
           </div>
                 </div>
@@ -305,7 +307,7 @@ export const Documents = (): JSX.Element => {
       <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
         <CardHeader>
           <CardTitle className={`${isDark ? 'text-white' : 'text-[#19294a]'} [font-family:'Poppins',Helvetica] font-semibold text-xl`}>
-            Documents {selectedType && `- ${selectedType === 'procedure' ? 'Procédures' : selectedType === 'model' ? 'Modèles' : 'Preuves'}`}
+            {t('quality.dashboard.documents')} {selectedType && `- ${selectedType === 'procedure' ? t('quality.documents.typeProcedure') : selectedType === 'model' ? t('quality.documents.typeModel') : t('quality.documents.typeEvidence')}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -317,12 +319,12 @@ export const Documents = (): JSX.Element => {
           ) : filteredDocuments.length === 0 ? (
             <div className="text-center py-12">
               <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
-                {searchTerm ? 'Aucun document trouvé' : 'Aucun document'}
+                {searchTerm ? t('quality.documents.noDocuments') : t('quality.documents.noDocumentsEmpty')}
               </p>
               <p className={`[font-family:'Poppins',Helvetica] text-sm ${isDark ? 'text-gray-500' : 'text-[#6a90b9]/70'}`}>
                 {searchTerm 
-                  ? 'Essayez de modifier vos critères de recherche'
-                  : 'Ajoutez votre premier document pour commencer'}
+                  ? t('quality.documents.noDocumentsSearchHint')
+                  : t('quality.documents.noDocumentsAddHint')}
               </p>
             </div>
           ) : (
@@ -339,7 +341,7 @@ export const Documents = (): JSX.Element => {
 
                 <div className="flex flex-col gap-2 flex-1">
                     <h4 className={`[font-family:'Inter',Helvetica] font-semibold text-base ${isDark ? 'text-white' : 'text-black'}`}>
-                      {doc.name || doc.filename || 'Document sans nom'}
+                      {doc.name || doc.filename || t('quality.documents.documentWithoutName')}
                   </h4>
                     {/* Date and Author */}
                     {(doc.createdAt || doc.created_at || doc.uploadedBy) && (
@@ -356,7 +358,7 @@ export const Documents = (): JSX.Element => {
                         )}
                         {doc.uploadedBy && (
                           <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                            Par {doc.uploadedBy}
+                            {t('quality.documents.by')} {doc.uploadedBy}
                           </span>
                         )}
                       </div>
@@ -377,7 +379,7 @@ export const Documents = (): JSX.Element => {
                       </div>
                         {doc.indicatorIds.length > 3 && (
                       <span className="[font-family:'Inter',Helvetica] font-semibold text-[#00000066] text-sm">
-                            +{doc.indicatorIds.length - 3} Indicateurs
+                            +{doc.indicatorIds.length - 3} {t('quality.documents.plusIndicators')}
                       </span>
                         )}
                     </div>

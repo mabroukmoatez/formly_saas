@@ -27,6 +27,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useToast } from '../ui/toast';
 import { useNewsActions } from '../../hooks/useNews';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
+import { fixImageUrl } from '../../lib/utils';
 
 interface NewsViewProps {
   newsId: string;
@@ -356,7 +357,7 @@ export const NewsView: React.FC<NewsViewProps> = ({
               {news.image_url && (
                 <div className="relative rounded-[18px] overflow-hidden">
                   <img
-                    src={news.image_url}
+                    src={fixImageUrl(news.image_url)}
                     alt={news.title}
                     className="w-full h-[387px] object-cover"
                   />

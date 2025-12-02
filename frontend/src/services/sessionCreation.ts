@@ -1,3 +1,20 @@
+/**
+ * @deprecated This file is DEPRECATED.
+ * 
+ * ⚠️ DO NOT USE THIS FOR NEW CODE ⚠️
+ * 
+ * This implementation incorrectly treats Sessions as complete Course entities.
+ * 
+ * USE INSTEAD:
+ * - src/services/courseSession.ts
+ * - src/services/courseSession.types.ts
+ * 
+ * CORRECT ARCHITECTURE:
+ * Course (template) → CourseSession (instance) → SessionSlot (séance)
+ * 
+ * See: docs/COURSE_SESSIONS_FRONTEND.md
+ */
+
 import { apiService } from './api';
 
 // Types based on sessions.md API documentation
@@ -7,6 +24,7 @@ export interface CreateSessionPayload {
   title: string;
   subtitle?: string;
   description?: string;
+  formation_action?: string;
   category_id?: number | null;
   session_language_id?: number | null;
   difficulty_level_id?: number | null;
@@ -267,6 +285,36 @@ class SessionCreationService {
     return apiService.get(`${this.orgSessionsBase}/metadata`);
   }
 
+  // Get Categories (same as course creation)
+  getCategories(params?: { include_custom?: boolean }) {
+    const queryParams = new URLSearchParams();
+    if (params?.include_custom) queryParams.append('include_custom', 'true');
+    const qs = queryParams.toString();
+    return apiService.get(`/api/organization/categories${qs ? `?${qs}` : ''}`);
+  }
+
+  // Get Subcategories
+  getSubcategories(categoryId: number) {
+    return apiService.get(`/api/organization/categories/${categoryId}/subcategories`);
+  }
+
+  // Get Formation Practices
+  getFormationPractices() {
+    return apiService.get('/api/organization/formation-practices');
+  }
+
+  // Get Session Formation Practices
+  getSessionFormationPractices(sessionUuid: UUID) {
+    return apiService.get(`${this.orgSessionsBase}/${sessionUuid}/formation-practices`);
+  }
+
+  // Update Session Formation Practices
+  updateSessionFormationPractices(sessionUuid: UUID, practiceIds: number[]) {
+    return apiService.post(`${this.orgSessionsBase}/${sessionUuid}/formation-practices`, {
+      practice_ids: practiceIds
+    });
+  }
+
   // Get Session Details (Organization)
   getSessionDetails(sessionUuid: UUID) {
     return apiService.get(`${this.orgSessionsBase}/${sessionUuid}`);
@@ -388,6 +436,38 @@ class SessionCreationService {
     return apiService.get(`${this.orgSessionsBase}/${sessionUuid}/attendance-report`);
   }
 
+  // 26. Enroll Multiple Participants
+  enrollMultipleParticipants(sessionUuid: UUID, userIds: number[]) {
+    return apiService.post(`${this.orgSessionsBase}/${sessionUuid}/enroll-multiple`, { user_ids: userIds });
+  }
+
+  // 27. Update Participant Tarif
+  updateParticipantTarif(sessionUuid: UUID, participantId: number, tarif: number) {
+    return apiService.put(`${this.orgSessionsBase}/${sessionUuid}/participants/${participantId}/tarif`, { tarif });
+  }
+
+  // 28. Update Participant Type
+  updateParticipantType(sessionUuid: UUID, participantId: number, type: string) {
+    return apiService.put(`${this.orgSessionsBase}/${sessionUuid}/participants/${participantId}/type`, { type });
+  }
+
+  // 29. Delete Participant
+  deleteParticipant(sessionUuid: UUID, participantId: number) {
+    return apiService.delete(`${this.orgSessionsBase}/${sessionUuid}/participants/${participantId}`);
+  }
+
+  // 30. Delete Multiple Participants
+  deleteMultipleParticipants(sessionUuid: UUID, participantIds: number[]) {
+    return apiService.delete(`${this.orgSessionsBase}/${sessionUuid}/participants`, { data: { participant_ids: participantIds } });
+  }
+
+  // 31. Export Participants to Excel
+  exportParticipants(sessionUuid: UUID, format: 'xlsx' | 'csv' = 'xlsx') {
+    return apiService.get(`${this.orgSessionsBase}/${sessionUuid}/participants/export?format=${format}`, {
+      responseType: 'blob'
+    });
+  }
+
   // Session Chapters
   // 26. Session Chapters CRUD
   getSessionChapters(sessionUuid: UUID) {
@@ -414,12 +494,18 @@ class SessionCreationService {
     return apiService.post(`${this.orgSessionsBase}/${sessionUuid}/chapters`, payload);
   }
 
-  updateSessionChapter(chapterUuid: UUID, data: { title?: string; description?: string; order?: number }) {
-    return apiService.put(`${this.base}/session-chapters/${chapterUuid}`, data);
+  updateSessionChapter(sessionUuid: UUID, chapterUuid: UUID, data: { title?: string; description?: string; order?: number; order_index?: number; course_section_id?: number | null }) {
+    const payload: any = {};
+    if (data.title !== undefined) payload.title = data.title;
+    if (data.description !== undefined) payload.description = data.description;
+    if (data.order !== undefined) payload.order_index = data.order;
+    if (data.order_index !== undefined) payload.order_index = data.order_index;
+    if (data.course_section_id !== undefined) payload.course_section_id = data.course_section_id;
+    return apiService.put(`${this.orgSessionsBase}/${sessionUuid}/chapters/${chapterUuid}`, payload);
   }
 
-  deleteSessionChapter(chapterUuid: UUID) {
-    return apiService.delete(`${this.base}/session-chapters/${chapterUuid}`);
+  deleteSessionChapter(sessionUuid: UUID, chapterUuid: UUID) {
+    return apiService.delete(`${this.orgSessionsBase}/${sessionUuid}/chapters/${chapterUuid}`);
   }
 
   // Session Chapter Content
@@ -499,11 +585,15 @@ class SessionCreationService {
   }
 
   // Session Chapter Support Files
-  uploadSessionSupportFiles(sessionUuid: UUID, chapterUuid: string, files: File[]) {
+  uploadSessionSupportFiles(sessionUuid: UUID, chapterUuid: string, files: File[], subChapterUuid?: string) {
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files[]', file);
     });
+    // Include sub_chapter_id if provided (backend expects sub_chapter_id, not sub_chapter_uuid)
+    if (subChapterUuid) {
+      formData.append('sub_chapter_id', subChapterUuid);
+    }
     return apiService.post(`${this.orgSessionsBase}/${sessionUuid}/chapters/${chapterUuid}/support-files`, formData);
   }
 
@@ -863,8 +953,14 @@ class SessionCreationService {
     return apiService.get(`${this.orgSessionsBase}/${sessionUuid}/workflow/actions`);
   }
 
-  getEmailTemplates() {
-    return apiService.get(`${this.base}/email-templates`);
+  getEmailTemplates(params?: { page?: number; per_page?: number; search?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.per_page) queryParams.append('per_page', String(params.per_page));
+    if (params?.search) queryParams.append('search', params.search);
+    queryParams.append('type', 'email');
+    const qs = queryParams.toString();
+    return apiService.get(`/api/organization/white-label/library/templates?${qs}`);
   }
 }
 

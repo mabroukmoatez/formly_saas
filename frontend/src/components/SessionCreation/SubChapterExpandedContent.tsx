@@ -8,6 +8,9 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Plus, FileText, Upload, Trash2, ChevronDown, ChevronRight, Video, Image, Calendar, Save, X, Edit } from 'lucide-react';
+import { QuizPill } from '../CourseCreation/QuizPill';
+import { DevoirPill } from '../CourseCreation/DevoirPill';
+import { ExaminPill } from '../CourseCreation/ExaminPill';
 
 interface SubChapter {
   id: string;
@@ -30,6 +33,7 @@ interface SubChapterExpandedContentProps {
   onDeleteContent: (chapterId: string, subChapterId: string, contentId: string) => void;
   onDeleteEvaluation: (chapterId: string, subChapterId: string, evaluationId: string) => void;
   onDeleteSupportFile: (chapterId: string, subChapterId: string, fileId: string) => void;
+  onAddQuiz?: (chapterId: string, subChapterId: string) => void;
   onTitleChange: (chapterId: string, subChapterId: string, contentId: string, title: string) => void;
   toggleSection: (subChapterId: string, sectionKey: string) => void;
   isSectionCollapsed: (subChapterId: string, sectionKey: string) => boolean;
@@ -48,6 +52,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
   onDeleteContent,
   onDeleteEvaluation,
   onDeleteSupportFile,
+  onAddQuiz,
   onTitleChange,
   toggleSection,
   isSectionCollapsed,
@@ -96,9 +101,14 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation();
-    const file = e.target.files?.[0];
-    if (file) {
-      onAddSupportFile(chapterId, subChapter.id, file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // Upload all selected files
+      Array.from(files).forEach(file => {
+        onAddSupportFile(chapterId, subChapter.id, file);
+      });
+      // Reset input to allow selecting the same file again
+      e.target.value = '';
     }
   };
 
@@ -164,15 +174,15 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex items-center gap-2">
-                      {item.type === 'image' && item.file ? (
+                      {item.type === 'image' && (item.file || item.url) ? (
                         <img 
-                          src={URL.createObjectURL(item.file)} 
+                          src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                           alt={item.title || 'Image'} 
                           className="w-8 h-8 object-cover rounded"
                         />
-                      ) : item.type === 'video' && item.file ? (
+                      ) : item.type === 'video' && (item.file || item.url) ? (
                         <video 
-                          src={URL.createObjectURL(item.file)} 
+                          src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                           className="w-8 h-8 object-cover rounded"
                           controls={false}
                         />
@@ -201,12 +211,12 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                   </div>
 
                   {/* Media Preview */}
-                  {item.file && (
+                  {(item.file || item.url) && (
                     <div className="max-w-md">
                       {item.type === 'video' ? (
                         <div className="relative">
                           <RobustVideoPlayer 
-                            src={URL.createObjectURL(item.file)}
+                            src={item.url || (item.file ? URL.createObjectURL(item.file) : '')}
                             title={item.title || 'Video'}
                             size="md"
                           />
@@ -222,7 +232,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                       ) : item.type === 'image' ? (
                         <div className="relative">
                           <img 
-                            src={URL.createObjectURL(item.file)} 
+                            src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
                             alt={item.title || 'Image'} 
                             className="w-full h-48 object-cover rounded"
                           />
@@ -253,16 +263,29 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
               ))}
 
               {/* Add Content Buttons */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-medium mr-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Ajouter :
+                </span>
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleContentUpload('video');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Video className="w-6 h-6" />
+                  <Video className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Vidéo</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -270,9 +293,19 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     handleContentUpload('text');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <FileText className="w-6 h-6" />
+                  <FileText className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Text</span>
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -280,13 +313,20 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     handleContentUpload('image');
                   }}
                   variant="outline"
-                  className="flex items-center gap-2 rounded-full w-16 h-16"
+                  className={`flex items-center gap-2 rounded-full px-4 py-2 ${
+                    isDark 
+                      ? 'border-purple-600 text-purple-300 hover:bg-purple-900/30' 
+                      : 'border-purple-300 text-purple-700 hover:bg-purple-50'
+                  }`}
+                  style={{
+                    backgroundColor: isDark ? 'rgba(147, 51, 234, 0.1)' : '#F3E8FF',
+                    borderColor: isDark ? 'rgba(168, 85, 247, 0.5)' : '#C084FC',
+                  }}
                 >
-                  <Image className="w-6 h-6" />
+                  <Image className="w-4 h-4" />
+                  <Plus className="w-3 h-3" />
+                  <span className="text-sm font-medium">Image</span>
                 </Button>
-                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {t('courseSteps.step2.sections.contenus.addButtons.label')}
-                </span>
               </div>
             </div>
           )}
@@ -412,20 +452,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('devoir');
-                    toggleEvaluationEditor(subChapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.devoir')}
-                </Button>
-              )}
+              ) : null}
 
               {/* Examen Form */}
               {isEvaluationEditorOpen(subChapter.id) && evaluationType === 'examen' ? (
@@ -479,23 +506,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                         onChange={(e) => setEvaluationData(prev => ({ ...prev, dueDate: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${
-                        isDark ? 'text-gray-300' : 'text-gray-700'
-                      }`}>
-                        {t('courseSteps.step2.sections.evaluations.form.file')}
-                      </label>
-                      <Input
-                        type="file"
-                        className={isDark ? 'bg-gray-600 border-gray-500 text-white' : ''}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setEvaluationData(prev => ({ ...prev, file }));
-                          }
-                        }}
-                      />
-                    </div>
+                    {/* File upload removed for examen - only available in devoir */}
                     <div className="flex gap-2">
                       <Button
                         onClick={handleSaveEvaluation}
@@ -514,19 +525,32 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEvaluationType('examen');
-                    toggleEvaluationEditor(subChapter.id);
-                  }}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {t('courseSteps.step2.sections.evaluations.addButtons.examin')}
-                </Button>
+              ) : null}
+
+              {/* Add Evaluation Buttons */}
+              {!isEvaluationEditorOpen(subChapter.id) && (
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm font-medium mr-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Ajouter un:
+                  </span>
+                  {onAddQuiz && (
+                    <QuizPill onClick={() => onAddQuiz(chapterId, subChapter.id)} />
+                  )}
+                  <DevoirPill 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEvaluationType('devoir');
+                      toggleEvaluationEditor(subChapter.id);
+                    }}
+                  />
+                  <ExaminPill 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEvaluationType('examen');
+                      toggleEvaluationEditor(subChapter.id);
+                    }}
+                  />
+                </div>
               )}
 
               {/* Existing Evaluations */}

@@ -46,19 +46,9 @@ export const FormationActionBadge: React.FC<FormationActionBadgeProps> = ({
     };
   }, [showOptions]);
 
-  // Calculate dropdown position
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-
   const handleBadgeClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (badgeRef.current) {
-      const rect = badgeRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        left: rect.left
-      });
-    }
     setShowOptions(!showOptions);
   };
 
@@ -68,43 +58,29 @@ export const FormationActionBadge: React.FC<FormationActionBadgeProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <label className={`text-sm font-medium whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+    <div className="flex flex-col gap-2">
+      <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
         Catégorie D'actions De Formation :
       </label>
       
-      <div className="relative inline-block" ref={badgeRef}>
+      <div className="relative inline-block w-fit" ref={badgeRef}>
         <button
           type="button"
           onClick={handleBadgeClick}
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#DBEAFE] text-[#2563EB] border border-[#93C5FD] rounded-lg text-sm font-medium hover:bg-[#BFDBFE] transition-colors"
-          style={{
-            display: 'inline-flex',
-            padding: '8px 16px',
-            background: '#DBEAFE',
-            color: '#2563EB',
-            border: '1px solid #93C5FD',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: 500
-          }}
         >
           <span>{selectedAction || "Actions de formation"}</span>
           <ChevronDown className={`w-4 h-4 transition-transform ${showOptions ? 'rotate-180' : ''}`} />
         </button>
 
-        {showOptions && dropdownPosition && (
+        {showOptions && (
           <div
             ref={dropdownRef}
-            className={`fixed z-50 mt-1 min-w-[280px] rounded-lg shadow-lg border ${
+            className={`absolute left-0 top-full mt-1 min-w-[280px] rounded-lg shadow-lg border z-50 ${
               isDark 
                 ? 'bg-gray-800 border-gray-700' 
                 : 'bg-white border-gray-200'
             }`}
-            style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`
-            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="py-1">

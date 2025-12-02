@@ -37,9 +37,11 @@ interface CourseInformationFormProps {
   onInputChange: (field: string, value: any) => void;
   onFileUpload: (field: 'intro_video' | 'intro_image', file: File) => void;
   onFileUrlUpdate: (field: 'intro_video_url' | 'intro_image_url', url: string) => void;
-  // Context upload functions
+  // Context upload/delete functions
   uploadIntroVideo?: (file: File) => Promise<boolean>;
   uploadIntroImage?: (file: File) => Promise<boolean>;
+  deleteIntroVideo?: () => Promise<boolean>;
+  deleteIntroImage?: () => Promise<boolean>;
   onCategoryCreated?: () => void;
   onSubcategoryCreated?: () => void;
   selectedPracticeIds?: number[];
@@ -55,6 +57,8 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
   onFileUrlUpdate,
   uploadIntroVideo,
   uploadIntroImage,
+  deleteIntroVideo,
+  deleteIntroImage,
   onCategoryCreated,
   onSubcategoryCreated,
   selectedPracticeIds = [],
@@ -73,12 +77,26 @@ export const CourseInformationForm: React.FC<CourseInformationFormProps> = ({
     onFileUrlUpdate('intro_image_url', url);
   };
 
-  const handleVideoRemove = () => {
-    onInputChange('intro_video', null);
+  const handleVideoRemove = async () => {
+    // Call API to delete if function is provided and course exists
+    if (deleteIntroVideo && formData.courseUuid) {
+      await deleteIntroVideo();
+    } else {
+      // Fallback to local state update only
+      onInputChange('intro_video', null);
+      onInputChange('intro_video_url', '');
+    }
   };
 
-  const handleImageRemove = () => {
-    onInputChange('intro_image', null);
+  const handleImageRemove = async () => {
+    // Call API to delete if function is provided and course exists
+    if (deleteIntroImage && formData.courseUuid) {
+      await deleteIntroImage();
+    } else {
+      // Fallback to local state update only
+      onInputChange('intro_image', null);
+      onInputChange('intro_image_url', '');
+    }
   };
 
   return (

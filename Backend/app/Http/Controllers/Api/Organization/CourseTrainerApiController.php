@@ -126,10 +126,19 @@ class CourseTrainerApiController extends Controller
                 ], 404);
             }
 
-            // Validation
+            // Validation - accept both UUID and numeric ID
             $validator = Validator::make($request->all(), [
-                'trainer_id' => 'required|string|exists:trainers,uuid',
+                'trainer_id' => 'required|string',
                 'permissions' => 'nullable|array',
+                'permissions.view_course' => 'boolean',
+                'permissions.edit_content' => 'boolean',
+                'permissions.manage_students' => 'boolean',
+                'permissions.grade_assignments' => 'boolean',
+                'permissions.manage_documents' => 'boolean',
+                'permissions.manage_workflow' => 'boolean',
+                'permissions.publish_content' => 'boolean',
+                'permissions.view_analytics' => 'boolean',
+                // Legacy permission names
                 'permissions.can_modify_course' => 'boolean',
                 'permissions.can_manage_students' => 'boolean',
                 'permissions.can_view_analytics' => 'boolean'
@@ -143,9 +152,13 @@ class CourseTrainerApiController extends Controller
                 ], 422);
             }
 
-            // Get trainer
-            $trainer = Trainer::where('uuid', $request->trainer_id)
-                ->where('is_active', true)
+            // Get trainer - support both UUID and numeric ID
+            $trainerId = $request->trainer_id;
+            $trainer = Trainer::where('is_active', true)
+                ->where(function($q) use ($trainerId) {
+                    $q->where('uuid', $trainerId)
+                      ->orWhere('id', $trainerId);
+                })
                 ->first();
 
             if (!$trainer) {

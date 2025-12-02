@@ -83,7 +83,7 @@ export const BPF = (): JSX.Element => {
       }
     } catch (err: any) {
       console.error('Error fetching current BPF:', err);
-      showError('Erreur', 'Impossible de charger le BPF actuel');
+      showError(t('quality.bpf.error'), t('quality.bpf.importError'));
     } finally {
       setLoadingBPF(false);
     }
@@ -99,7 +99,7 @@ export const BPF = (): JSX.Element => {
       }
     } catch (err: any) {
       console.error('Error fetching archives:', err);
-      showError('Erreur', 'Impossible de charger les archives');
+      showError(t('quality.bpf.error'), t('quality.bpf.importError'));
     } finally {
       setLoadingArchives(false);
     }
@@ -118,7 +118,7 @@ export const BPF = (): JSX.Element => {
       }
     } catch (err: any) {
       console.error('Error fetching BPF history:', err);
-      showError('Erreur', 'Impossible de charger l\'historique');
+      showError(t('quality.bpf.error'), t('quality.bpf.importError'));
       setHistory([]);
     } finally {
       setLoadingHistory(false);
@@ -131,7 +131,7 @@ export const BPF = (): JSX.Element => {
 
   const handleSubmitBPF = async () => {
     if (!currentBPF?.id) {
-      showError('Erreur', 'Aucun BPF à soumettre');
+      showError(t('quality.bpf.error'), t('quality.bpf.noBPF'));
       return;
     }
 
@@ -144,36 +144,36 @@ export const BPF = (): JSX.Element => {
       });
 
       if (response.success) {
-        success('BPF soumis avec succès');
+        success(t('quality.bpf.submitSuccess'));
         setShowSubmitModal(false);
         fetchCurrentBPF();
         fetchArchives();
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.bpf.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error submitting BPF:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de la soumission');
+      showError(t('quality.bpf.error'), err.message || t('quality.documents.genericError'));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDeleteBPF = async (bpfId: number) => {
-    if (!window.confirm('Voulez-vous vraiment supprimer ce BPF ?')) {
+    if (!window.confirm(t('quality.bpf.deleteConfirm'))) {
       return;
     }
     try {
       const response = await deleteQualityBPF(bpfId);
       if (response.success) {
-        success('BPF supprimé avec succès');
+        success(t('quality.bpf.deleteSuccess'));
         fetchCurrentBPF();
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.bpf.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error deleting BPF:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de la suppression');
+      showError(t('quality.bpf.error'), err.message || t('quality.documents.genericError'));
     }
   };
 
@@ -182,13 +182,13 @@ export const BPF = (): JSX.Element => {
       const response = await exportBPF(bpfId, 'pdf');
       if (response.success && response.data?.url) {
         window.open(response.data.url, '_blank');
-        success('Export du BPF démarré');
+        success(t('quality.bpf.exportSuccess'));
       } else {
-        showError('Erreur', response.error?.message || 'Impossible d\'exporter le BPF');
+        showError(t('quality.bpf.error'), response.error?.message || t('quality.bpf.exportError'));
       }
     } catch (err: any) {
       console.error('Error exporting BPF:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de l\'export');
+      showError(t('quality.bpf.error'), err.message || t('quality.bpf.exportError'));
     }
   };
 
@@ -210,10 +210,10 @@ export const BPF = (): JSX.Element => {
     <div className="px-[27px] py-8">
       <div className="mb-6">
         <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-[#19294a]'} [font-family:'Poppins',Helvetica]`}>
-            Bilan Pédagogique et Financier (BPF)
+            {t('quality.bpf.title')}
         </h1>
         <p className={`${isDark ? 'text-gray-400' : 'text-[#6a90b9]'} [font-family:'Poppins',Helvetica]`}>
-          Le BPF doit être transmis chaque année à la DREETS avant le 30 avril
+          {t('quality.bpf.description')}
         </p>
       </div>
 
@@ -221,14 +221,14 @@ export const BPF = (): JSX.Element => {
       <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] mb-6`}>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'} [font-family:'Poppins',Helvetica]`}>
-            Année en cours - {currentYear}
+            {t('quality.bpf.currentYear')} - {currentYear}
           </CardTitle>
           {!currentBPF && (
             <Button
               onClick={() => navigateToRoute('/quality/bpf/create')}
               className="bg-[#ff7700] hover:bg-[#e66900] text-white"
             >
-              <Plus className="mr-2 h-4 w-4" /> Créer le BPF {currentYear}
+              <Plus className="mr-2 h-4 w-4" /> {t('quality.bpf.createBPF')} {currentYear}
             </Button>
           )}
         </CardHeader>
@@ -242,7 +242,7 @@ export const BPF = (): JSX.Element => {
                       BPF {currentYear}
                     </p>
                     <Badge className={`mt-2 ${currentBPF.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                      {currentBPF.status === 'draft' ? 'Brouillon' : currentBPF.status === 'submitted' ? 'Soumis' : 'Approuvé'}
+                      {currentBPF.status === 'draft' ? t('quality.bpf.draft') : currentBPF.status === 'submitted' ? t('quality.bpf.submitted') : t('quality.bpf.approved')}
                     </Badge>
                   </div>
                   <div className="flex gap-2">
@@ -252,7 +252,7 @@ export const BPF = (): JSX.Element => {
                       onClick={() => handleEditBPF(currentBPF)}
                       className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}
                     >
-                      <Edit className="mr-2 h-4 w-4" /> Modifier
+                      <Edit className="mr-2 h-4 w-4" /> {t('quality.bpf.edit')}
                     </Button>
                     {currentBPF.status === 'draft' && (
                       <Button
@@ -264,7 +264,7 @@ export const BPF = (): JSX.Element => {
                         }}
                         className="border-green-600 text-green-600 hover:bg-green-50"
                       >
-                        <Send className="mr-2 h-4 w-4" /> Soumettre
+                        <Send className="mr-2 h-4 w-4" /> {t('quality.bpf.submit')}
                       </Button>
                     )}
                     <Button
@@ -273,7 +273,7 @@ export const BPF = (): JSX.Element => {
                       onClick={() => handleViewHistory(currentBPF)}
                       className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}
                     >
-                      <History className="mr-2 h-4 w-4" /> Historique
+                      <History className="mr-2 h-4 w-4" /> {t('quality.bpf.history')}
                     </Button>
                   <Button 
                       variant="outline"
@@ -281,7 +281,7 @@ export const BPF = (): JSX.Element => {
                       onClick={() => handleExportBPF(currentBPF.id)}
                       className="border-blue-600 text-blue-600 hover:bg-blue-50"
                     >
-                      <Download className="mr-2 h-4 w-4" /> Exporter
+                      <Download className="mr-2 h-4 w-4" /> {t('quality.bpf.export')}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -296,19 +296,19 @@ export const BPF = (): JSX.Element => {
                 {currentBPF.data && (
                   <div className="grid grid-cols-3 gap-4 mt-4">
                     <div>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>Sessions</p>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>{t('quality.bpf.sessions')}</p>
                       <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica]`}>
                         {currentBPF.data.training?.totalSessions || 0}
                       </p>
                     </div>
                     <div>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>Participants</p>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>{t('quality.bpf.participants')}</p>
                       <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica]`}>
                         {currentBPF.data.training?.totalParticipants || 0}
                     </p>
                     </div>
                     <div>
-                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>Chiffre d'affaires</p>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>{t('quality.bpf.revenue')}</p>
                       <p className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica]`}>
                         {currentBPF.data.financial?.totalRevenue?.toLocaleString('fr-FR') || 0} €
                       </p>
@@ -320,13 +320,13 @@ export const BPF = (): JSX.Element => {
           ) : (
             <div className="text-center py-8">
               <p className={`${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica] mb-4`}>
-                Aucun BPF enregistré pour {currentYear}
+                {t('quality.bpf.noBPFForYear')} {currentYear}
               </p>
               <Button
                 onClick={() => navigateToRoute('/quality/bpf/create')}
                 className="bg-[#ff7700] hover:bg-[#e66900] text-white"
               >
-                <Plus className="mr-2 h-4 w-4" /> Créer le BPF {currentYear}
+                <Plus className="mr-2 h-4 w-4" /> {t('quality.bpf.createBPF')} {currentYear}
               </Button>
                 </div>
           )}
@@ -337,13 +337,13 @@ export const BPF = (): JSX.Element => {
       <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
         <CardHeader>
           <CardTitle className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-[#19294a]'} [font-family:'Poppins',Helvetica]`}>
-            Archives
+            {t('quality.bpf.archives')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {archives.length === 0 ? (
             <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
-              Aucun BPF archivé
+              {t('quality.bpf.noArchives')}
             </p>
           ) : (
             <div className="space-y-3">
@@ -363,7 +363,7 @@ export const BPF = (): JSX.Element => {
                         BPF {archive.year}
                       </p>
                       <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
-                        Soumis le {archive.submittedDate ? formatDate(new Date(archive.submittedDate)) : 'N/A'}
+                        {t('quality.bpf.submittedOn')} {archive.submittedDate ? formatDate(new Date(archive.submittedDate)) : 'N/A'}
                       </p>
                         </div>
                       </div>
@@ -374,7 +374,7 @@ export const BPF = (): JSX.Element => {
                       onClick={() => handleViewHistory(archive)}
                       className={isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}
                         >
-                      <History className="mr-2 h-4 w-4" /> Historique
+                      <History className="mr-2 h-4 w-4" /> {t('quality.bpf.history')}
                         </Button>
                         <Button 
                           variant="outline" 
@@ -382,7 +382,7 @@ export const BPF = (): JSX.Element => {
                       onClick={() => handleExportBPF(archive.id)}
                       className="border-blue-600 text-blue-600 hover:bg-blue-50"
                         >
-                      <Download className="mr-2 h-4 w-4" /> Exporter
+                      <Download className="mr-2 h-4 w-4" /> {t('quality.bpf.export')}
                         </Button>
                       </div>
                 </div>
@@ -397,12 +397,12 @@ export const BPF = (): JSX.Element => {
         <DialogContent className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} max-w-md`}>
           <DialogHeader>
             <DialogTitle className={`${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica] font-semibold text-xl`}>
-              Soumettre le BPF {currentYear}
+              {t('quality.modals.submitBPF.title')} {currentYear}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className={`${isDark ? 'text-gray-300' : 'text-gray-700'} [font-family:'Poppins',Helvetica]`}>
-              Êtes-vous sûr de vouloir soumettre ce BPF ? Une fois soumis, il sera archivé et vous ne pourrez plus le modifier.
+              {t('quality.modals.submitBPF.message')}
             </p>
           </div>
           <DialogFooter>
@@ -412,7 +412,7 @@ export const BPF = (): JSX.Element => {
               disabled={submitting}
               className={isDark ? 'border-gray-600' : ''}
             >
-              Annuler
+              {t('quality.modals.submitBPF.cancel')}
             </Button>
             <Button
               onClick={handleSubmitBPF}
@@ -422,12 +422,12 @@ export const BPF = (): JSX.Element => {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Soumission...
+                  {t('quality.modals.submitBPF.submitting')}
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4 mr-2" />
-                  Soumettre
+                  {t('quality.modals.submitBPF.submit')}
                 </>
               )}
             </Button>
@@ -440,7 +440,7 @@ export const BPF = (): JSX.Element => {
         <DialogContent className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'} max-w-3xl max-h-[90vh] overflow-y-auto`}>
           <DialogHeader>
             <DialogTitle className={`${isDark ? 'text-white' : 'text-gray-900'} [font-family:'Poppins',Helvetica] font-semibold text-xl`}>
-              Historique des modifications - BPF {selectedBPF?.year}
+              {t('quality.modals.historyBPF.title')} {selectedBPF?.year}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
@@ -450,7 +450,7 @@ export const BPF = (): JSX.Element => {
               </div>
             ) : history.length === 0 ? (
               <p className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'} [font-family:'Poppins',Helvetica]`}>
-                Aucun historique disponible
+                {t('quality.modals.historyBPF.noHistory')}
               </p>
             ) : (
               <div className="space-y-4">
@@ -469,21 +469,21 @@ export const BPF = (): JSX.Element => {
                         </p>
                       </div>
                       <Badge className={entry.action === 'create' ? 'bg-green-100 text-green-800' : entry.action === 'update' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}>
-                        {entry.action === 'create' ? 'Création' : entry.action === 'update' ? 'Modification' : 'Soumission'}
+                        {entry.action === 'create' ? t('quality.modals.historyBPF.actionCreate') : entry.action === 'update' ? t('quality.modals.historyBPF.actionUpdate') : t('quality.modals.historyBPF.actionSubmit')}
                       </Badge>
                     </div>
                     <div className="mt-2">
                       <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'} [font-family:'Poppins',Helvetica]`}>
-                        <strong>Champ:</strong> {entry.fieldName}
+                        <strong>{t('quality.modals.historyBPF.field')}</strong> {entry.fieldName}
                       </p>
                       {entry.oldValue && (
                         <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'} [font-family:'Poppins',Helvetica]`}>
-                          <strong>Ancienne valeur:</strong> {entry.oldValue}
+                          <strong>{t('quality.modals.historyBPF.oldValue')}</strong> {entry.oldValue}
                         </p>
                       )}
                       {entry.newValue && (
                         <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'} [font-family:'Poppins',Helvetica]`}>
-                          <strong>Nouvelle valeur:</strong> {entry.newValue}
+                          <strong>{t('quality.modals.historyBPF.newValue')}</strong> {entry.newValue}
                         </p>
                       )}
                     </div>
@@ -497,7 +497,7 @@ export const BPF = (): JSX.Element => {
               onClick={() => setShowHistoryModal(false)}
               className="bg-[#ff7700] hover:bg-[#e66900] text-white"
             >
-              Fermer
+              {t('quality.modals.historyBPF.close')}
             </Button>
           </DialogFooter>
         </DialogContent>

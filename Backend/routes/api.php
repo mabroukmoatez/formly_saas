@@ -1921,10 +1921,39 @@ Route::middleware(['auth:api'])->prefix('admin/organization')->group(function ()
         Route::get('/planning', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getCourses']);
     });
     
-    // 9. Planning Overview (Sessions + Courses + Events)
+    // 9. Planning Overview (Sessions + Courses + Events) - LEGACY
     Route::get('/planning/overview', [\App\Http\Controllers\Api\Admin\SessionPlanningController::class, 'getPlanningOverview']);
     
-    // 9. Reports & Statistics (Rapports)
+    // =====================================================
+    // 10. COURSE SESSIONS (NEW - Correct Implementation)
+    // =====================================================
+    // Sessions are scheduled instances of courses
+    // Course = Template/Model, CourseSession = Scheduled delivery
+    Route::prefix('course-sessions')->group(function () {
+        // List and CRUD
+        Route::get('/', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'store']);
+        Route::get('/planning', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'getPlanningOverview']);
+        Route::get('/{uuid}', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'show']);
+        Route::put('/{uuid}', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'update']);
+        Route::delete('/{uuid}', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'destroy']);
+        Route::post('/{uuid}/cancel', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'cancel']);
+        
+        // Slots (Séances)
+        Route::get('/{uuid}/slots', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'getSlots']);
+        Route::post('/{uuid}/slots', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'createSlot']);
+        Route::post('/{uuid}/generate-slots', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'generateSlots']);
+        
+        // Participants
+        Route::get('/{uuid}/participants', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'getParticipants']);
+        Route::post('/{uuid}/participants', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'addParticipant']);
+        Route::delete('/{uuid}/participants/{participantUuid}', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'removeParticipant']);
+    });
+    
+    // Courses available for session creation
+    Route::get('/courses/available', [\App\Http\Controllers\Api\Admin\CourseSessionController::class, 'getAvailableCourses']);
+    
+    // 11. Reports & Statistics (Rapports)
     Route::get('/reports/dashboard', [AdminReportController::class, 'dashboard']);
     Route::get('/reports/connections', [AdminReportController::class, 'connections']);
     Route::post('/reports/export', [AdminReportController::class, 'export']);
@@ -2055,12 +2084,16 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     
     // Quotes (English)
     Route::get('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'index']);
+    Route::post('/quotes/export-excel', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'exportExcel']);
     Route::post('/quotes', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'store']);
     Route::get('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'show']);
     Route::put('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'update']);
     Route::delete('/quotes/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'destroy']);
     Route::patch('/quotes/{id}/status', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'updateStatus']);
     Route::post('/quotes/{id}/upload-signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::get('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getSignedDocument']);
+    Route::post('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::put('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
     Route::post('/quotes/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/quotes/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
@@ -2074,6 +2107,8 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::delete('/devis/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'destroy']);
     Route::patch('/devis/{id}/status', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'updateStatus']);
     Route::post('/devis/{id}/upload-signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
+    Route::get('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getSignedDocument']);
+    Route::post('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
     Route::post('/devis/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::post('/devis/{id}/convert-to-facture', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);

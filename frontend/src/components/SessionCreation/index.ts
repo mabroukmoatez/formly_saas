@@ -1,5 +1,6 @@
 export { SessionCreationHeader } from './SessionCreationHeader';
 export { SessionInformationForm } from './SessionInformationForm';
+export { CourseSelectionModal } from './CourseSelectionModal';
 export { Step6Seances } from './Step6Seances';
 export { Step7Participants } from './Step7Participants';
 export { Step8Deroulement } from './Step8Deroulement';

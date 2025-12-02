@@ -216,6 +216,36 @@ class Course extends Model
         return $this->hasMany(Enrollment::class);
     }
 
+    /**
+     * Sessions (scheduled instances) of this course
+     */
+    public function sessions()
+    {
+        return $this->hasMany(CourseSession::class, 'course_uuid', 'uuid');
+    }
+
+    /**
+     * Upcoming sessions of this course
+     */
+    public function upcomingSessions()
+    {
+        return $this->sessions()
+            ->where('start_date', '>=', now()->toDateString())
+            ->whereNotIn('status', ['cancelled', 'completed'])
+            ->orderBy('start_date');
+    }
+
+    /**
+     * Published sessions open for registration
+     */
+    public function openSessions()
+    {
+        return $this->sessions()
+            ->where('is_published', true)
+            ->where('is_registration_open', true)
+            ->whereNotIn('status', ['cancelled', 'completed', 'in_progress']);
+    }
+
     public function studentCertificate()
     {
         return $this->hasOne(Student_certificate::class, 'course_id')->where('user_id', auth()->id());

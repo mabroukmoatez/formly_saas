@@ -7,6 +7,7 @@ import { useQualityInitialization } from '../../hooks/useQualityInitialization';
 import { useQualityDashboard } from '../../hooks/useQualityDashboard';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { AddDocumentModal } from '../../components/QualityDashboard/AddDocumentModal';
 import { AddEvidenceModal } from '../../components/QualityDashboard/AddEvidenceModal';
 import { AddAuditModal } from '../../components/QualityDashboard/AddAuditModal';
@@ -20,6 +21,7 @@ export const GestionQualite = (): JSX.Element => {
   const { data, loading, error, refetch } = useQualityDashboard(!initialized);
   const { navigateToRoute } = useSubdomainNavigation();
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#007aff';
   const secondaryColor = organization?.secondary_color || '#6a90b9';
@@ -66,31 +68,31 @@ export const GestionQualite = (): JSX.Element => {
         <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ff7700] bg-white'} rounded-[18px] p-8 text-center max-w-2xl mx-auto`}>
           <div className="mb-6">
             <h2 className="text-4xl font-bold mb-4 bg-[linear-gradient(90deg,rgba(255,119,0,1)_0%,rgba(255,225,0,1)_100%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins',Helvetica]">
-              Bienvenue dans Gestion Qualité! 🎉
+              {t('quality.dashboard.welcome')}
             </h2>
             <p className={`text-lg mb-6 [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
-              Cliquez ci-dessous pour initialiser votre système de gestion qualité
+              {t('quality.dashboard.initializePrompt')}
             </p>
           </div>
           
           <div className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-[#fffbef] border-2 border-[#ffe5ca]'} rounded-[18px] p-6 mb-6`}>
-            <h3 className={`font-semibold text-xl mb-4 [font-family:'Poppins',Helvetica] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>Ce qui sera créé:</h3>
+            <h3 className={`font-semibold text-xl mb-4 [font-family:'Poppins',Helvetica] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>{t('quality.dashboard.whatWillBeCreated')}</h3>
             <ul className="text-left space-y-3">
               <li className="flex items-center gap-3">
                 <span className="text-2xl text-green-500">✓</span>
-                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>32 Indicateurs Qualiopi</span>
+                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>{t('quality.dashboard.indicatorsCreated')}</span>
               </li>
               <li className="flex items-center gap-3">
                 <span className="text-2xl text-green-500">✓</span>
-                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>5 Catégories d'actions par défaut</span>
+                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>{t('quality.dashboard.categoriesCreated')}</span>
               </li>
               <li className="flex items-center gap-3">
                 <span className="text-2xl text-green-500">✓</span>
-                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>Système de gestion de documents</span>
+                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>{t('quality.dashboard.documentsSystem')}</span>
               </li>
               <li className="flex items-center gap-3">
                 <span className="text-2xl text-green-500">✓</span>
-                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>Suivi des audits</span>
+                <span className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-200' : 'text-[#19294a]'}`}>{t('quality.dashboard.auditsTracking')}</span>
               </li>
             </ul>
           </div>
@@ -111,7 +113,7 @@ export const GestionQualite = (): JSX.Element => {
             disabled={initLoading}
             className="h-auto px-8 py-4 text-lg font-semibold bg-[linear-gradient(90deg,rgba(255,119,0,1)_0%,rgba(255,225,0,1)_100%)] text-white rounded-[32px] hover:opacity-90 [font-family:'Poppins',Helvetica]"
           >
-            {initLoading ? 'Initialisation...' : 'Initialiser le Système Qualité'}
+            {initLoading ? t('quality.dashboard.initializing') : t('quality.dashboard.initializeButton')}
           </Button>
         </Card>
       </div>
@@ -145,9 +147,9 @@ export const GestionQualite = (): JSX.Element => {
     return (
       <div className="px-[27px] py-8">
         <Card className={`border-2 ${isDark ? 'border-red-800 bg-red-900/20' : 'border-red-200 bg-red-50'} rounded-[18px] p-6`}>
-          <h3 className={`text-lg font-semibold mb-2 [font-family:'Poppins',Helvetica] ${isDark ? 'text-red-400' : 'text-red-700'}`}>Erreur</h3>
+          <h3 className={`text-lg font-semibold mb-2 [font-family:'Poppins',Helvetica] ${isDark ? 'text-red-400' : 'text-red-700'}`}>{t('quality.dashboard.error')}</h3>
           <p className={`mb-4 [font-family:'Poppins',Helvetica] ${isDark ? 'text-red-300' : 'text-red-600'}`}>{error}</p>
-          <Button onClick={refetch} style={{ backgroundColor: primaryColor }} className="text-white hover:opacity-90">Réessayer</Button>
+          <Button onClick={refetch} style={{ backgroundColor: primaryColor }} className="text-white hover:opacity-90">{t('quality.dashboard.retry')}</Button>
         </Card>
       </div>
     );
@@ -158,8 +160,8 @@ export const GestionQualite = (): JSX.Element => {
     return (
       <div className="px-[27px] py-8">
         <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] p-6 text-center`}>
-          <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucune donnée disponible</p>
-          <Button onClick={refetch} style={{ backgroundColor: primaryColor }} className="mt-4 text-white hover:opacity-90">Actualiser</Button>
+          <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.noData')}</p>
+          <Button onClick={refetch} style={{ backgroundColor: primaryColor }} className="mt-4 text-white hover:opacity-90">{t('quality.dashboard.refresh')}</Button>
         </Card>
       </div>
     );
@@ -243,12 +245,12 @@ export const GestionQualite = (): JSX.Element => {
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
-              Gestion Qualité
+              {t('quality.dashboard.title')}
             </h1>
             <p 
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
-              Tableau de bord de votre système de gestion qualité Qualiopi
+              {t('quality.dashboard.subtitle')}
             </p>
           </div>
         </div>
@@ -261,7 +263,7 @@ export const GestionQualite = (): JSX.Element => {
         <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
           <CardHeader className="pb-[29px]">
             <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-              Système Qualité
+              {t('quality.dashboard.system')}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex gap-[29px]">
@@ -358,7 +360,7 @@ export const GestionQualite = (): JSX.Element => {
                 </svg>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
                   <div className={`[font-family:'Poppins',Helvetica] font-semibold text-lg ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                    {data.overview.totalDocuments} Document{data.overview.totalDocuments !== 1 ? 's' : ''}
+                    {data.overview.totalDocuments} {data.overview.totalDocuments !== 1 ? t('quality.dashboard.documents') : t('quality.dashboard.document')}
                   </div>
                 </div>
               </div>
@@ -367,19 +369,19 @@ export const GestionQualite = (): JSX.Element => {
                 <div className="flex items-center gap-[6.79px]">
                   <div className="bg-[#ff7700] rounded-full w-2 h-2" />
                   <span className={`[font-family:'Poppins',Helvetica] font-normal text-[8.6px] ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    {data.overview.procedures} Procédure{data.overview.procedures !== 1 ? 's' : ''}
+                    {data.overview.procedures} {data.overview.procedures !== 1 ? t('quality.dashboard.procedures') : t('quality.dashboard.procedure')}
                   </span>
                 </div>
                 <div className="flex items-center gap-[6.79px]">
                   <div className="bg-[#25c9b5] rounded-full w-2 h-2" />
                   <span className={`[font-family:'Poppins',Helvetica] font-normal text-[8.6px] ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    {data.overview.models} Modèle{data.overview.models !== 1 ? 's' : ''}
+                    {data.overview.models} {data.overview.models !== 1 ? t('quality.dashboard.models') : t('quality.dashboard.model')}
                   </span>
                 </div>
                 <div className="flex items-center gap-[6.79px]">
                   <div className="bg-[#d7e07f] rounded-full w-2 h-2" />
                   <span className={`[font-family:'Poppins',Helvetica] font-normal text-[8.6px] ${isDark ? 'text-gray-300' : 'text-[#19294a]'}`}>
-                    {data.overview.evidences} Preuve{data.overview.evidences !== 1 ? 's' : ''}
+                    {data.overview.evidences} {data.overview.evidences !== 1 ? t('quality.dashboard.proofs') : t('quality.dashboard.proof')}
                   </span>
                 </div>
               </div>
@@ -393,22 +395,22 @@ export const GestionQualite = (): JSX.Element => {
                   <div className="flex items-center gap-1.5">
                     <div className="bg-[#ff7700] rounded-full w-2 h-2" />
                     <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[10.4px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                      Procédures
+                      {t('quality.dashboard.procedures')}
                     </span>
                   </div>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Objectif Qualité : Au Moins 1
+                    {t('quality.dashboard.qualityGoal')}
                   </p>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Modèle Doit Être Associé À Chaque Indicateur.
+                    {t('quality.dashboard.qualityGoalModel')}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
+                <Button 
+                  variant="outline" 
                   className={`h-auto px-3 py-1 rounded-[32px] border-[0.72px] [font-family:'Poppins',Helvetica] font-medium text-[9.1px] ${isDark ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#007aff] text-[#007aff]'}`}
                   onClick={() => setShowProcedureModal(true)}
                 >
-                  Ajouter une procédure
+                  {t('quality.dashboard.addProcedure')}
                 </Button>
               </div>
 
@@ -418,22 +420,22 @@ export const GestionQualite = (): JSX.Element => {
                   <div className="flex items-center gap-2.5">
                     <div className="bg-[#25c9b5] rounded-full w-2 h-2" />
                     <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[10.4px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                      Modèles
+                      {t('quality.dashboard.models')}
                     </span>
                   </div>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Objectif Qualité : Au Moins 1
+                    {t('quality.dashboard.qualityGoal')}
                   </p>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Modèle Doit Être Associé À Chaque Indicateur.
+                    {t('quality.dashboard.qualityGoalModel')}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
+                <Button 
+                  variant="outline" 
                   className={`h-auto px-3 py-1 rounded-[32px] border-[0.72px] [font-family:'Poppins',Helvetica] font-medium text-[9.1px] ${isDark ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#007aff] text-[#007aff]'}`}
                   onClick={() => setShowModelModal(true)}
                 >
-                  Ajouter une première Modèles
+                  {t('quality.dashboard.addFirstModel')}
                 </Button>
               </div>
 
@@ -443,22 +445,22 @@ export const GestionQualite = (): JSX.Element => {
                   <div className="flex items-center gap-2.5">
                     <div className="bg-[#d7e07f] rounded-full w-2 h-2" />
                     <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[10.4px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                      Preuves
+                      {t('quality.dashboard.proofs')}
                     </span>
                   </div>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Objectif Qualité : Au Moins 1 Preuve
+                    {t('quality.dashboard.qualityGoal')}
                   </p>
                   <p className={`[font-family:'Poppins',Helvetica] font-normal text-xs ${isDark ? 'text-gray-400' : 'text-[#455a85]'}`}>
-                    Doit Être Associée À Chaque Indicateur.
+                    {t('quality.dashboard.qualityGoalEvidence')}
                   </p>
                 </div>
-                <Button
-                  variant="outline"
+                <Button 
+                  variant="outline" 
                   className={`h-auto px-3 py-1 rounded-[32px] border-[0.72px] [font-family:'Poppins',Helvetica] font-medium text-[9.1px] ${isDark ? 'bg-gray-700 border-blue-500 text-blue-400 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#007aff] text-[#007aff]'}`}
                   onClick={() => setShowEvidenceModal(true)}
                 >
-                  Ajouter une première Preuves
+                  {t('quality.dashboard.addFirstEvidence')}
                 </Button>
               </div>
             </div>
@@ -469,14 +471,14 @@ export const GestionQualite = (): JSX.Element => {
         <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
           <CardHeader>
             <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-              Indicateurs Qualiopi
+              {t('quality.dashboard.qualiopiIndicators')}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {qualityIndicators.length === 0 ? (
               <div className="text-center py-8">
                 <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
-                  Aucun indicateur chargé. Veuillez initialiser le système qualité.
+                  {t('quality.dashboard.noIndicators')}
                 </p>
               </div>
             ) : (
@@ -663,15 +665,15 @@ export const GestionQualite = (): JSX.Element => {
               </div>
             </div>
 
-                  <Button
-                    variant="outline"
-                    className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start ${isDark ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-[#ebf1ff] border-[#6a90b9]'}`}
-                    onClick={() => setShowSettingsModal(true)}
-                  >
-                    <span className={`[font-family:'Poppins',Helvetica] font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
-                      Paramètres Des Indicateurs
-                    </span>
-                  </Button>
+                <Button
+                  variant="outline"
+                  className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start ${isDark ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-[#ebf1ff] border-[#6a90b9]'}`}
+                  onClick={() => setShowSettingsModal(true)}
+                >
+                  <span className={`[font-family:'Poppins',Helvetica] font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
+                    {t('quality.dashboard.indicatorSettings')}
+                  </span>
+                </Button>
                 </>
               )}
           </CardContent>
@@ -683,7 +685,7 @@ export const GestionQualite = (): JSX.Element => {
           <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] flex-1`}>
             <CardHeader>
               <CardTitle className={`[font-family:'Poppins',Helvetica] font-medium text-[13px] tracking-[0.20px] ${isDark ? 'text-white' : 'text-slate-800'}`}>
-                Les Actions & Taches
+                {t('quality.dashboard.actionsAndTasks')}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2.5">
@@ -712,21 +714,21 @@ export const GestionQualite = (): JSX.Element => {
                             {task.subcategory}
                           </Badge>
                         )}
-                        {task.priority && (
-                          <Badge className="h-auto px-[5px] py-1 bg-[#ffe5ca] rounded-[3.59px] [font-family:'Inter',Helvetica] font-medium text-[#ff7700] text-[10.8px]">
-                            {task.priority === 'low' ? 'Faible' : task.priority === 'medium' ? 'Moyenne' : task.priority === 'high' ? 'Élevée' : task.priority === 'urgent' ? 'Urgente' : task.priority}
-                          </Badge>
-                        )}
-                        {/* Show status badge for Trello tasks */}
-                        {task.status && task.status !== 'todo' && (
-                          <Badge className={`h-auto px-[5px] py-1 rounded-[3.59px] [font-family:'Inter',Helvetica] font-medium text-[10.8px] ${
-                            task.status === 'done' ? 'bg-green-100 text-green-800' : 
-                            task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' : 
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status === 'done' ? '✓ Terminée' : task.status === 'in_progress' ? 'En cours' : task.status}
-                          </Badge>
-                        )}
+                              {task.priority && (
+                                <Badge className="h-auto px-[5px] py-1 bg-[#ffe5ca] rounded-[3.59px] [font-family:'Inter',Helvetica] font-medium text-[#ff7700] text-[10.8px]">
+                                  {task.priority === 'low' ? t('quality.dashboard.priority.low') : task.priority === 'medium' ? t('quality.dashboard.priority.medium') : task.priority === 'high' ? t('quality.dashboard.priority.high') : task.priority === 'urgent' ? t('quality.dashboard.priority.urgent') : task.priority}
+                                </Badge>
+                              )}
+                              {/* Show status badge for Trello tasks */}
+                              {task.status && task.status !== 'todo' && (
+                                <Badge className={`h-auto px-[5px] py-1 rounded-[3.59px] [font-family:'Inter',Helvetica] font-medium text-[10.8px] ${
+                                  task.status === 'done' ? 'bg-green-100 text-green-800' :
+                                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {task.status === 'done' ? t('quality.dashboard.taskStatus.done') : task.status === 'in_progress' ? t('quality.dashboard.taskStatus.inProgress') : task.status}
+                                </Badge>
+                              )}
                       </div>
                       {/* Menu (three dots) on last card */}
                       {index === 2 && (
@@ -742,33 +744,33 @@ export const GestionQualite = (): JSX.Element => {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-[5px]">
-                      <h3 className={`[font-family:'Inter',Helvetica] font-semibold text-[16.1px] ${isDark ? 'text-white' : 'text-[#0d062d]'}`}>
-                        {task.title}
-                      </h3>
-                      <p className={`[font-family:'Inter',Helvetica] font-normal text-[10.8px] ${isDark ? 'text-gray-400' : 'text-[#787486]'}`}>
-                        {task.description || 'Aucune description'}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucune action pour le moment</p>
-                  <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>Créez votre première action pour commencer</p>
-                </div>
-              )}
+                          <div className="flex flex-col gap-[5px]">
+                            <h3 className={`[font-family:'Inter',Helvetica] font-semibold text-[16.1px] ${isDark ? 'text-white' : 'text-[#0d062d]'}`}>
+                              {task.title}
+                            </h3>
+                            <p className={`[font-family:'Inter',Helvetica] font-normal text-[10.8px] ${isDark ? 'text-gray-400' : 'text-[#787486]'}`}>
+                              {task.description || t('quality.dashboard.noDescription')}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.noActions')}</p>
+                        <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>{t('quality.dashboard.noActionsDescription')}</p>
+                      </div>
+                    )}
 
-              <Button
-                variant="outline"
-                className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start mt-auto ${isDark ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#6a90b9]'}`}
-                onClick={() => navigateToRoute('/quality/actions')}
-              >
-                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[13px] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
-                  Voir Tous Les Actions
-                </span>
-              </Button>
+                    <Button
+                      variant="outline"
+                      className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start mt-auto ${isDark ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#6a90b9]'}`}
+                      onClick={() => navigateToRoute('/quality/actions')}
+                    >
+                      <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[13px] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>
+                        {t('quality.dashboard.viewAllActions')}
+                      </span>
+                    </Button>
             </CardContent>
           </Card>
 
@@ -776,7 +778,7 @@ export const GestionQualite = (): JSX.Element => {
           <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px] flex-1`}>
             <CardHeader>
               <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                Derniers éléments ajoutés
+                {t('quality.dashboard.lastAddedElements')}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
@@ -808,11 +810,11 @@ export const GestionQualite = (): JSX.Element => {
                             </div>
                           ))}
                         </div>
-                        {file.showIndicatorCount && (
-                          <span className={`[font-family:'Inter',Helvetica] font-semibold text-xs ${isDark ? 'text-gray-400' : 'text-[#00000066]'}`}>
-                            +3 Indicateurs
-                          </span>
-                        )}
+                              {file.showIndicatorCount && (
+                                <span className={`[font-family:'Inter',Helvetica] font-semibold text-xs ${isDark ? 'text-gray-400' : 'text-[#00000066]'}`}>
+                                  {t('quality.dashboard.plusIndicators')}
+                                </span>
+                              )}
                       </div>
                     ) : (
                       <div className="flex items-start gap-2.5">
@@ -828,53 +830,53 @@ export const GestionQualite = (): JSX.Element => {
                     )}
                   </div>
                   
-                  {/* Download and Preview Icons */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Add download functionality
-                        if (file.url) {
-                          window.open(file.url, '_blank');
-                        }
-                      }}
-                      className={`p-2 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                      title="Télécharger"
-                    >
-                      <Download className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Add preview functionality
-                        if (file.url) {
-                          window.open(file.url, '_blank');
-                        }
-                      }}
-                      className={`p-2 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                      title="Aperçu"
-                    >
-                      <Eye className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
-                    </button>
-                  </div>
+                          {/* Download and Preview Icons */}
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // TODO: Add download functionality
+                                if (file.url) {
+                                  window.open(file.url, '_blank');
+                                }
+                              }}
+                              className={`p-2 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+                              title={t('quality.dashboard.download')}
+                            >
+                              <Download className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // TODO: Add preview functionality
+                                if (file.url) {
+                                  window.open(file.url, '_blank');
+                                }
+                              }}
+                              className={`p-2 rounded hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
+                              title={t('quality.dashboard.preview')}
+                            >
+                              <Eye className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
+                            </button>
+                          </div>
                 </div>
               ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucun document pour le moment</p>
-                  <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>Téléchargez votre premier document pour commencer</p>
-                </div>
-              )}
+                    ) : (
+                      <div className="text-center py-8">
+                        <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.noDocuments')}</p>
+                        <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>{t('quality.dashboard.noDocumentsDescription')}</p>
+                      </div>
+                    )}
 
-              <Button
-                variant="outline"
-                className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start mt-4 ${isDark ? 'bg-gray-700 border-blue-500 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#007aff]'}`}
-                onClick={() => setShowEvidenceModal(true)}
-              >
-                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[13px] ${isDark ? 'text-blue-400' : 'text-[#007aff]'}`}>
-                  Ajouter Un Éléments
-                </span>
-              </Button>
+                    <Button
+                      variant="outline"
+                      className={`h-auto px-[14.44px] py-[7.94px] rounded-[5.78px] border-[0.72px] border-dashed self-start mt-4 ${isDark ? 'bg-gray-700 border-blue-500 hover:bg-gray-600' : 'bg-[#e5f3ff] border-[#007aff]'}`}
+                      onClick={() => setShowEvidenceModal(true)}
+                    >
+                      <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[13px] ${isDark ? 'text-blue-400' : 'text-[#007aff]'}`}>
+                        {t('quality.dashboard.addElement')}
+                      </span>
+                    </Button>
             </CardContent>
           </Card>
         </div>
@@ -883,20 +885,20 @@ export const GestionQualite = (): JSX.Element => {
 
       {/* Right Sidebar */}
       <aside className="w-[400px] flex flex-col gap-[29px]">
-        {/* Next Audit */}
-        {nextAudit ? (
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#25c9b5] bg-white'} rounded-[18px]`}>
-            <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                Prochain audit
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <div className={`flex items-center justify-center px-6 py-0.5 rounded-[18px] ${isDark ? 'bg-orange-900/40' : 'bg-[#ffe5ca]'}`}>
-                <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-orange-400' : 'text-[#ff7700]'}`}>
-                  J- {nextAudit.daysRemaining}
-                </span>
-              </div>
+              {/* Next Audit */}
+              {nextAudit ? (
+                <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#25c9b5] bg-white'} rounded-[18px]`}>
+                  <CardHeader>
+                    <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                      {t('quality.dashboard.nextAudit')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-2">
+                    <div className={`flex items-center justify-center px-6 py-0.5 rounded-[18px] ${isDark ? 'bg-orange-900/40' : 'bg-[#ffe5ca]'}`}>
+                      <span className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-orange-400' : 'text-[#ff7700]'}`}>
+                        {t('quality.rightSidebar.daysRemaining')} {nextAudit.daysRemaining}
+                      </span>
+                    </div>
 
               <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-700' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
                 <CardContent className="p-6 flex items-center justify-between">
@@ -918,69 +920,69 @@ export const GestionQualite = (): JSX.Element => {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2.5">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className={`h-8 w-8 rounded-full ${isDark ? 'hover:bg-gray-600' : 'hover:bg-blue-50'}`}
-                      onClick={() => setShowAuditModal(true)}
-                      title="Modifier"
-                    >
-                      <Edit className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className={`h-8 w-8 rounded-full ${isDark ? 'hover:bg-gray-600' : 'hover:bg-red-50'}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // TODO: Add delete functionality
-                      }}
-                      title="Supprimer"
-                    >
-                      <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
-                    </Button>
-                  </div>
+                        <div className="flex items-center gap-2.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 rounded-full ${isDark ? 'hover:bg-gray-600' : 'hover:bg-blue-50'}`}
+                            onClick={() => setShowAuditModal(true)}
+                            title={t('common.edit')}
+                          >
+                            <Edit className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 rounded-full ${isDark ? 'hover:bg-gray-600' : 'hover:bg-red-50'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // TODO: Add delete functionality
+                            }}
+                            title={t('common.delete')}
+                          >
+                            <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                          </Button>
+                        </div>
                 </CardContent>
               </Card>
             </CardContent>
           </Card>
-        ) : (
-          <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
-            <CardHeader>
-              <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                Prochain audit
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center py-8">
-              <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucun audit programmé</p>
-              <Button style={{ backgroundColor: primaryColor }} className="mt-4 text-white hover:opacity-90" onClick={() => setShowAuditModal(true)}>Planifier un audit</Button>
-            </CardContent>
-          </Card>
-        )}
+              ) : (
+                <Card className={`border-2 ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#e2e2ea] bg-white'} rounded-[18px]`}>
+                  <CardHeader>
+                    <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] text-center ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                      {t('quality.dashboard.nextAudit')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center py-8">
+                    <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.noAuditScheduled')}</p>
+                    <Button style={{ backgroundColor: primaryColor }} className="mt-4 text-white hover:opacity-90" onClick={() => setShowAuditModal(true)}>{t('quality.dashboard.scheduleAudit')}</Button>
+                  </CardContent>
+                </Card>
+              )}
 
-        {/* Articles */}
-        <div className="flex flex-col gap-[17px]">
-          <div className="flex items-center justify-between">
-            <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-              Articles
-            </h2>
-            <button
-              onClick={() => navigateToRoute('/quality/articles')}
-              className={`[font-family:'Poppins',Helvetica] font-medium text-sm hover:underline ${isDark ? 'text-blue-400' : 'text-[#3B9FE8]'}`}
-              style={{ color: primaryColor }}
-            >
-              voir tous les articles &gt;
-            </button>
-          </div>
+              {/* Articles */}
+              <div className="flex flex-col gap-[17px]">
+                <div className="flex items-center justify-between">
+                  <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[17px] ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
+                    {t('quality.dashboard.articles')}
+                  </h2>
+                  <button
+                    onClick={() => navigateToRoute('/quality/articles')}
+                    className={`[font-family:'Poppins',Helvetica] font-medium text-sm hover:underline ${isDark ? 'text-blue-400' : 'text-[#3B9FE8]'}`}
+                    style={{ color: primaryColor }}
+                  >
+                    {t('quality.rightSidebar.viewAllArticles')} &gt;
+                  </button>
+                </div>
 
-          {articlesLoading && articles.length === 0 ? (
-            <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
-              <CardContent className="p-8 text-center">
-                <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Chargement des articles...</p>
-              </CardContent>
-            </Card>
-          ) : articles.length > 0 ? (
+                {articlesLoading && articles.length === 0 ? (
+                  <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
+                    <CardContent className="p-8 text-center">
+                      <p className={`[font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.loadingArticles')}</p>
+                    </CardContent>
+                  </Card>
+                ) : articles.length > 0 ? (
             articles.map((article: any) => {
               // Format date if needed
               const articleDate = article.date || (article.created_at ? new Date(article.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '');
@@ -1130,16 +1132,16 @@ export const GestionQualite = (): JSX.Element => {
               </Card>
               );
             })
-          ) : (
-            <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
-              <CardContent className="p-8 text-center">
-                <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>Aucun article pour le moment</p>
-                <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>Les articles apparaîtront ici</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </aside>
+                ) : (
+                  <Card className={`border-[1.76px] ${isDark ? 'border-gray-700 bg-gray-800' : 'border-[#ebf1ff] bg-white'} rounded-[15.81px]`}>
+                    <CardContent className="p-8 text-center">
+                      <p className={`[font-family:'Poppins',Helvetica] mb-2 ${isDark ? 'text-gray-300' : 'text-[#6a90b9]'}`}>{t('quality.dashboard.noArticles')}</p>
+                      <p className={`text-sm [font-family:'Poppins',Helvetica] ${isDark ? 'text-gray-400' : 'text-[#6a90b9]/70'}`}>{t('quality.dashboard.noArticlesDescription')}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </aside>
       </div>
 
       {/* Modals */}

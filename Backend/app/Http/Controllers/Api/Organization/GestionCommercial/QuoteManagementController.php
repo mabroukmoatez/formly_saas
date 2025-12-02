@@ -425,7 +425,8 @@ class QuoteManagementController extends Controller
         $quote->status = $request->status;
         $quote->save();
 
-        return $this->success($quote, 'Quote status updated successfully.');
+        $quote = $quote->fresh(['client']);
+        return $this->success(['quote' => $quote], 'Quote status updated successfully.');
     }
 
     public function uploadSignedDocument(Request $request, $id)
@@ -444,14 +445,15 @@ class QuoteManagementController extends Controller
         }
 
         $filePath = $request->file('signed_document')->store('signed_quotes', 'public');
-        
+
         $quote->update([
             'signed_document_path' => $filePath,
             'status' => 'accepted',
             'accepted_date' => now()
         ]);
 
-        return $this->success($quote, 'Signed document uploaded successfully.');
+        $quote = $quote->fresh(['client']);
+        return $this->success(['quote' => $quote], 'Signed document uploaded successfully.');
     }
 
     public function deleteSignedDocument($id)
@@ -469,7 +471,32 @@ class QuoteManagementController extends Controller
             'status' => 'sent'
         ]);
 
-        return $this->success($quote, 'Signed document deleted successfully.');
+        $quote = $quote->fresh(['client']);
+        return $this->success(['quote' => $quote], 'Signed document deleted successfully.');
+    }
+
+    public function getSignedDocument($id)
+    {
+        $organization_id = $this->getOrganizationId();
+        $quote = Quote::where('id', $id)->where('organization_id', $organization_id)->first();
+
+        if (!$quote || !$quote->signed_document_path) {
+            return $this->failed([], 'No signed document found.');
+        }
+
+        $filePath = $quote->signed_document_path;
+
+        if (!Storage::disk('public')->exists($filePath)) {
+            return $this->failed([], 'Document file not found.');
+        }
+
+        $file = Storage::disk('public')->get($filePath);
+        $mimeType = Storage::disk('public')->mimeType($filePath);
+        $fileName = 'Devis-' . $quote->quote_number . '-signé.pdf';
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
     }
 
     /**
@@ -672,5 +699,37 @@ class QuoteManagementController extends Controller
             return $this->failed([], 'Failed to send email: ' . $e->getMessage());
         }
     }
-}
+    /**
+     * Export quotes to Excel/CSV
+     */
+    public function exportExcel(Request $request)
+    {
+        $organization_id = $this->getOrganizationId();
 
+        $validator = Validator::make($request->all(), [
+            'quote_ids' => 'nullable|array',
+            'quote_ids.*' => 'integer|exists:quotes,id',
+        ]);
+
+        if ($validator->fails()) return $this->failed([], $validator->errors()->first());
+
+        try {
+            $quoteIds = null;
+
+            // If specific quote IDs provided, use them
+            if ($request->has('quote_ids') && is_array($request->quote_ids) && count($request->quote_ids) > 0) {
+                $quoteIds = $request->quote_ids;
+            }
+
+            // Use QuotesExport class with Maatwebsite\Excel
+            $export = new \App\Exports\QuotesExport([], $organization_id, $quoteIds);
+
+            $filename = 'devis_' . date('Y-m-d') . '.xlsx';
+
+            return \Maatwebsite\Excel\Facades\Excel::download($export, $filename);
+
+        } catch (\Exception $e) {
+            return $this->failed([], 'Export failed: ' . $e->getMessage());
+        }
+    }
+}

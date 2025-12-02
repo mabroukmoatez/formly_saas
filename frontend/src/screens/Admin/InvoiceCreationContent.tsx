@@ -38,6 +38,7 @@ export const InvoiceCreationContent: React.FC = () => {
 
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+  const [invoiceTitle, setInvoiceTitle] = useState('Facture');
   const [clientInfo, setClientInfo] = useState({
     name: '',
     email: '',
@@ -362,22 +363,24 @@ export const InvoiceCreationContent: React.FC = () => {
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-4">
           <div 
-            className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
-            onClick={() => setShowCompanyModal(true)}
+            className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
               <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Cliquez pour ajouter votre logo
+                Logo
               </div>
             )}
           </div>
 
-          <div className={`flex items-center justify-center px-3.5 py-1.5 rounded-[5px] border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {organization?.organization_name || 'Facture'}
-            </div>
+          <div className={`flex items-center justify-center px-3.5 py-1.5 rounded-[5px] border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}>
+            <Input
+              value={invoiceTitle}
+              onChange={(e) => setInvoiceTitle(e.target.value)}
+              placeholder="Titre de la facture"
+              className={`text-xs text-center border-0 p-0 h-auto ${isDark ? 'text-gray-300 bg-transparent' : 'text-gray-600 bg-transparent'}`}
+            />
           </div>
         </div>
 

@@ -29,6 +29,9 @@ interface ChapterItemProps {
   onDragStart: (e: React.DragEvent, item: any) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
+  onAddQuiz?: (chapterId: string) => void;
+  onAddDevoir?: (chapterId: string) => void;
+  onAddExamin?: (chapterId: string) => void;
   children?: React.ReactNode;
 }
 
@@ -64,8 +67,21 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           isDragOver ? 'ring-2 ring-blue-500' : ''
         }`}
         draggable
-        onDragStart={(e) => onDragStart(e, { id: chapter.id, type: 'chapter' })}
-        onDragOver={(e) => onDragOver(e, chapter.id)}
+        onDragStart={(e) => {
+          if (!chapter.id) {
+            console.error('ChapterItem: chapter.id is undefined in onDragStart');
+            e.preventDefault();
+            return;
+          }
+          onDragStart(e, { id: chapter.id, type: 'chapter' });
+        }}
+        onDragOver={(e) => {
+          if (!chapter.id) {
+            console.error('ChapterItem: chapter.id is undefined in onDragOver');
+            return;
+          }
+          onDragOver(e, chapter.id);
+        }}
         onDragEnd={onDragEnd}
       >
         <div className="flex items-center gap-3 flex-1">
@@ -74,7 +90,7 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           <div className="flex items-center gap-2">
             <div 
               className={`w-[17px] h-[17px] rounded-[8.5px] border-2 border-solid flex items-center justify-center transition-colors ${
-                chapter.title.trim().length > 0
+                (chapter.title || '').trim().length > 0
                   ? 'bg-green-500 border-green-500' 
                   : isDark 
                     ? 'bg-gray-600 border-gray-500' 
@@ -89,8 +105,14 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           </div>
           
           <Input
-            value={chapter.title}
-            onChange={(e) => onTitleChange(chapter.id, e.target.value)}
+            value={chapter.title || ''}
+            onChange={(e) => {
+              if (!chapter.id) {
+                console.error('ChapterItem: chapter.id is undefined in onTitleChange');
+                return;
+              }
+              onTitleChange(chapter.id, e.target.value);
+            }}
             placeholder={t('courseSteps.step2.sections.chapters.chapterTitlePlaceholder')}
             className={`flex-1 border-none shadow-none text-[17px] font-medium ${
               isDark 
@@ -104,7 +126,13 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onToggleExpanded(chapter.id)}
+            onClick={() => {
+              if (!chapter.id) {
+                console.error('ChapterItem: chapter.id is undefined in onToggleExpanded');
+                return;
+              }
+              onToggleExpanded(chapter.id);
+            }}
             className="p-1"
           >
             {chapter.isExpanded ? (
@@ -117,7 +145,13 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onDeleteChapter(chapter.id)}
+            onClick={() => {
+              if (!chapter.id) {
+                console.error('ChapterItem: chapter.id is undefined in onDeleteChapter');
+                return;
+              }
+              onDeleteChapter(chapter.id);
+            }}
             className="p-1 text-red-500 hover:text-red-700"
           >
             <Trash2 className="w-4 h-4" />
@@ -132,11 +166,21 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
             Ajouter un:
           </span>
           {onAddQuiz && (
-            <QuizPill onClick={() => onAddQuiz(chapter.id)} />
+            <QuizPill onClick={() => {
+              if (!chapter.id) {
+                console.error('ChapterItem: chapter.id is undefined in onAddQuiz');
+                return;
+              }
+              onAddQuiz(chapter.id);
+            }} />
           )}
           {onAddDevoir && (
             <DevoirPill 
               onClick={() => {
+                if (!chapter.id) {
+                  console.error('ChapterItem: chapter.id is undefined in onAddDevoir');
+                  return;
+                }
                 // Expand chapter first, then the handler will open the editor
                 onToggleExpanded(chapter.id);
                 // Small delay to ensure chapter is expanded before opening editor
@@ -147,6 +191,10 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
           {onAddExamin && (
             <ExaminPill 
               onClick={() => {
+                if (!chapter.id) {
+                  console.error('ChapterItem: chapter.id is undefined in onAddExamin');
+                  return;
+                }
                 // Expand chapter first, then the handler will open the editor
                 onToggleExpanded(chapter.id);
                 // Small delay to ensure chapter is expanded before opening editor

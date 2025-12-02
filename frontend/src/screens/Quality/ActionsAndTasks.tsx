@@ -705,14 +705,14 @@ export const ActionsAndTasks = (): JSX.Element => {
   const handleCreateCategorySuccess = () => {
     refetchCategories();
     setShowCreateCategoryModal(false);
-    success('Famille créée avec succès');
+    success(t('quality.sidebar.familyCreateSuccess'));
   };
 
   const handleRenameCategorySuccess = () => {
     refetchCategories();
     setShowRenameCategoryModal(false);
     setSelectedCategory(null);
-    success('Famille renommée avec succès');
+    success(t('quality.sidebar.familyRenameSuccess'));
   };
 
   const handleDeleteCategory = (category: QualityTaskCategory) => {
@@ -728,16 +728,16 @@ export const ActionsAndTasks = (): JSX.Element => {
       const response = await deleteTaskCategory(categoryToDelete.id);
       // Gérer différentes structures de réponse
       if (response && (response.success === true || response.success === undefined)) {
-        success('Famille supprimée avec succès');
+        success(t('quality.sidebar.familyDeleteSuccess'));
         refetchCategories();
         refetchTasks();
         setShowDeleteCategoryModal(false);
         setCategoryToDelete(null);
       } else if (response && response.success === false) {
-        showError('Erreur', response.error?.message || response.message || 'Une erreur est survenue');
+        showError(t('quality.documents.error'), response.error?.message || response.message || t('quality.documents.genericError'));
       } else {
         // Si la réponse est vide ou différente, considérer comme succès si pas d'erreur
-        success('Famille supprimée avec succès');
+        success(t('quality.sidebar.familyDeleteSuccess'));
         refetchCategories();
         refetchTasks();
         setShowDeleteCategoryModal(false);
@@ -745,7 +745,7 @@ export const ActionsAndTasks = (): JSX.Element => {
       }
     } catch (err: any) {
       console.error('Error deleting category:', err);
-      showError('Erreur', err.response?.data?.error?.message || err.message || 'Une erreur est survenue lors de la suppression');
+      showError(t('quality.documents.error'), err.response?.data?.error?.message || err.message || t('quality.documents.genericError'));
     } finally {
       setDeletingCategory(false);
     }
@@ -769,7 +769,7 @@ export const ActionsAndTasks = (): JSX.Element => {
     setShowAddTaskModal(false);
     setEditingTask(null);
     setSelectedCategory(null);
-    success(editingTask ? 'Tâche modifiée avec succès' : 'Tâche créée avec succès');
+    success(editingTask ? t('quality.tasks.taskUpdatedSuccess') : t('quality.tasks.taskCreatedSuccess'));
   };
 
   const handleDeleteTask = (taskId: number) => {
@@ -784,16 +784,16 @@ export const ActionsAndTasks = (): JSX.Element => {
     try {
       const response = await deleteQualityTask(taskToDelete);
       if (response.success) {
-        success('Tâche supprimée avec succès');
+        success(t('quality.tasks.taskDeletedSuccess'));
         refetchTasks();
         setShowDeleteTaskModal(false);
         setTaskToDelete(null);
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.documents.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error deleting task:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de la suppression');
+      showError(t('quality.documents.error'), err.message || t('quality.documents.genericError'));
     } finally {
       setDeletingTask(false);
     }
@@ -805,13 +805,13 @@ export const ActionsAndTasks = (): JSX.Element => {
       const response = await updateQualityTask(task.id, { status: newStatus });
       if (response.success) {
         refetchTasks();
-        success(`Tâche marquée comme ${newStatus === 'done' ? 'terminée' : 'à faire'}`);
+        success(newStatus === 'done' ? t('quality.tasks.taskMarkedAsDone') : t('quality.tasks.taskMarkedAsTodo'));
       } else {
-        showError('Erreur', response.error?.message || 'Une erreur est survenue');
+        showError(t('quality.documents.error'), response.error?.message || t('quality.documents.genericError'));
       }
     } catch (err: any) {
       console.error('Error updating task status:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue');
+      showError(t('quality.documents.error'), err.message || t('quality.documents.genericError'));
     }
   };
 
@@ -836,14 +836,14 @@ export const ActionsAndTasks = (): JSX.Element => {
 
       const response = await createQualityTask(newTaskData);
       if (response.success) {
-        success('Carte copiée avec succès');
+        success(t('quality.tasks.taskCopiedSuccess'));
         refetchTasks();
       } else {
-        showError('Erreur', response.error?.message || 'Impossible de copier la carte');
+        showError(t('quality.documents.error'), response.error?.message || t('quality.tasks.taskCopyError'));
       }
     } catch (err: any) {
       console.error('Error copying task:', err);
-      showError('Erreur', err.message || 'Une erreur est survenue lors de la copie');
+      showError(t('quality.documents.error'), err.message || t('quality.tasks.taskCopyError'));
     }
   };
 

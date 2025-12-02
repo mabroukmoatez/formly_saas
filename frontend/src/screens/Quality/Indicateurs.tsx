@@ -7,6 +7,7 @@ import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { IndicatorSettingsModal } from '../../components/QualityDashboard/IndicatorSettingsModal';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { Loader2, Bookmark } from 'lucide-react';
 
 export const Indicateurs = (): JSX.Element => {
@@ -14,6 +15,7 @@ export const Indicateurs = (): JSX.Element => {
   const { navigateToRoute } = useSubdomainNavigation();
   const { organization } = useOrganization();
   const { isDark } = useTheme();
+  const { t } = useLanguage();
   const primaryColor = organization?.primary_color || '#007aff';
   const secondaryColor = organization?.secondary_color || '#6a90b9';
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -42,7 +44,7 @@ export const Indicateurs = (): JSX.Element => {
       <div className="px-[27px] py-8">
         <Card className="border-2 border-[#e2e2ea] rounded-[18px]">
           <CardContent className="text-center py-8">
-            <p className="text-red-500">Erreur: {error}</p>
+            <p className="text-red-500">{t('quality.documents.error')}: {error}</p>
           </CardContent>
         </Card>
       </div>
@@ -55,7 +57,7 @@ export const Indicateurs = (): JSX.Element => {
       <Card className="border-2 border-[#e2e2ea] rounded-[18px]">
         <CardHeader>
           <CardTitle className={`[font-family:'Poppins',Helvetica] font-semibold text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-            Indicateurs du Référentiel qualiopi
+            {t('quality.indicators.pageTitle')}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -95,7 +97,7 @@ export const Indicateurs = (): JSX.Element => {
                             <p className="relative shrink-0 text-[14.752px] font-medium">
                               {indicator.documentCounts?.procedures || 0}
                             </p>
-                            <p className="relative shrink-0 text-[10.449px]">Procédures</p>
+                            <p className="relative shrink-0 text-[10.449px]">{t('quality.indicators.procedures')}</p>
                           </div>
                         </div>
                       </div>
@@ -108,7 +110,7 @@ export const Indicateurs = (): JSX.Element => {
                             <p className="relative shrink-0 text-[14.752px] font-medium">
                               {indicator.documentCounts?.models || 0}
                             </p>
-                            <p className="relative shrink-0 text-[10.449px]">Modèles</p>
+                            <p className="relative shrink-0 text-[10.449px]">{t('quality.indicators.models')}</p>
                           </div>
                         </div>
                       </div>
@@ -121,7 +123,7 @@ export const Indicateurs = (): JSX.Element => {
                             <p className="relative shrink-0 text-[14.752px] font-medium">
                               {indicator.documentCounts?.evidences || 0}
                             </p>
-                            <p className="relative shrink-0 text-[10.449px]">Preuves</p>
+                            <p className="relative shrink-0 text-[10.449px]">{t('quality.indicators.proofs')}</p>
                           </div>
                         </div>
                       </div>
@@ -141,7 +143,7 @@ export const Indicateurs = (): JSX.Element => {
               onClick={() => setShowSettingsModal(true)}
             >
               <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#6a90b9] text-base">
-                Paramètres Des Indicateurs
+                {t('quality.indicators.settingsButton')}
               </span>
             </Button>
           </div>
@@ -151,12 +153,12 @@ export const Indicateurs = (): JSX.Element => {
             <Card className="border border-[#e8f0f7] rounded-lg">
               <CardContent className="p-6">
                 <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-lg mb-2 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                  Statistiques
+                  {t('quality.indicators.statistics')}
                 </h3>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <span className="[font-family:'Poppins',Helvetica] font-normal text-[#6a90b9] text-sm">
-                      Complétés
+                      {t('quality.indicators.completed')}
                     </span>
                     <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#25c9b5] text-sm">
                       {completed} / {total}
@@ -164,7 +166,7 @@ export const Indicateurs = (): JSX.Element => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="[font-family:'Poppins',Helvetica] font-normal text-[#6a90b9] text-sm">
-                      En cours
+                      {t('quality.indicators.inProgress')}
                     </span>
                     <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#ff7700] text-sm">
                       {inProgress} / {total}
@@ -172,7 +174,7 @@ export const Indicateurs = (): JSX.Element => {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="[font-family:'Poppins',Helvetica] font-normal text-[#6a90b9] text-sm">
-                      Non démarrés
+                      {t('quality.indicators.notStarted')}
                     </span>
                     <span className="[font-family:'Poppins',Helvetica] font-semibold text-[#6a90b9] text-sm">
                       {notStarted} / {total}
@@ -187,7 +189,7 @@ export const Indicateurs = (): JSX.Element => {
                     />
                   </div>
                   <p className={`mt-2 text-center [font-family:'Poppins',Helvetica] font-medium text-sm ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                    {completionPercentage}% Complété
+                    {completionPercentage}{t('quality.indicators.percentCompleted')}
                   </p>
                 </div>
               </CardContent>
@@ -196,14 +198,13 @@ export const Indicateurs = (): JSX.Element => {
             <Card className="border border-[#e8f0f7] rounded-lg">
               <CardContent className="p-6">
                 <h3 className={`[font-family:'Poppins',Helvetica] font-semibold text-lg mb-2 ${isDark ? 'text-white' : 'text-[#19294a]'}`}>
-                  Objectif Qualiopi
+                  {t('quality.indicators.qualiopiGoal')}
                 </h3>
                 <p className={`[font-family:'Poppins',Helvetica] font-normal text-sm mb-4 ${isDark ? 'text-gray-300' : 'text-[#455a85]'}`}>
-                  Pour obtenir la certification Qualiopi, tous les 32 indicateurs doivent être complétés avec
-                  au moins une procédure, un modèle et une preuve associés.
+                  {t('quality.indicators.qualiopiGoalDescription')}
                 </p>
                 <Button style={{ backgroundColor: primaryColor }} className="mt-4 text-white hover:opacity-90 w-full">
-                  Voir le guide Qualiopi
+                  {t('quality.indicators.viewGuide')}
                 </Button>
               </CardContent>
             </Card>

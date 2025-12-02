@@ -878,6 +878,23 @@ class OrganizationController extends Controller
 
                 DB::commit();
 
+                // Create subdomain via GoDaddy API (if not localhost)
+                try {
+                    $godaddyService = new \App\Services\GodaddyDomainService();
+                    $subdomainResult = $godaddyService->createSubdomain($subdomain);
+                    
+                    if ($subdomainResult['success']) {
+                        \Log::info("Subdomain created via GoDaddy: {$subdomain}.formly.fr");
+                    } elseif (isset($subdomainResult['skipped'])) {
+                        \Log::info("Subdomain creation skipped (localhost): {$subdomain}.formly.fr");
+                    } else {
+                        \Log::warning("Failed to create subdomain via GoDaddy: " . ($subdomainResult['message'] ?? 'Unknown error'));
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail organization creation
+                    \Log::error('Failed to create subdomain via GoDaddy: ' . $e->getMessage());
+                }
+
                 // Audit log
                 AuditLog::log('create_organization_complete', 'organizations', 'Organization', $organization->id, [
                     'target_name' => $organization->organization_name,
