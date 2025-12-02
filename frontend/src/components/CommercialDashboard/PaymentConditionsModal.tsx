@@ -125,26 +125,50 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
   };
 
   const updateScheduleItem = (id: string, field: keyof PaymentScheduleItem, value: any) => {
-    setScheduleItems(
-      scheduleItems.map((item) => {
-        if (item.id === id) {
-          const updated = { ...item, [field]: value };
-          
-          // Auto-calculate percentage when amount changes
-          if (field === 'amount') {
-            updated.percentage = totalAmount > 0 ? Number(((value / totalAmount) * 100).toFixed(2)) : 0;
-          }
-          
-          // Auto-calculate amount when percentage changes
-          if (field === 'percentage') {
-            updated.amount = Number(((value / 100) * totalAmount).toFixed(2));
-          }
-          
-          return updated;
+    const updatedItems = scheduleItems.map((item) => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+
+        // Auto-calculate percentage when amount changes
+        if (field === 'amount') {
+          updated.percentage = totalAmount > 0 ? Number(((value / totalAmount) * 100).toFixed(2)) : 0;
         }
-        return item;
-      })
-    );
+
+        // Auto-calculate amount when percentage changes
+        if (field === 'percentage') {
+          updated.amount = Number(((value / 100) * totalAmount).toFixed(2));
+        }
+
+        return updated;
+      }
+      return item;
+    });
+
+    // Auto-add remaining percentage line when percentage changes
+    if (field === 'percentage' || field === 'amount') {
+      const totalPercentage = updatedItems.reduce((sum, item) => sum + (item.percentage || 0), 0);
+      const remainingPercentage = 100 - totalPercentage;
+
+      // Remove any auto-generated remaining lines first
+      const nonAutoItems = updatedItems.filter((item) => !item.payment_condition.includes('Reste'));
+
+      // If there's remaining percentage and we only have one item, auto-add the remaining line
+      if (remainingPercentage > 0 && remainingPercentage < 100 && nonAutoItems.length === 1) {
+        const remainingAmount = totalAmount - nonAutoItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+        nonAutoItems.push({
+          id: `auto-${Date.now()}`,
+          amount: Number(remainingAmount.toFixed(2)),
+          percentage: Number(remainingPercentage.toFixed(2)),
+          payment_condition: 'Reste à payer',
+          date: new Date().toISOString().split('T')[0],
+          payment_method: 'bank_transfer',
+        });
+        setScheduleItems(nonAutoItems);
+        return;
+      }
+    }
+
+    setScheduleItems(updatedItems);
   };
 
   const generatePaymentText = () => {

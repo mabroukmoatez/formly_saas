@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -42,6 +42,10 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
     vat_number: '',
     type: 'professional',
   });
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientHistory, setClientHistory] = useState<InvoiceClient[]>([]);
+  const [showClientHistory, setShowClientHistory] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (existingClient) {
@@ -79,6 +83,51 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
     }
   }, [existingClient, isOpen, clientType]);
 
+  // Load client history when search changes
+  useEffect(() => {
+    const loadClientHistory = async () => {
+      if (clientSearch.length < 2) {
+        setClientHistory([]);
+        return;
+      }
+
+      try {
+        const response = await commercialService.getClients({
+          page: 1,
+          per_page: 10,
+          search: clientSearch,
+        });
+
+        if (response.success && response.data) {
+          const clients = response.data.data || [];
+          setClientHistory(clients.filter((c: InvoiceClient) =>
+            clientType === 'professional' ? c.type !== 'private' : c.type === 'private'
+          ));
+        }
+      } catch (err) {
+        console.error('Error loading client history:', err);
+      }
+    };
+
+    const debounce = setTimeout(() => {
+      loadClientHistory();
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [clientSearch, clientType]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowClientHistory(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleInseeSelect = (company: any) => {
     setFormData({
       ...formData,
@@ -89,6 +138,25 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
       siret: company.siret || '',
       vat_number: company.tva_number || '',
     });
+  };
+
+  const handleClientSelect = (client: InvoiceClient) => {
+    setFormData({
+      company_name: client.company_name || '',
+      first_name: client.first_name || '',
+      last_name: client.last_name || '',
+      email: client.email || '',
+      phone: client.phone || '',
+      address: client.address || '',
+      zip_code: client.zip_code || '',
+      city: client.city || '',
+      country: client.country || 'France',
+      siret: client.siret || '',
+      vat_number: '',
+      type: client.type || 'professional',
+    });
+    setClientSearch('');
+    setShowClientHistory(false);
   };
 
   const handleSave = async () => {
@@ -175,13 +243,43 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     <Label>Rechercher une entreprise (INSEE)</Label>
                     <InseeSearchInput onSelect={handleInseeSelect} />
                   </div>
-                  <div>
+                  <div className="relative" ref={searchRef}>
                     <Label>Nom de l'entreprise</Label>
-                    <Input
-                      value={formData.company_name}
-                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
+                    <div className="relative mt-2">
+                      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                      <Input
+                        value={clientSearch || formData.company_name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setClientSearch(value);
+                          setFormData({ ...formData, company_name: value });
+                          setShowClientHistory(true);
+                        }}
+                        onFocus={() => setShowClientHistory(true)}
+                        placeholder="Rechercher ou saisir le nom de l'entreprise"
+                        className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
+                      />
+                    </div>
+                    {/* Client History Dropdown */}
+                    {showClientHistory && clientHistory.length > 0 && (
+                      <div className={`absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-md border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} shadow-lg`}>
+                        {clientHistory.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => handleClientSelect(client)}
+                            className={`w-full px-4 py-3 text-left hover:bg-opacity-80 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                          >
+                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {client.company_name || `${client.first_name} ${client.last_name}`}
+                            </div>
+                            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {client.email || client.phone || client.address}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -238,13 +336,43 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
               <div>
                 <Label className="text-lg font-semibold mb-4 block">COORDONNÉES</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
+                  <div className="relative" ref={searchRef}>
                     <Label>Nom</Label>
-                    <Input
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
+                    <div className="relative mt-2">
+                      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                      <Input
+                        value={clientSearch || formData.last_name}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setClientSearch(value);
+                          setFormData({ ...formData, last_name: value });
+                          setShowClientHistory(true);
+                        }}
+                        onFocus={() => setShowClientHistory(true)}
+                        placeholder="Rechercher ou saisir le nom"
+                        className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
+                      />
+                    </div>
+                    {/* Client History Dropdown */}
+                    {showClientHistory && clientHistory.length > 0 && (
+                      <div className={`absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-md border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} shadow-lg`}>
+                        {clientHistory.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => handleClientSelect(client)}
+                            className={`w-full px-4 py-3 text-left hover:bg-opacity-80 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                          >
+                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {`${client.first_name} ${client.last_name}` || client.company_name}
+                            </div>
+                            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {client.email || client.phone || client.address}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label>Prénom</Label>

@@ -356,6 +356,23 @@ export const QuoteCreationContent: React.FC = () => {
     success('Article ajouté');
   };
 
+  const handleSelectArticles = (articles: Article[]) => {
+    const newItems: QuoteItem[] = articles.map(article => {
+      const unitPrice = article.unit_price || parseFloat(article.price_ht || '0');
+      return {
+        id: `${Date.now()}-${article.id}`,
+        reference: article.reference || '',
+        designation: article.designation || article.name || article.description || article.reference || 'Article',
+        quantity: 1,
+        unit_price: unitPrice,
+        tax_rate: article.tax_rate || 20,
+        total: unitPrice,
+      };
+    });
+    setItems([...items, ...newItems]);
+    success(`${articles.length} article(s) ajouté(s)`);
+  };
+
   return (
     <div className="px-[27px] py-8">
       {/* Page Title Header */}
@@ -866,13 +883,19 @@ export const QuoteCreationContent: React.FC = () => {
       <ArticleSearchModal
         isOpen={showArticleSearch}
         onClose={() => setShowArticleSearch(false)}
-        onSelectArticle={handleSelectArticle}
+        onSelectArticles={handleSelectArticles}
       />
 
       <ArticleCreationModal
         isOpen={showArticleCreation}
         onClose={() => setShowArticleCreation(false)}
-        onSave={() => setShowArticleCreation(false)}
+        onSave={(article) => {
+          setShowArticleCreation(false);
+          if (article) {
+            // Auto-add the newly created article to the quote
+            handleSelectArticle(article);
+          }
+        }}
       />
     </div>
   );
