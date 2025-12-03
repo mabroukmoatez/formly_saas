@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import { X, Upload, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -7,6 +7,8 @@ import { Card, CardContent } from '../ui/card';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
+import { useToast } from '../ui/toast';
+import { commercialService } from '../../services/commercial';
 import { fixImageUrl } from '../../lib/utils';
 
 interface CompanyInformationModalProps {
@@ -23,8 +25,10 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { settings } = useOrganizationSettings();
+  const { success, error } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
 
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     company_name: organization?.organization_name || '',
     legal_name: '',
@@ -86,9 +90,24 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     }
   }, [settings, isOpen, organization]);
 
-  const handleSave = () => {
-    onSave(formData);
-    onClose();
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const response = await commercialService.updateCompanyDetails(formData);
+
+      if (response.success) {
+        success('Informations de l\'entreprise enregistrées avec succès');
+        onSave(formData);
+        onClose();
+      } else {
+        error(response.message || 'Erreur lors de l\'enregistrement');
+      }
+    } catch (err: any) {
+      console.error('Error saving company details:', err);
+      error(err.message || 'Erreur lors de l\'enregistrement des informations');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -331,11 +350,18 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         </CardContent>
 
         <div className={`flex items-center justify-end gap-4 p-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Annuler
           </Button>
-          <Button onClick={handleSave} style={{ backgroundColor: primaryColor }}>
-            Enregistrer les modifications
+          <Button onClick={handleSave} disabled={saving} style={{ backgroundColor: primaryColor }}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer les modifications'
+            )}
           </Button>
         </div>
       </Card>
