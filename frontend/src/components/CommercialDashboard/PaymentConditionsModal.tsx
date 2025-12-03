@@ -93,14 +93,18 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
     setScheduleItems(items => {
       const updatedItems = items.map(item => {
         if (item.id === id) {
-          const updated = { ...item, [field]: value };
+          // Ensure the value is a number for calculation and state update
+          const numericValue = parseFloat(value);
+          const finalValue = isNaN(numericValue) ? value : numericValue;
+          
+          const updated = { ...item, [field]: finalValue };
 
           // Auto-calculate between amount and percentage
-          if (field === 'amount') {
-            updated.percentage = totalAmount > 0 ? Number(((parseFloat(value) / totalAmount) * 100).toFixed(2)) : 0;
+          if (field === 'amount' && !isNaN(numericValue)) {
+            updated.percentage = totalAmount > 0 ? Number(((numericValue / totalAmount) * 100).toFixed(2)) : 0;
           }
-          if (field === 'percentage') {
-            updated.amount = Number(((parseFloat(value) / 100) * totalAmount).toFixed(2));
+          if (field === 'percentage' && !isNaN(numericValue)) {
+            updated.amount = Number(((numericValue / 100) * totalAmount).toFixed(2));
           }
 
           return updated;
@@ -108,39 +112,46 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
         return item;
       });
 
-      // Auto-add remaining percentage line
       if (field === 'percentage' || field === 'amount') {
-        const totalPercentage = updatedItems.reduce((sum, item) => sum + (item.percentage || 0), 0);
-        const remainingPercentage = 100 - totalPercentage;
+        // Recalculate total percentage, ensuring all percentages are treated as numbers
+        const totalPercentage = updatedItems.reduce((sum, item) => {
+          const percentage = typeof item.percentage === 'string' ? parseFloat(item.percentage) : item.percentage;
+          return sum + (percentage || 0);
+        }, 0);
+        
+        // Use a small epsilon for floating point comparison to treat values very close to 100 as 100
+        const isTotalComplete = Math.abs(totalPercentage - 100) < 0.001;
+        
+        const remainingPercentage = isTotalComplete ? 0 : Number((100 - totalPercentage).toFixed(2));
+        const remainingAmount = isTotalComplete ? 0 : Number((totalAmount * (remainingPercentage / 100)).toFixed(2));
 
-        // Remove any existing "Reste" items
+        const autoItemIndex = updatedItems.findIndex(item => item.payment_condition.toLowerCase().includes('reste'));
         const nonAutoItems = updatedItems.filter(item => !item.payment_condition.toLowerCase().includes('reste'));
 
-        // If there's a remaining percentage and we don't have 100%, auto-add it
         if (remainingPercentage > 0 && remainingPercentage < 100 && nonAutoItems.length > 0) {
-          const remainingAmount = totalAmount - nonAutoItems.reduce((sum, item) => sum + (item.amount || 0), 0);
           const nextDate = new Date();
           nextDate.setDate(nextDate.getDate() + 30);
+          
+          const newAutoItem: PaymentScheduleItem = {
+            id: autoItemIndex !== -1 ? updatedItems[autoItemIndex].id : `auto-${Date.now()}`, // Reuse ID if exists
+            amount: remainingAmount,
+            percentage: remainingPercentage,
+            payment_condition: 'Reste à payer',
+            date: nextDate.toISOString().split('T')[0],
+            payment_method: 'Virement bancaire',
+          };
 
-          return [
-            ...nonAutoItems,
-            {
-              id: `auto-${Date.now()}`,
-              amount: Number(remainingAmount.toFixed(2)),
-              percentage: Number(remainingPercentage.toFixed(2)),
-              payment_condition: 'Reste à payer',
-              date: nextDate.toISOString().split('T')[0],
-              payment_method: 'Virement bancaire',
-            }
-          ];
+          return [...nonAutoItems, newAutoItem];
         }
-
+        
+        // If remaining is 0 or negative, or total is complete, remove the auto-item
         return nonAutoItems;
       }
 
       return updatedItems;
     });
   };
+
 
   const generatePaymentText = () => {
     const parts: string[] = [];
@@ -149,11 +160,17 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
       const itemParts: string[] = [];
 
       if (includePercentages && item.percentage) {
-        itemParts.push(`${item.percentage.toFixed(2)}%`);
+        const percentageValue = typeof item.percentage === 'string' ? parseFloat(item.percentage) : item.percentage;
+        if (!isNaN(percentageValue)) {
+          itemParts.push(`${percentageValue.toFixed(2)}%`);
+        }
       }
 
       if (includeAmounts && item.amount) {
-        itemParts.push(`soit ${item.amount.toFixed(2)} €`);
+        const amountValue = typeof item.amount === 'string' ? parseFloat(item.amount) : item.amount;
+        if (!isNaN(amountValue)) {
+          itemParts.push(`soit ${amountValue.toFixed(2)} €`);
+        }
       }
 
       if (includeConditions && item.payment_condition) {
@@ -331,7 +348,7 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
                             <div className="bg-[#ebf1ff] rounded-[8px] px-2 py-[8px] w-[108px] flex items-center justify-center gap-1">
                               <input
                                 type="number"
-                                step="0.01"
+                                step="1"
                                 value={item.percentage || ''}
                                 onChange={(e) => updateScheduleItem(item.id, 'percentage', e.target.value)}
                                 className="bg-transparent text-[13px] text-[#19294a] border-none outline-none w-14 text-center"
@@ -362,26 +379,25 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
 
                           {/* Payment Mode */}
                           <div className="bg-[#ebf1ff] rounded-[8px] px-2 py-[8px] w-[137px]">
-                            <input
-                              type="text"
+                            <select
                               value={item.payment_method}
                               onChange={(e) => updateScheduleItem(item.id, 'payment_method', e.target.value)}
-                              className="bg-transparent text-[13px] text-[#19294a] border-none outline-none w-full text-center"
-                            />
+                              className="bg-transparent text-[13px] text-[#19294a] border-none outline-none w-full text-center cursor-pointer"
+                            >
+                              <option value="Virement bancaire">Virement bancaire</option>
+                              <option value="Carte bancaire">Carte bancaire</option>
+                              <option value="Chèque">Chèque</option>
+                              <option value="Espèces">Espèces</option>
+                            </select>
                           </div>
 
                           {/* Bank */}
-                          <div className="bg-[#ebf1ff] rounded-[8px] px-2 py-[8px] w-[111px]">
+                          <div className="bg-[#ebf1ff] rounded-[8px] px-2 py-[8px] w-[120px]">
                             <input
                               type="text"
                               placeholder="Nom"
                               className="bg-transparent text-[14px] text-[#19294a] border-none outline-none w-full text-center"
                             />
-                          </div>
-
-                          {/* Checkbox placeholder */}
-                          <div className="w-[46px] flex justify-center">
-                            <div className="bg-white border border-[#6a90ba] rounded-[4px] size-[16px]" />
                           </div>
                         </div>
                       </div>
