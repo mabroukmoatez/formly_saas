@@ -7,6 +7,8 @@ import { Card, CardContent } from '../ui/card';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
+import { useToast } from '../ui/toast';
+import { commercialService } from '../../services/commercial';
 import { fixImageUrl } from '../../lib/utils';
 
 interface BankAccount {
@@ -32,7 +34,10 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { settings } = useOrganizationSettings();
+  const { success, error } = useToast();
+  const primaryColor = organization?.primary_color || '#007aff';
 
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     company_name: organization?.organization_name || '',
     legal_name: '',
@@ -98,13 +103,24 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     }
   }, [settings, isOpen, organization]);
 
-  const handleSave = () => {
-    const dataToSave = {
-      ...formData,
-      bank_accounts: bankAccounts,
-    };
-    onSave(dataToSave);
-    onClose();
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const response = await commercialService.updateCompanyDetails(formData);
+
+      if (response.success) {
+        success('Informations de l\'entreprise enregistrées avec succès');
+        onSave(formData);
+        onClose();
+      } else {
+        error(response.message || 'Erreur lors de l\'enregistrement');
+      }
+    } catch (err: any) {
+      console.error('Error saving company details:', err);
+      error(err.message || 'Erreur lors de l\'enregistrement des informations');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAddBankAccount = () => {
@@ -458,18 +474,19 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         </CardContent>
 
         <div className={`flex items-center justify-end gap-4 p-6 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <button
-            onClick={onClose}
-            className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
-          >
-            <p className="text-[13px] font-medium text-[#7e8ca9] capitalize">annuler</p>
-          </button>
-          <button
-            onClick={handleSave}
-            className="bg-[#ff7700] rounded-[10px] px-6 h-[40px] flex items-center justify-center"
-          >
-            <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
-          </button>
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={saving} style={{ backgroundColor: primaryColor }}>
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer les modifications'
+            )}
+          </Button>
         </div>
       </Card>
     </div>
