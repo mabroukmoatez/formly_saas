@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -63,6 +63,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
 
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [showBankForm, setShowBankForm] = useState(false);
+  const [editingBankId, setEditingBankId] = useState<string | null>(null);
   const [bankFormData, setBankFormData] = useState({
     account_name: '',
     bank_name: '',
@@ -98,10 +99,21 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
       });
 
       // Load bank accounts if available
-      const existingBankAccounts = (settings as any)?.bank_accounts || [];
+      const existingBankAccounts = (settings as any)?.banks || [];
       setBankAccounts(existingBankAccounts);
     }
   }, [settings, isOpen, organization]);
+
+  const loadBankAccounts = async () => {
+    try {
+      const response = await commercialService.getBankAccounts();
+      if (response.success && response.data) {
+        setBankAccounts(response.data);
+      }
+    } catch (err: any) {
+      console.error('Error loading bank accounts:', err);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -123,34 +135,74 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     }
   };
 
-  const handleAddBankAccount = () => {
-    const newAccount: BankAccount = {
-      id: `bank-${Date.now()}`,
-      bank_name: bankFormData.bank_name,
-      account_holder: bankFormData.account_name,
-      iban: bankFormData.iban,
-      bic_swift: bankFormData.bic_swift,
-      is_default: bankFormData.is_default,
-    };
+  const handleAddBankAccount = async () => {
+    try {
+      const bankData = {
+        bank_name: bankFormData.bank_name,
+        account_holder: bankFormData.account_name,
+        iban: bankFormData.iban,
+        bic_swift: bankFormData.bic_swift,
+        is_default: bankFormData.is_default,
+      };
 
-    // If this is set as default, remove default from others
-    const updatedAccounts = bankFormData.is_default
-      ? bankAccounts.map(acc => ({ ...acc, is_default: false }))
-      : bankAccounts;
+      let response;
+      if (editingBankId) {
+        // Update existing bank account
+        response = await commercialService.updateBankAccount(editingBankId, bankData);
+      } else {
+        // Create new bank account
+        response = await commercialService.createBankAccount(bankData);
+      }
 
-    setBankAccounts([...updatedAccounts, newAccount]);
-    setShowBankForm(false);
-    setBankFormData({
-      account_name: '',
-      bank_name: '',
-      iban: '',
-      bic_swift: '',
-      is_default: false,
-    });
+      if (response.success) {
+        success(editingBankId ? 'Compte bancaire modifié avec succès' : 'Compte bancaire ajouté avec succès');
+        // Reload bank accounts from API
+        await loadBankAccounts();
+        // Reset form
+        setShowBankForm(false);
+        setEditingBankId(null);
+        setBankFormData({
+          account_name: '',
+          bank_name: '',
+          iban: '',
+          bic_swift: '',
+          is_default: false,
+        });
+      } else {
+        error(response.message || 'Erreur lors de l\'enregistrement du compte bancaire');
+      }
+    } catch (err: any) {
+      console.error('Error saving bank account:', err);
+      error(err.message || 'Erreur lors de l\'enregistrement du compte bancaire');
+    }
   };
 
-  const handleDeleteBankAccount = (id: string) => {
-    setBankAccounts(bankAccounts.filter(acc => acc.id !== id));
+  const handleEditBankAccount = (account: BankAccount) => {
+    setBankFormData({
+      account_name: account.account_holder,
+      bank_name: account.bank_name,
+      iban: account.iban,
+      bic_swift: account.bic_swift,
+      is_default: account.is_default,
+    });
+    setEditingBankId(account.id);
+    setShowBankForm(true);
+  };
+
+  const handleDeleteBankAccount = async (id: string) => {
+    try {
+      const response = await commercialService.deleteBankAccount(id);
+      if (response.success) {
+        success('Compte bancaire supprimé avec succès');
+        // Reload bank accounts from API
+        await loadBankAccounts();
+      } else {
+        error(response.message || 'Erreur lors de la suppression du compte bancaire');
+      }
+    } catch (err: any) {
+      console.error('Error deleting bank account:', err);
+      error(err.message || 'Erreur lors de la suppression du compte bancaire');
+    }
   };
 
   if (!isOpen) return null;
@@ -363,10 +415,16 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
                       )}
                     </div>
                     <div className="flex gap-2 justify-end">
-                      <button className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px]">
-                        <Trash2 className="w-3 h-3 text-[#6a90ba]" onClick={() => handleDeleteBankAccount(account.id)} />
+                      <button
+                        onClick={() => handleDeleteBankAccount(account.id)}
+                        className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
+                      >
+                        <Trash2 className="w-3 h-3 text-[#6a90ba]" />
                       </button>
-                      <button className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px]">
+                      <button
+                        onClick={() => handleEditBankAccount(account)}
+                        className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
+                      >
                         <Pencil className="w-3 h-3 text-[#6a90ba]" />
                       </button>
                     </div>
@@ -390,7 +448,9 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
               {/* Bank Account Form - Show when adding new account */}
               {showBankForm && (
                 <div className="border border-[#6a90ba] rounded-[6px] p-[19px] flex flex-col gap-6">
-                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Coordonnées Bancaires</p>
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">
+                    {editingBankId ? 'Modifier le compte bancaire' : 'Ajouter un compte bancaire'}
+                  </p>
 
                   {/* Account Name and Bank Name */}
                   <div className="flex gap-4">
@@ -448,6 +508,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
                     <button
                       onClick={() => {
                         setShowBankForm(false);
+                        setEditingBankId(null);
                         setBankFormData({
                           account_name: '',
                           bank_name: '',
