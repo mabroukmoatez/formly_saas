@@ -113,20 +113,21 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
       });
 
       if (field === 'percentage' || field === 'amount') {
-        // Recalculate total percentage, ensuring all percentages are treated as numbers
-        const totalPercentage = updatedItems.reduce((sum, item) => {
+        // First, separate auto-generated items from user-entered items
+        const autoItemIndex = updatedItems.findIndex(item => item.payment_condition.toLowerCase().includes('reste'));
+        const nonAutoItems = updatedItems.filter(item => !item.payment_condition.toLowerCase().includes('reste'));
+
+        // Recalculate total percentage only from non-auto items (user-entered items)
+        const totalPercentage = nonAutoItems.reduce((sum, item) => {
           const percentage = typeof item.percentage === 'string' ? parseFloat(item.percentage) : item.percentage;
           return sum + (percentage || 0);
         }, 0);
-        
+
         // Use a small epsilon for floating point comparison to treat values very close to 100 as 100
         const isTotalComplete = Math.abs(totalPercentage - 100) < 0.001;
-        
+
         const remainingPercentage = isTotalComplete ? 0 : Number((100 - totalPercentage).toFixed(2));
         const remainingAmount = isTotalComplete ? 0 : Number((totalAmount * (remainingPercentage / 100)).toFixed(2));
-
-        const autoItemIndex = updatedItems.findIndex(item => item.payment_condition.toLowerCase().includes('reste'));
-        const nonAutoItems = updatedItems.filter(item => !item.payment_condition.toLowerCase().includes('reste'));
 
         if (remainingPercentage > 0 && remainingPercentage < 100 && nonAutoItems.length > 0) {
           const nextDate = new Date();
