@@ -99,11 +99,18 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         director_name: (settings as any)?.director_name || settings?.director_name || '',
       });
 
-      // Load bank accounts if available
+      // Load bank accounts if available (fallback to settings data)
       const existingBankAccounts = (settings as any)?.banks || [];
       setBankAccounts(existingBankAccounts);
     }
   }, [settings, isOpen, organization]);
+
+  // Load bank accounts from API when modal opens to get fresh data
+  useEffect(() => {
+    if (isOpen) {
+      loadBankAccounts();
+    }
+  }, [isOpen]);
 
   const loadBankAccounts = async () => {
     try {
