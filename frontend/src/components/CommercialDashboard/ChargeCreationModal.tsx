@@ -295,9 +295,15 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-[95%] max-w-[900px] overflow-hidden rounded-lg border border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-lg`}
+        className={`relative w-[95%] max-w-[950px] overflow-hidden rounded-[20px] border-2 border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-[#ebf1ff]'} shadow-[0px_4px_24px_rgba(0,0,0,0.12)]`}
+        style={{
+          paddingTop: '59px',
+          paddingBottom: '59px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
+        }}
       >
         {/* Header */}
         <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>

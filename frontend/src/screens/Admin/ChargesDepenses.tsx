@@ -40,7 +40,7 @@ import {
   TableRow,
 } from '../../components/ui/table';
 
-type SortField = 'date' | 'label' | 'category' | 'amount';
+type SortField = 'date' | 'label' | 'category' | 'amount' | 'formation';
 type SortDirection = 'asc' | 'desc';
 
 // Component for Expense Stat Card with Stacked Bar Chart
@@ -64,6 +64,7 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
   categoryData = []
 }) => {
   const [viewType, setViewType] = useState<'default' | 'alternative'>('default');
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('fr-FR', {
@@ -76,11 +77,11 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
 
   // Chart configuration
   const chartHeight = 120;
-  const chartWidth = 300; // Increased width for better spacing
-  const padding = { top: 10, right: 10, bottom: 25, left: 10 };
+  const chartWidth = 350; // Increased width for better month label spacing
+  const padding = { top: 10, right: 10, bottom: 30, left: 10 }; // Increased bottom padding for month labels
   const innerHeight = chartHeight - padding.top - padding.bottom;
   const innerWidth = chartWidth - padding.left - padding.right;
-  const barWidth = Math.max(4, innerWidth / 12 - 1); // Minimum bar width of 4
+  const barWidth = Math.max(6, innerWidth / 12 - 3); // Increased spacing between bars
 
   // Calculate max value for scaling
   const maxValue = Math.max(
@@ -471,7 +472,10 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
                       height={envHeight}
                       fill={currentColors.bar1}
                       rx="2"
-                      className="transition-all duration-500 ease-in-out"
+                      className="transition-all duration-500 ease-in-out cursor-pointer"
+                      onMouseEnter={() => setHoveredBar(index)}
+                      onMouseLeave={() => setHoveredBar(null)}
+                      opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
                     />
                   )}
                   {/* Humains (top - violet) */}
@@ -483,8 +487,58 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
                       height={humainsHeight}
                       fill={currentColors.bar2}
                       rx="2"
-                      className="transition-all duration-500 ease-in-out"
+                      className="transition-all duration-500 ease-in-out cursor-pointer"
+                      onMouseEnter={() => setHoveredBar(index)}
+                      onMouseLeave={() => setHoveredBar(null)}
+                      opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
                     />
+                  )}
+                  {/* Hover Tooltip */}
+                  {hoveredBar === index && (
+                    <g>
+                      <rect
+                        x={x - 40}
+                        y={envY - 50}
+                        width="100"
+                        height="42"
+                        fill={isDark ? '#1f2937' : '#374151'}
+                        rx="6"
+                        opacity="0.95"
+                      />
+                      <text
+                        x={x + 10}
+                        y={envY - 32}
+                        textAnchor="middle"
+                        fill="white"
+                        fontSize="9"
+                        fontWeight="600"
+                        style={{ fontFamily: 'Poppins, Helvetica' }}
+                      >
+                        {data.month}
+                      </text>
+                      <text
+                        x={x + 10}
+                        y={envY - 22}
+                        textAnchor="middle"
+                        fill="#25C9B5"
+                        fontSize="8"
+                        fontWeight="500"
+                        style={{ fontFamily: 'Poppins, Helvetica' }}
+                      >
+                        Env: {formatCurrency(data.environnement)}
+                      </text>
+                      <text
+                        x={x + 10}
+                        y={envY - 13}
+                        textAnchor="middle"
+                        fill="#9C27B0"
+                        fontSize="8"
+                        fontWeight="500"
+                        style={{ fontFamily: 'Poppins, Helvetica' }}
+                      >
+                        Hum: {formatCurrency(data.humains)}
+                      </text>
+                    </g>
                   )}
                   {/* Month label */}
                   <text
@@ -689,6 +743,12 @@ export const ChargesDepenses = (): JSX.Element => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<ExpensesDashboardResponse | null>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Advanced filter states
+  const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
+  const [amountFilter, setAmountFilter] = useState<{ min: string; max: string }>({ min: '', max: '' });
+  const [formationFilter, setFormationFilter] = useState<string>('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -948,6 +1008,10 @@ export const ChargesDepenses = (): JSX.Element => {
           aValue = parseFloat(String(a.amount || 0));
           bValue = parseFloat(String(b.amount || 0));
           break;
+        case 'formation':
+          aValue = getCourseName(a);
+          bValue = getCourseName(b);
+          break;
         default:
           return 0;
       }
@@ -965,6 +1029,45 @@ export const ChargesDepenses = (): JSX.Element => {
     });
     return sorted;
   }, [charges, sortField, sortDirection]);
+
+  // Apply advanced filters
+  const filteredCharges = useMemo(() => {
+    return sortedCharges.filter(charge => {
+      // Date filter
+      if (dateFilter.start || dateFilter.end) {
+        const chargeDate = new Date(charge.date || charge.created_at);
+        if (dateFilter.start) {
+          const startDate = new Date(dateFilter.start);
+          if (chargeDate < startDate) return false;
+        }
+        if (dateFilter.end) {
+          const endDate = new Date(dateFilter.end);
+          endDate.setHours(23, 59, 59, 999); // Include full end date
+          if (chargeDate > endDate) return false;
+        }
+      }
+
+      // Amount filter
+      if (amountFilter.min || amountFilter.max) {
+        const amount = parseFloat(String(charge.amount || 0));
+        if (amountFilter.min && amount < parseFloat(amountFilter.min)) return false;
+        if (amountFilter.max && amount > parseFloat(amountFilter.max)) return false;
+      }
+
+      // Formation filter
+      if (formationFilter) {
+        const courseName = getCourseName(charge).toLowerCase();
+        if (!courseName.includes(formationFilter.toLowerCase()) && courseName !== '-') {
+          return false;
+        }
+        if (courseName === '-' && formationFilter.toLowerCase() !== '-') {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [sortedCharges, dateFilter, amountFilter, formationFilter]);
 
   const formatCurrency = (value: number | string | undefined): string => {
     const numValue = typeof value === 'string' ? parseFloat(value) : (value || 0);
@@ -1046,7 +1149,17 @@ export const ChargesDepenses = (): JSX.Element => {
 
   const handleExportExcel = async () => {
     try {
-      const csvData = sortedCharges.map(charge => ({
+      // Export selected charges if any, otherwise export all filtered charges
+      const chargesToExport = selectedCharges.size > 0
+        ? filteredCharges.filter(c => selectedCharges.has(String(c.id)))
+        : filteredCharges;
+
+      if (chargesToExport.length === 0) {
+        showError('Erreur', 'Aucune charge à exporter');
+        return;
+      }
+
+      const csvData = chargesToExport.map(charge => ({
         'Date': formatDate(charge.date || charge.created_at),
         'Libellé': charge.label || '',
         'Catégorie': getCategoryLabel(charge.category || ''),
@@ -1054,12 +1167,12 @@ export const ChargesDepenses = (): JSX.Element => {
         'Pièce jointe': getDocumentCount(charge) > 0 ? getFirstDocumentName(charge) : '',
         'Formation liée': getCourseName(charge),
       }));
-      
+
       const csv = [
         Object.keys(csvData[0]).join(','),
         ...csvData.map(row => Object.values(row).join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1067,7 +1180,7 @@ export const ChargesDepenses = (): JSX.Element => {
       a.download = `charges_depenses_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      success('Charges exportées en Excel avec succès');
+      success(`${chargesToExport.length} charge(s) exportée(s) en Excel avec succès`);
     } catch (err) {
       showError('Erreur', 'Impossible d\'exporter les charges');
     }
@@ -1075,6 +1188,16 @@ export const ChargesDepenses = (): JSX.Element => {
 
   const handleExportPDF = async () => {
     try {
+      // Export selected charges if any, otherwise export all filtered charges
+      const chargesToExport = selectedCharges.size > 0
+        ? filteredCharges.filter(c => selectedCharges.has(String(c.id)))
+        : filteredCharges;
+
+      if (chargesToExport.length === 0) {
+        showError('Erreur', 'Aucune charge à exporter');
+        return;
+      }
+
       // Create a simple PDF using window.print() approach
       // For a more sophisticated PDF, you would use a library like jsPDF
       const printWindow = window.open('', '_blank');
@@ -1100,6 +1223,7 @@ export const ChargesDepenses = (): JSX.Element => {
         <body>
           <h1>Charges et Dépenses</h1>
           <p>Date d'export : ${new Date().toLocaleDateString('fr-FR')}</p>
+          <p>Nombre de charges : ${chargesToExport.length}</p>
           <table>
             <thead>
               <tr>
@@ -1111,7 +1235,7 @@ export const ChargesDepenses = (): JSX.Element => {
               </tr>
             </thead>
             <tbody>
-              ${sortedCharges.map(charge => `
+              ${chargesToExport.map(charge => `
                 <tr>
                   <td>${formatDate(charge.date || charge.created_at)}</td>
                   <td>${charge.label || ''}</td>
@@ -1129,7 +1253,7 @@ export const ChargesDepenses = (): JSX.Element => {
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       printWindow.print();
-      success('PDF généré avec succès');
+      success(`PDF généré avec succès (${chargesToExport.length} charge(s))`);
     } catch (err) {
       showError('Erreur', 'Impossible d\'exporter en PDF');
     }
@@ -1249,90 +1373,93 @@ export const ChargesDepenses = (): JSX.Element => {
               />
             </div>
 
-            {/* Delete Button */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (selectedCharges.size === 0) return;
-                setShowDeleteModal(true);
-                setChargeToDelete('bulk');
-              }}
-              disabled={selectedCharges.size === 0}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'} ${selectedCharges.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              style={{ 
-                borderColor: selectedCharges.size > 0 ? '#ef4444' : undefined,
-                borderStyle: 'dashed',
-              }}
-            >
-              <Trash2 className={`w-4 h-4 ${selectedCharges.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-              <span className={`font-medium text-sm ${selectedCharges.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Supprimer {selectedCharges.size > 0 && `(${selectedCharges.size})`}
-              </span>
-            </Button>
+            {/* Delete Button - Only show when items are selected */}
+            {selectedCharges.size > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(true);
+                  setChargeToDelete('bulk');
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'}`}
+                style={{
+                  borderColor: '#ef4444',
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+                <span className="font-medium text-sm text-red-500">
+                  Supprimer ({selectedCharges.size})
+                </span>
+              </Button>
+            )}
           </div>
 
           {/* Right: All Action Buttons */}
           <div className="flex items-center gap-3">
-            {/* Date Sort Button */}
-            <Button
-              variant="outline"
-              onClick={handleDateSortToggle}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-0 ${isDark ? 'bg-blue-900/30 hover:bg-blue-900/40' : 'bg-blue-50 hover:bg-blue-100'}`}
-              style={{ backgroundColor: isDark ? undefined : '#E3F2FD' }}
-            >
-              <SwapIcon className={`w-4 h-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
-              <span className={`font-medium text-sm ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>
-                Date De Création
-              </span>
-            </Button>
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Category Filter Dropdown */}
+              <div className="relative" ref={filterDropdownRef}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-blue-500 bg-transparent hover:bg-blue-50'}`}
+                  style={{ borderColor: isDark ? undefined : primaryColor }}
+                >
+                  <Filter className={`w-4 h-4`} style={{ color: primaryColor }} />
+                  <span className={`font-medium text-sm`} style={{ color: primaryColor }}>
+                    Catégorie
+                  </span>
+                  <ChevronDown className={`w-4 h-4`} style={{ color: primaryColor }} />
+                </Button>
+                {showFilterDropdown && (
+                  <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                    <div className="p-2">
+                      <button
+                        onClick={() => {
+                          setSelectedCategory('');
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        Toutes les catégories
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedCategory('salary');
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        Moyens Humains
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedCategory('utilities');
+                          setShowFilterDropdown(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                      >
+                        Moyens Environnementaux
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            {/* Filter Button */}
-            <div className="relative" ref={filterDropdownRef}>
+              {/* Advanced Filters Toggle */}
               <Button
                 variant="outline"
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-blue-500 bg-transparent hover:bg-blue-50'}`}
-                style={{ borderColor: isDark ? undefined : primaryColor }}
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${showAdvancedFilters ? 'border-blue-500 bg-blue-50' : (isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50')}`}
+                style={{ borderColor: showAdvancedFilters ? primaryColor : undefined }}
               >
-                <Filter className={`w-4 h-4`} style={{ color: primaryColor }} />
-                <span className={`font-medium text-sm`} style={{ color: primaryColor }}>
-                  Filtre
+                <Filter className={`w-4 h-4`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }} />
+                <span className={`font-medium text-sm`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}>
+                  Filtres avancés
                 </span>
-                <ChevronDown className={`w-4 h-4`} style={{ color: primaryColor }} />
               </Button>
-              {showFilterDropdown && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                  <div className="p-2">
-                    <button
-                      onClick={() => {
-                        setSelectedCategory('');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                    >
-                      Toutes les catégories
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedCategory('salary');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                    >
-                      Moyens Humains
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedCategory('utilities');
-                        setShowFilterDropdown(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                    >
-                      Moyens Environnementaux
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Export Excel Button */}
@@ -1369,8 +1496,96 @@ export const ChargesDepenses = (): JSX.Element => {
           </div>
         </div>
 
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'} mb-4`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Date Range Filter */}
+              <div className="flex flex-col gap-2">
+                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Date de début
+                </Label>
+                <Input
+                  type="date"
+                  value={dateFilter.start}
+                  onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Date de fin
+                </Label>
+                <Input
+                  type="date"
+                  value={dateFilter.end}
+                  onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                />
+              </div>
+
+              {/* Amount Range Filter */}
+              <div className="flex flex-col gap-2">
+                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Montant min (€)
+                </Label>
+                <Input
+                  type="number"
+                  placeholder="Min"
+                  value={amountFilter.min}
+                  onChange={(e) => setAmountFilter({ ...amountFilter, min: e.target.value })}
+                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                  step="0.01"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Montant max (€)
+                </Label>
+                <Input
+                  type="number"
+                  placeholder="Max"
+                  value={amountFilter.max}
+                  onChange={(e) => setAmountFilter({ ...amountFilter, max: e.target.value })}
+                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                  step="0.01"
+                />
+              </div>
+
+              {/* Formation Filter */}
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Formation
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="Rechercher une formation"
+                  value={formationFilter}
+                  onChange={(e) => setFormationFilter(e.target.value)}
+                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                />
+              </div>
+
+              {/* Clear Filters Button */}
+              <div className="flex items-end md:col-span-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDateFilter({ start: '', end: '' });
+                    setAmountFilter({ min: '', max: '' });
+                    setFormationFilter('');
+                  }}
+                  className={`w-full h-10 ${isDark ? 'border-gray-600 bg-gray-800 hover:bg-gray-700' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                >
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
-        {sortedCharges.length === 0 ? (
+        {filteredCharges.length === 0 ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
@@ -1459,8 +1674,22 @@ export const ChargesDepenses = (): JSX.Element => {
                   <TableHead className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Pièce jointe
                   </TableHead>
-                  <TableHead className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
-                    Formation liée
+                  <TableHead
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    onClick={() => handleSort('formation')}
+                  >
+                    <div className="flex items-center gap-2">
+                      Formation liée
+                      {sortField === 'formation' ? (
+                        sortDirection === 'asc' ? (
+                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
+                        )
+                      ) : (
+                        <ChevronDown className="w-4 h-4 opacity-30" />
+                      )}
+                    </div>
                   </TableHead>
                   <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
@@ -1468,7 +1697,7 @@ export const ChargesDepenses = (): JSX.Element => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedCharges.map((charge) => {
+                {filteredCharges.map((charge) => {
                   const isSelected = selectedCharges.has(String(charge.id));
                   const docCount = getDocumentCount(charge);
                   const firstDocName = getFirstDocumentName(charge);
