@@ -91,13 +91,23 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
 
   const updateScheduleItem = (id: string, field: keyof PaymentScheduleItem, value: any) => {
     setScheduleItems(items => {
+      // Check if the item being edited is a "Reste à payer" row
+      const editedItem = items.find(item => item.id === id);
+      const isEditingResteRow = editedItem && editedItem.payment_condition.toLowerCase().includes('reste');
+
       const updatedItems = items.map(item => {
         if (item.id === id) {
           // Ensure the value is a number for calculation and state update
           const numericValue = parseFloat(value);
           const finalValue = isNaN(numericValue) ? value : numericValue;
-          
+
           const updated = { ...item, [field]: finalValue };
+
+          // If user is editing a "Reste à payer" row's percentage or amount, convert it to a regular row
+          if (isEditingResteRow && (field === 'percentage' || field === 'amount')) {
+            const userEnteredCount = items.filter(i => !i.payment_condition.toLowerCase().includes('reste')).length;
+            updated.payment_condition = `Paiement ${userEnteredCount + 1}`;
+          }
 
           // Auto-calculate between amount and percentage
           if (field === 'amount' && !isNaN(numericValue)) {
@@ -113,8 +123,7 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
       });
 
       if (field === 'percentage' || field === 'amount') {
-        // First, separate auto-generated items from user-entered items
-        const autoItemIndex = updatedItems.findIndex(item => item.payment_condition.toLowerCase().includes('reste'));
+        // Separate auto-generated items from user-entered items
         const nonAutoItems = updatedItems.filter(item => !item.payment_condition.toLowerCase().includes('reste'));
 
         // Recalculate total percentage only from non-auto items (user-entered items)
@@ -129,12 +138,13 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
         const remainingPercentage = isTotalComplete ? 0 : Number((100 - totalPercentage).toFixed(2));
         const remainingAmount = isTotalComplete ? 0 : Number((totalAmount * (remainingPercentage / 100)).toFixed(2));
 
+        // Always create a new "Reste à payer" row if there's a remainder
         if (remainingPercentage > 0 && remainingPercentage < 100 && nonAutoItems.length > 0) {
           const nextDate = new Date();
           nextDate.setDate(nextDate.getDate() + 30);
-          
+
           const newAutoItem: PaymentScheduleItem = {
-            id: autoItemIndex !== -1 ? updatedItems[autoItemIndex].id : `auto-${Date.now()}`, // Reuse ID if exists
+            id: `auto-${Date.now()}`, // Always create new ID for new auto row
             amount: remainingAmount,
             percentage: remainingPercentage,
             payment_condition: 'Reste à payer',
@@ -144,7 +154,7 @@ export const PaymentConditionsModal: React.FC<PaymentConditionsModalProps> = ({
 
           return [...nonAutoItems, newAutoItem];
         }
-        
+
         // If remaining is 0 or negative, or total is complete, remove the auto-item
         return nonAutoItems;
       }
