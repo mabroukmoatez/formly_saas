@@ -65,6 +65,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
   const [showBankForm, setShowBankForm] = useState(false);
   const [editingBankId, setEditingBankId] = useState<string | null>(null);
   const [savingBank, setSavingBank] = useState(false);
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const [bankFormData, setBankFormData] = useState({
     account_name: '',
     bank_name: '',
@@ -114,12 +115,15 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
 
   const loadBankAccounts = async () => {
     try {
+      setLoadingBankAccounts(true);
       const response = await commercialService.getBankAccounts();
       if (response.success && response.data) {
         setBankAccounts(response.data);
       }
     } catch (err: any) {
       console.error('Error loading bank accounts:', err);
+    } finally {
+      setLoadingBankAccounts(false);
     }
   };
 
@@ -401,60 +405,69 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
             <div className="flex flex-col gap-4 w-full">
               <p className="text-[17px] font-semibold text-[#19294a]">COORDONNÉES BANCAIRES</p>
 
-              {/* Bank Accounts View */}
-              <div className="flex gap-4 items-start w-full">
-                {/* Existing Bank Accounts */}
-                {bankAccounts.map((account) => (
-                  <div
-                    key={account.id}
-                    className="flex flex-col gap-3 bg-white border border-[#007aff] rounded-[5px] p-[17.647px] w-[391px]"
-                  >
-                    <p className="text-[11.765px] font-semibold text-[#19294a]">
-                      {account.account_holder} - {account.bank_name}
-                    </p>
-                    <div className="flex flex-col gap-1 text-[11.765px]">
-                      <p className="text-[#6a90ba]">IBAN</p>
-                      <p className="text-[#19294a]">{account.iban}</p>
-                    </div>
-                    <div className="flex justify-between items-end">
-                      <div className="flex flex-col gap-1 text-[11.765px]">
-                        <p className="text-[#6a90ba]">BIC / SWIFT</p>
-                        <p className="text-[#19294a]">{account.bic_swift}</p>
-                      </div>
-                      {account.is_default && (
-                        <p className="text-[11.765px] text-[#19294a]">IBAN PAR DÉFAUT</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => handleDeleteBankAccount(account.id)}
-                        className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3 text-[#6a90ba]" />
-                      </button>
-                      <button
-                        onClick={() => handleEditBankAccount(account)}
-                        className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
-                      >
-                        <Pencil className="w-3 h-3 text-[#6a90ba]" />
-                      </button>
-                    </div>
+              {/* Loading State */}
+              {loadingBankAccounts ? (
+                <div className="flex items-center justify-center h-[154px] bg-[rgba(232,240,247,0.21)] border border-dashed border-[#6a90ba] rounded-[10px]">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 text-[#6a90ba] animate-spin" />
+                    <p className="text-[14px] text-[#6a90ba]">Chargement des comptes bancaires...</p>
                   </div>
-                ))}
-
-                {/* Add Account Button - Show only when form is not visible */}
-                {!showBankForm && (
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => setShowBankForm(true)}
-                      className="bg-[rgba(232,240,247,0.21)] border border-dashed border-[#6a90ba] rounded-[10px] h-[154px] w-full flex items-center justify-center gap-4 hover:bg-[rgba(232,240,247,0.4)] transition-colors"
+                </div>
+              ) : (
+                <div className="flex gap-4 items-start w-full">
+                  {/* Existing Bank Accounts */}
+                  {bankAccounts.map((account) => (
+                    <div
+                      key={account.id}
+                      className="flex flex-col gap-3 bg-white border border-[#007aff] rounded-[5px] p-[17.647px] w-[391px]"
                     >
-                      <Plus className="w-[13.292px] h-[13.292px] text-[#6a90ba]" strokeWidth={2} />
-                      <p className="text-[14px] font-medium text-[#6a90ba] capitalize">Ajouter un compte</p>
-                    </button>
-                  </div>
-                )}
-              </div>
+                      <p className="text-[11.765px] font-semibold text-[#19294a]">
+                        {account.account_holder} - {account.bank_name}
+                      </p>
+                      <div className="flex flex-col gap-1 text-[11.765px]">
+                        <p className="text-[#6a90ba]">IBAN</p>
+                        <p className="text-[#19294a]">{account.iban}</p>
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div className="flex flex-col gap-1 text-[11.765px]">
+                          <p className="text-[#6a90ba]">BIC / SWIFT</p>
+                          <p className="text-[#19294a]">{account.bic_swift}</p>
+                        </div>
+                        {account.is_default && (
+                          <p className="text-[11.765px] text-[#19294a]">IBAN PAR DÉFAUT</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => handleDeleteBankAccount(account.id)}
+                          className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3 text-[#6a90ba]" />
+                        </button>
+                        <button
+                          onClick={() => handleEditBankAccount(account)}
+                          className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px] hover:bg-[#d0e0f0] transition-colors"
+                        >
+                          <Pencil className="w-3 h-3 text-[#6a90ba]" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add Account Button - Show only when form is not visible */}
+                  {!showBankForm && (
+                    <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => setShowBankForm(true)}
+                        className="bg-[rgba(232,240,247,0.21)] border border-dashed border-[#6a90ba] rounded-[10px] h-[154px] w-full flex items-center justify-center gap-4 hover:bg-[rgba(232,240,247,0.4)] transition-colors"
+                      >
+                        <Plus className="w-[13.292px] h-[13.292px] text-[#6a90ba]" strokeWidth={2} />
+                        <p className="text-[14px] font-medium text-[#6a90ba] capitalize">Ajouter un compte</p>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Bank Account Form - Show when adding new account */}
               {showBankForm && (
