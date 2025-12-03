@@ -4,6 +4,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Card, CardContent } from '../../components/ui/card';
+import { Label } from '../../components/ui/label';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -331,11 +332,8 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
             }
           })}
         </>
-      );
-    }
+    );
   };
-
-  const circularData = calculateCircularData();
 
   return (
     <Card className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-[14px] shadow-[6px_6px_54px_#0000000d] border-0`}>
@@ -351,9 +349,16 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
               {formatCurrency(amount)}
             </div>
             <button
-              onClick={onEyeClick}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onEyeClick) {
+                  onEyeClick();
+                }
+              }}
               className={`w-8 h-8 rounded-full flex items-center justify-center ${currentColors.iconBg} hover:opacity-80 transition-all duration-300 cursor-pointer`}
               title="Visualiser les détails"
+              type="button"
             >
               <Eye className={`w-4 h-4 ${currentColors.iconColor}`} />
             </button>
