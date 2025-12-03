@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, ChevronDown } from 'lucide-react';
+import { X, Search, ChevronDown, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -44,52 +44,65 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
   const [clientSearch, setClientSearch] = useState('');
   const [clientHistory, setClientHistory] = useState<InvoiceClient[]>([]);
   const [showClientHistory, setShowClientHistory] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [saving, setSaving] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (existingClient) {
-      setClientType(existingClient.type === 'private' ? 'individual' : 'professional');
-      setFormData({
-        company_name: existingClient.company_name || '',
-        first_name: existingClient.first_name || '',
-        last_name: existingClient.last_name || '',
-        email: existingClient.email || '',
-        phone: existingClient.phone || '',
-        address: existingClient.address || '',
-        zip_code: existingClient.zip_code || '',
-        city: existingClient.city || '',
-        country: existingClient.country || 'France',
-        siret: existingClient.siret || '',
-        vat_number: '',
-        type: existingClient.type || 'professional',
-      });
-    } else {
-      setFormData({
-        company_name: '',
-        first_name: '',
-        last_name: '',
-        email: '',
-        phone: '',
-        address: '',
-        zip_code: '',
-        city: '',
-        country: 'France',
-        siret: '',
-        vat_number: '',
-        type: clientType,
-      });
+    if (isOpen) {
+      // Reset search states when modal opens
+      setClientSearch('');
+      setShowClientHistory(false);
+      setClientHistory([]);
+
+      if (existingClient) {
+        setClientType(existingClient.type === 'private' ? 'individual' : 'professional');
+        setFormData({
+          company_name: existingClient.company_name || '',
+          first_name: existingClient.first_name || '',
+          last_name: existingClient.last_name || '',
+          email: existingClient.email || '',
+          phone: existingClient.phone || '',
+          address: existingClient.address || '',
+          zip_code: existingClient.zip_code || '',
+          city: existingClient.city || '',
+          country: existingClient.country || 'France',
+          siret: existingClient.siret || '',
+          vat_number: '',
+          type: existingClient.type || 'professional',
+        });
+      } else {
+        // Reset to default form when no existing client
+        setClientType('professional');
+        setFormData({
+          company_name: '',
+          first_name: '',
+          last_name: '',
+          email: '',
+          phone: '',
+          address: '',
+          zip_code: '',
+          city: '',
+          country: 'France',
+          siret: '',
+          vat_number: '',
+          type: 'professional',
+        });
+      }
     }
-  }, [existingClient, isOpen, clientType]);
+  }, [existingClient, isOpen]);
 
   // Load client history when search changes
   useEffect(() => {
     const loadClientHistory = async () => {
       if (clientSearch.length < 2) {
         setClientHistory([]);
+        setLoadingClients(false);
         return;
       }
 
       try {
+        setLoadingClients(true);
         const response = await commercialService.getClients({
           page: 1,
           per_page: 10,
@@ -104,6 +117,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
         }
       } catch (err) {
         console.error('Error loading client history:', err);
+      } finally {
+        setLoadingClients(false);
       }
     };
 
@@ -159,6 +174,7 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
 
   const handleSave = async () => {
     try {
+      setSaving(true);
       if (existingClient?.id) {
         const updated = await commercialService.updateClient(
           String(existingClient.id),
@@ -183,6 +199,8 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Error saving client:', error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -258,22 +276,29 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     </div>
 
                     {/* Client History Dropdown */}
-                    {showClientHistory && clientHistory.length > 0 && (
+                    {showClientHistory && (loadingClients || clientHistory.length > 0) && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#ebf1ff] rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto z-10">
-                        {clientHistory.map((client) => (
-                          <button
-                            key={client.id}
-                            onClick={() => handleClientSelect(client)}
-                            className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
-                          >
-                            <p className="text-[13px] font-semibold text-[#19294a]">
-                              {client.company_name || `${client.first_name} ${client.last_name}`}
-                            </p>
-                            <p className="text-[11px] text-[#6a90ba]">
-                              {client.email} • {client.siret || 'Pas de SIRET'}
-                            </p>
-                          </button>
-                        ))}
+                        {loadingClients ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 text-[#6a90ba] animate-spin" />
+                            <p className="ml-2 text-[13px] text-[#6a90ba]">Recherche en cours...</p>
+                          </div>
+                        ) : (
+                          clientHistory.map((client) => (
+                            <button
+                              key={client.id}
+                              onClick={() => handleClientSelect(client)}
+                              className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
+                            >
+                              <p className="text-[13px] font-semibold text-[#19294a]">
+                                {client.company_name || `${client.first_name} ${client.last_name}`}
+                              </p>
+                              <p className="text-[11px] text-[#6a90ba]">
+                                {client.email} • {client.siret || 'Pas de SIRET'}
+                              </p>
+                            </button>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
@@ -426,22 +451,29 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     </div>
 
                     {/* Client History Dropdown */}
-                    {showClientHistory && clientHistory.length > 0 && (
+                    {showClientHistory && (loadingClients || clientHistory.length > 0) && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#ebf1ff] rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto z-10">
-                        {clientHistory.map((client) => (
-                          <button
-                            key={client.id}
-                            onClick={() => handleClientSelect(client)}
-                            className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
-                          >
-                            <p className="text-[13px] font-semibold text-[#19294a]">
-                              {client.first_name} {client.last_name}
-                            </p>
-                            <p className="text-[11px] text-[#6a90ba]">
-                              {client.email} • {client.phone || 'Pas de téléphone'}
-                            </p>
-                          </button>
-                        ))}
+                        {loadingClients ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 text-[#6a90ba] animate-spin" />
+                            <p className="ml-2 text-[13px] text-[#6a90ba]">Recherche en cours...</p>
+                          </div>
+                        ) : (
+                          clientHistory.map((client) => (
+                            <button
+                              key={client.id}
+                              onClick={() => handleClientSelect(client)}
+                              className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
+                            >
+                              <p className="text-[13px] font-semibold text-[#19294a]">
+                                {client.first_name} {client.last_name}
+                              </p>
+                              <p className="text-[11px] text-[#6a90ba]">
+                                {client.email} • {client.phone || 'Pas de téléphone'}
+                              </p>
+                            </button>
+                          ))
+                        )}
                       </div>
                     )}
                   </div>
@@ -562,15 +594,20 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
         <div className="flex items-center justify-end gap-4 p-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+            disabled={saving}
+            className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <p className="text-[13px] font-medium text-[#7e8ca9] capitalize">annuler</p>
           </button>
           <button
             onClick={handleSave}
-            className="bg-[#ff7700] rounded-[10px] px-6 h-[40px] flex items-center justify-center"
+            disabled={saving}
+            className="bg-[#ff7700] rounded-[10px] px-6 h-[40px] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
           >
-            <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            <p className="text-[13px] font-medium text-white capitalize">
+              {saving ? 'Enregistrement...' : 'enregistrer'}
+            </p>
           </button>
         </div>
       </Card>
