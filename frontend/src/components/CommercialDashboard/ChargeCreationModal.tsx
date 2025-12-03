@@ -355,7 +355,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
         </button>
 
         {/* Content */}
-        <div className="px-5 py-14 overflow-y-auto max-h-[90vh]">
+        <div className="px-5 py-8 overflow-y-auto max-h-[90vh]">
           {/* Header */}
           <h2 className={`font-semibold text-[17px] mb-6 ${isDark ? 'text-white' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, sans-serif' }}>
             {charge ? 'Modifier la Dépense' : 'Ajouter une Dépense'}
