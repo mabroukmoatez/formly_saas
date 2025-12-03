@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Upload, Loader2, Plus, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -29,6 +29,10 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [saving, setSaving] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [editingBankId, setEditingBankId] = useState<number | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+
   const [formData, setFormData] = useState({
     company_name: organization?.organization_name || '',
     legal_name: '',
@@ -50,7 +54,10 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     capital: '',
     legal_form: '',
     director_name: '',
-    // Bank details
+  });
+
+  // Separate state for bank details form
+  const [bankFormData, setBankFormData] = useState({
     bank_name: '',
     bank_iban: '',
     bank_bic: '',
@@ -81,14 +88,80 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         capital: (settings as any)?.capital || '',
         legal_form: (settings as any)?.legal_form || '',
         director_name: (settings as any)?.director_name || settings?.director_name || '',
-        // Bank details
-        bank_name: (settings as any)?.bank_name || '',
-        bank_iban: (settings as any)?.bank_iban || '',
-        bank_bic: (settings as any)?.bank_bic || '',
-        bank_account_holder: (settings as any)?.bank_account_holder || '',
       });
+
+      // Load bank accounts
+      if ((settings as any)?.banks) {
+        setBankAccounts((settings as any).banks);
+      }
     }
   }, [settings, isOpen, organization]);
+
+  const handleAddBank = () => {
+    setBankFormData({
+      bank_name: '',
+      bank_iban: '',
+      bank_bic: '',
+      bank_account_holder: '',
+    });
+    setEditingBankId(null);
+    setShowBankForm(true);
+  };
+
+  const handleEditBank = (bank: any) => {
+    setBankFormData({
+      bank_name: bank.bank_name,
+      bank_iban: bank.iban,
+      bank_bic: bank.bic_swift,
+      bank_account_holder: bank.account_holder,
+    });
+    setEditingBankId(bank.id);
+    setShowBankForm(true);
+  };
+
+  const handleCancelBankForm = () => {
+    setShowBankForm(false);
+    setEditingBankId(null);
+    setBankFormData({
+      bank_name: '',
+      bank_iban: '',
+      bank_bic: '',
+      bank_account_holder: '',
+    });
+  };
+
+  const handleSaveBankForm = async () => {
+    // Validate that all fields are filled
+    if (!bankFormData.bank_name || !bankFormData.bank_iban ||
+        !bankFormData.bank_bic || !bankFormData.bank_account_holder) {
+      error('Veuillez remplir tous les champs bancaires');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await commercialService.updateCompanyDetails(bankFormData);
+
+      if (response.success) {
+        success(editingBankId ? 'Coordonnées bancaires modifiées' : 'Coordonnées bancaires ajoutées');
+
+        // Reload the company details to get the updated bank accounts
+        const detailsResponse = await commercialService.getCompanyDetails();
+        if (detailsResponse.success && (detailsResponse.data as any)?.banks) {
+          setBankAccounts((detailsResponse.data as any).banks);
+        }
+
+        handleCancelBankForm();
+      } else {
+        error(response.message || 'Erreur lors de l\'enregistrement');
+      }
+    } catch (err: any) {
+      console.error('Error saving bank details:', err);
+      error(err.message || 'Erreur lors de l\'enregistrement des coordonnées bancaires');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -307,44 +380,135 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
             {/* Bank Details */}
             <div>
               <Label className="text-lg font-semibold mb-4 block">COORDONNÉES BANCAIRES</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Nom de la banque</Label>
-                  <Input
-                    value={formData.bank_name}
-                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="Nom de votre banque"
-                  />
+
+              {/* Existing bank accounts */}
+              {bankAccounts.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  {bankAccounts.map((bank) => (
+                    <div
+                      key={bank.id}
+                      className={`relative border-2 rounded-lg p-4 ${isDark ? 'bg-gray-800 border-blue-500' : 'bg-white border-blue-500'}`}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <p className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {bank.account_holder} - {bank.bank_name}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditBank(bank)}
+                            className="p-1.5 rounded-full bg-blue-50 hover:bg-blue-100 transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                          </button>
+                          <button
+                            className="p-1.5 rounded-full bg-red-50 hover:bg-red-100 transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-gray-500 mb-1">IBAN</p>
+                          <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{bank.iban}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 mb-1">BIC / SWIFT</p>
+                          <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-900'}`}>{bank.bic_swift}</p>
+                        </div>
+                      </div>
+                      {bank.is_default && (
+                        <div className="absolute top-4 right-16">
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">PAR DÉFAUT</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <Label>Titulaire du compte</Label>
-                  <Input
-                    value={formData.bank_account_holder}
-                    onChange={(e) => setFormData({ ...formData, bank_account_holder: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="Nom du titulaire"
-                  />
+              )}
+
+              {/* Add bank form or Add button */}
+              {showBankForm ? (
+                <div className={`border-2 rounded-lg p-4 ${isDark ? 'bg-gray-800 border-blue-500' : 'bg-white border-blue-500'}`}>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <Label>Nom de la banque</Label>
+                      <Input
+                        value={bankFormData.bank_name}
+                        onChange={(e) => setBankFormData({ ...bankFormData, bank_name: e.target.value })}
+                        className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                        placeholder="Nom de votre banque"
+                      />
+                    </div>
+                    <div>
+                      <Label>Titulaire du compte</Label>
+                      <Input
+                        value={bankFormData.bank_account_holder}
+                        onChange={(e) => setBankFormData({ ...bankFormData, bank_account_holder: e.target.value })}
+                        className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                        placeholder="Nom du titulaire"
+                      />
+                    </div>
+                    <div>
+                      <Label>IBAN</Label>
+                      <Input
+                        value={bankFormData.bank_iban}
+                        onChange={(e) => setBankFormData({ ...bankFormData, bank_iban: e.target.value })}
+                        className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                        placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
+                      />
+                    </div>
+                    <div>
+                      <Label>BIC / SWIFT</Label>
+                      <Input
+                        value={bankFormData.bank_bic}
+                        onChange={(e) => setBankFormData({ ...bankFormData, bank_bic: e.target.value })}
+                        className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                        placeholder="BNPAFRPPXXX"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelBankForm}
+                      disabled={saving}
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveBankForm}
+                      disabled={saving}
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Enregistrement...
+                        </>
+                      ) : (
+                        editingBankId ? 'Modifier' : 'Ajouter'
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label>IBAN</Label>
-                  <Input
-                    value={formData.bank_iban}
-                    onChange={(e) => setFormData({ ...formData, bank_iban: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
-                  />
-                </div>
-                <div>
-                  <Label>BIC / SWIFT</Label>
-                  <Input
-                    value={formData.bank_bic}
-                    onChange={(e) => setFormData({ ...formData, bank_bic: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="BNPAFRPPXXX"
-                  />
-                </div>
-              </div>
+              ) : (
+                <button
+                  onClick={handleAddBank}
+                  className={`w-full border-2 border-dashed rounded-lg p-6 flex items-center justify-center gap-3 transition-colors ${
+                    isDark
+                      ? 'border-gray-600 bg-gray-800/30 hover:bg-gray-800/50 text-gray-400 hover:text-gray-300'
+                      : 'border-blue-300 bg-blue-50/30 hover:bg-blue-50/50 text-blue-600 hover:text-blue-700'
+                  }`}
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="font-medium">Ajouter un compte</span>
+                </button>
+              )}
             </div>
           </div>
         </CardContent>
