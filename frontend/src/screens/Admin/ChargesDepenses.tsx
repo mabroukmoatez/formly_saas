@@ -13,9 +13,7 @@ import { Charge, ExpensesDashboardResponse } from '../../services/commercial.typ
 import { useToast } from '../../components/ui/toast';
 import { ChargeCreationModal } from '../../components/CommercialDashboard/ChargeCreationModal';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
-import TotalExpensesPopup from '../../../new_design/components/TotalExpensesPopup';
-import EnvironmentalExpensesPopup from '../../../new_design/components/EnvironmentalExpensesPopup';
-import HumanExpensesPopup from '../../../new_design/components/HumanExpensesPopup';
+import { ExpenseDetailModal } from '../../components/CommercialDashboard/ExpenseDetailModal';
 import {
   Plus,
   Search,
@@ -411,10 +409,8 @@ export const ChargesDepenses = (): JSX.Element => {
   const [formationFilter, setFormationFilter] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // Modal states for expense popups
-  const [showTotalExpensesModal, setShowTotalExpensesModal] = useState(false);
-  const [showEnvironmentalModal, setShowEnvironmentalModal] = useState(false);
-  const [showHumanModal, setShowHumanModal] = useState(false);
+  // Modal state for expense detail popup
+  const [expenseModalType, setExpenseModalType] = useState<'total' | 'environnement' | 'humains' | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -991,7 +987,7 @@ export const ChargesDepenses = (): JSX.Element => {
             isDark={isDark}
             primaryColor={primaryColor}
             categoryData={(dashboardStats.data as any).charts?.by_category || []}
-            onEyeClick={() => setShowTotalExpensesModal(true)}
+            onEyeClick={() => setExpenseModalType('total')}
           />
 
           {/* Moyens Environnementaux Card */}
@@ -1002,7 +998,7 @@ export const ChargesDepenses = (): JSX.Element => {
             type="environnement"
             isDark={isDark}
             primaryColor={primaryColor}
-            onEyeClick={() => setShowEnvironmentalModal(true)}
+            onEyeClick={() => setExpenseModalType('environnement')}
           />
 
           {/* Moyens Humains Card */}
@@ -1013,7 +1009,7 @@ export const ChargesDepenses = (): JSX.Element => {
             type="humains"
             isDark={isDark}
             primaryColor={primaryColor}
-            onEyeClick={() => setShowHumanModal(true)}
+            onEyeClick={() => setExpenseModalType('humains')}
           />
         </div>
       )}
@@ -1531,15 +1527,24 @@ export const ChargesDepenses = (): JSX.Element => {
         isLoading={deleting}
       />
 
-      {/* Expense Detail Modals */}
-      {showTotalExpensesModal && (
-        <TotalExpensesPopup onClose={() => setShowTotalExpensesModal(false)} />
-      )}
-      {showEnvironmentalModal && (
-        <EnvironmentalExpensesPopup onClose={() => setShowEnvironmentalModal(false)} />
-      )}
-      {showHumanModal && (
-        <HumanExpensesPopup onClose={() => setShowHumanModal(false)} />
+      {/* Expense Detail Modal */}
+      {expenseModalType && dashboardStats && dashboardStats.data && (dashboardStats.data as any).monthly_data && (
+        <ExpenseDetailModal
+          isOpen={expenseModalType !== null}
+          onClose={() => setExpenseModalType(null)}
+          type={expenseModalType}
+          totalAmount={
+            expenseModalType === 'total'
+              ? dashboardStats.data.summary.total_expenses
+              : expenseModalType === 'humains'
+              ? (dashboardStats.data as any).humains_total || 0
+              : (dashboardStats.data as any).environnement_total || 0
+          }
+          monthlyData={(dashboardStats.data as any).monthly_data}
+          categoryData={(dashboardStats.data as any).charts?.by_category || []}
+          humainsTotal={(dashboardStats.data as any).humains_total || 0}
+          environnementTotal={(dashboardStats.data as any).environnement_total || 0}
+        />
       )}
     </div>
   );
