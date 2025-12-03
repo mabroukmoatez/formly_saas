@@ -402,12 +402,18 @@ export const ChargesDepenses = (): JSX.Element => {
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<ExpensesDashboardResponse | null>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const advancedFiltersRef = useRef<HTMLDivElement>(null);
 
   // Advanced filter states
   const [dateFilter, setDateFilter] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [amountFilter, setAmountFilter] = useState<{ min: string; max: string }>({ min: '', max: '' });
   const [formationFilter, setFormationFilter] = useState<string>('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Courses for formation select
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [editingFormation, setEditingFormation] = useState<string | null>(null);
 
   // Modal state for expense detail popup
   const [expenseModalType, setExpenseModalType] = useState<'total' | 'environnement' | 'humains' | null>(null);
@@ -418,14 +424,17 @@ export const ChargesDepenses = (): JSX.Element => {
       if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
         setShowFilterDropdown(false);
       }
+      if (advancedFiltersRef.current && !advancedFiltersRef.current.contains(event.target as Node)) {
+        setShowAdvancedFilters(false);
+      }
     };
-    if (showFilterDropdown) {
+    if (showFilterDropdown || showAdvancedFilters) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showFilterDropdown]);
+  }, [showFilterDropdown, showAdvancedFilters]);
 
   useEffect(() => {
     fetchCharges();
@@ -589,6 +598,59 @@ export const ChargesDepenses = (): JSX.Element => {
     setDashboardStats(dashboardData);
   };
 
+  // Load courses for formation select
+  const loadCourses = async () => {
+    if (courses.length > 0) return; // Already loaded
+    try {
+      setLoadingCourses(true);
+      const response = await apiService.getCourses({ per_page: 100 });
+
+      let coursesArray: any[] = [];
+      if (response && typeof response === 'object') {
+        if (response.success === true && response.data) {
+          coursesArray = response.data?.courses?.data ||
+                        response.data?.courses ||
+                        response.data?.data ||
+                        (Array.isArray(response.data) ? response.data : []);
+        } else if (response.courses && Array.isArray(response.courses)) {
+          coursesArray = response.courses;
+        } else if (Array.isArray(response)) {
+          coursesArray = response;
+        } else if (response.data && Array.isArray(response.data)) {
+          coursesArray = response.data;
+        }
+      }
+
+      setCourses(Array.isArray(coursesArray) ? coursesArray : []);
+    } catch (err) {
+      console.error('Error loading courses:', err);
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
+  // Update formation for a charge
+  const handleUpdateFormation = async (chargeId: string, courseId: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('course_id', courseId);
+      formData.append('_method', 'PUT');
+
+      const response = await apiService.post(`/api/organization/commercial/charges/${chargeId}`, formData);
+
+      if (response.success || response.data) {
+        success('Formation mise à jour avec succès');
+        fetchCharges();
+        setEditingFormation(null);
+      } else {
+        throw new Error('La mise à jour a échoué');
+      }
+    } catch (err: any) {
+      console.error('Error updating formation:', err);
+      showError('Erreur', err.message || 'Impossible de mettre à jour la formation');
+    }
+  };
+
   const fetchCharges = async () => {
     try {
       setLoading(true);
@@ -716,13 +778,10 @@ export const ChargesDepenses = (): JSX.Element => {
         if (amountFilter.max && amount > parseFloat(amountFilter.max)) return false;
       }
 
-      // Formation filter
+      // Formation filter - Fix the logic to avoid blank page error
       if (formationFilter) {
         const courseName = getCourseName(charge).toLowerCase();
-        if (!courseName.includes(formationFilter.toLowerCase()) && courseName !== '-') {
-          return false;
-        }
-        if (courseName === '-' && formationFilter.toLowerCase() !== '-') {
+        if (!courseName.includes(formationFilter.toLowerCase())) {
           return false;
         }
       }
@@ -1082,7 +1141,9 @@ export const ChargesDepenses = (): JSX.Element => {
                   <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
                     <div className="p-2">
                       <button
-                        onClick={() => {
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
                           setSelectedCategory('');
                           setShowFilterDropdown(false);
                         }}
@@ -1091,8 +1152,10 @@ export const ChargesDepenses = (): JSX.Element => {
                         Toutes les catégories
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedCategory('salary');
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedCategory('Moyens Humains');
                           setShowFilterDropdown(false);
                         }}
                         className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
@@ -1100,8 +1163,10 @@ export const ChargesDepenses = (): JSX.Element => {
                         Moyens Humains
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedCategory('utilities');
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedCategory('Moyens Environnementaux');
                           setShowFilterDropdown(false);
                         }}
                         className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
@@ -1114,17 +1179,107 @@ export const ChargesDepenses = (): JSX.Element => {
               </div>
 
               {/* Advanced Filters Toggle */}
-              <Button
-                variant="outline"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${showAdvancedFilters ? 'border-blue-500 bg-blue-50' : (isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50')}`}
-                style={{ borderColor: showAdvancedFilters ? primaryColor : undefined }}
-              >
-                <Filter className={`w-4 h-4`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }} />
-                <span className={`font-medium text-sm`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}>
-                  Filtres avancés
-                </span>
-              </Button>
+              <div className="relative" ref={advancedFiltersRef}>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${showAdvancedFilters ? 'border-blue-500 bg-blue-50' : (isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50')}`}
+                  style={{ borderColor: showAdvancedFilters ? primaryColor : undefined }}
+                >
+                  <Filter className={`w-4 h-4`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }} />
+                  <span className={`font-medium text-sm`} style={{ color: showAdvancedFilters ? primaryColor : (isDark ? '#9ca3af' : '#6b7280') }}>
+                    Filtres avancés
+                  </span>
+                </Button>
+
+                {/* Advanced Filters Dropdown */}
+                {showAdvancedFilters && (
+                  <div className={`absolute right-0 mt-2 w-[600px] rounded-lg shadow-lg z-20 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border p-4`}>
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Date Range Filter */}
+                      <div className="flex flex-col gap-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Date de début
+                        </Label>
+                        <Input
+                          type="date"
+                          value={dateFilter.start}
+                          onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Date de fin
+                        </Label>
+                        <Input
+                          type="date"
+                          value={dateFilter.end}
+                          onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                        />
+                      </div>
+
+                      {/* Amount Range Filter */}
+                      <div className="flex flex-col gap-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Montant min (€)
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={amountFilter.min}
+                          onChange={(e) => setAmountFilter({ ...amountFilter, min: e.target.value })}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Montant max (€)
+                        </Label>
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={amountFilter.max}
+                          onChange={(e) => setAmountFilter({ ...amountFilter, max: e.target.value })}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                          step="0.01"
+                        />
+                      </div>
+
+                      {/* Formation Filter */}
+                      <div className="flex flex-col gap-2 col-span-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Formation
+                        </Label>
+                        <Input
+                          type="text"
+                          placeholder="Rechercher une formation"
+                          value={formationFilter}
+                          onChange={(e) => setFormationFilter(e.target.value)}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
+                        />
+                      </div>
+
+                      {/* Clear Filters Button */}
+                      <div className="flex items-end col-span-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setDateFilter({ start: '', end: '' });
+                            setAmountFilter({ min: '', max: '' });
+                            setFormationFilter('');
+                          }}
+                          className={`w-full h-10 ${isDark ? 'border-gray-600 bg-gray-800 hover:bg-gray-700' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                        >
+                          Réinitialiser les filtres
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Export Excel Button */}
@@ -1160,94 +1315,6 @@ export const ChargesDepenses = (): JSX.Element => {
             </Button>
           </div>
         </div>
-
-        {/* Advanced Filters Panel */}
-        {showAdvancedFilters && (
-          <div className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'} mb-4`}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Date Range Filter */}
-              <div className="flex flex-col gap-2">
-                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Date de début
-                </Label>
-                <Input
-                  type="date"
-                  value={dateFilter.start}
-                  onChange={(e) => setDateFilter({ ...dateFilter, start: e.target.value })}
-                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Date de fin
-                </Label>
-                <Input
-                  type="date"
-                  value={dateFilter.end}
-                  onChange={(e) => setDateFilter({ ...dateFilter, end: e.target.value })}
-                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                />
-              </div>
-
-              {/* Amount Range Filter */}
-              <div className="flex flex-col gap-2">
-                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Montant min (€)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="Min"
-                  value={amountFilter.min}
-                  onChange={(e) => setAmountFilter({ ...amountFilter, min: e.target.value })}
-                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                  step="0.01"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Montant max (€)
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="Max"
-                  value={amountFilter.max}
-                  onChange={(e) => setAmountFilter({ ...amountFilter, max: e.target.value })}
-                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                  step="0.01"
-                />
-              </div>
-
-              {/* Formation Filter */}
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Formation
-                </Label>
-                <Input
-                  type="text"
-                  placeholder="Rechercher une formation"
-                  value={formationFilter}
-                  onChange={(e) => setFormationFilter(e.target.value)}
-                  className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                />
-              </div>
-
-              {/* Clear Filters Button */}
-              <div className="flex items-end md:col-span-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDateFilter({ start: '', end: '' });
-                    setAmountFilter({ min: '', max: '' });
-                    setFormationFilter('');
-                  }}
-                  className={`w-full h-10 ${isDark ? 'border-gray-600 bg-gray-800 hover:bg-gray-700' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
-                >
-                  Réinitialiser les filtres
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Table */}
         {filteredCharges.length === 0 && !loading ? (
@@ -1431,8 +1498,42 @@ export const ChargesDepenses = (): JSX.Element => {
                           <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
                         )}
                       </TableCell>
-                      <TableCell className={`px-4 py-4 font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'} text-[15px]`}>
-                        {getCourseName(charge)}
+                      <TableCell className="px-4 py-4">
+                        <div className="relative min-w-[150px]">
+                          {editingFormation === String(charge.id) ? (
+                            <select
+                              autoFocus
+                              className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                              value={charge.course_id || ''}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleUpdateFormation(String(charge.id), e.target.value);
+                                }
+                              }}
+                              onBlur={() => setEditingFormation(null)}
+                            >
+                              <option value="">Aucune formation</option>
+                              {courses.map((course) => (
+                                <option key={course.id || course.uuid} value={course.id || course.uuid}>
+                                  {course.title || course.name}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div
+                              className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer hover:border-blue-400 transition-colors ${isDark ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
+                              onClick={() => {
+                                setEditingFormation(String(charge.id));
+                                loadCourses();
+                              }}
+                            >
+                              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                {getCourseName(charge)}
+                              </span>
+                              <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="flex items-center justify-center gap-2">
