@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -10,6 +10,15 @@ import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
 import { fixImageUrl } from '../../lib/utils';
+
+interface BankAccount {
+  id: string;
+  bank_name: string;
+  account_holder: string;
+  iban: string;
+  bic_swift: string;
+  is_default: boolean;
+}
 
 interface CompanyInformationModalProps {
   isOpen: boolean;
@@ -50,11 +59,16 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     capital: '',
     legal_form: '',
     director_name: '',
-    // Bank details
+  });
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [bankFormData, setBankFormData] = useState({
+    account_name: '',
     bank_name: '',
-    bank_iban: '',
-    bank_bic: '',
-    bank_account_holder: '',
+    iban: '',
+    bic_swift: '',
+    is_default: false,
   });
 
   // Load settings data when modal opens and settings are available
@@ -81,12 +95,11 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         capital: (settings as any)?.capital || '',
         legal_form: (settings as any)?.legal_form || '',
         director_name: (settings as any)?.director_name || settings?.director_name || '',
-        // Bank details
-        bank_name: (settings as any)?.bank_name || '',
-        bank_iban: (settings as any)?.bank_iban || '',
-        bank_bic: (settings as any)?.bank_bic || '',
-        bank_account_holder: (settings as any)?.bank_account_holder || '',
       });
+
+      // Load bank accounts if available
+      const existingBankAccounts = (settings as any)?.bank_accounts || [];
+      setBankAccounts(existingBankAccounts);
     }
   }, [settings, isOpen, organization]);
 
@@ -110,15 +123,45 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     }
   };
 
+  const handleAddBankAccount = () => {
+    const newAccount: BankAccount = {
+      id: `bank-${Date.now()}`,
+      bank_name: bankFormData.bank_name,
+      account_holder: bankFormData.account_name,
+      iban: bankFormData.iban,
+      bic_swift: bankFormData.bic_swift,
+      is_default: bankFormData.is_default,
+    };
+
+    // If this is set as default, remove default from others
+    const updatedAccounts = bankFormData.is_default
+      ? bankAccounts.map(acc => ({ ...acc, is_default: false }))
+      : bankAccounts;
+
+    setBankAccounts([...updatedAccounts, newAccount]);
+    setShowBankForm(false);
+    setBankFormData({
+      account_name: '',
+      bank_name: '',
+      iban: '',
+      bic_swift: '',
+      is_default: false,
+    });
+  };
+
+  const handleDeleteBankAccount = (id: string) => {
+    setBankAccounts(bankAccounts.filter(acc => acc.id !== id));
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
-      <Card className={`relative w-full max-w-3xl max-h-[90vh] overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+
+      <Card className={`relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-[18px] ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
         <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className="text-[20px] font-['Poppins',sans-serif] font-semibold text-[#19294a]">
             Informations de l'entreprise
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
@@ -127,10 +170,10 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
         </div>
 
         <CardContent className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-          <div className="space-y-6">
+          <div className="flex flex-col gap-6 font-['Poppins',sans-serif]">
             {/* Logo Upload */}
             <div>
-              <Label>Logo de l'entreprise</Label>
+              <Label className="text-[14px] text-[#6a90ba]">Logo de l'entreprise</Label>
               <div className="mt-2">
                 {organization?.organization_logo_url && (
                   <img src={fixImageUrl(organization.organization_logo_url)} alt="Logo" className="h-20 mb-2" />
@@ -141,108 +184,101 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Handle file upload here
                       console.log('Logo file selected:', file);
-                      // TODO: Implement actual upload logic
                     }
                   }}
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]"
                 />
               </div>
             </div>
 
             {/* Company Identity */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Nom de l'entreprise</Label>
+            <div className="flex gap-4">
+              <div className="flex-1">
                 <Input
                   value={formData.company_name}
                   onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  placeholder="Nom de l'entreprise"
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                 />
               </div>
-              <div>
-                <Label>Forme juridique</Label>
+              <div className="flex-1">
                 <Input
                   value={formData.legal_form}
                   onChange={(e) => setFormData({ ...formData, legal_form: e.target.value })}
-                  placeholder="SARL, SAS, etc."
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  placeholder="Forme juridique (SARL, SAS, etc.)"
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                 />
               </div>
             </div>
 
             {/* Address */}
             <div>
-              <Label>Adresse</Label>
               <Input
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className={`mt-2 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
+                placeholder="Adresse"
+                className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                  <Label>Complément d'adresse</Label>
+            <div className="flex gap-4">
+              <div className="flex-1">
                 <Input
                   value={formData.address_complement}
                   onChange={(e) => setFormData({ ...formData, address_complement: e.target.value })}
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  placeholder="Complément d'adresse"
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                 />
               </div>
-              <div>
-                <Label>Code postal</Label>
+              <div className="flex-1">
                 <Input
                   value={formData.zip_code}
                   onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  placeholder="Code postal"
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                 />
               </div>
-              <div>
-                <Label>Ville</Label>
+              <div className="flex-1">
                 <Input
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                  placeholder="Ville"
+                  className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                 />
               </div>
             </div>
 
             {/* Contact */}
             <div>
-              <Label className="text-lg font-semibold mb-4 block">COORDONNÉES</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Téléphone Fixe</Label>
+              <p className="text-[17px] font-semibold text-[#19294a] mb-4">COORDONNÉES</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-4">
                   <Input
                     value={formData.phone_fixed}
                     onChange={(e) => setFormData({ ...formData, phone_fixed: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Téléphone Fixe"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
-                </div>
-                <div>
-                  <Label>Téléphone Mobile</Label>
                   <Input
                     value={formData.phone_mobile}
                     onChange={(e) => setFormData({ ...formData, phone_mobile: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Téléphone Mobile"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
                 </div>
-                <div>
-                  <Label>Email</Label>
+                <div className="flex gap-4">
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Email"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
-                </div>
-                <div>
-                  <Label>Site Web</Label>
                   <Input
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Site Web"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
                 </div>
               </div>
@@ -250,101 +286,189 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
 
             {/* Legal Information */}
             <div>
-              <Label className="text-lg font-semibold mb-4 block">ÉLÉMENTS JURIDIQUES</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Capital (€)</Label>
+              <p className="text-[17px] font-semibold text-[#19294a] mb-4">ÉLÉMENTS JURIDIQUES</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-4">
                   <Input
                     type="number"
                     value={formData.capital}
                     onChange={(e) => setFormData({ ...formData, capital: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Capital (€)"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
-                </div>
-                <div>
-                  <Label>SIRET</Label>
                   <Input
                     value={formData.siret}
                     onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="SIRET"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
                 </div>
-                <div>
-                  <Label>RCS</Label>
+                <div className="flex gap-4">
                   <Input
                     value={formData.rcs}
                     onChange={(e) => setFormData({ ...formData, rcs: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="RCS"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
-                </div>
-                <div>
-                  <Label>NAF</Label>
                   <Input
                     value={formData.naf_code}
                     onChange={(e) => setFormData({ ...formData, naf_code: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Code NAF"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
                 </div>
-                <div>
-                  <Label>N° TVA Intracommunautaire</Label>
+                <div className="flex gap-4">
                   <Input
                     value={formData.vat_number}
                     onChange={(e) => setFormData({ ...formData, vat_number: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="N° TVA Intracommunautaire"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
-                </div>
-                <div>
-                  <Label>Nom du directeur</Label>
                   <Input
                     value={formData.director_name}
                     onChange={(e) => setFormData({ ...formData, director_name: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
+                    placeholder="Nom du directeur"
+                    className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
                   />
                 </div>
               </div>
             </div>
 
             {/* Bank Details */}
-            <div>
-              <Label className="text-lg font-semibold mb-4 block">COORDONNÉES BANCAIRES</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Nom de la banque</Label>
-                  <Input
-                    value={formData.bank_name}
-                    onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="Nom de votre banque"
-                  />
-                </div>
-                <div>
-                  <Label>Titulaire du compte</Label>
-                  <Input
-                    value={formData.bank_account_holder}
-                    onChange={(e) => setFormData({ ...formData, bank_account_holder: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="Nom du titulaire"
-                  />
-                </div>
-                <div>
-                  <Label>IBAN</Label>
-                  <Input
-                    value={formData.bank_iban}
-                    onChange={(e) => setFormData({ ...formData, bank_iban: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
-                  />
-                </div>
-                <div>
-                  <Label>BIC / SWIFT</Label>
-                  <Input
-                    value={formData.bank_bic}
-                    onChange={(e) => setFormData({ ...formData, bank_bic: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600' : ''}
-                    placeholder="BNPAFRPPXXX"
-                  />
-                </div>
+            <div className="flex flex-col gap-4 w-full">
+              <p className="text-[17px] font-semibold text-[#19294a]">COORDONNÉES BANCAIRES</p>
+
+              {/* Bank Accounts View */}
+              <div className="flex gap-4 items-start w-full">
+                {/* Existing Bank Accounts */}
+                {bankAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="flex flex-col gap-3 bg-white border border-[#007aff] rounded-[5px] p-[17.647px] w-[391px]"
+                  >
+                    <p className="text-[11.765px] font-semibold text-[#19294a]">
+                      {account.account_holder} - {account.bank_name}
+                    </p>
+                    <div className="flex flex-col gap-1 text-[11.765px]">
+                      <p className="text-[#6a90ba]">IBAN</p>
+                      <p className="text-[#19294a]">{account.iban}</p>
+                    </div>
+                    <div className="flex justify-between items-end">
+                      <div className="flex flex-col gap-1 text-[11.765px]">
+                        <p className="text-[#6a90ba]">BIC / SWIFT</p>
+                        <p className="text-[#19294a]">{account.bic_swift}</p>
+                      </div>
+                      {account.is_default && (
+                        <p className="text-[11.765px] text-[#19294a]">IBAN PAR DÉFAUT</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px]">
+                        <Trash2 className="w-3 h-3 text-[#6a90ba]" onClick={() => handleDeleteBankAccount(account.id)} />
+                      </button>
+                      <button className="flex items-center justify-center bg-[#e8f0f7] border border-[#6a90ba] rounded-full size-[24.859px]">
+                        <Pencil className="w-3 h-3 text-[#6a90ba]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add Account Button - Show only when form is not visible */}
+                {!showBankForm && (
+                  <div className="flex-1 min-w-0">
+                    <button
+                      onClick={() => setShowBankForm(true)}
+                      className="bg-[rgba(232,240,247,0.21)] border border-dashed border-[#6a90ba] rounded-[10px] h-[154px] w-full flex items-center justify-center gap-4 hover:bg-[rgba(232,240,247,0.4)] transition-colors"
+                    >
+                      <Plus className="w-[13.292px] h-[13.292px] text-[#6a90ba]" strokeWidth={2} />
+                      <p className="text-[14px] font-medium text-[#6a90ba] capitalize">Ajouter un compte</p>
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Bank Account Form - Show when adding new account */}
+              {showBankForm && (
+                <div className="border border-[#6a90ba] rounded-[6px] p-[19px] flex flex-col gap-6">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Coordonnées Bancaires</p>
+
+                  {/* Account Name and Bank Name */}
+                  <div className="flex gap-4">
+                    <Input
+                      value={bankFormData.account_name}
+                      onChange={(e) => setBankFormData({ ...bankFormData, account_name: e.target.value })}
+                      placeholder="Nom du compte"
+                      className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
+                    />
+                    <Input
+                      value={bankFormData.bank_name}
+                      onChange={(e) => setBankFormData({ ...bankFormData, bank_name: e.target.value })}
+                      placeholder="Nom de la banque"
+                      className="flex-1 bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
+                    />
+                  </div>
+
+                  {/* IBAN */}
+                  <Input
+                    value={bankFormData.iban}
+                    onChange={(e) => setBankFormData({ ...bankFormData, iban: e.target.value })}
+                    placeholder="IBAN"
+                    className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
+                  />
+
+                  {/* BIC / SWIFT */}
+                  <Input
+                    value={bankFormData.bic_swift}
+                    onChange={(e) => setBankFormData({ ...bankFormData, bic_swift: e.target.value })}
+                    placeholder="BIC / SWIFT"
+                    className="bg-white border-[#ebf1ff] rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)] text-[14px] text-[#6a90ba] placeholder:text-[#6a90ba]"
+                  />
+
+                  {/* Default IBAN Toggle */}
+                  <div className="flex items-center justify-end gap-4">
+                    <p className="text-[14px] font-medium text-[#5c677e] capitalize">
+                      choisir comme iban par défaut
+                    </p>
+                    <button
+                      onClick={() => setBankFormData({ ...bankFormData, is_default: !bankFormData.is_default })}
+                      className={`relative h-[19.451px] w-[37.929px] rounded-[9.725px] transition-colors ${
+                        bankFormData.is_default ? 'bg-[#007aff]' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-[0.69px] size-[17.506px] bg-white rounded-full shadow-[0px_0px_2.188px_0px_inset_rgba(0,0,0,0.25)] transition-transform ${
+                          bankFormData.is_default ? 'translate-x-[18.95px]' : 'translate-x-[1px]'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-4 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowBankForm(false);
+                        setBankFormData({
+                          account_name: '',
+                          bank_name: '',
+                          iban: '',
+                          bic_swift: '',
+                          is_default: false,
+                        });
+                      }}
+                      className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+                    >
+                      <p className="text-[13px] font-medium text-[#7e8ca9] capitalize">annuler</p>
+                    </button>
+                    <button
+                      onClick={handleAddBankAccount}
+                      className="bg-[#ff7700] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+                    >
+                      <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -368,4 +492,3 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     </div>
   );
 };
-

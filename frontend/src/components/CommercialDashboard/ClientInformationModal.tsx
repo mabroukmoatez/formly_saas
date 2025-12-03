@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search } from 'lucide-react';
+import { X, Search, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -25,7 +25,6 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
-  const primaryColor = organization?.primary_color || '#007aff';
 
   const [clientType, setClientType] = useState<'professional' | 'individual'>('professional');
   const [formData, setFormData] = useState({
@@ -57,15 +56,14 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
         email: existingClient.email || '',
         phone: existingClient.phone || '',
         address: existingClient.address || '',
-                    zip_code: existingClient.zip_code || '',
-                    city: existingClient.city || '',
-                    country: existingClient.country || 'France',
-                    siret: existingClient.siret || '',
-                    vat_number: '',
-                    type: existingClient.type || 'professional',
+        zip_code: existingClient.zip_code || '',
+        city: existingClient.city || '',
+        country: existingClient.country || 'France',
+        siret: existingClient.siret || '',
+        vat_number: '',
+        type: existingClient.type || 'professional',
       });
     } else {
-      // Reset form
       setFormData({
         company_name: '',
         first_name: '',
@@ -73,12 +71,12 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
         email: '',
         phone: '',
         address: '',
-                    zip_code: '',
-                    city: '',
-                    country: 'France',
-                    siret: '',
-                    vat_number: '',
-                    type: clientType,
+        zip_code: '',
+        city: '',
+        country: 'France',
+        siret: '',
+        vat_number: '',
+        type: clientType,
       });
     }
   }, [existingClient, isOpen, clientType]);
@@ -162,7 +160,6 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
   const handleSave = async () => {
     try {
       if (existingClient?.id) {
-        // Update existing client
         const updated = await commercialService.updateClient(
           String(existingClient.id),
           {
@@ -174,7 +171,6 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
           onSave(updated.data);
         }
       } else {
-        // Create new client
         const created = await commercialService.createClient({
           ...formData,
           type: clientType === 'individual' ? 'private' : 'professional',
@@ -195,137 +191,207 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
-      <Card className={`relative w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} animate-in fade-in zoom-in-95 duration-200`}>
-        <div className={`flex items-center justify-between p-4 md:p-6 border-b flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <h2 className={`text-lg md:text-xl lg:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Quelles sont les coordonnées de votre client ?
-          </h2>
+
+      <Card className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-[18px] bg-white border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex-1" />
           <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <CardContent className="p-4 md:p-6 overflow-y-auto flex-1">
-          <div className="space-y-6">
-            {/* Client Type Toggle */}
-            <div className="flex gap-2">
-              <Button
-                variant={clientType === 'professional' ? 'default' : 'outline'}
-                onClick={() => {
-                  setClientType('professional');
-                  setFormData({ ...formData, type: 'professional' });
-                }}
-                className="flex-1"
-                style={clientType === 'professional' ? { backgroundColor: primaryColor } : {}}
-              >
-                Client Professionnel
-              </Button>
-              <Button
-                variant={clientType === 'individual' ? 'default' : 'outline'}
-                onClick={() => {
-                  setClientType('individual');
-                  setFormData({ ...formData, type: 'private' });
-                }}
-                className="flex-1"
-                style={clientType === 'individual' ? { backgroundColor: primaryColor } : {}}
-              >
-                Client Particulier
-              </Button>
+        <CardContent className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] font-['Poppins',sans-serif]">
+          <div className="flex flex-col gap-6">
+            {/* Header with Toggle */}
+            <div className="bg-white border border-gray-200 rounded-[5px] flex flex-col gap-[10px] h-[60px] items-center justify-center px-0 py-[9px]">
+              <p className="text-[17px] font-semibold text-[#19294a]">
+                Quelles sont les coordonnées de votre client ?
+              </p>
+              <div className="flex gap-4 items-center">
+                <p className={`text-[14px] font-bold capitalize ${clientType === 'professional' ? 'text-[#007aff]' : 'text-[#6a90ba]'}`}>
+                  Client professionnel
+                </p>
+                <button
+                  onClick={() => setClientType(clientType === 'professional' ? 'individual' : 'professional')}
+                  className={`relative h-[19.451px] w-[37.929px] rounded-[9.725px] transition-colors ${
+                    clientType === 'individual' ? 'bg-[#007aff]' : 'bg-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-[0.69px] size-[17.506px] bg-white rounded-full shadow-[0px_0px_2.188px_0px_inset_rgba(0,0,0,0.25)] transition-transform ${
+                      clientType === 'individual' ? 'translate-x-[18.95px]' : 'translate-x-[1px]'
+                    }`}
+                  />
+                </button>
+                <p className={`text-[14px] font-bold capitalize ${clientType === 'individual' ? 'text-[#007aff]' : 'text-[#6a90ba]'}`}>
+                  Client particulier
+                </p>
+              </div>
             </div>
 
             {/* Professional Client Fields */}
             {clientType === 'professional' && (
               <>
-                <div>
-                  <Label className="text-lg font-semibold mb-4 block">L'ENTREPRISE</Label>
-                  <div className="mb-4">
-                    <Label>Rechercher une entreprise (INSEE)</Label>
-                    <InseeSearchInput onSelect={handleInseeSelect} />
-                  </div>
+                {/* L'ENTREPRISE Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">L'entreprise</p>
+
+                  {/* Client Search with Autocomplete */}
                   <div className="relative" ref={searchRef}>
-                    <Label>Nom de l'entreprise</Label>
-                    <div className="relative mt-2">
-                      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                      <Input
-                        value={clientSearch || formData.company_name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setClientSearch(value);
-                          setFormData({ ...formData, company_name: value });
-                          setShowClientHistory(true);
-                        }}
-                        onFocus={() => setShowClientHistory(true)}
-                        placeholder="Rechercher ou saisir le nom de l'entreprise"
-                        className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
-                      />
+                    <div className="bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px] gap-2">
+                        <Search className="w-4 h-4 text-[#6a90ba]" />
+                        <input
+                          type="text"
+                          value={clientSearch}
+                          onChange={(e) => {
+                            setClientSearch(e.target.value);
+                            setShowClientHistory(true);
+                          }}
+                          onFocus={() => setShowClientHistory(true)}
+                          placeholder="Rechercher un client existant..."
+                          className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#19294a] placeholder:text-[#6a90ba]"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
                     </div>
+
                     {/* Client History Dropdown */}
                     {showClientHistory && clientHistory.length > 0 && (
-                      <div className={`absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-md border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} shadow-lg`}>
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#ebf1ff] rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto z-10">
                         {clientHistory.map((client) => (
                           <button
                             key={client.id}
-                            type="button"
                             onClick={() => handleClientSelect(client)}
-                            className={`w-full px-4 py-3 text-left hover:bg-opacity-80 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                            className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
                           >
-                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <p className="text-[13px] font-semibold text-[#19294a]">
                               {client.company_name || `${client.first_name} ${client.last_name}`}
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {client.email || client.phone || client.address}
-                            </div>
+                            </p>
+                            <p className="text-[11px] text-[#6a90ba]">
+                              {client.email} • {client.siret || 'Pas de SIRET'}
+                            </p>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
+
+                  {/* Company Name and SIRET */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Raison Social</p>
+                        <input
+                          type="text"
+                          value={formData.company_name}
+                          onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                          className="text-[13px] text-[#19294a] bg-transparent border-none outline-none w-full leading-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba] uppercase">Siret</p>
+                        <input
+                          type="text"
+                          value={formData.siret}
+                          onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
+                          className="text-[13px] text-[#19294a] bg-transparent border-none outline-none w-full leading-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+                  </div>
+
+                  {/* INSEE Search */}
+                  <div className="text-[12px] text-[#6a90ba]">
+                    <InseeSearchInput onSelect={handleInseeSelect} />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>SIRET</Label>
-                    <Input
-                      value={formData.siret}
-                      onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
+                {/* ADRESSE Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Adresse</p>
+
+                  {/* Address */}
+                  <div className="bg-white rounded-[8px] relative">
+                    <div className="flex items-center h-full px-[14px] py-[10px]">
+                      <input
+                        type="text"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Adresse"
+                        className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                      />
+                    </div>
+                    <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
                   </div>
-                  <div>
-                    <Label>N° TVA Intracommunautaire</Label>
-                    <Input
-                      value={formData.vat_number}
-                      onChange={(e) => setFormData({ ...formData, vat_number: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
+
+                  {/* City and Postal Code */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          placeholder="Ville"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="text"
+                          value={formData.zip_code}
+                          onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                          placeholder="Code postal"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <Label>Adresse</Label>
-                  <Input
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className={`mt-2 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Code postal</Label>
-                    <Input
-                      value={formData.zip_code}
-                      onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
-                  </div>
-                  <div>
-                    <Label>Ville</Label>
-                    <Input
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
+                {/* COORDONNÉES Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Coordonnées</p>
+
+                  {/* Email and Phone */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="Email"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="Téléphone"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
                   </div>
                 </div>
               </>
@@ -333,121 +399,181 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
 
             {/* Individual Client Fields */}
             {clientType === 'individual' && (
-              <div>
-                <Label className="text-lg font-semibold mb-4 block">COORDONNÉES</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <>
+                {/* INFORMATIONS PERSONNELLES Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Informations personnelles</p>
+
+                  {/* Client Search */}
                   <div className="relative" ref={searchRef}>
-                    <Label>Nom</Label>
-                    <div className="relative mt-2">
-                      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                      <Input
-                        value={clientSearch || formData.last_name}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setClientSearch(value);
-                          setFormData({ ...formData, last_name: value });
-                          setShowClientHistory(true);
-                        }}
-                        onFocus={() => setShowClientHistory(true)}
-                        placeholder="Rechercher ou saisir le nom"
-                        className={`pl-10 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
-                      />
+                    <div className="bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px] gap-2">
+                        <Search className="w-4 h-4 text-[#6a90ba]" />
+                        <input
+                          type="text"
+                          value={clientSearch}
+                          onChange={(e) => {
+                            setClientSearch(e.target.value);
+                            setShowClientHistory(true);
+                          }}
+                          onFocus={() => setShowClientHistory(true)}
+                          placeholder="Rechercher un client existant..."
+                          className="flex-1 bg-transparent border-none outline-none text-[14px] text-[#19294a] placeholder:text-[#6a90ba]"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
                     </div>
+
                     {/* Client History Dropdown */}
                     {showClientHistory && clientHistory.length > 0 && (
-                      <div className={`absolute z-10 w-full mt-1 max-h-60 overflow-y-auto rounded-md border ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} shadow-lg`}>
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#ebf1ff] rounded-[8px] shadow-lg max-h-[200px] overflow-y-auto z-10">
                         {clientHistory.map((client) => (
                           <button
                             key={client.id}
-                            type="button"
                             onClick={() => handleClientSelect(client)}
-                            className={`w-full px-4 py-3 text-left hover:bg-opacity-80 transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+                            className="w-full px-4 py-2 text-left hover:bg-[#ebf1ff] transition-colors flex flex-col gap-1"
                           >
-                            <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {`${client.first_name} ${client.last_name}` || client.company_name}
-                            </div>
-                            <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {client.email || client.phone || client.address}
-                            </div>
+                            <p className="text-[13px] font-semibold text-[#19294a]">
+                              {client.first_name} {client.last_name}
+                            </p>
+                            <p className="text-[11px] text-[#6a90ba]">
+                              {client.email} • {client.phone || 'Pas de téléphone'}
+                            </p>
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div>
-                    <Label>Prénom</Label>
-                    <Input
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label>Adresse</Label>
-                  <Input
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className={`mt-2 ${isDark ? 'bg-gray-700 border-gray-600' : ''}`}
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <Label>Code postal</Label>
-                    <Input
-                      value={formData.zip_code}
-                      onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
-                  </div>
-                  <div>
-                    <Label>Ville</Label>
-                    <Input
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Common Contact Fields */}
-            <div>
-              <Label className="text-lg font-semibold mb-4 block">COORDONNÉES</Label>
-              <div className="space-y-4">
-                <div>
-                  <Label>Téléphone</Label>
-                  <Input
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                  />
+                  {/* First Name and Last Name */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Prénom</p>
+                        <input
+                          type="text"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                          className="text-[13px] text-[#19294a] bg-transparent border-none outline-none w-full leading-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
+                      <div className="flex flex-col gap-[8px] h-full justify-center px-[14px] py-[10px]">
+                        <p className="text-[13px] text-[#6a90ba]">Nom</p>
+                        <input
+                          type="text"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                          className="text-[13px] text-[#19294a] bg-transparent border-none outline-none w-full leading-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={isDark ? 'bg-gray-700 border-gray-600 mt-2' : 'mt-2'}
-                  />
+
+                {/* ADRESSE Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Adresse</p>
+
+                  <div className="bg-white rounded-[8px] relative">
+                    <div className="flex items-center h-full px-[14px] py-[10px]">
+                      <input
+                        type="text"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        placeholder="Adresse"
+                        className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                      />
+                    </div>
+                    <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                          placeholder="Ville"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="text"
+                          value={formData.zip_code}
+                          onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                          placeholder="Code postal"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                {/* COORDONNÉES Section */}
+                <div className="flex flex-col gap-4">
+                  <p className="text-[17px] font-semibold text-[#19294a] uppercase">Coordonnées</p>
+
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          placeholder="Email"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-[8px] relative">
+                      <div className="flex items-center h-full px-[14px] py-[10px]">
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          placeholder="Téléphone"
+                          className="flex-1 text-[14px] text-[#19294a] placeholder:text-[#6a90ba] bg-transparent border-none outline-none"
+                        />
+                      </div>
+                      <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
 
-        <div className={`flex items-center justify-end gap-4 p-4 md:p-6 border-t flex-shrink-0 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-          <Button variant="outline" onClick={onClose} className="flex-1 md:flex-initial">
-            Annuler
-          </Button>
-          <Button onClick={handleSave} style={{ backgroundColor: primaryColor }} className="flex-1 md:flex-initial">
-            {existingClient ? 'Mettre À Jour' : 'Enregistrer & Créer'}
-          </Button>
+        <div className="flex items-center justify-end gap-4 p-6 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+          >
+            <p className="text-[13px] font-medium text-[#7e8ca9] capitalize">annuler</p>
+          </button>
+          <button
+            onClick={handleSave}
+            className="bg-[#ff7700] rounded-[10px] px-6 h-[40px] flex items-center justify-center"
+          >
+            <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
+          </button>
         </div>
       </Card>
     </div>
   );
 };
-
