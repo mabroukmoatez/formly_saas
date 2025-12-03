@@ -138,101 +138,107 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
 
           {/* Form Section */}
           <div className="bg-[#e8f0f7] rounded-[12px] p-[14px] w-full">
-            <div className="flex flex-wrap gap-[15px] items-start">
-              {/* Designation Field - Wider */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] min-w-[281px] relative">
-                <div className="absolute border border-[#007aff] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center">Désignation</p>
-                <input
-                  type="text"
-                  value={formData.designation}
-                  onChange={(e) => handleInputChange('designation', e.target.value)}
-                  className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none"
-                  placeholder="Nom de l'article"
-                />
-              </div>
-
-              {/* Quantity Field */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center">Quantité</p>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 1)}
-                  className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-16"
-                  min="1"
-                />
-              </div>
-
-              {/* Prix de vente HT Field */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">prix de vente HT</p>
-                <div className="flex items-center gap-1 justify-center">
+            <div className="flex flex-col gap-[15px]">
+              {/* Row 1: Designation, Quantité, Prix de vente HT */}
+              <div className="flex gap-[15px] items-start w-full">
+                {/* Designation Field - Takes more space */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                  <div className="absolute border border-[#007aff] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center">Désignation</p>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price_ht}
-                    onChange={(e) => handleInputChange('price_ht', parseFloat(e.target.value) || 0)}
-                    className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-20"
+                    type="text"
+                    value={formData.designation}
+                    onChange={(e) => handleInputChange('designation', e.target.value)}
+                    className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none"
+                    placeholder="Nom de l'article"
                   />
-                  <span className="text-[15px] font-semibold text-[#19294a]">€</span>
                 </div>
-              </div>
 
-              {/* Remise Field */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">Remise</p>
-                <div className="flex items-center gap-1 justify-center">
+                {/* Quantity Field */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center">Quantité</p>
                   <input
                     type="number"
-                    step="0.01"
-                    value={formData.discount}
-                    onChange={(e) => handleInputChange('discount', parseFloat(e.target.value) || 0)}
+                    value={formData.quantity}
+                    onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 1)}
                     className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-16"
+                    min="1"
                   />
-                  <span className="text-[15px] font-semibold text-[#19294a]">%</span>
+                </div>
+
+                {/* Prix de vente HT Field */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">prix de vente HT</p>
+                  <div className="flex items-center gap-1 justify-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.price_ht}
+                      onChange={(e) => handleInputChange('price_ht', parseFloat(e.target.value) || 0)}
+                      className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-20"
+                    />
+                    <span className="text-[15px] font-semibold text-[#19294a]">€</span>
+                  </div>
                 </div>
               </div>
 
-              {/* TVA Field - Editable Input */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">TVA</p>
-                <div className="flex items-center gap-1 justify-center">
+              {/* Row 2: Remise, TVA, Montant HT, Catégorie */}
+              <div className="flex gap-[15px] items-start w-full">
+                {/* Remise Field */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">Remise</p>
+                  <div className="flex items-center gap-1 justify-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.discount}
+                      onChange={(e) => handleInputChange('discount', parseFloat(e.target.value) || 0)}
+                      className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-16"
+                    />
+                    <span className="text-[15px] font-semibold text-[#19294a]">%</span>
+                  </div>
+                </div>
+
+                {/* TVA Field - Editable Input */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">TVA</p>
+                  <div className="flex items-center gap-1 justify-center">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.tva}
+                      onChange={(e) => handleInputChange('tva', parseFloat(e.target.value) || 0)}
+                      className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-16"
+                    />
+                    <span className="text-[15px] font-semibold text-[#19294a]">%</span>
+                  </div>
+                </div>
+
+                {/* Montant HT Field - Calculated */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">montant HT</p>
+                  <p className="text-[15px] font-semibold text-[#19294a] text-center">
+                    {calculateAmountHT()} €
+                  </p>
+                </div>
+
+                {/* Category Field */}
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                  <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
+                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={formData.tva}
-                    onChange={(e) => handleInputChange('tva', parseFloat(e.target.value) || 0)}
-                    className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none w-16"
+                    type="text"
+                    value={formData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none"
+                    placeholder="Catégorie"
                   />
-                  <span className="text-[15px] font-semibold text-[#19294a]">%</span>
                 </div>
-              </div>
-
-              {/* Montant HT Field - Calculated */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] min-w-[165px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">montant HT</p>
-                <p className="text-[15px] font-semibold text-[#19294a] text-center">
-                  {calculateAmountHT()} €
-                </p>
-              </div>
-
-              {/* Category Field */}
-              <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] relative">
-                <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
-                  className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none min-w-[120px]"
-                  placeholder="Catégorie"
-                />
               </div>
             </div>
           </div>
