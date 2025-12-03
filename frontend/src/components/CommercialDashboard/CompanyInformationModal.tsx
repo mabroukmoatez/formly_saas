@@ -64,6 +64,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [showBankForm, setShowBankForm] = useState(false);
   const [editingBankId, setEditingBankId] = useState<string | null>(null);
+  const [savingBank, setSavingBank] = useState(false);
   const [bankFormData, setBankFormData] = useState({
     account_name: '',
     bank_name: '',
@@ -137,6 +138,7 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
 
   const handleAddBankAccount = async () => {
     try {
+      setSavingBank(true);
       const bankData = {
         bank_name: bankFormData.bank_name,
         account_holder: bankFormData.account_name,
@@ -174,6 +176,8 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
     } catch (err: any) {
       console.error('Error saving bank account:', err);
       error(err.message || 'Erreur lors de l\'enregistrement du compte bancaire');
+    } finally {
+      setSavingBank(false);
     }
   };
 
@@ -517,15 +521,24 @@ export const CompanyInformationModal: React.FC<CompanyInformationModalProps> = (
                           is_default: false,
                         });
                       }}
-                      className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+                      disabled={savingBank}
+                      className="border border-[#6a90ba] rounded-[10px] px-4 h-[40px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <p className="text-[13px] font-medium text-[#7e8ca9] capitalize">annuler</p>
                     </button>
                     <button
                       onClick={handleAddBankAccount}
-                      className="bg-[#ff7700] rounded-[10px] px-4 h-[40px] flex items-center justify-center"
+                      disabled={savingBank}
+                      className="bg-[#ff7700] rounded-[10px] px-4 h-[40px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
+                      {savingBank ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <p className="text-[13px] font-medium text-white capitalize">enregistrement...</p>
+                        </>
+                      ) : (
+                        <p className="text-[13px] font-medium text-white capitalize">enregistrer</p>
+                      )}
                     </button>
                   </div>
                 </div>
