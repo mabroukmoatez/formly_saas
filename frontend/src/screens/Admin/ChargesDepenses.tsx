@@ -1250,14 +1250,23 @@ export const ChargesDepenses = (): JSX.Element => {
         )}
 
         {/* Table */}
-        {filteredCharges.length === 0 ? (
+        {filteredCharges.length === 0 && !loading ? (
           <div className="w-full flex items-center justify-center py-12">
             <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               {t('common.noDataFound')}
             </p>
           </div>
         ) : (
-          <div className="flex flex-col w-full overflow-x-auto">
+          <div className="flex flex-col w-full overflow-x-auto relative">
+            {/* Loading Overlay */}
+            {loading && (
+              <div className="absolute inset-0 bg-black/10 dark:bg-white/5 flex items-center justify-center z-10 rounded-lg backdrop-blur-sm">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto" style={{ borderColor: primaryColor }}></div>
+                  <p className={`mt-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Chargement...</p>
+                </div>
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow className={`border-b ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} hover:bg-transparent`}>
