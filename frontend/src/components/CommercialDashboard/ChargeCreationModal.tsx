@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Upload, Save, Loader2, CreditCard, Info, Trash2, ChevronDown, Paperclip, FileIcon } from 'lucide-react';
+import { X, Upload, Save, Loader2, CreditCard, Info, Trash2, ChevronDown, Paperclip, FileIcon, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -53,17 +53,17 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
   const [existingDocuments, setExistingDocuments] = useState<ExistingDocument[]>([]);
   const [documentsToDelete, setDocumentsToDelete] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  
+
   // Dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [contractDropdownOpen, setContractDropdownOpen] = useState(false);
   const [courseDropdownOpen, setCourseDropdownOpen] = useState(false);
-  
+
   // Courses list
   const [courses, setCourses] = useState<any[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
   const roleRef = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
   const courseRef = useRef<HTMLDivElement>(null);
 
   // Role options
-  const roleOptions = [
+  const defaultRoleOptions = [
     'Formateur',
     'Responsable Pédagogique',
     'Assistant Administratif',
@@ -80,7 +80,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
   ];
 
   // Contract type options
-  const contractOptions = [
+  const defaultContractOptions = [
     'Contrat CDI',
     'Contrat CDD',
     'Freelance',
@@ -88,6 +88,11 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
     'Alternant',
     'Intérimaire',
   ];
+
+  const [availableRoles, setAvailableRoles] = useState<string[]>(defaultRoleOptions);
+  const [availableContracts, setAvailableContracts] = useState<string[]>(defaultContractOptions);
+  const [isCustomRole, setIsCustomRole] = useState(false);
+  const [isCustomContract, setIsCustomContract] = useState(false);
 
   // Load courses
   useEffect(() => {
@@ -100,16 +105,16 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
     try {
       setLoadingCourses(true);
       const response = await apiService.getCourses({ per_page: 100 });
-      
+
       // Handle different response structures
       let coursesArray: any[] = [];
-      
+
       if (response && typeof response === 'object') {
         if (response.success === true && response.data) {
-          coursesArray = response.data?.courses?.data || 
-                        response.data?.courses || 
-                        response.data?.data || 
-                        (Array.isArray(response.data) ? response.data : []);
+          coursesArray = response.data?.courses?.data ||
+            response.data?.courses ||
+            response.data?.data ||
+            (Array.isArray(response.data) ? response.data : []);
         } else if (response.courses && Array.isArray(response.courses)) {
           coursesArray = response.courses;
         } else if (Array.isArray(response)) {
@@ -118,13 +123,60 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
           coursesArray = response.data;
         }
       }
-      
+
       setCourses(Array.isArray(coursesArray) ? coursesArray : []);
     } catch (err) {
       console.error('Error loading courses:', err);
       showError('Erreur', 'Impossible de charger les formations');
     } finally {
       setLoadingCourses(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchRecentChargesData();
+    }
+  }, [isOpen]);
+
+  const fetchRecentChargesData = async () => {
+    try {
+      const response = await commercialService.getCharges({ per_page: 100 });
+      if (response.success && response.data && response.data.data) {
+        const charges = response.data.data;
+
+        // Extract unique roles
+        const usedRoles = new Set<string>();
+        charges.forEach(c => {
+          if (c.role) usedRoles.add(c.role);
+        });
+
+        // Merge with defaults
+        const newRoles = [...defaultRoleOptions];
+        usedRoles.forEach(role => {
+          if (!newRoles.includes(role)) {
+            newRoles.push(role);
+          }
+        });
+        setAvailableRoles(newRoles);
+
+        // Extract unique contracts
+        const usedContracts = new Set<string>();
+        charges.forEach(c => {
+          if (c.contract_type) usedContracts.add(c.contract_type);
+        });
+
+        // Merge with defaults
+        const newContracts = [...defaultContractOptions];
+        usedContracts.forEach(contract => {
+          if (!newContracts.includes(contract)) {
+            newContracts.push(contract);
+          }
+        });
+        setAvailableContracts(newContracts);
+      }
+    } catch (err) {
+      console.error('Error fetching recent charges for options:', err);
     }
   };
 
@@ -177,6 +229,8 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
 
       setAttachedFiles([]);
       setDocumentsToDelete([]);
+      setIsCustomRole(false);
+      setIsCustomContract(false);
     } else if (isOpen && !charge) {
       // Reset to defaults when creating new
       setCategory('');
@@ -188,6 +242,8 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
       setAttachedFiles([]);
       setExistingDocuments([]);
       setDocumentsToDelete([]);
+      setIsCustomRole(false);
+      setIsCustomContract(false);
     }
   }, [isOpen, charge]);
 
@@ -213,7 +269,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onloadend = () => {
-          setAttachedFiles((prev) => 
+          setAttachedFiles((prev) =>
             prev.map((f) => f.file === file ? { ...f, preview: reader.result as string } : f)
           );
         };
@@ -246,7 +302,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
     if (!category) {
       showError('Erreur', 'Veuillez sélectionner une catégorie');
@@ -541,42 +597,71 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
                     Poste / Rôle *
                   </Label>
                   <div className="relative" ref={roleRef}>
-                    <button
-                      type="button"
-                      onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-md border ${isRoleRequired ? 'border-orange-500' : (isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300')} ${roleDropdownOpen ? 'border-blue-500' : ''}`}
-                    >
-                      <span className={role ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-400' : 'text-gray-500')}>
-                        {role || 'Sélectionner un rôle'}
-                      </span>
-                      <ChevronDown className={`w-4 h-4 transition-transform ${roleDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                    </button>
-                    {roleDropdownOpen && (
-                      <div className={`absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-60 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-                        <div className="p-1">
-                          <div
-                            onClick={() => {
-                              setRole('Nouveau Rôle');
-                              setRoleDropdownOpen(false);
-                            }}
-                            className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                          >
-                            <span className={isDark ? 'text-white' : 'text-gray-900'}>Nouveau Rôle</span>
-                          </div>
-                          {roleOptions.map((option) => (
-                            <div
-                              key={option}
-                              onClick={() => {
-                                setRole(option);
-                                setRoleDropdownOpen(false);
-                              }}
-                              className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} ${role === option ? 'bg-blue-50' : ''}`}
-                            >
-                              <span className={isDark ? 'text-white' : 'text-gray-900'}>{option}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {isCustomRole ? (
+                      <div className="flex gap-2">
+                        <Input
+                          autoFocus
+                          placeholder="Saisir un nouveau rôle"
+                          value={role}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRole(e.target.value)}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-12 rounded-md`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomRole(false);
+                            setRole('');
+                          }}
+                          className={`px-3 rounded-md border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                          title="Retour à la liste"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-md border ${isRoleRequired ? 'border-orange-500' : (isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300')} ${roleDropdownOpen ? 'border-blue-500' : ''}`}
+                        >
+                          <span className={role ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-400' : 'text-gray-500')}>
+                            {role || 'Sélectionner un rôle'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${roleDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                        </button>
+                        {roleDropdownOpen && (
+                          <div className={`absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-60 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                            <div className="p-1">
+                              <div
+                                onClick={() => {
+                                  setIsCustomRole(true);
+                                  setRole('');
+                                  setRoleDropdownOpen(false);
+                                }}
+                                className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} font-medium text-blue-500`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Plus className="w-4 h-4" />
+                                  Nouveau Rôle
+                                </span>
+                              </div>
+                              {availableRoles.map((option) => (
+                                <div
+                                  key={option}
+                                  onClick={() => {
+                                    setRole(option);
+                                    setRoleDropdownOpen(false);
+                                  }}
+                                  className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} ${role === option ? 'bg-blue-50' : ''}`}
+                                >
+                                  <span className={isDark ? 'text-white' : 'text-gray-900'}>{option}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -587,42 +672,71 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
                     Type De Contrat *
                   </Label>
                   <div className="relative" ref={contractRef}>
-                    <button
-                      type="button"
-                      onClick={() => setContractDropdownOpen(!contractDropdownOpen)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-md border ${isContractRequired ? 'border-orange-500' : (isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300')} ${contractDropdownOpen ? 'border-blue-500' : ''}`}
-                    >
-                      <span className={contractType ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-400' : 'text-gray-500')}>
-                        {contractType || 'Sélectionner un contrat'}
-                      </span>
-                      <ChevronDown className={`w-4 h-4 transition-transform ${contractDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                    </button>
-                    {contractDropdownOpen && (
-                      <div className={`absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-60 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
-                        <div className="p-1">
-                          <div
-                            onClick={() => {
-                              setContractType('Nouveau Contrat');
-                              setContractDropdownOpen(false);
-                            }}
-                            className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''}`}
-                          >
-                            <span className={isDark ? 'text-white' : 'text-gray-900'}>Nouveau Contrat</span>
-                          </div>
-                          {contractOptions.map((option) => (
-                            <div
-                              key={option}
-                              onClick={() => {
-                                setContractType(option);
-                                setContractDropdownOpen(false);
-                              }}
-                              className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} ${contractType === option ? 'bg-blue-50' : ''}`}
-                            >
-                              <span className={isDark ? 'text-white' : 'text-gray-900'}>{option}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {isCustomContract ? (
+                      <div className="flex gap-2">
+                        <Input
+                          autoFocus
+                          placeholder="Saisir un nouveau contrat"
+                          value={contractType}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContractType(e.target.value)}
+                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-12 rounded-md`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomContract(false);
+                            setContractType('');
+                          }}
+                          className={`px-3 rounded-md border ${isDark ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
+                          title="Retour à la liste"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setContractDropdownOpen(!contractDropdownOpen)}
+                          className={`w-full flex items-center justify-between px-4 py-3 rounded-md border ${isContractRequired ? 'border-orange-500' : (isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300')} ${contractDropdownOpen ? 'border-blue-500' : ''}`}
+                        >
+                          <span className={contractType ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-gray-400' : 'text-gray-500')}>
+                            {contractType || 'Sélectionner un contrat'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 transition-transform ${contractDropdownOpen ? 'rotate-180' : ''} ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                        </button>
+                        {contractDropdownOpen && (
+                          <div className={`absolute z-10 w-full mt-1 border rounded-md shadow-lg max-h-60 overflow-y-auto ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'}`}>
+                            <div className="p-1">
+                              <div
+                                onClick={() => {
+                                  setIsCustomContract(true);
+                                  setContractType('');
+                                  setContractDropdownOpen(false);
+                                }}
+                                className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} font-medium text-blue-500`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Plus className="w-4 h-4" />
+                                  Nouveau Contrat
+                                </span>
+                              </div>
+                              {availableContracts.map((option) => (
+                                <div
+                                  key={option}
+                                  onClick={() => {
+                                    setContractType(option);
+                                    setContractDropdownOpen(false);
+                                  }}
+                                  className={`p-2 cursor-pointer hover:bg-gray-100 ${isDark ? 'hover:bg-gray-700' : ''} ${contractType === option ? 'bg-blue-50' : ''}`}
+                                >
+                                  <span className={isDark ? 'text-white' : 'text-gray-900'}>{option}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

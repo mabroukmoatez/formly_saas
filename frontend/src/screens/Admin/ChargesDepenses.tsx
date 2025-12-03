@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
+import { apiService } from '../../services/api';
 import { Charge, ExpensesDashboardResponse } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
 import { ChargeCreationModal } from '../../components/CommercialDashboard/ChargeCreationModal';
@@ -123,213 +124,213 @@ const ExpenseStatCard: React.FC<ExpenseStatCardProps> = ({
   // Always render default stacked bar chart
   const renderChart = () => {
     return (
-        <>
-          {monthlyData.map((data, index) => {
-            const barSpacing = innerWidth / 12;
-            const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
-            const value = type === 'total' ? data.total : (type === 'humains' ? data.humains : data.environnement);
-            const barHeight = (value / maxValue) * innerHeight;
-            const y = padding.top + innerHeight - barHeight;
+      <>
+        {monthlyData.map((data, index) => {
+          const barSpacing = innerWidth / 12;
+          const x = padding.left + index * barSpacing + (barSpacing - barWidth) / 2;
+          const value = type === 'total' ? data.total : (type === 'humains' ? data.humains : data.environnement);
+          const barHeight = (value / maxValue) * innerHeight;
+          const y = padding.top + innerHeight - barHeight;
 
-            if (type === 'total') {
-              // Stacked: environnement (bottom) + humains (top)
-              const envHeight = (data.environnement / maxValue) * innerHeight;
-              const humainsHeight = (data.humains / maxValue) * innerHeight;
-              const envY = padding.top + innerHeight - envHeight;
-              const humainsY = envY - humainsHeight;
+          if (type === 'total') {
+            // Stacked: environnement (bottom) + humains (top)
+            const envHeight = (data.environnement / maxValue) * innerHeight;
+            const humainsHeight = (data.humains / maxValue) * innerHeight;
+            const envY = padding.top + innerHeight - envHeight;
+            const humainsY = envY - humainsHeight;
 
-              return (
-                <g key={index}>
-                  {/* Environnement (bottom - turquoise) */}
-                  {data.environnement > 0 && (
-                    <rect
-                      x={x}
-                      y={envY}
-                      width={barWidth}
-                      height={envHeight}
-                      fill={currentColors.bar1}
-                      rx="2"
-                      className="transition-all duration-500 ease-in-out cursor-pointer"
-                      onMouseEnter={() => setHoveredBar(index)}
-                      onMouseLeave={() => setHoveredBar(null)}
-                      opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
-                    />
-                  )}
-                  {/* Humains (top - violet) */}
-                  {data.humains > 0 && (
-                    <rect
-                      x={x}
-                      y={humainsY}
-                      width={barWidth}
-                      height={humainsHeight}
-                      fill={currentColors.bar2}
-                      rx="2"
-                      className="transition-all duration-500 ease-in-out cursor-pointer"
-                      onMouseEnter={() => setHoveredBar(index)}
-                      onMouseLeave={() => setHoveredBar(null)}
-                      opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
-                    />
-                  )}
-                  {/* Hover Tooltip */}
-                  {hoveredBar === index && (
-                    <g>
-                      <rect
-                        x={x - 40}
-                        y={envY - 50}
-                        width="100"
-                        height="42"
-                        fill={isDark ? '#1f2937' : '#374151'}
-                        rx="6"
-                        opacity="0.95"
-                      />
-                      <text
-                        x={x + 10}
-                        y={envY - 32}
-                        textAnchor="middle"
-                        fill="white"
-                        fontSize="9"
-                        fontWeight="600"
-                        style={{ fontFamily: 'Poppins, Helvetica' }}
-                      >
-                        {data.month}
-                      </text>
-                      <text
-                        x={x + 10}
-                        y={envY - 22}
-                        textAnchor="middle"
-                        fill="#25C9B5"
-                        fontSize="8"
-                        fontWeight="500"
-                        style={{ fontFamily: 'Poppins, Helvetica' }}
-                      >
-                        Env: {formatCurrency(data.environnement)}
-                      </text>
-                      <text
-                        x={x + 10}
-                        y={envY - 13}
-                        textAnchor="middle"
-                        fill="#9C27B0"
-                        fontSize="8"
-                        fontWeight="500"
-                        style={{ fontFamily: 'Poppins, Helvetica' }}
-                      >
-                        Hum: {formatCurrency(data.humains)}
-                      </text>
-                    </g>
-                  )}
-                  {/* Month label */}
-                  <text
-                    x={x + barWidth / 2}
-                    y={chartHeight - 5}
-                    textAnchor="middle"
-                    fill={isDark ? '#94a3b8' : '#6a90b9'}
-                    fontSize="10"
-                    fontWeight="500"
-                    style={{ fontFamily: 'Poppins, Helvetica' }}
-                  >
-                    {data.month}
-                  </text>
-                </g>
-              );
-            } else if (type === 'environnement') {
-              // Stacked: violet clair (bottom) + violet foncé (top)
-              const part1 = value * 0.6;
-              const part2 = value * 0.4;
-              const height1 = (part1 / maxValue) * innerHeight;
-              const height2 = (part2 / maxValue) * innerHeight;
-              const y1 = padding.top + innerHeight - height1;
-              const y2 = y1 - height2;
-
-              return (
-                <g key={index}>
+            return (
+              <g key={index}>
+                {/* Environnement (bottom - turquoise) */}
+                {data.environnement > 0 && (
                   <rect
                     x={x}
-                    y={y1}
+                    y={envY}
                     width={barWidth}
-                    height={height1}
+                    height={envHeight}
                     fill={currentColors.bar1}
                     rx="2"
-                    className="transition-all duration-500 ease-in-out"
+                    className="transition-all duration-500 ease-in-out cursor-pointer"
+                    onMouseEnter={() => setHoveredBar(index)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                    opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
                   />
+                )}
+                {/* Humains (top - violet) */}
+                {data.humains > 0 && (
                   <rect
                     x={x}
-                    y={y2}
+                    y={humainsY}
                     width={barWidth}
-                    height={height2}
+                    height={humainsHeight}
                     fill={currentColors.bar2}
                     rx="2"
-                    className="transition-all duration-500 ease-in-out"
+                    className="transition-all duration-500 ease-in-out cursor-pointer"
+                    onMouseEnter={() => setHoveredBar(index)}
+                    onMouseLeave={() => setHoveredBar(null)}
+                    opacity={hoveredBar === null || hoveredBar === index ? 1 : 0.6}
                   />
-                  <text
-                    x={x + barWidth / 2}
-                    y={chartHeight - 5}
-                    textAnchor="middle"
-                    fill={isDark ? '#94a3b8' : '#6a90b9'}
-                    fontSize="10"
-                    fontWeight="500"
-                    style={{ fontFamily: 'Poppins, Helvetica' }}
-                  >
-                    {data.month}
-                  </text>
-                </g>
-              );
-            } else {
-              // Stacked: turquoise clair (bottom) + moyen (middle) + foncé (top)
-              const part1 = value * 0.5;
-              const part2 = value * 0.3;
-              const part3 = value * 0.2;
-              const height1 = (part1 / maxValue) * innerHeight;
-              const height2 = (part2 / maxValue) * innerHeight;
-              const height3 = (part3 / maxValue) * innerHeight;
-              const y1 = padding.top + innerHeight - height1;
-              const y2 = y1 - height2;
-              const y3 = y2 - height3;
+                )}
+                {/* Hover Tooltip */}
+                {hoveredBar === index && (
+                  <g>
+                    <rect
+                      x={x - 40}
+                      y={envY - 50}
+                      width="100"
+                      height="42"
+                      fill={isDark ? '#1f2937' : '#374151'}
+                      rx="6"
+                      opacity="0.95"
+                    />
+                    <text
+                      x={x + 10}
+                      y={envY - 32}
+                      textAnchor="middle"
+                      fill="white"
+                      fontSize="9"
+                      fontWeight="600"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      {data.month}
+                    </text>
+                    <text
+                      x={x + 10}
+                      y={envY - 22}
+                      textAnchor="middle"
+                      fill="#25C9B5"
+                      fontSize="8"
+                      fontWeight="500"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      Env: {formatCurrency(data.environnement)}
+                    </text>
+                    <text
+                      x={x + 10}
+                      y={envY - 13}
+                      textAnchor="middle"
+                      fill="#9C27B0"
+                      fontSize="8"
+                      fontWeight="500"
+                      style={{ fontFamily: 'Poppins, Helvetica' }}
+                    >
+                      Hum: {formatCurrency(data.humains)}
+                    </text>
+                  </g>
+                )}
+                {/* Month label */}
+                <text
+                  x={x + barWidth / 2}
+                  y={chartHeight - 5}
+                  textAnchor="middle"
+                  fill={isDark ? '#94a3b8' : '#6a90b9'}
+                  fontSize="10"
+                  fontWeight="500"
+                  style={{ fontFamily: 'Poppins, Helvetica' }}
+                >
+                  {data.month}
+                </text>
+              </g>
+            );
+          } else if (type === 'environnement') {
+            // Stacked: violet clair (bottom) + violet foncé (top)
+            const part1 = value * 0.6;
+            const part2 = value * 0.4;
+            const height1 = (part1 / maxValue) * innerHeight;
+            const height2 = (part2 / maxValue) * innerHeight;
+            const y1 = padding.top + innerHeight - height1;
+            const y2 = y1 - height2;
 
-              return (
-                <g key={index}>
-                  <rect
-                    x={x}
-                    y={y1}
-                    width={barWidth}
-                    height={height1}
-                    fill={currentColors.bar1}
-                    rx="2"
-                    className="transition-all duration-500 ease-in-out"
-                  />
-                  <rect
-                    x={x}
-                    y={y2}
-                    width={barWidth}
-                    height={height2}
-                    fill={currentColors.bar2}
-                    rx="2"
-                    className="transition-all duration-500 ease-in-out"
-                  />
-                  <rect
-                    x={x}
-                    y={y3}
-                    width={barWidth}
-                    height={height3}
-                    fill={currentColors.bar3}
-                    rx="2"
-                    className="transition-all duration-500 ease-in-out"
-                  />
-                  <text
-                    x={x + barWidth / 2}
-                    y={chartHeight - 5}
-                    textAnchor="middle"
-                    fill={isDark ? '#94a3b8' : '#6a90b9'}
-                    fontSize="10"
-                    fontWeight="500"
-                    style={{ fontFamily: 'Poppins, Helvetica' }}
-                  >
-                    {data.month}
-                  </text>
-                </g>
-              );
-            }
-          })}
-        </>
+            return (
+              <g key={index}>
+                <rect
+                  x={x}
+                  y={y1}
+                  width={barWidth}
+                  height={height1}
+                  fill={currentColors.bar1}
+                  rx="2"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <rect
+                  x={x}
+                  y={y2}
+                  width={barWidth}
+                  height={height2}
+                  fill={currentColors.bar2}
+                  rx="2"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <text
+                  x={x + barWidth / 2}
+                  y={chartHeight - 5}
+                  textAnchor="middle"
+                  fill={isDark ? '#94a3b8' : '#6a90b9'}
+                  fontSize="10"
+                  fontWeight="500"
+                  style={{ fontFamily: 'Poppins, Helvetica' }}
+                >
+                  {data.month}
+                </text>
+              </g>
+            );
+          } else {
+            // Stacked: turquoise clair (bottom) + moyen (middle) + foncé (top)
+            const part1 = value * 0.5;
+            const part2 = value * 0.3;
+            const part3 = value * 0.2;
+            const height1 = (part1 / maxValue) * innerHeight;
+            const height2 = (part2 / maxValue) * innerHeight;
+            const height3 = (part3 / maxValue) * innerHeight;
+            const y1 = padding.top + innerHeight - height1;
+            const y2 = y1 - height2;
+            const y3 = y2 - height3;
+
+            return (
+              <g key={index}>
+                <rect
+                  x={x}
+                  y={y1}
+                  width={barWidth}
+                  height={height1}
+                  fill={currentColors.bar1}
+                  rx="2"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <rect
+                  x={x}
+                  y={y2}
+                  width={barWidth}
+                  height={height2}
+                  fill={currentColors.bar2}
+                  rx="2"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <rect
+                  x={x}
+                  y={y3}
+                  width={barWidth}
+                  height={height3}
+                  fill={currentColors.bar3}
+                  rx="2"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <text
+                  x={x + barWidth / 2}
+                  y={chartHeight - 5}
+                  textAnchor="middle"
+                  fill={isDark ? '#94a3b8' : '#6a90b9'}
+                  fontSize="10"
+                  fontWeight="500"
+                  style={{ fontFamily: 'Poppins, Helvetica' }}
+                >
+                  {data.month}
+                </text>
+              </g>
+            );
+          }
+        })}
+      </>
     );
   };
 
@@ -413,7 +414,6 @@ export const ChargesDepenses = (): JSX.Element => {
   // Courses for formation select
   const [courses, setCourses] = useState<any[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
-  const [editingFormation, setEditingFormation] = useState<string | null>(null);
 
   // Modal state for expense detail popup
   const [expenseModalType, setExpenseModalType] = useState<'total' | 'environnement' | 'humains' | null>(null);
@@ -510,7 +510,7 @@ export const ChargesDepenses = (): JSX.Element => {
     // Calculate monthly data by category
     const monthlyByCategory: Record<string, { humains: number; environnement: number }> = {};
     const months = ['Jan', 'Fév', 'Mar', 'Avr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
+
     // Initialize all months
     months.forEach((month, index) => {
       const monthKey = `${index + 1}`.padStart(2, '0');
@@ -524,7 +524,7 @@ export const ChargesDepenses = (): JSX.Element => {
       const monthKey = `${monthIndex + 1}`.padStart(2, '0');
       const amount = parseFloat(String(charge.amount || 0));
       const category = (charge.category || '').toLowerCase();
-      
+
       if (!monthlyByCategory[monthKey]) {
         monthlyByCategory[monthKey] = { humains: 0, environnement: 0 };
       }
@@ -609,9 +609,9 @@ export const ChargesDepenses = (): JSX.Element => {
       if (response && typeof response === 'object') {
         if (response.success === true && response.data) {
           coursesArray = response.data?.courses?.data ||
-                        response.data?.courses ||
-                        response.data?.data ||
-                        (Array.isArray(response.data) ? response.data : []);
+            response.data?.courses ||
+            response.data?.data ||
+            (Array.isArray(response.data) ? response.data : []);
         } else if (response.courses && Array.isArray(response.courses)) {
           coursesArray = response.courses;
         } else if (Array.isArray(response)) {
@@ -629,27 +629,6 @@ export const ChargesDepenses = (): JSX.Element => {
     }
   };
 
-  // Update formation for a charge
-  const handleUpdateFormation = async (chargeId: string, courseId: string) => {
-    try {
-      const formData = new FormData();
-      formData.append('course_id', courseId);
-      formData.append('_method', 'PUT');
-
-      const response = await apiService.post(`/api/organization/commercial/charges/${chargeId}`, formData);
-
-      if (response.success || response.data) {
-        success('Formation mise à jour avec succès');
-        fetchCharges();
-        setEditingFormation(null);
-      } else {
-        throw new Error('La mise à jour a échoué');
-      }
-    } catch (err: any) {
-      console.error('Error updating formation:', err);
-      showError('Erreur', err.message || 'Impossible de mettre à jour la formation');
-    }
-  };
 
   const fetchCharges = async () => {
     try {
@@ -792,8 +771,8 @@ export const ChargesDepenses = (): JSX.Element => {
 
   const formatCurrency = (value: number | string | undefined): string => {
     const numValue = typeof value === 'string' ? parseFloat(value) : (value || 0);
-    return new Intl.NumberFormat('fr-FR', { 
-      style: 'currency', 
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
       currency: 'EUR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
@@ -839,7 +818,7 @@ export const ChargesDepenses = (): JSX.Element => {
 
   const confirmDeleteCharge = async () => {
     if (!chargeToDelete) return;
-    
+
     setDeleting(true);
     try {
       if (chargeToDelete === 'bulk') {
@@ -999,29 +978,29 @@ export const ChargesDepenses = (): JSX.Element => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div 
+          <div
             className="w-12 h-12 rounded-[12px] flex items-center justify-center"
             style={{ backgroundColor: `${primaryColor}15` }}
           >
             <CreditCard className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {t('dashboard.commercial.charges_depenses.title')}
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               {t('dashboard.commercial.charges_depenses.subtitle')}
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             onClick={() => setIsModalOpen(true)}
             className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#ecf1fd] hover:bg-[#d9e4fb]'} shadow-md hover:shadow-lg transition-all`}
             style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
@@ -1253,13 +1232,21 @@ export const ChargesDepenses = (): JSX.Element => {
                         <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                           Formation
                         </Label>
-                        <Input
-                          type="text"
-                          placeholder="Rechercher une formation"
+                        <select
                           value={formationFilter}
                           onChange={(e) => setFormationFilter(e.target.value)}
-                          className={`${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-300'} h-10`}
-                        />
+                          className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                          onClick={() => {
+                            if (courses.length === 0) loadCourses();
+                          }}
+                        >
+                          <option value="">Toutes les formations</option>
+                          {courses.map((course) => (
+                            <option key={course.id || course.uuid} value={course.title || course.name}>
+                              {course.title || course.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Clear Filters Button */}
@@ -1287,7 +1274,7 @@ export const ChargesDepenses = (): JSX.Element => {
               variant="outline"
               onClick={handleExportExcel}
               className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
-              style={{ 
+              style={{
                 borderColor: isDark ? undefined : primaryColor,
                 borderStyle: 'dashed',
               }}
@@ -1303,7 +1290,7 @@ export const ChargesDepenses = (): JSX.Element => {
               variant="outline"
               onClick={handleExportPDF}
               className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
-              style={{ 
+              style={{
                 borderColor: isDark ? undefined : primaryColor,
                 borderStyle: 'dashed',
               }}
@@ -1344,7 +1331,7 @@ export const ChargesDepenses = (): JSX.Element => {
                       className={`w-5 h-5 rounded-md border ${allSelected || someSelected ? 'bg-[#e5f3ff] border-[#007aff]' : 'bg-white border-[#d5d6da]'}`}
                     />
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('date')}
                   >
@@ -1361,7 +1348,7 @@ export const ChargesDepenses = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('label')}
                   >
@@ -1378,7 +1365,7 @@ export const ChargesDepenses = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('category')}
                   >
@@ -1395,7 +1382,7 @@ export const ChargesDepenses = (): JSX.Element => {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead 
+                  <TableHead
                     className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
                     onClick={() => handleSort('amount')}
                   >
@@ -1442,7 +1429,7 @@ export const ChargesDepenses = (): JSX.Element => {
                   const isSelected = selectedCharges.has(String(charge.id));
                   const docCount = getDocumentCount(charge);
                   const firstDocName = getFirstDocumentName(charge);
-                  
+
                   return (
                     <TableRow
                       key={String(charge.id)}
@@ -1469,9 +1456,9 @@ export const ChargesDepenses = (): JSX.Element => {
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         {docCount > 0 ? (
-                          <Badge 
+                          <Badge
                             className="rounded-full px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-                            style={{ 
+                            style={{
                               backgroundColor: '#E3F2FD',
                               color: '#2196F3',
                             }}
@@ -1486,7 +1473,7 @@ export const ChargesDepenses = (): JSX.Element => {
                             <FileIcon className="w-3 h-3" />
                             <span className="hover:underline">{firstDocName}</span>
                             {docCount > 1 && (
-                              <span 
+                              <span
                                 className="ml-1 text-xs"
                                 style={{ color: '#1976D2' }}
                               >
@@ -1499,45 +1486,13 @@ export const ChargesDepenses = (): JSX.Element => {
                         )}
                       </TableCell>
                       <TableCell className="px-4 py-4">
-                        <div className="relative min-w-[150px]">
-                          {editingFormation === String(charge.id) ? (
-                            <select
-                              autoFocus
-                              className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
-                              value={charge.course_id || ''}
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleUpdateFormation(String(charge.id), e.target.value);
-                                }
-                              }}
-                              onBlur={() => setEditingFormation(null)}
-                            >
-                              <option value="">Aucune formation</option>
-                              {courses.map((course) => (
-                                <option key={course.id || course.uuid} value={course.id || course.uuid}>
-                                  {course.title || course.name}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <div
-                              className={`flex items-center justify-between px-3 py-2 rounded-md border cursor-pointer hover:border-blue-400 transition-colors ${isDark ? 'bg-gray-800 border-gray-700 hover:bg-gray-750' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
-                              onClick={() => {
-                                setEditingFormation(String(charge.id));
-                                loadCourses();
-                              }}
-                            >
-                              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                                {getCourseName(charge)}
-                              </span>
-                              <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                            </div>
-                          )}
-                        </div>
+                        <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {getCourseName(charge)}
+                        </span>
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedCharge(charge);
                               setIsEditModalOpen(true);
@@ -1547,7 +1502,7 @@ export const ChargesDepenses = (): JSX.Element => {
                           >
                             <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => {
                               setChargeToDelete(String(charge.id));
                               setShowDeleteModal(true);
@@ -1647,8 +1602,8 @@ export const ChargesDepenses = (): JSX.Element => {
             expenseModalType === 'total'
               ? dashboardStats.data.summary.total_expenses
               : expenseModalType === 'humains'
-              ? (dashboardStats.data as any).humains_total || 0
-              : (dashboardStats.data as any).environnement_total || 0
+                ? (dashboardStats.data as any).humains_total || 0
+                : (dashboardStats.data as any).environnement_total || 0
           }
           monthlyData={(dashboardStats.data as any).monthly_data}
           categoryData={(dashboardStats.data as any).charts?.by_category || []}
