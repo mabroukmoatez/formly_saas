@@ -129,6 +129,38 @@ class InvoiceManagementController extends Controller
         ]);
     }
 
+    /**
+     * Get next invoice number
+     */
+    public function getNextInvoiceNumber()
+    {
+        $organization_id = $this->getOrganizationId();
+        if (!$organization_id) return $this->failed([], 'User is not associated with an organization.');
+
+        try {
+            $currentDate = date('Y-m-d');
+
+            // Get count of invoices created today for this organization
+            $todayInvoiceCount = Invoice::where('organization_id', $organization_id)
+                ->whereDate('created_at', $currentDate)
+                ->count();
+
+            // Format: FA-{YYYY-MM-DD}-{count+1}
+            // The number resets to 1 every day
+            $nextNumber = $todayInvoiceCount + 1;
+            $invoiceNumber = "FA-{$currentDate}-{$nextNumber}";
+
+            return $this->success([
+                'invoice_number' => $invoiceNumber,
+                'count' => $todayInvoiceCount,
+                'next_number' => $nextNumber
+            ], 'Next invoice number generated successfully.');
+
+        } catch (\Exception $e) {
+            return $this->failed([], 'Failed to generate invoice number: ' . $e->getMessage());
+        }
+    }
+
     public function store(Request $request)
     {
         $organization_id = $this->getOrganizationId();

@@ -153,6 +153,10 @@ class CommercialService {
     return await apiService.get<ApiResponse<{ quote_number: string; count: number; next_number: number }>>('/api/organization/commercial/quotes/next-number');
   }
 
+  async getNextInvoiceNumber(): Promise<ApiResponse<{ invoice_number: string; count: number; next_number: number }>> {
+    return await apiService.get<ApiResponse<{ invoice_number: string; count: number; next_number: number }>>('/api/organization/commercial/invoices/next-number');
+  }
+
   async generateQuotePdf(id: string): Promise<Blob> {
     return await apiService.get<Blob>(`/api/organization/commercial/quotes/${id}/pdf`, {
       responseType: 'blob',

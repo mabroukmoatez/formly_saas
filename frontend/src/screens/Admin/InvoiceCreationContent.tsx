@@ -37,7 +37,8 @@ export const InvoiceCreationContent: React.FC = () => {
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [items, setItems] = useState<InvoiceItem[]>([]);
-  const [invoiceNumber, setInvoiceNumber] = useState(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceNumberLoading, setInvoiceNumberLoading] = useState(true);
   const [invoiceTitle, setInvoiceTitle] = useState('Facture');
   const [clientInfo, setClientInfo] = useState({
     name: '',
@@ -72,11 +73,31 @@ export const InvoiceCreationContent: React.FC = () => {
     };
     loadCompanyDetails();
 
+    // Load next invoice number from backend
+    const loadInvoiceNumber = async () => {
+      try {
+        setInvoiceNumberLoading(true);
+        const response = await commercialService.getNextInvoiceNumber();
+        if (response.success && response.data?.invoice_number) {
+          setInvoiceNumber(response.data.invoice_number);
+        }
+      } catch (err) {
+        console.error('Error loading invoice number:', err);
+        // Fallback to default format if API fails
+        setInvoiceNumber(`FA-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+      } finally {
+        setInvoiceNumberLoading(false);
+      }
+    };
+
     // Prefill form with OCR data if available
     const prefillData = (location.state as any)?.prefillData;
     if (prefillData) {
       if (prefillData.invoice_number) {
         setInvoiceNumber(prefillData.invoice_number);
+        setInvoiceNumberLoading(false);
+      } else {
+        loadInvoiceNumber();
       }
       if (prefillData.client_name || prefillData.client_email || prefillData.client_address || prefillData.client_phone) {
         setClientInfo({
@@ -101,6 +122,8 @@ export const InvoiceCreationContent: React.FC = () => {
       if (prefillData.payment_conditions) {
         setPaymentConditions(prefillData.payment_conditions);
       }
+    } else {
+      loadInvoiceNumber();
     }
   }, [location.state]);
 
@@ -253,6 +276,66 @@ export const InvoiceCreationContent: React.FC = () => {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!clientInfo.email) {
+      showError('Erreur', 'Veuillez entrer l\'email du client');
+      return;
+    }
+
+    if (!clientInfo.name || items.length === 0) {
+      showError('Erreur', 'Veuillez remplir les informations du client et ajouter au moins un article');
+      return;
+    }
+
+    setSending(true);
+    try {
+      // Create invoice first
+      const invoiceData = {
+        invoice_number: invoiceNumber,
+        client_id: client?.id,
+        client_name: clientInfo.name,
+        client_email: clientInfo.email,
+        client_address: clientInfo.address,
+        client_phone: clientInfo.phone,
+        issue_date: new Date().toISOString().split('T')[0],
+        payment_conditions: paymentConditions,
+        items: items.map(item => ({
+          description: item.designation,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+        })),
+      };
+
+      const createResponse = await commercialService.createInvoice(invoiceData);
+
+      if (!createResponse.success || !createResponse.data) {
+        showError('Erreur', 'Impossible de créer la facture');
+        return;
+      }
+
+      // Handle both possible response structures
+      const responseData = createResponse.data as any;
+      const invoiceId = String(responseData.invoice?.id || responseData.id);
+
+      if (!invoiceId) {
+        showError('Erreur', 'ID de facture manquant dans la réponse');
+        return;
+      }
+
+      // Send email
+      await commercialService.sendInvoiceEmail(invoiceId, {
+        email: clientInfo.email,
+      });
+      success('Email envoyé avec succès');
+    } catch (err: any) {
+      console.error('Email send error:', err);
+      showError('Erreur', err.message || 'Impossible d\'envoyer l\'email');
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleSelectArticle = (article: Article) => {
     const unitPrice = article.unit_price || parseFloat(article.price_ht || '0');
     const newItem: InvoiceItem = {
@@ -266,6 +349,23 @@ export const InvoiceCreationContent: React.FC = () => {
     };
     setItems([...items, newItem]);
     success('Article ajouté');
+  };
+
+  const handleSelectArticles = (articles: Article[]) => {
+    const newItems: InvoiceItem[] = articles.map(article => {
+      const unitPrice = article.unit_price || parseFloat(article.price_ht || '0');
+      return {
+        id: `${Date.now()}-${article.id}`,
+        reference: article.reference || '',
+        designation: article.designation || article.name || article.description || article.reference || 'Article',
+        quantity: 1,
+        unit_price: unitPrice,
+        tax_rate: article.tax_rate || 20,
+        total: unitPrice,
+      };
+    });
+    setItems([...items, ...newItems]);
+    success(`${articles.length} article(s) ajouté(s)`);
   };
 
   return (
@@ -345,6 +445,7 @@ export const InvoiceCreationContent: React.FC = () => {
 
           <Button
             variant="ghost"
+            onClick={handleSendEmail}
             disabled={sending || saving}
             className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${isDark ? 'bg-blue-900 text-blue-300' : 'bg-[#e5f3ff] text-[#007aff]'} rounded-[53px]`}
           >
@@ -446,12 +547,21 @@ export const InvoiceCreationContent: React.FC = () => {
 
           {/* Invoice Number and Date */}
           <div className="flex flex-col gap-3">
-            <div className={`flex items-start gap-2 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
-              <Input
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-              />
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
+              {invoiceNumberLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: primaryColor }} />
+                  <span className={`font-semibold text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Chargement...
+                  </span>
+                </div>
+              ) : (
+                <Input
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
+                />
+              )}
             </div>
             <div className={`flex items-start gap-4 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
               <div className={`font-normal text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -761,13 +871,19 @@ export const InvoiceCreationContent: React.FC = () => {
       <ArticleSearchModal
         isOpen={showArticleSearch}
         onClose={() => setShowArticleSearch(false)}
-        onSelectArticle={handleSelectArticle}
+        onSelectArticles={handleSelectArticles}
       />
 
       <ArticleCreationModal
         isOpen={showArticleCreation}
         onClose={() => setShowArticleCreation(false)}
-        onSave={() => setShowArticleCreation(false)}
+        onSave={(article) => {
+          setShowArticleCreation(false);
+          if (article) {
+            // Auto-add the newly created article to the invoice
+            handleSelectArticle(article);
+          }
+        }}
       />
     </div>
   );

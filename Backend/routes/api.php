@@ -2119,6 +2119,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     
     // Invoices (English)
     Route::get('/invoices', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'index']);
+    Route::get('/invoices/next-number', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'getNextInvoiceNumber']);
     Route::post('/invoices', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'store']);
     Route::get('/invoices/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'show']);
     Route::put('/invoices/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'update']);
@@ -2130,6 +2131,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     
     // Factures (French - Alias for Invoices)
     Route::get('/factures', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'index']);
+    Route::get('/factures/next-number', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'getNextInvoiceNumber']);
     Route::post('/factures', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'store']);
     Route::get('/factures/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'show']);
     Route::put('/factures/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'update']);
