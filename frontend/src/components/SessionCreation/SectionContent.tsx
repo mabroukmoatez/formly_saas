@@ -273,29 +273,17 @@ export const ObjectivesSection: React.FC<{
                   />
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateObjective(objective.id, 'text', prompt('Edit objective:', objective.text) || objective.text);
-                    }}
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveObjective(objective.id);
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveObjective(objective.id);
+                  }}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -416,32 +404,38 @@ export const PricingSection: React.FC<{
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {t('sessionCreation.form.price')}
-          </h3>
-          
-          <div className="space-y-3">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('sessionCreation.form.priceHT')}:
-              </label>
+      {/* Prix Section - Inline layout */}
+      <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {t('sessionCreation.form.price')}
+        </h3>
+        
+        <div className="flex items-end gap-6">
+          <div className="flex-1">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              {t('sessionCreation.form.priceHT')}:
+            </label>
+            <div className="relative">
               <Input
                 type="number"
                 value={priceHT || ''}
                 onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
-                placeholder="0"
+                placeholder="0,00"
                 min="0"
                 step="0.01"
-                className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                className={`pr-12 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
               />
+              <span className={`absolute right-3 top-1/2 -translate-y-1/2 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                €
+              </span>
             </div>
-            
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('sessionCreation.form.vatPercentage')}:
-              </label>
+          </div>
+          
+          <div className="flex-1">
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              {t('sessionCreation.form.vatPercentage')}:
+            </label>
+            <div className="relative">
               <Input
                 type="number"
                 value={vatPercentage || ''}
@@ -450,81 +444,90 @@ export const PricingSection: React.FC<{
                 min="0"
                 max="100"
                 step="0.01"
-                className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                className={`pr-10 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
               />
+              <span className={`absolute right-3 top-1/2 -translate-y-1/2 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                %
+              </span>
             </div>
           </div>
         </div>
+      </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {t('sessionCreation.form.additionalFees')} ({additionalFees.length})
-            </h3>
-            <Button
-              data-action="add-additional-fee"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Add Additional Fee clicked - preventing propagation');
-                onAddAdditionalFee();
-              }}
-              className="flex items-center gap-2"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <PlusIcon className="w-4 h-4" />
-              {t('sessionCreation.form.addAdditionalFee')}
-            </Button>
-          </div>
-          
-          <div className="space-y-3">
-            {additionalFees.map((fee) => (
-              <Card key={fee.id} className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
-                <CardContent className="p-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {fee.name}
-                        {fee.vat_applied && (
-                          <span className={`ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            (TVA À {vatPercentage}%)
-                          </span>
-                        )}
-                      </div>
-                      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUpdateAdditionalFee(fee.id, 'name', prompt('Nom du frais:', fee.name) || fee.name);
-                        }}
-                      >
-                        <EditIcon className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveAdditionalFee(fee.id);
-                        }}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      {/* Frais Annexes Section - Simple list format */}
+      <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {t('sessionCreation.form.additionalFees')} ({additionalFees.length})
+          </h3>
         </div>
+        
+        {/* Fees List */}
+        <div className="space-y-2 mb-4">
+          {additionalFees.map((fee) => (
+            <div 
+              key={fee.id} 
+              className={`flex items-center justify-between p-3 rounded-lg border ${
+                isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+              }`}
+            >
+              <div className="flex-1">
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {fee.name}
+                  {fee.vat_applied && (
+                    <span className={`ml-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      (TVA À {vatPercentage}%)
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateAdditionalFee(fee.id, 'name', prompt('Nom du frais:', fee.name) || fee.name);
+                  }}
+                  className="h-8 w-8"
+                >
+                  <EditIcon className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveAdditionalFee(fee.id);
+                  }}
+                  className="h-8 w-8 text-red-600 hover:text-red-700"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Fee Button */}
+        <Button
+          data-action="add-additional-fee"
+          variant="outline"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAddAdditionalFee();
+          }}
+          className={`w-full flex items-center justify-center gap-2 border-dashed ${
+            isDark ? 'border-gray-500 hover:bg-gray-600' : 'border-gray-300 hover:bg-gray-100'
+          }`}
+        >
+          <PlusIcon className="w-4 h-4" />
+          {t('sessionCreation.form.addAdditionalFee')}
+        </Button>
       </div>
     </div>
   );

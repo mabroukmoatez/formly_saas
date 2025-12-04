@@ -106,10 +106,10 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
               />
 
               <CategoryButtons
-                selectedCategory={formData.category_id ? categories.find(c => c.id === formData.category_id) || null : null}
-                selectedSubcategory={formData.subcategory_id ? subcategories.find(s => s.id === formData.subcategory_id) || null : null}
-                categories={categories}
-                subcategories={subcategories}
+                selectedCategory={formData.category_id && categories ? categories.find(c => c.id === formData.category_id) || null : null}
+                selectedSubcategory={formData.subcategory_id && subcategories ? subcategories.find(s => s.id === formData.subcategory_id) || null : null}
+                categories={categories || []}
+                subcategories={subcategories || []}
                 onCategorySelected={(category) => onInputChange('category_id', category?.id || null)}
                 onSubcategorySelected={(subcategory) => onInputChange('subcategory_id', subcategory?.id || null)}
                 onCategoryCreated={onCategoryCreated}

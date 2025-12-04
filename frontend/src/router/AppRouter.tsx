@@ -54,7 +54,7 @@ import { GestionComercial } from '../screens/GestionComercial';
 import { WhiteLabelNew, WhiteLabelIdentity, WhiteLabelLibrary, WhiteLabelIdentifiers, WhiteLabelPlansPage } from '../screens/WhiteLabel';
 import { EmailTemplateCreationPage } from '../pages/EmailTemplateCreationPage';
 import { Statistiques } from '../screens/Statistiques';
-import { Sessions } from '../screens/Sessions';
+import { Sessions, SessionManagementPage } from '../screens/Sessions';
 import { GestionDesQuizz } from '../screens/GestionDesQuizz';
 import { SupportsPedagogiques } from '../screens/SupportsPedagogiques';
 import { GestionDesFormations } from '../screens/GestionDesFormations';
@@ -657,7 +657,17 @@ export const AppRouter: React.FC = () => {
           element={
             <OrganizationRoute>
               <ProtectedRoute>
-                <Sessions />
+                <SessionManagementPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/session-management"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <SessionManagementPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }
@@ -1283,7 +1293,17 @@ export const AppRouter: React.FC = () => {
           element={
             <OrganizationRoute>
               <ProtectedRoute>
-                <Sessions />
+                <SessionManagementPage />
+              </ProtectedRoute>
+            </OrganizationRoute>
+          }
+        />
+        <Route
+          path="/:subdomain/session-management"
+          element={
+            <OrganizationRoute>
+              <ProtectedRoute>
+                <SessionManagementPage />
               </ProtectedRoute>
             </OrganizationRoute>
           }

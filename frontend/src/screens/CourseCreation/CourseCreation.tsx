@@ -29,7 +29,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { error: showError, warning: showWarning, success: showSuccess } = useToast();
-  
+
   const {
     currentStep,
     setCurrentStep,
@@ -67,9 +67,9 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const [isInitialized, setIsInitialized] = useState(false);
   const [localModules, setLocalModules] = useState(modules);
   const [localObjectives, setLocalObjectives] = useState(objectives);
-  const [moduleDurations, setModuleDurations] = useState<{[key: string]: number}>({});
-  const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
-  const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
+  const [moduleDurations, setModuleDurations] = useState<{ [key: string]: number }>({});
+  const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{ [key: string]: ReturnType<typeof setTimeout> }>({});
+  const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const [selectedPracticeIds, setSelectedPracticeIds] = useState<number[]>(formData.formation_practice_ids || []);
 
   // Load module durations from localStorage
@@ -95,11 +95,13 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
 
   // Sync local modules with context modules
   useEffect(() => {
+    console.log('📦 Syncing modules from context:', modules.length, 'modules', modules);
     setLocalModules(modules);
   }, [modules]);
 
   // Sync local objectives with context objectives
   useEffect(() => {
+    console.log('🎯 Syncing objectives from context:', objectives.length, 'objectives', objectives);
     setLocalObjectives(objectives);
   }, [objectives]);
 
@@ -149,9 +151,9 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
       return () => clearTimeout(timeoutId);
     }
   }, [
-    formData.title, 
-    formData.subtitle, 
-    formData.description, 
+    formData.title,
+    formData.subtitle,
+    formData.description,
     formData.category_id,
     formData.subcategory_id,
     formData.course_language_id,
@@ -162,8 +164,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     formData.prerequisites,
     formData.price,
     formData.currency,
-    isInitialized, 
-    formData.courseUuid, 
+    isInitialized,
+    formData.courseUuid,
     autoSave
   ]);
 
@@ -188,7 +190,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     };
 
     const contextField = fieldMapping[field] || field;
-    
+
     // All fields are now properly mapped
     updateFormField(contextField as keyof CourseCreationFormData, value);
 
@@ -313,20 +315,20 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         setModuleDurations(prev => ({ ...prev, [id]: value }));
         return; // Don't make API call for duration
       }
-      
+
       // Convert field names to match API expectations
       const apiField = field === 'order' ? 'order_index' : field;
-      
+
       // Update local state immediately for better UX
-      setLocalModules(prev => prev.map(m => 
+      setLocalModules(prev => prev.map(m =>
         m.uuid === id ? { ...m, [apiField]: value } : m
       ));
-      
+
       // Clear existing timeout for this module
       if (moduleUpdateTimeouts[id]) {
         clearTimeout(moduleUpdateTimeouts[id]);
       }
-      
+
       // Set new timeout for API call
       const timeout = setTimeout(() => {
         updateModule(module.uuid, { [apiField]: value });
@@ -336,7 +338,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
           return newTimeouts;
         });
       }, 1000); // 1 second delay
-      
+
       setModuleUpdateTimeouts(prev => ({ ...prev, [id]: timeout }));
     }
   };
@@ -351,17 +353,27 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         delete newDurations[id];
         return newDurations;
       });
-      
+
       deleteModule(module.uuid);
     }
   };
 
   const handleReorderModules = (reorderedModules: any[]) => {
     console.log('Reordering modules:', reorderedModules);
-    const moduleUuids = reorderedModules.map(m => {
-      const module = modules.find(mod => mod.uuid === m.id);
-      return module?.uuid || '';
-    }).filter(uuid => uuid !== '');
+
+    // Update local state immediately for instant visual feedback
+    const reorderedLocalModules = reorderedModules.map((m, index) => {
+      const originalModule = localModules.find(mod => mod.uuid === m.id);
+      if (originalModule) {
+        return { ...originalModule, order_index: index };
+      }
+      return null;
+    }).filter(Boolean) as typeof localModules;
+
+    setLocalModules(reorderedLocalModules);
+
+    // Make API call to persist the reorder
+    const moduleUuids = reorderedModules.map(m => m.id).filter(Boolean);
     reorderModules(moduleUuids);
   };
 
@@ -380,17 +392,17 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     if (objective) {
       // Convert field names to match API expectations
       const apiField = field === 'text' ? 'description' : (field === 'order' ? 'order_index' : field);
-      
+
       // Update local state immediately for better UX
-      setLocalObjectives(prev => prev.map(o => 
+      setLocalObjectives(prev => prev.map(o =>
         o.uuid === id ? { ...o, [apiField]: value } : o
       ));
-      
+
       // Clear existing timeout for this objective
       if (objectiveUpdateTimeouts[id]) {
         clearTimeout(objectiveUpdateTimeouts[id]);
       }
-      
+
       // Set new timeout for API call
       const timeout = setTimeout(() => {
         updateObjective(objective.uuid, { [apiField]: value });
@@ -400,7 +412,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
           return newTimeouts;
         });
       }, 1000); // 1 second delay
-      
+
       setObjectiveUpdateTimeouts(prev => ({ ...prev, [id]: timeout }));
     }
   };
@@ -474,11 +486,11 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     switch (step) {
       case 1:
         // Step 1 requires: title, description, category, modules AND objectives
-        return formData.title && formData.title.trim() !== '' && 
-               formData.description && formData.description.trim() !== '' &&
-               formData.category_id !== null &&
-               modules.length > 0 &&         // Au moins 1 module
-               objectives.length > 0;        // Au moins 1 objectif
+        return formData.title && formData.title.trim() !== '' &&
+          formData.description && formData.description.trim() !== '' &&
+          formData.category_id !== null &&
+          modules.length > 0 &&         // Au moins 1 module
+          objectives.length > 0;        // Au moins 1 objectif
       case 2:
         return true; // Content is optional (can be added later)
       case 3:
@@ -513,25 +525,32 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
               'Veuillez remplir le titre, la description et sélectionner une catégorie.'
             );
           }
-      } else {
-        showWarning(
-          t('courseCreation.validation.stepIncomplete'),
-          t('courseCreation.validation.stepIncompleteMessage') || 'Veuillez remplir tous les champs requis avant de continuer.'
-        );
+        } else {
+          showWarning(
+            t('courseCreation.validation.stepIncomplete'),
+            t('courseCreation.validation.stepIncompleteMessage') || 'Veuillez remplir tous les champs requis avant de continuer.'
+          );
         }
       }
     } else if (currentStep === 6) {
       // Handle course completion
       try {
+        // First save all changes
+        await autoSave();
+        
+        // Then update status to active
         const updated = await updateCourseStatus('active');
         if (updated) {
-          showSuccess(t('course.completedSuccessfully'));
-          // Optionally redirect to course management or dashboard
-          // You can add navigation logic here
+          showSuccess(t('course.completedSuccessfully') || 'Cours enregistré avec succès');
+          
+          // Call onCourseSaved callback if provided
+          if (onCourseSaved) {
+            onCourseSaved();
+          }
         }
       } catch (error: any) {
         console.error('Failed to complete course:', error);
-        showError(t('course.completionError'));
+        showError(t('course.completionError') || 'Erreur lors de l\'enregistrement du cours');
       }
     }
   };
@@ -582,40 +601,40 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-          <CourseCreationHeader
-            currentStep={currentStep}
-            totalSteps={6}
-            onStepClick={handleStepClick}
-            onAutoSave={handleAutoSave}
-            onSaveDraft={handleSaveDraft}
+      <CourseCreationHeader
+        currentStep={currentStep}
+        totalSteps={6}
+        onStepClick={handleStepClick}
+        onAutoSave={handleAutoSave}
+        onSaveDraft={handleSaveDraft}
         isAutoSaving={isSaving}
         isSavingDraft={isSaving}
         formData={headerFormData}
       />
-      
+
       <main className="w-full flex justify-center pb-7 px-4">
         <div className="w-full max-w-[1396px] space-y-6">
           {/* Render content based on current step */}
           {currentStep === 1 && (
             <>
-            <CourseInformationForm
-              formData={transformedFormData}
-              categories={categories}
-              subcategories={subcategories}
-              onInputChange={handleInputChange}
-              onFileUpload={handleFileUpload}
-              onFileUrlUpdate={handleFileUrlUpdate}
-              uploadIntroVideo={uploadIntroVideo}
-              uploadIntroImage={uploadIntroImage}
-              deleteIntroVideo={deleteIntroVideo}
-              deleteIntroImage={deleteIntroImage}
-              onCategoryCreated={loadCategories}
-              onSubcategoryCreated={() => {
-                if (formData.category_id) {
-                  loadSubcategories(formData.category_id);
-                }
-              }}
-            />
+              <CourseInformationForm
+                formData={transformedFormData}
+                categories={categories}
+                subcategories={subcategories}
+                onInputChange={handleInputChange}
+                onFileUpload={handleFileUpload}
+                onFileUrlUpdate={handleFileUrlUpdate}
+                uploadIntroVideo={uploadIntroVideo}
+                uploadIntroImage={uploadIntroImage}
+                deleteIntroVideo={deleteIntroVideo}
+                deleteIntroImage={deleteIntroImage}
+                onCategoryCreated={loadCategories}
+                onSubcategoryCreated={() => {
+                  if (formData.category_id) {
+                    loadSubcategories(formData.category_id);
+                  }
+                }}
+              />
 
               <CollapsibleSections
                 sections={[]}
@@ -658,42 +677,40 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
                 onUpdateAccessibility={(content) => updateFormField('accessibility', content)}
                 onUpdateContacts={(content) => updateFormField('contacts', content)}
                 onUpdateUpdateDate={(content) => updateFormField('update_date', content)}
-                    />
+              />
             </>
           )}
-          
+
           {currentStep === 2 && <Step2Contenu />}
           {currentStep === 3 && <Step3DocumentsNew />}
           {currentStep === 4 && <Step4QuestionnaireNew />}
           {currentStep === 5 && <Step5FormateurNew />}
           {currentStep === 6 && <Step6WorkflowNew />}
-          
+
           {/* Footer Navigation */}
           <div className="flex justify-between items-center pt-6 pb-4">
             <button
               onClick={handlePreviousStep}
               disabled={currentStep === 1}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                currentStep === 1
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-                            style={{ 
+                }`}
+              style={{
                 backgroundColor: currentStep === 1 ? '#e5e7eb' : organization?.primary_color || '#4b5563',
                 color: currentStep === 1 ? '#9ca3af' : 'white'
               }}
             >
               {t('common.previous')}
             </button>
-            
+
             <button
               onClick={handleNextStep}
-              className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${
-                currentStep === 6
+              className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${currentStep === 6
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'text-white'
-              }`}
-              style={{ 
+                }`}
+              style={{
                 backgroundColor: currentStep === 6 ? '#16a34a' : (organization?.primary_color || '#0066FF'),
                 color: 'white',
                 fontSize: '16px',
@@ -702,27 +719,29 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
             >
               {currentStep === 6 ? 'Soumettre' : t('common.next')}
             </button>
-                      </div>
-                    </div>
-        </main>
+          </div>
         </div>
+      </main>
+    </div>
   );
 };
 
-export const CourseCreation: React.FC = () => {
+export const CourseCreation: React.FC<CourseCreationProps> = ({
+  courseUuid,
+  onCourseCreated,
+  onCourseSaved
+}) => {
   return (
     <DashboardLayout>
-      <CourseCreationProvider>
+      <CourseCreationProvider key={courseUuid || 'new'}>
         <CourseCreationContent
-          courseUuid={undefined}
-          onCourseCreated={(uuid) => {
+          courseUuid={courseUuid}
+          onCourseCreated={onCourseCreated || ((uuid) => {
             console.log('Course created:', uuid);
-            // Handle course creation success
-          }}
-          onCourseSaved={() => {
+          })}
+          onCourseSaved={onCourseSaved || (() => {
             console.log('Course saved');
-            // Handle course save success
-          }}
+          })}
         />
       </CourseCreationProvider>
     </DashboardLayout>

@@ -228,17 +228,24 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 </div>
 
                 {/* Category Field */}
-                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[10px] flex-1 relative">
+                <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[4px] flex-1 relative">
                   <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => handleInputChange('category', e.target.value)}
-                    className="text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none"
-                    placeholder="Catégorie"
-                  />
-                </div>
+                    <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => handleInputChange('category', e.target.value)}
+                      className={`w-full px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    >
+                      <option value="">{t('dashboard.commercial.mes_articles.modal.category_placeholder')}</option>
+                      <option value="Consultation">{t('dashboard.commercial.mes_articles.categories.consultation')}</option>
+                      <option value="Support">{t('dashboard.commercial.mes_articles.categories.support')}</option>
+                      <option value="Training">{t('dashboard.commercial.mes_articles.categories.training')}</option>
+                      <option value="Services">{t('dashboard.commercial.mes_articles.categories.services')}</option>
+                      <option value="Subscription">{t('dashboard.commercial.mes_articles.categories.subscription')}</option>
+                      <option value="Product">{t('dashboard.commercial.mes_articles.categories.product')}</option>
+                    </select>
+                  </div>
+                
               </div>
             </div>
           </div>

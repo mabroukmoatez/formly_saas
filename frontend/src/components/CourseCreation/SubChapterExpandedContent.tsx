@@ -171,13 +171,13 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     <div className="flex items-center gap-2">
                       {item.type === 'image' && item.file ? (
                         <img 
-                          src={URL.createObjectURL(item.file)} 
+                          src={typeof item.file === 'string' ? item.file : URL.createObjectURL(item.file as Blob)} 
                           alt={item.title || 'Image'} 
                           className="w-8 h-8 object-cover rounded"
                         />
                       ) : item.type === 'video' && item.file ? (
                         <video 
-                          src={URL.createObjectURL(item.file)} 
+                          src={typeof item.file === 'string' ? item.file : URL.createObjectURL(item.file as Blob)} 
                           className="w-8 h-8 object-cover rounded"
                           controls={false}
                         />
@@ -211,7 +211,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                       {item.type === 'video' ? (
                         <div className="relative">
                           <RobustVideoPlayer 
-                            src={URL.createObjectURL(item.file)}
+                            src={typeof item.file === 'string' ? item.file : URL.createObjectURL(item.file as Blob)}
                             title={item.title || 'Video'}
                             size="md"
                           />
@@ -227,7 +227,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                       ) : item.type === 'image' ? (
                         <div className="relative">
                           <img 
-                            src={URL.createObjectURL(item.file)} 
+                            src={typeof item.file === 'string' ? item.file : URL.createObjectURL(item.file as Blob)} 
                             alt={item.title || 'Image'} 
                             className="w-full h-48 object-cover rounded"
                           />
@@ -716,13 +716,13 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                       <div className="flex items-center gap-2 flex-1">
                         {file.type?.startsWith('image/') ? (
                           <img 
-                            src={URL.createObjectURL(file.file)} 
+                            src={file.url || file.file_url || (file.file instanceof Blob ? URL.createObjectURL(file.file) : '')} 
                             alt={file.name || 'Image'} 
                             className="w-8 h-8 object-cover rounded"
                           />
                         ) : file.type?.startsWith('video/') ? (
                           <video 
-                            src={URL.createObjectURL(file.file)} 
+                            src={file.url || file.file_url || (file.file instanceof Blob ? URL.createObjectURL(file.file) : '')} 
                             className="w-8 h-8 object-cover rounded"
                             controls={false}
                           />

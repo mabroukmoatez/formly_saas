@@ -140,7 +140,8 @@ export interface SessionTrainer {
 }
 
 class SessionCreationService {
-  private orgSessionsBase = '/api/organization/sessions';
+  // ⭐ NOUVELLE API - Plus de /api/organization/sessions
+  private orgSessionsBase = '/api/admin/organization/course-sessions';
   private publicSessionsBase = '/api/sessions';
   private studentSessionsBase = '/api/student/sessions';
   private base = '/api/organization';

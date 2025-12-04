@@ -1,23 +1,23 @@
 /**
- * @deprecated This file is DEPRECATED.
+ * Session Creation Context
  * 
- * ⚠️ DO NOT USE THIS FOR NEW CODE ⚠️
+ * ARCHITECTURE (selon docs/COURSE_SESSIONS_API.md):
+ * - Course (Cours) = Template/Modèle de formation (contenu pédagogique)
+ * - CourseSession = Instance planifiée d'un cours (dates, lieu, formateurs)
+ * - SessionSlot = Créneau/Séance individuelle
  * 
- * This implementation incorrectly treats Sessions as complete Course entities.
- * 
- * USE INSTEAD:
- * - src/contexts/CourseSessionContext.tsx
- * - src/services/courseSession.ts
- * 
- * CORRECT ARCHITECTURE:
- * Course (template) → CourseSession (instance) → SessionSlot (séance)
- * 
- * See: docs/COURSE_SESSIONS_FRONTEND.md
+ * FLOW DE SAUVEGARDE:
+ * - Steps 1-5: Modifications du COURS (via courseCreation API)
+ * - Steps 6-7: Modifications de la SESSION (via courseSessionService API)
+ * - saveAll(): Sauvegarde les deux (cours + session)
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
 import { sessionCreation as sessionCreationApi } from '../services/sessionCreation';
 import { courseCreation } from '../services/courseCreation';
+import { courseSessionService } from '../services/courseSession';
+import { sessionLogger as log } from '../utils/logger';
+import { parseApiError } from '../utils/apiErrorHandler';
 import type {
   SessionCreationFormData,
   SessionInstance,
@@ -382,150 +382,196 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   }, []);
 
   // Session CRUD
+  /**
+   * Crée une nouvelle session
+   * API: POST /api/admin/organization/course-sessions
+   * 
+   * ⚠️ IMPORTANT: course_uuid est OBLIGATOIRE
+   * Une session est toujours une instance planifiée d'un cours.
+   * 
+   * Flux: Sélection cours → Création session → Génération slots
+   */
   const createSession = useCallback(async (): Promise<string | null> => {
     // Ne pas créer si une session existe déjà
     if (state.formData.sessionUuid) {
       return state.formData.sessionUuid;
     }
 
+    // ✅ course_uuid est OBLIGATOIRE - pas de création sans cours
+    if (!state.formData.courseUuid) {
+      const errorMsg = 'Veuillez sélectionner un cours avant de créer une session';
+      log.error('Cannot create session: course_uuid is required');
+      setState(prev => ({
+        ...prev,
+        error: errorMsg
+      }));
+      return null;
+    }
+
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Map only fields accepted by CreateSessionPayload
       // Get default dates (today + 30 days for end date if not provided)
       const today = new Date();
       const defaultEndDate = new Date(today);
       defaultEndDate.setDate(today.getDate() + 30);
       const formatDate = (date: Date) => date.toISOString().split('T')[0];
       
-      const payload: any = {
-        title: state.formData.title || 'Nouvelle session',
-        subtitle: state.formData.subtitle || '',
-        description: state.formData.description || 'Brouillon de la session',
-        formation_action: getValidFormationAction(state.formData.formation_action),
-        category_id: state.formData.category_id || null,
-        session_language_id: state.formData.session_language_id || null,
-        difficulty_level_id: state.formData.difficulty_level_id || null,
-        price: state.formData.price || 0,
-        price_ht: state.formData.price_ht || 0,
-        vat_percentage: state.formData.vat_percentage || 20,
-        currency: state.formData.currency || 'EUR',
-        duration: state.formData.duration?.toString() || '0',
-        duration_days: state.formData.duration_days || 0,
-        session_start_date: state.formData.session_start_date || formatDate(today),
-        session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-        session_start_time: state.formData.session_start_time || '09:00',
-        session_end_time: state.formData.session_end_time || '17:00',
-        max_participants: state.formData.max_participants || 0,
-        target_audience: state.formData.target_audience || '',
-        prerequisites: state.formData.prerequisites || '',
-        key_points: state.formData.key_points || [],
-        trainer_ids: state.formData.trainer_ids || [],
-        isPublished: false
+      log.info('Creating session via courseSessionService', { courseUuid: state.formData.courseUuid });
+      
+      // Déterminer le delivery_mode
+      const getDeliveryMode = (): 'presentiel' | 'distanciel' | 'hybrid' | 'e-learning' => {
+        const sessionType = state.formData.session_type?.toLowerCase();
+        if (sessionType === 'e-learning') return 'e-learning';
+        if (sessionType === 'distanciel' || sessionType === 'distance') return 'distanciel';
+        if (sessionType === 'hybride' || sessionType === 'hybrid') return 'hybrid';
+        return 'presentiel';
       };
       
-      const response: any = await sessionCreationApi.createSession(payload);
-      const sessionUuid = response.data.uuid;
+      // Payload selon COURSE_SESSIONS_API.md (SESSIONS_API_DOCUMENTATION.md)
+      const payload = {
+        course_uuid: state.formData.courseUuid, // ✅ OBLIGATOIRE
+        title: state.formData.title || null, // null = hérite du cours
+        description: state.formData.description || null,
+        session_type: 'inter' as const, // 'intra', 'inter', 'individual'
+        delivery_mode: getDeliveryMode(),
+        start_date: state.formData.session_start_date || formatDate(today),
+        end_date: state.formData.session_end_date || formatDate(defaultEndDate),
+        default_start_time: state.formData.session_start_time || '09:00',
+        default_end_time: state.formData.session_end_time || '17:00',
+        total_hours: state.formData.duration || undefined,
+        total_days: state.formData.duration_days || undefined,
+        min_participants: 1,
+        max_participants: state.formData.max_participants || 20,
+        price_ht: state.formData.price_ht || null, // null = hérite du cours
+        vat_rate: state.formData.vat_percentage || 20,
+        pricing_type: 'per_person' as const,
+        status: 'draft' as const,
+        is_published: false,
+        trainer_uuids: state.formData.trainer_ids || [],
+        // Location (présentiel)
+        location_name: state.formData.location_name,
+        location_address: state.formData.location_address,
+        location_city: state.formData.location_city,
+        location_postal_code: state.formData.location_postal_code,
+        location_room: state.formData.location_room,
+        // Online (distanciel)
+        platform_type: state.formData.platform_type,
+        meeting_link: state.formData.meeting_link,
+      };
       
+      const response = await courseSessionService.createSession(payload);
+      const sessionUuid = response.data?.uuid;
+      
+      if (sessionUuid) {
       setState(prev => ({
         ...prev,
         formData: { ...prev.formData, sessionUuid },
         isLoading: false
       }));
-
+        log.info('Session created successfully', { sessionUuid });
       return sessionUuid;
+      } else {
+        throw new Error('No session UUID in API response');
+      }
     } catch (error: any) {
+      const errorInfo = parseApiError(error);
+      log.error('Failed to create session', errorInfo);
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || 'Erreur lors de la création de la session'
+        error: errorInfo.message || 'Erreur lors de la création de la session'
       }));
       return null;
     }
   }, [state.formData]);
 
+  /**
+   * Met à jour une session existante
+   * API: PUT /api/admin/organization/course-sessions/{uuid}
+   */
   const updateSession = useCallback(async (): Promise<boolean> => {
     if (!state.formData.sessionUuid) return false;
 
     setState(prev => ({ ...prev, isSaving: true, error: null }));
 
     try {
-      // Extract only the fields that should be sent to the backend
-      // Exclude internal fields like sessionUuid, isDraft, etc.
-      // Get default dates if not provided
-      const today = new Date();
-      const defaultEndDate = new Date(today);
-      defaultEndDate.setDate(today.getDate() + 30);
-      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+      // Déterminer le delivery_mode
+      const getDeliveryMode = (): 'presentiel' | 'distanciel' | 'hybrid' | 'e-learning' => {
+        const sessionType = state.formData.session_type?.toLowerCase();
+        if (sessionType === 'e-learning') return 'e-learning';
+        if (sessionType === 'distanciel' || sessionType === 'distance') return 'distanciel';
+        if (sessionType === 'hybride' || sessionType === 'hybrid') return 'hybrid';
+        return 'presentiel';
+      };
       
-      const updatePayload: any = {
-        title: state.formData.title || '',
-        subtitle: state.formData.subtitle || '',
-        description: state.formData.description || '',
-        formation_action: getValidFormationAction(state.formData.formation_action),
-        category_id: state.formData.category_id || null,
-        subcategory_id: state.formData.subcategory_id || null,
-        session_language_id: state.formData.session_language_id || null,
-        difficulty_level_id: state.formData.difficulty_level_id || null,
-        price: state.formData.price || 0,
-        price_ht: state.formData.price_ht || 0,
-        vat_percentage: state.formData.vat_percentage || 20,
-        currency: state.formData.currency || 'EUR',
-        duration: state.formData.duration?.toString() || '0', // Convert to string
-        duration_days: state.formData.duration_days || 0,
-        session_start_date: state.formData.session_start_date || formatDate(today),
-        session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-        session_start_time: state.formData.session_start_time || '09:00',
-        session_end_time: state.formData.session_end_time || '17:00',
-        max_participants: state.formData.max_participants || 0,
-        target_audience: state.formData.target_audience || '',
-        prerequisites: state.formData.prerequisites || '',
-        methods: state.formData.methods || '',
-        specifics: state.formData.specifics || '',
-        evaluation_modalities: state.formData.evaluation_modalities || '',
-        access_modalities: state.formData.access_modalities || '',
-        accessibility: state.formData.accessibility || '',
-        contacts: state.formData.contacts || '',
-        update_date: state.formData.update_date || '',
-        key_points: state.formData.key_points || [],
-        tags: state.formData.tags || [],
-        youtube_video_id: state.formData.youtube_video_id || null,
-        trainer_ids: state.formData.trainer_ids || [],
-        formation_practice_ids: state.formData.formation_practice_ids || [],
-        isPublished: state.formData.isPublished || false
+      // Payload selon SESSIONS_API_DOCUMENTATION.md
+      const updatePayload = {
+        title: state.formData.title || undefined,
+        description: state.formData.description || undefined,
+        session_type: 'inter' as const,
+        delivery_mode: getDeliveryMode(),
+        start_date: state.formData.session_start_date,
+        end_date: state.formData.session_end_date,
+        default_start_time: state.formData.session_start_time || '09:00',
+        default_end_time: state.formData.session_end_time || '17:00',
+        total_hours: state.formData.duration || undefined,
+        total_days: state.formData.duration_days || undefined,
+        max_participants: state.formData.max_participants || undefined,
+        price_ht: state.formData.price_ht || undefined,
+        vat_rate: state.formData.vat_percentage || 20,
+        is_published: state.formData.isPublished || false,
+        trainer_uuids: state.formData.trainer_ids || [],
+        // Location
+        location_name: state.formData.location_name,
+        location_address: state.formData.location_address,
+        location_city: state.formData.location_city,
+        location_postal_code: state.formData.location_postal_code,
+        location_room: state.formData.location_room,
+        // Online
+        platform_type: state.formData.platform_type,
+        meeting_link: state.formData.meeting_link,
       };
 
-      console.log('💾 Updating session with payload:', updatePayload);
+      log.debug('Updating session via courseSessionService', { sessionUuid: state.formData.sessionUuid });
       
-      await sessionCreationApi.updateSession(state.formData.sessionUuid, updatePayload);
+      await courseSessionService.updateSession(state.formData.sessionUuid, updatePayload);
       setState(prev => ({ ...prev, isSaving: false }));
-      console.log('✅ Session updated successfully');
+      log.info('Session updated successfully');
       return true;
     } catch (error: any) {
-      console.error('❌ Error updating session:', error);
+      const errorInfo = parseApiError(error);
+      log.error('Failed to update session', errorInfo);
       setState(prev => ({
         ...prev,
         isSaving: false,
-        error: error.response?.data?.message || 'Erreur lors de la mise à jour de la session'
+        error: errorInfo.message || 'Erreur lors de la mise à jour de la session'
       }));
       return false;
     }
   }, [state.formData]);
 
+  /**
+   * Supprime une session
+   * API: DELETE /api/admin/organization/course-sessions/{uuid}
+   */
   const deleteSession = useCallback(async (): Promise<boolean> => {
     if (!state.formData.sessionUuid) return false;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      await sessionCreationApi.deleteSession(state.formData.sessionUuid);
+      await courseSessionService.deleteSession(state.formData.sessionUuid);
       setState(prev => ({ ...prev, isLoading: false }));
+      log.info('Session deleted successfully');
       return true;
     } catch (error: any) {
+      const errorInfo = parseApiError(error);
+      log.error('Failed to delete session', errorInfo);
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || 'Erreur lors de la suppression de la session'
+        error: errorInfo.message || 'Erreur lors de la suppression de la session'
       }));
       return false;
     }
@@ -565,7 +611,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getAllSessions(params);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting all sessions:', error);
+      log.error('Error getting all sessions', error);
       return null;
     }
   }, []);
@@ -575,7 +621,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getSessionDetailsBySlug(slug);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting session details by slug:', error);
+      log.error('Error getting session details by slug', error);
       return null;
     }
   }, []);
@@ -585,7 +631,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getFeaturedSessions(limit);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting featured sessions:', error);
+      log.error('Error getting featured sessions', error);
       return null;
     }
   }, []);
@@ -595,7 +641,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getSessionCategories();
       return response.data;
     } catch (error: any) {
-      console.error('Error getting session categories:', error);
+      log.error('Error getting session categories', error);
       return null;
     }
   }, []);
@@ -605,7 +651,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getUpcomingInstances(params);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting upcoming instances:', error);
+      log.error('Error getting upcoming instances', error);
       return null;
     }
   }, []);
@@ -615,7 +661,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.searchSessions(query);
       return response.data;
     } catch (error: any) {
-      console.error('Error searching sessions:', error);
+      log.error('Error searching sessions', error);
       return null;
     }
   }, []);
@@ -626,7 +672,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getStudentEnrollments(params);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting student enrollments:', error);
+      log.error('Error getting student enrollments', error);
       return null;
     }
   }, []);
@@ -636,7 +682,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.enrollInSession(sessionUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error enrolling in session:', error);
+      log.error('Error enrolling in session', error);
       return null;
     }
   }, []);
@@ -646,7 +692,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getStudentSessionDetails(sessionUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting student session details:', error);
+      log.error('Error getting student session details', error);
       return null;
     }
   }, []);
@@ -656,7 +702,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getStudentUpcomingInstances();
       return response.data;
     } catch (error: any) {
-      console.error('Error getting student upcoming instances:', error);
+      log.error('Error getting student upcoming instances', error);
       return null;
     }
   }, []);
@@ -666,7 +712,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getStudentAttendance(sessionUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting student attendance:', error);
+      log.error('Error getting student attendance', error);
       return null;
     }
   }, []);
@@ -676,7 +722,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.accessSessionInstance(instanceUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error accessing session instance:', error);
+      log.error('Error accessing session instance', error);
       return null;
     }
   }, []);
@@ -686,7 +732,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getStudentProgress(sessionUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error getting student progress:', error);
+      log.error('Error getting student progress', error);
       return null;
     }
   }, []);
@@ -697,7 +743,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.listOrganizationSessions(params);
       return response.data;
     } catch (error: any) {
-      console.error('Error listing organization sessions:', error);
+      log.error('Error listing organization sessions', error);
       return null;
     }
   }, []);
@@ -714,7 +760,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         }
       }));
     } catch (error: any) {
-      console.error('Error loading metadata:', error);
+      log.error('Error loading metadata', error);
     }
   }, []);
 
@@ -735,68 +781,190 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         }));
       }
     } catch (error: any) {
-      console.error('Error loading subcategories:', error);
+      log.error('Error loading subcategories', error);
     }
   }, []);
 
   // Session instances (séances)
+  /**
+   * Génère les séances (slots) de la session
+   * API: POST /api/admin/organization/course-sessions/{uuid}/generate-slots
+   * Selon COURSE_SESSIONS_API.md
+   */
   const generateInstances = useCallback(async (data: InstanceGenerationData): Promise<boolean> => {
     if (!state.formData.sessionUuid) return false;
 
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response: any = await sessionCreationApi.generateSessionInstances(state.formData.sessionUuid, data);
-      setState(prev => ({
-        ...prev,
-        instances: response.data.instances || [],
-        isLoading: false
-      }));
-      return true;
+      log.info('Generating slots for session', { sessionUuid: state.formData.sessionUuid, has_recurrence: data.has_recurrence });
+      
+      // Déterminer start_time: priorité au morning_start si activé, sinon afternoon_start, sinon valeur par défaut
+      let startTime = '09:00';
+      if (data.morning_enabled && data.morning_start) {
+        startTime = data.morning_start;
+      } else if (data.afternoon_start) {
+        startTime = data.afternoon_start;
+      } else if (state.formData.session_start_time) {
+        startTime = state.formData.session_start_time;
+      }
+      
+      // Déterminer end_time: priorité au afternoon_end si activé, sinon morning_end, sinon valeur par défaut
+      let endTime = '17:00';
+      if (data.afternoon_enabled && data.afternoon_end) {
+        endTime = data.afternoon_end;
+      } else if (data.morning_end) {
+        endTime = data.morning_end;
+      } else if (state.formData.session_end_time) {
+        endTime = state.formData.session_end_time;
+      }
+
+      // ⭐ DIFFÉRENCIER: Séance unique VS Séances récurrentes
+      if (!data.has_recurrence) {
+        // ===== SÉANCE UNIQUE =====
+        // Utiliser POST /slots pour créer UNE SEULE séance
+        log.info('Creating single slot (non-recurrent)', { start_date: data.start_date });
+        
+        const singleSlotData = {
+          title: `Séance du ${data.start_date}`,
+          instance_type: data.instance_type || 'presentiel',
+          start_date: data.start_date,
+          end_date: data.start_date, // Même date pour une séance unique
+          start_time: startTime,
+          end_time: endTime,
+          location_address: (data as any).location_address || state.formData.location_address,
+          location_city: state.formData.location_city,
+          location_room: state.formData.location_room,
+          platform_type: (data as any).platform_type,
+          meeting_link: (data as any).meeting_link,
+          trainer_uuids: (data as any).trainer_ids || state.formData.trainer_ids || []
+        };
+        
+        const response = await courseSessionService.createSlot(state.formData.sessionUuid, singleSlotData as any);
+        
+        // Ajouter le nouveau slot à la liste existante
+        if (response.data) {
+          setState(prev => ({
+            ...prev,
+            instances: [...prev.instances, response.data],
+            isLoading: false
+          }));
+        }
+        log.info('Single slot created successfully');
+        return true;
+      } else {
+        // ===== SÉANCES RÉCURRENTES =====
+        // Utiliser POST /generate-slots pour générer plusieurs séances
+        log.info('Generating recurring slots', { selected_days: data.selected_days });
+        
+        const generateSlotsData = {
+          pattern: 'weekly',
+          start_time: startTime,
+          end_time: endTime,
+          instance_type: data.instance_type || 'presentiel',
+          // Convertir selected_days (1-7 format lundi=1) en days_of_week (0-6 format dimanche=0)
+          days_of_week: data.selected_days?.map((day: number) => day === 7 ? 0 : day) || []
+        };
+
+        log.info('Calling generateSlots API', { generateSlotsData });
+        const response = await courseSessionService.generateSlots(state.formData.sessionUuid, generateSlotsData as any);
+        const slots = response.data || [];
+        setState(prev => ({
+          ...prev,
+          instances: slots,
+          isLoading: false
+        }));
+        log.info('Slots generated successfully', { count: slots.length });
+        return true;
+      }
     } catch (error: any) {
+      log.error('Error generating instances', parseApiError(error));
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: error.response?.data?.message || 'Erreur lors de la génération des instances'
+        error: error.response?.data?.message || 'Erreur lors de la génération des séances'
       }));
       return false;
     }
-  }, [state.formData.sessionUuid]);
+  }, [state.formData.sessionUuid, state.formData.session_start_time, state.formData.session_end_time, state.formData.location_address, state.formData.location_city, state.formData.location_room, state.formData.trainer_ids]);
 
+  /**
+   * Récupère les séances (slots) de la session
+   * API: GET /api/admin/organization/course-sessions/{uuid}/slots
+   */
   const getInstances = useCallback(async (): Promise<void> => {
     if (!state.formData.sessionUuid) return;
 
     try {
+      log.debug('Loading slots for session', { sessionUuid: state.formData.sessionUuid });
+      
+      // Essayer la nouvelle API d'abord
+      try {
+        const response = await courseSessionService.getSlots(state.formData.sessionUuid);
+        setState(prev => ({ ...prev, instances: response.data || [] }));
+        log.debug('Slots loaded via new API', { count: response.data?.length || 0 });
+      } catch (newApiError) {
+        // Fallback to old API
       const response: any = await sessionCreationApi.getSessionInstances(state.formData.sessionUuid);
-      setState(prev => ({ ...prev, instances: response.data }));
+        setState(prev => ({ ...prev, instances: response.data || [] }));
+        log.debug('Slots loaded via fallback API');
+      }
     } catch (error: any) {
-      console.error('Error loading instances:', error);
+      log.error('Error loading slots', error);
     }
   }, [state.formData.sessionUuid]);
 
+  /**
+   * Annule une séance
+   */
   const cancelInstance = useCallback(async (instanceUuid: string, reason: string): Promise<boolean> => {
     try {
+      // La nouvelle API n'a pas d'endpoint cancel pour les slots
+      // On utilise l'ancienne API ou on supprime le slot
+      try {
+        await courseSessionService.deleteSlot(state.formData.sessionUuid!, instanceUuid);
+      } catch {
       await sessionCreationApi.cancelSessionInstance(instanceUuid, reason);
+      }
       await getInstances(); // Refresh instances
       return true;
     } catch (error: any) {
       setState(prev => ({
         ...prev,
-        error: error.response?.data?.message || 'Erreur lors de l\'annulation de l\'instance'
+        error: error.response?.data?.message || 'Erreur lors de l\'annulation de la séance'
       }));
       return false;
     }
-  }, [getInstances]);
+  }, [getInstances, state.formData.sessionUuid]);
 
   // Session participants
+  /**
+   * Ajoute un participant à la session
+   * API: POST /api/admin/organization/course-sessions/{uuid}/participants
+   */
   const enrollParticipant = useCallback(async (userId: number): Promise<boolean> => {
     if (!state.formData.sessionUuid) return false;
 
     try {
+      log.info('Adding participant to session', { sessionUuid: state.formData.sessionUuid });
+      
+      // Essayer la nouvelle API d'abord
+      try {
+        await courseSessionService.addParticipant(state.formData.sessionUuid, {
+          user_id: userId,
+          status: 'registered'
+        });
+        log.info('Participant added via new API');
+      } catch (newApiError) {
+        // Fallback to old API
       await sessionCreationApi.enrollParticipant(state.formData.sessionUuid, userId);
+        log.info('Participant added via fallback API');
+      }
+      
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
+      log.error('Error enrolling participant', parseApiError(error));
       setState(prev => ({
         ...prev,
         error: error.response?.data?.message || 'Erreur lors de l\'inscription du participant'
@@ -805,14 +973,32 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
   }, [state.formData.sessionUuid]);
 
+  /**
+   * Récupère les participants de la session
+   * API: GET /api/admin/organization/course-sessions/{uuid}/participants
+   */
   const getParticipants = useCallback(async (): Promise<void> => {
     if (!state.formData.sessionUuid) return;
 
     try {
-      const response: any = await sessionCreationApi.getSessionParticipants(state.formData.sessionUuid);
-      setState(prev => ({ ...prev, participants: response.data }));
+      log.debug('Loading participants for session', { sessionUuid: state.formData.sessionUuid });
+      
+      // Essayer la nouvelle API d'abord
+      try {
+        const response = await courseSessionService.getParticipants(state.formData.sessionUuid);
+        // L'API retourne { data: { session: {...}, participants: [...] } }
+        const participantsData = response.data?.participants || response.data || [];
+        setState(prev => ({ ...prev, participants: participantsData }));
+        log.debug('Participants loaded via new API', { count: participantsData.length || 0 });
+      } catch (newApiError) {
+        // Fallback to old API
+        const response: any = await sessionCreationApi.getSessionParticipants(state.formData.sessionUuid);
+        const participantsData = response.data?.participants || response.data || [];
+        setState(prev => ({ ...prev, participants: participantsData }));
+        log.debug('Participants loaded via fallback API');
+      }
     } catch (error: any) {
-      console.error('Error loading participants:', error);
+      log.error('Error loading participants', error);
     }
   }, [state.formData.sessionUuid]);
 
@@ -847,10 +1033,22 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     if (!state.formData.sessionUuid) return false;
 
     try {
-      await sessionCreationApi.enrollMultipleParticipants(state.formData.sessionUuid, userIds);
+      log.info('Enrolling multiple participants', { sessionUuid: state.formData.sessionUuid, count: userIds.length });
+      
+      // Essayer la nouvelle API d'abord
+      try {
+        await courseSessionService.enrollMultipleParticipants(state.formData.sessionUuid, { user_ids: userIds });
+        log.info('Multiple participants enrolled via new API');
+      } catch (newApiError) {
+        // Fallback to old API
+        await sessionCreationApi.enrollMultipleParticipants(state.formData.sessionUuid, userIds);
+        log.info('Multiple participants enrolled via fallback API');
+      }
+      
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
+      log.error('Error enrolling multiple participants', parseApiError(error));
       setState(prev => ({
         ...prev,
         error: error.response?.data?.message || 'Erreur lors de l\'inscription des participants'
@@ -891,14 +1089,32 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
   }, [state.formData.sessionUuid, getParticipants]);
 
+  /**
+   * Supprime un participant de la session
+   * API: DELETE /api/admin/organization/course-sessions/{uuid}/participants/{participantUuid}
+   */
   const deleteParticipant = useCallback(async (participantId: number): Promise<boolean> => {
     if (!state.formData.sessionUuid) return false;
 
     try {
+      log.info('Removing participant from session', { sessionUuid: state.formData.sessionUuid });
+      
+      // Essayer la nouvelle API d'abord (elle attend un UUID, pas un ID)
+      try {
+        // Note: La nouvelle API utilise participantUuid, l'ancienne utilise participantId
+        // On essaie de convertir si c'est un UUID string
+        await courseSessionService.removeParticipant(state.formData.sessionUuid, String(participantId));
+        log.info('Participant removed via new API');
+      } catch (newApiError) {
+        // Fallback to old API
       await sessionCreationApi.deleteParticipant(state.formData.sessionUuid, participantId);
+        log.info('Participant removed via fallback API');
+      }
+      
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
+      log.error('Error deleting participant', parseApiError(error));
       setState(prev => ({
         ...prev,
         error: error.response?.data?.message || 'Erreur lors de la suppression du participant'
@@ -951,38 +1167,40 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getAttendanceReport(state.formData.sessionUuid);
       return response.data;
     } catch (error: any) {
-      console.error('Error loading attendance report:', error);
+      log.error('Error loading attendance report', error);
       return null;
     }
   }, [state.formData.sessionUuid]);
 
   // Chapters - Use COURSE creation-data API to get full structure with content, evaluations, support_files
   const getChapters = useCallback(async (): Promise<void> => {
-    console.log('[SessionCreationContext] getChapters called, courseUuid:', state.formData.courseUuid);
+    log.debug('getChapters called', { courseUuid: state.formData.courseUuid });
     if (!state.formData.courseUuid) {
-      console.warn('[SessionCreationContext] No courseUuid, cannot load chapters');
+      log.warn('No courseUuid, cannot load chapters');
       return;
     }
 
     try {
       // Use creation-data API to get chapters with nested content, evaluations, support_files
       const response: any = await courseCreation.getCourseCreationData(state.formData.courseUuid);
-      console.log('[SessionCreationContext] Course creation data response for chapters:', response);
+      log.debug('Course creation data response for chapters', { response });
       
       if (response.success && response.data) {
         // Extract chapters from step2_structure (includes content, evaluations, support_files)
         const chaptersData = response.data.step2_structure?.chapters || [];
-        console.log('[SessionCreationContext] Chapters with content loaded:', chaptersData.length);
-        console.log('[SessionCreationContext] First chapter sample:', chaptersData[0] ? {
-          title: chaptersData[0].title,
-          contentCount: chaptersData[0].content?.length || 0,
-          evaluationsCount: chaptersData[0].evaluations?.length || 0,
-          supportFilesCount: chaptersData[0].support_files?.length || 0
-        } : 'No chapters');
+        log.info('Chapters with content loaded', { 
+          count: chaptersData.length,
+          firstChapter: chaptersData[0] ? {
+            title: chaptersData[0].title,
+            contentCount: chaptersData[0].content?.length || 0,
+            evaluationsCount: chaptersData[0].evaluations?.length || 0,
+            supportFilesCount: chaptersData[0].support_files?.length || 0
+          } : null
+        });
         setState(prev => ({ ...prev, chapters: chaptersData }));
       }
     } catch (error: any) {
-      console.error('[SessionCreationContext] Error loading chapters:', error);
+      log.error('Error loading chapters', error);
     }
   }, [state.formData.courseUuid]);
 
@@ -998,7 +1216,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getChapters(); // Refresh chapters
       return true;
     } catch (error: any) {
-      console.error('Error creating chapter:', error);
+      log.error('Error creating chapter', error);
       return false;
     }
   }, [state.formData.courseUuid, getChapters]);
@@ -1010,7 +1228,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getChapters(); // Refresh chapters
       return true;
     } catch (error: any) {
-      console.error('Error updating chapter:', error);
+      log.error('Error updating chapter', error);
       return false;
     }
   }, [state.formData.courseUuid, getChapters]);
@@ -1022,7 +1240,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getChapters(); // Refresh chapters
       return true;
     } catch (error: any) {
-      console.error('Error deleting chapter:', error);
+      log.error('Error deleting chapter', error);
       return false;
     }
   }, [state.formData.courseUuid, getChapters]);
@@ -1046,7 +1264,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return null;
     } catch (error: any) {
-      console.error('Error creating sub-chapter:', error);
+      log.error('Error creating sub-chapter', error);
       return null;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1070,7 +1288,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating sub-chapter:', error);
+      log.error('Error updating sub-chapter', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1089,7 +1307,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting sub-chapter:', error);
+      log.error('Error deleting sub-chapter', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1115,7 +1333,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return null;
     } catch (error: any) {
-      console.error('Error creating content:', error);
+      log.error('Error creating content', error);
       return null;
     }
   }, [state.formData.courseUuid]);
@@ -1141,7 +1359,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating content:', error);
+      log.error('Error updating content', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1161,7 +1379,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting content:', error);
+      log.error('Error deleting content', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1196,7 +1414,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return null;
     } catch (error: any) {
-      console.error('Error creating evaluation:', error);
+      log.error('Error creating evaluation', error);
       return null;
     }
   }, [state.formData.courseUuid]);
@@ -1205,11 +1423,11 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Signature matches CourseCreation: (files: File[], chapterId: string, subChapterId?: string)
   const uploadSupportFilesAdapter = useCallback(async (files: File[], chapterId: string, subChapterId?: string): Promise<boolean> => {
     if (!state.formData.courseUuid || !files || files.length === 0) {
-      console.error('uploadSupportFilesAdapter: Missing courseUuid or files');
+      log.error('uploadSupportFilesAdapter: Missing courseUuid or files');
       return false;
     }
     try {
-      console.log('📤 Uploading support files:', {
+      log.debug('Uploading support files', {
         courseUuid: state.formData.courseUuid,
         chapterId,
         subChapterId,
@@ -1224,18 +1442,18 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         subChapterId
       );
       
-      console.log('📥 Support files upload response:', response);
+      log.debug('Support files upload response', { response });
       
       if (response.success) {
         await loadChapters(); // Reload to ensure data consistency
         return true;
       } else {
-        console.error('Upload failed:', response.message || 'Unknown error');
+        log.error('Upload failed', { message: response.message || 'Unknown error' });
         return false;
       }
     } catch (error: any) {
-      console.error('❌ Error uploading support files:', error);
-      console.error('Error details:', error.response?.data || error.message);
+      log.error('Error uploading support files', error);
+      log.error('Error details', { response: error.response?.data, message: error.message });
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1254,7 +1472,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting support file:', error);
+      log.error('Error deleting support file', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1285,7 +1503,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return null;
     } catch (error: any) {
-      console.error('Error updating evaluation:', error);
+      log.error('Error updating evaluation', error);
       return null;
     }
   }, [state.formData.courseUuid]);
@@ -1304,7 +1522,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting evaluation:', error);
+      log.error('Error deleting evaluation', error);
       return false;
     }
   }, [state.formData.courseUuid, loadChapters]);
@@ -1317,7 +1535,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await courseCreation.getCourseDocuments(state.formData.courseUuid);
       setState(prev => ({ ...prev, documents: response.data?.documents || response.data || [] }));
     } catch (error: any) {
-      console.error('Error loading documents:', error);
+      log.error('Error loading documents', error);
     }
   }, [state.formData.courseUuid]);
 
@@ -1333,7 +1551,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getDocuments(); // Refresh documents
       return true;
     } catch (error: any) {
-      console.error('Error uploading document:', error);
+      log.error('Error uploading document', error);
       return false;
     }
   }, [state.formData.courseUuid, getDocuments]);
@@ -1345,7 +1563,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getDocuments(); // Refresh documents
       return true;
     } catch (error: any) {
-      console.error('Error deleting document:', error);
+      log.error('Error deleting document', error);
       return false;
     }
   }, [state.formData.courseUuid, getDocuments]);
@@ -1359,17 +1577,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         setState(prev => ({ ...prev, questionnaires: response.data }));
       }
     } catch (error: any) {
-      console.error('Error loading questionnaires:', error);
+      log.error('Error loading questionnaires', error);
     }
   }, [state.formData.courseUuid]);
 
   const loadCertificationModels = useCallback(async (): Promise<void> => {
     try {
       // Implement certification models loading API call
-      console.log('Loading certification models');
+      log.debug('Loading certification models');
       setState(prev => ({ ...prev, certificationModels: [] }));
     } catch (error: any) {
-      console.error('Error loading certification models:', error);
+      log.error('Error loading certification models', error);
     }
   }, []);
 
@@ -1383,7 +1601,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error creating questionnaire:', error);
+      log.error('Error creating questionnaire', error);
       return false;
     }
   }, [state.formData.courseUuid, loadQuestionnaires]);
@@ -1398,23 +1616,23 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating questionnaire:', error);
+      log.error('Error updating questionnaire', error);
       return false;
     }
   }, [state.formData.courseUuid, loadQuestionnaires]);
 
   const createQuestion = useCallback(async (questionnaireUuid: string, data: any): Promise<boolean> => {
-    console.log('Creating question:', questionnaireUuid, data);
+    log.debug('Creating question', { questionnaireUuid, data });
     return true;
   }, []);
 
   const updateQuestion = useCallback(async (questionnaireUuid: string, questionUuid: string, data: any): Promise<boolean> => {
-    console.log('Updating question:', questionnaireUuid, questionUuid, data);
+    log.debug('Updating question', { questionnaireUuid, questionUuid, data });
     return true;
   }, []);
 
   const deleteQuestion = useCallback(async (questionnaireUuid: string, questionUuid: string): Promise<boolean> => {
-    console.log('Deleting question:', questionnaireUuid, questionUuid);
+    log.debug('Deleting question', { questionnaireUuid, questionUuid });
     return true;
   }, []);
 
@@ -1428,7 +1646,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting questionnaire:', error);
+      log.error('Error deleting questionnaire', error);
       return false;
     }
   }, [state.formData.courseUuid, loadQuestionnaires]);
@@ -1441,7 +1659,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await courseCreation.getModules(state.formData.courseUuid);
       setState(prev => ({ ...prev, modules: response.data || [] }));
     } catch (error: any) {
-      console.error('Error loading modules:', error);
+      log.error('Error loading modules', error);
       setState(prev => ({ ...prev, modules: [] }));
     }
   }, [state.formData.courseUuid]);
@@ -1462,7 +1680,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error creating module:', error);
+      log.error('Error creating module', error);
       return false;
     }
   }, [state.formData.courseUuid, getModules]);
@@ -1478,7 +1696,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating module:', error);
+      log.error('Error updating module', error);
       return false;
     }
   }, [state.formData.courseUuid, getModules]);
@@ -1494,13 +1712,13 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting module:', error);
+      log.error('Error deleting module', error);
       return false;
     }
   }, [state.formData.courseUuid, getModules]);
 
   const reorderModules = useCallback(async (modules: any[]): Promise<boolean> => {
-    console.log('Reordering modules:', modules);
+    log.debug('Reordering modules', { modules });
     return true;
   }, []);
 
@@ -1511,7 +1729,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await courseCreation.getObjectives(state.formData.courseUuid);
       setState(prev => ({ ...prev, objectives: response.data || [] }));
     } catch (error: any) {
-      console.error('Error loading objectives:', error);
+      log.error('Error loading objectives', error);
       setState(prev => ({ ...prev, objectives: [] }));
     }
   }, [state.formData.courseUuid]);
@@ -1538,7 +1756,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error creating objective:', error);
+      log.error('Error creating objective', error);
       return false;
     }
   }, [state.formData.courseUuid, getObjectives]);
@@ -1553,7 +1771,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating objective:', error);
+      log.error('Error updating objective', error);
       return false;
     }
   }, [state.formData.courseUuid, getObjectives]);
@@ -1568,24 +1786,24 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting objective:', error);
+      log.error('Error deleting objective', error);
       return false;
     }
   }, [state.formData.courseUuid, getObjectives]);
 
   // Additional Fees (placeholder implementations)
   const createAdditionalFee = useCallback(async (data: any): Promise<boolean> => {
-    console.log('Creating additional fee:', data);
+    log.debug('Creating additional fee', { data });
     return true;
   }, []);
 
   const updateAdditionalFee = useCallback(async (feeUuid: string, data: any): Promise<boolean> => {
-    console.log('Updating additional fee:', feeUuid, data);
+    log.debug('Updating additional fee', { feeUuid, data });
     return true;
   }, []);
 
   const deleteAdditionalFee = useCallback(async (feeUuid: string): Promise<boolean> => {
-    console.log('Deleting additional fee:', feeUuid);
+    log.debug('Deleting additional fee', { feeUuid });
     return true;
   }, []);
 
@@ -1595,7 +1813,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.getAllTrainers(params);
       setState(prev => ({ ...prev, trainers: response.data }));
     } catch (error: any) {
-      console.error('Error loading trainers:', error);
+      log.error('Error loading trainers', error);
     }
   }, []);
 
@@ -1604,7 +1822,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const response: any = await sessionCreationApi.searchTrainers(query);
       setState(prev => ({ ...prev, trainers: response.data }));
     } catch (error: any) {
-      console.error('Error searching trainers:', error);
+      log.error('Error searching trainers', error);
     }
   }, []);
 
@@ -1621,7 +1839,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         setState(prev => ({ ...prev, courseTrainers: response.data }));
       }
     } catch (error: any) {
-      console.error('Error loading course trainers:', error);
+      log.error('Error loading course trainers', error);
     }
   }, [state.formData.courseUuid]);
 
@@ -1635,7 +1853,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error assigning trainer:', error);
+      log.error('Error assigning trainer', error);
       return false;
     }
   }, [state.formData.courseUuid, loadCourseTrainers]);
@@ -1650,7 +1868,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating trainer permissions:', error);
+      log.error('Error updating trainer permissions', error);
       return false;
     }
   }, [state.formData.courseUuid, loadCourseTrainers]);
@@ -1665,7 +1883,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error removing trainer:', error);
+      log.error('Error removing trainer', error);
       return false;
     }
   }, [state.formData.courseUuid, loadCourseTrainers]);
@@ -1676,7 +1894,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getTrainers(); // Refresh trainers
       return true;
     } catch (error: any) {
-      console.error('Error creating trainer:', error);
+      log.error('Error creating trainer', error);
       return false;
     }
   }, [getTrainers]);
@@ -1687,7 +1905,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       await getTrainers(); // Refresh trainers
       return true;
     } catch (error: any) {
-      console.error('Error updating trainer:', error);
+      log.error('Error updating trainer', error);
       return false;
     }
   }, [getTrainers]);
@@ -1701,7 +1919,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         setState(prev => ({ ...prev, workflow: response.data }));
       }
     } catch (error: any) {
-      console.error('Error loading workflows:', error);
+      log.error('Error loading workflows', error);
     }
   }, [state.formData.sessionUuid]);
 
@@ -1717,7 +1935,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         }));
       }
     } catch (error: any) {
-      console.error('Error loading workflow actions:', error);
+      log.error('Error loading workflow actions', error);
     }
   }, [state.formData.sessionUuid]);
 
@@ -1732,7 +1950,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error creating workflow:', error);
+      log.error('Error creating workflow', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1749,7 +1967,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating workflow:', error);
+      log.error('Error updating workflow', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1765,7 +1983,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting workflow:', error);
+      log.error('Error deleting workflow', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1780,7 +1998,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error creating workflow action:', error);
+      log.error('Error creating workflow action', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1795,7 +2013,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error updating workflow action:', error);
+      log.error('Error updating workflow action', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1810,14 +2028,14 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error deleting workflow action:', error);
+      log.error('Error deleting workflow action', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
 
   const reorderWorkflowActions = useCallback(async (workflowUuid: string, actionUuids: string[]): Promise<boolean> => {
     // TODO: Implement reorder endpoint if available
-    console.log('Reordering workflow actions:', workflowUuid, actionUuids);
+    log.debug('Reordering workflow actions', { workflowUuid, actionUuids });
     return true;
   }, []);
 
@@ -1831,7 +2049,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error: any) {
-      console.error('Error toggling workflow action:', error);
+      log.error('Error toggling workflow action', error);
       return false;
     }
   }, [state.formData.sessionUuid, loadWorkflows]);
@@ -1843,13 +2061,20 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         setState(prev => ({ ...prev, emailTemplates: response.data }));
       }
     } catch (error: any) {
-      console.error('Error loading email templates:', error);
+      log.error('Error loading email templates', error);
     }
   }, []);
 
   // Auto-save
+  /**
+   * Auto-save: Sauvegarde automatique avec délai
+   * Sauvegarde le cours ET la session si les UUIDs existent
+   */
   const autoSave = useCallback(async (): Promise<void> => {
-    if (!state.formData.sessionUuid || state.isSaving) return;
+    if (state.isSaving) return;
+    
+    // Au moins un UUID doit exister
+    if (!state.formData.sessionUuid && !state.formData.courseUuid) return;
 
     // Clear existing timeout
     if (autoSaveTimeoutRef.current) {
@@ -1858,10 +2083,33 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     // Set new timeout
     autoSaveTimeoutRef.current = setTimeout(async () => {
+      log.debug('Auto-saving...');
+      
+      // Si on a les deux UUIDs, utiliser saveAll
+      if (state.formData.sessionUuid && state.formData.courseUuid) {
+        const result = await saveAll();
+        log.debug('Auto-save result', { result });
+      } else if (state.formData.sessionUuid) {
+        // Sinon juste la session
       await updateSession();
+      } else if (state.formData.courseUuid) {
+        // Ou juste le cours
+        try {
+          await courseCreation.updateCourse(state.formData.courseUuid, {
+            title: state.formData.title,
+            subtitle: state.formData.subtitle,
+            description: state.formData.description
+          });
+        } catch (error) {
+          log.error('Auto-save course update error', error);
+        }
+      }
     }, 2000);
-  }, [state.formData.sessionUuid, state.isSaving, updateSession]);
+  }, [state.formData.sessionUuid, state.formData.courseUuid, state.isSaving, updateSession]);
 
+  /**
+   * Save Draft: Crée une session si elle n'existe pas et sauvegarde en brouillon
+   */
   const saveDraft = useCallback(async (): Promise<void> => {
     if (!state.formData.sessionUuid) {
       const sessionUuid = await createSession();
@@ -1869,59 +2117,33 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
 
     setState(prev => ({ ...prev, formData: { ...prev.formData, isDraft: true } }));
+    
+    // Utiliser saveAll si courseUuid existe pour sauvegarder les deux
+    if (state.formData.courseUuid) {
+      await saveAll();
+    } else {
     await updateSession();
-  }, [state.formData.sessionUuid, createSession, updateSession]);
+    }
+  }, [state.formData.sessionUuid, state.formData.courseUuid, createSession, updateSession]);
 
   // Media upload - same as courses
   const uploadIntroVideo = useCallback(async (file: File): Promise<boolean> => {
-    // If sessionUuid is not available, create a new session first
+    // If sessionUuid is not available, create a new session first using NEW API
     if (!state.formData.sessionUuid) {
+      // ⭐ NEW API requires course_uuid
+      if (!state.formData.courseUuid) {
+        log.error('Cannot create session without course_uuid - please select a course first');
+        return false;
+      }
+      
       try {
-        // Map only fields accepted by CreateSessionPayload
-        // Get default dates (today + 30 days for end date if not provided)
-        const today = new Date();
-        const defaultEndDate = new Date(today);
-        defaultEndDate.setDate(today.getDate() + 30);
-        const formatDate = (date: Date) => date.toISOString().split('T')[0];
-        
-        const payload: any = {
-          title: state.formData.title || 'Nouvelle session',
-          subtitle: state.formData.subtitle || '',
-          description: state.formData.description || 'Brouillon de la session',
-          formation_action: state.formData.formation_action || 'Actions de formation',
-          category_id: state.formData.category_id || null,
-          session_language_id: state.formData.session_language_id || null,
-          difficulty_level_id: state.formData.difficulty_level_id || null,
-          price: state.formData.price || 0,
-          price_ht: state.formData.price_ht || 0,
-          vat_percentage: state.formData.vat_percentage || 20,
-          currency: state.formData.currency || 'EUR',
-          duration: state.formData.duration?.toString() || '0',
-          duration_days: state.formData.duration_days || 0,
-          session_start_date: state.formData.session_start_date || formatDate(today),
-          session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-          session_start_time: state.formData.session_start_time || '09:00',
-          session_end_time: state.formData.session_end_time || '17:00',
-          max_participants: state.formData.max_participants || 0,
-          target_audience: state.formData.target_audience || '',
-          prerequisites: state.formData.prerequisites || '',
-          key_points: state.formData.key_points || [],
-          trainer_ids: state.formData.trainer_ids || [],
-          isPublished: false
-        };
-        
-        const result = await sessionCreationApi.createSession(payload);
-        
-        if (result.success && result.data?.uuid) {
-          setState(prev => ({
-            ...prev,
-            formData: { ...prev.formData, sessionUuid: result.data.uuid }
-          }));
-        } else {
+        const sessionUuid = await createSession();
+        if (!sessionUuid) {
+          log.error('Failed to create session for video upload');
           return false;
         }
       } catch (error) {
-        console.error('Error creating session for video upload:', error);
+        log.error('Error creating session for video upload', error);
         return false;
       }
     }
@@ -1941,60 +2163,28 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error) {
-      console.error('Error uploading intro video:', error);
+      log.error('Error uploading intro video', error);
       return false;
     }
-  }, [state.formData]);
+  }, [state.formData, createSession]);
 
   const uploadIntroImage = useCallback(async (file: File): Promise<boolean> => {
-    // If sessionUuid is not available, create a new session first
+    // If sessionUuid is not available, create a new session first using NEW API
     if (!state.formData.sessionUuid) {
+      // ⭐ NEW API requires course_uuid
+      if (!state.formData.courseUuid) {
+        log.error('Cannot create session without course_uuid - please select a course first');
+        return false;
+      }
+      
       try {
-        // Map only fields accepted by CreateSessionPayload
-        // Get default dates (today + 30 days for end date if not provided)
-        const today = new Date();
-        const defaultEndDate = new Date(today);
-        defaultEndDate.setDate(today.getDate() + 30);
-        const formatDate = (date: Date) => date.toISOString().split('T')[0];
-        
-        const payload: any = {
-          title: state.formData.title || 'Nouvelle session',
-          subtitle: state.formData.subtitle || '',
-          description: state.formData.description || 'Brouillon de la session',
-          formation_action: state.formData.formation_action || 'Actions de formation',
-          category_id: state.formData.category_id || null,
-          session_language_id: state.formData.session_language_id || null,
-          difficulty_level_id: state.formData.difficulty_level_id || null,
-          price: state.formData.price || 0,
-          price_ht: state.formData.price_ht || 0,
-          vat_percentage: state.formData.vat_percentage || 20,
-          currency: state.formData.currency || 'EUR',
-          duration: state.formData.duration?.toString() || '0',
-          duration_days: state.formData.duration_days || 0,
-          session_start_date: state.formData.session_start_date || formatDate(today),
-          session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-          session_start_time: state.formData.session_start_time || '09:00',
-          session_end_time: state.formData.session_end_time || '17:00',
-          max_participants: state.formData.max_participants || 0,
-          target_audience: state.formData.target_audience || '',
-          prerequisites: state.formData.prerequisites || '',
-          key_points: state.formData.key_points || [],
-          trainer_ids: state.formData.trainer_ids || [],
-          isPublished: false
-        };
-        
-        const result = await sessionCreationApi.createSession(payload);
-        
-        if (result.success && result.data?.uuid) {
-          setState(prev => ({
-            ...prev,
-            formData: { ...prev.formData, sessionUuid: result.data.uuid }
-          }));
-        } else {
+        const sessionUuid = await createSession();
+        if (!sessionUuid) {
+          log.error('Failed to create session for image upload');
           return false;
         }
       } catch (error) {
-        console.error('Error creating session for image upload:', error);
+        log.error('Error creating session for image upload', error);
         return false;
       }
     }
@@ -2014,10 +2204,10 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       }
       return false;
     } catch (error) {
-      console.error('Error uploading intro image:', error);
+      log.error('Error uploading intro image', error);
       return false;
     }
-  }, [state.formData]);
+  }, [state.formData, createSession]);
 
   // Initialize session - similar to initializeCourse (must be after all function definitions)
   const isInitializingRef = useRef(false);
@@ -2030,49 +2220,19 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       let uuid = sessionUuid || state.formData.sessionUuid;
       
-      // Si pas de UUID, créer une session en brouillon
+      // Si pas de UUID, créer une session en brouillon avec la NOUVELLE API
       if (!uuid) {
-        // Map only fields accepted by CreateSessionPayload
-        // Get default dates (today + 30 days for end date if not provided)
-        const today = new Date();
-        const defaultEndDate = new Date(today);
-        defaultEndDate.setDate(today.getDate() + 30);
-        const formatDate = (date: Date) => date.toISOString().split('T')[0];
+        // ⭐ NEW API requires course_uuid - cannot create session without a course
+        if (!state.formData.courseUuid) {
+          log.error('Cannot initialize session without course_uuid - please select a course first');
+          isInitializingRef.current = false;
+          return;
+        }
         
-        const payload: any = {
-          title: state.formData.title || 'Nouvelle session',
-          subtitle: state.formData.subtitle || '',
-          description: state.formData.description || 'Brouillon de la session',
-          formation_action: state.formData.formation_action || 'Actions de formation',
-          category_id: state.formData.category_id || null,
-          session_language_id: state.formData.session_language_id || null,
-          difficulty_level_id: state.formData.difficulty_level_id || null,
-          price: state.formData.price || 0,
-          price_ht: state.formData.price_ht || 0,
-          vat_percentage: state.formData.vat_percentage || 20,
-          currency: state.formData.currency || 'EUR',
-          duration: state.formData.duration?.toString() || '0',
-          duration_days: state.formData.duration_days || 0,
-          session_start_date: state.formData.session_start_date || formatDate(today),
-          session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-          session_start_time: state.formData.session_start_time || '09:00',
-          session_end_time: state.formData.session_end_time || '17:00',
-          max_participants: state.formData.max_participants || 0,
-          target_audience: state.formData.target_audience || '',
-          prerequisites: state.formData.prerequisites || '',
-          key_points: state.formData.key_points || [],
-          trainer_ids: state.formData.trainer_ids || [],
-          isPublished: false
-        };
-        
-        const result = await sessionCreationApi.createSession(payload);
-        
-        if (result.success && result.data?.uuid) {
-          uuid = result.data.uuid;
-          setState(prev => ({
-            ...prev,
-            formData: { ...prev.formData, sessionUuid: uuid }
-          }));
+        // Use the createSession function which uses the NEW API
+        const createdUuid = await createSession();
+        if (createdUuid) {
+          uuid = createdUuid;
         } else {
           isInitializingRef.current = false;
           return;
@@ -2101,7 +2261,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
             }));
           }
         } catch (error) {
-          console.error('Error loading existing session data:', error);
+          log.error('Error loading existing session data', error);
         }
       }
 
@@ -2110,17 +2270,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       // Si c'est une nouvelle session créée à partir d'un cours, les données ont déjà été pré-remplies par loadFromCourse
       if (sessionUuid) {
         // Editing existing session - load all session data
-        await Promise.all([
-          getInstances(),
-          getParticipants(),
-          getChapters(),
-          getDocuments(),
-          getTrainers(),
-          loadQuestionnaires(),
-          loadWorkflows(),
-          getModules(),
-          getObjectives()
-        ]);
+      await Promise.all([
+        getInstances(),
+        getParticipants(),
+        getChapters(),
+        getDocuments(),
+        getTrainers(),
+        loadQuestionnaires(),
+        loadWorkflows(),
+        getModules(),
+        getObjectives()
+      ]);
       } else {
         // New session - only load instances, participants, trainers, workflows
         // DON'T load chapters, documents, questionnaires, modules, objectives
@@ -2131,17 +2291,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           getTrainers(),
           loadWorkflows()
         ]);
-        console.log('[SessionCreation] New session - keeping pre-filled course data for modules, objectives, chapters, documents, questionnaires');
+        log.info('New session - keeping pre-filled course data');
       }
       
       hasInitializedRef.current = true;
     } catch (error) {
-      console.error('Error initializing session:', error);
+      log.error('Error initializing session', error);
     } finally {
       isInitializingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.formData.sessionUuid]); // Only depend on sessionUuid, not on the functions
+  }, [state.formData.sessionUuid, state.formData.courseUuid, createSession]); // Added createSession and courseUuid
 
   // Direct setters for pre-filling data from course
   const setModules = useCallback((modules: any[]) => {
@@ -2167,13 +2327,13 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   // Load all data from a course to pre-fill session using single API call
   const loadFromCourse = useCallback(async (courseUuid: string): Promise<boolean> => {
     try {
-      console.log('[SessionCreation] Loading ALL data from course using creation-data API:', courseUuid);
+      log.info('Loading ALL data from course using creation-data API', { courseUuid });
       
       // Use single API call to get ALL course data
       const response = await courseCreation.getCourseCreationData(courseUuid);
       
       if (!response.success || !response.data) {
-        console.error('[SessionCreation] Failed to load course creation data');
+        log.error('Failed to load course creation data');
         return false;
       }
 
@@ -2188,7 +2348,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const trainersData = data.step5_trainers?.trainers || [];
       const workflowData = data.step6_workflow || null;
 
-      console.log('[SessionCreation] Course creation data loaded:', {
+      log.info('Course creation data loaded', {
         course: data.course?.title,
         modules: modulesData.length,
         objectives: objectivesData.length,
@@ -2213,7 +2373,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       return true;
     } catch (error) {
-      console.error('[SessionCreation] Error loading course creation data:', error);
+      log.error('Error loading course creation data', error);
       return false;
     }
   }, []);
@@ -2238,42 +2398,71 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     setState(prev => ({ ...prev, isSaving: true, error: null }));
 
     try {
-      // 1. SAVE COURSE CHANGES if courseUuid exists
+      // ═══════════════════════════════════════════════════════════════════════
+      // 1. SAVE COURSE CHANGES (Template pédagogique)
+      // API: PUT /api/organization/courses/{courseUuid}
+      // ═══════════════════════════════════════════════════════════════════════
       if (state.formData.courseUuid) {
         try {
-          console.log('💾 [saveAll] Saving course changes to:', state.formData.courseUuid);
+          log.info('Step 1: Saving COURSE template', { courseUuid: state.formData.courseUuid });
           
-          // Prepare course update data from formData
+          // Données du template de cours (contenu pédagogique)
           const courseUpdateData = {
+            // Informations de base
             title: state.formData.title,
             subtitle: state.formData.subtitle,
             description: state.formData.description,
+            
+            // Tarification
             price_ht: state.formData.price_ht,
+            vat_percentage: state.formData.vat_percentage,
+            
+            // Durée théorique
             duration: state.formData.duration,
+            duration_days: state.formData.duration_days,
+            
+            // Contenu pédagogique
             target_audience: state.formData.target_audience,
             prerequisites: state.formData.prerequisites,
             methods: state.formData.methods,
             specifics: state.formData.specifics,
+            
+            // Modalités
             evaluation_modalities: state.formData.evaluation_modalities,
             access_modalities: state.formData.access_modalities,
             accessibility: state.formData.accessibility,
+            
+            // Contact et mise à jour
             contacts: state.formData.contacts,
-            update_date: state.formData.update_date
+            update_date: state.formData.update_date,
+            
+            // Catégorie et langue
+            category_id: state.formData.category_id,
+            subcategory_id: state.formData.subcategory_id,
+            course_language_id: state.formData.session_language_id,
+            difficulty_level_id: state.formData.difficulty_level_id,
+            
+            // Formation practices
+            formation_practice_ids: state.formData.formation_practice_ids
           };
 
           await courseCreation.updateCourse(state.formData.courseUuid, courseUpdateData);
           result.courseSuccess = true;
-          console.log('✅ [saveAll] Course updated successfully');
+          log.info('Course template updated successfully');
         } catch (courseError: any) {
-          console.error('❌ [saveAll] Error saving course:', courseError);
+          log.error('Error saving course', courseError);
           result.message = `Erreur lors de la sauvegarde du cours: ${courseError.message || 'Erreur inconnue'}`;
         }
       }
 
-      // 2. SAVE SESSION DATA (séances, participants, dates)
+      // ═══════════════════════════════════════════════════════════════════════
+      // 2. SAVE SESSION DATA (Instance planifiée)
+      // API: PUT /api/admin/organization/course-sessions/{sessionUuid}
+      // Selon docs/COURSE_SESSIONS_API.md
+      // ═══════════════════════════════════════════════════════════════════════
       if (state.formData.sessionUuid) {
         try {
-          console.log('💾 [saveAll] Saving session data to:', state.formData.sessionUuid);
+          log.info('Step 2: Saving SESSION instance', { sessionUuid: state.formData.sessionUuid });
           
           // Get default dates
           const today = new Date();
@@ -2281,30 +2470,83 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           defaultEndDate.setDate(today.getDate() + 30);
           const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-          // Session-specific data (not course content)
+          // Données spécifiques à la SESSION (pas le contenu du cours)
+          // Selon COURSE_SESSIONS_API.md
           const sessionUpdatePayload = {
-            // Session timing
-            session_start_date: state.formData.session_start_date || formatDate(today),
-            session_end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-            session_start_time: state.formData.session_start_time || '09:00',
-            session_end_time: state.formData.session_end_time || '17:00',
-            max_participants: state.formData.max_participants || 0,
-            // Link to course
+            // Lien vers le cours template
             course_uuid: state.formData.courseUuid,
-            // Basic info for session listing
-            title: state.formData.title,
-            status: state.formData.isPublished ? 1 : 0
+            
+            // Titre personnalisé (optionnel, null = utilise le titre du cours)
+            title: null, // La session hérite du titre du cours
+            
+            // Description spécifique à cette session (optionnel)
+            description: null,
+            
+            // Type de session: 'intra', 'inter', 'individual'
+            session_type: 'inter',
+            
+            // Mode de délivrance: 'presentiel', 'distanciel', 'hybrid', 'e-learning'
+            delivery_mode: 'presentiel',
+            
+            // Dates de la session
+            start_date: state.formData.session_start_date || formatDate(today),
+            end_date: state.formData.session_end_date || formatDate(defaultEndDate),
+            
+            // Horaires par défaut
+            default_start_time: state.formData.session_start_time || '09:00',
+            default_end_time: state.formData.session_end_time || '17:00',
+            
+            // Durée calculée
+            total_hours: state.formData.duration || null,
+            total_days: state.formData.duration_days || null,
+            
+            // Participants
+            min_participants: 1,
+            max_participants: state.formData.max_participants || 20,
+            
+            // Tarification spécifique (null = utilise le prix du cours)
+            price_ht: null, // Hérite du cours
+            vat_rate: state.formData.vat_percentage || 20,
+            pricing_type: 'per_person',
+            
+            // Statut
+            status: state.formData.isPublished ? 'open' : 'draft',
+            is_published: state.formData.isPublished || false,
+            is_registration_open: state.formData.isPublished || false,
+            
+            // Formateurs assignés
+            trainer_uuids: state.formData.trainer_ids || []
           };
 
-          await sessionCreationApi.updateSession(state.formData.sessionUuid, sessionUpdatePayload);
+          // Utiliser le nouveau service courseSessionService
+          await courseSessionService.updateSession(state.formData.sessionUuid, sessionUpdatePayload as any);
           result.sessionSuccess = true;
-          console.log('✅ [saveAll] Session updated successfully');
+          log.info('Session instance updated successfully');
         } catch (sessionError: any) {
-          console.error('❌ [saveAll] Error saving session:', sessionError);
-          result.message += `${result.message ? ' | ' : ''}Erreur lors de la sauvegarde de la session: ${sessionError.message || 'Erreur inconnue'}`;
+          log.error('Error saving session', sessionError);
+          // Fallback to old API if new one fails
+          try {
+            log.warn('Trying fallback to old session API');
+            const fallbackPayload = {
+              session_start_date: state.formData.session_start_date,
+              session_end_date: state.formData.session_end_date,
+              session_start_time: state.formData.session_start_time || '09:00',
+              session_end_time: state.formData.session_end_time || '17:00',
+              max_participants: state.formData.max_participants || 0,
+              course_uuid: state.formData.courseUuid,
+              title: state.formData.title,
+              status: state.formData.isPublished ? 1 : 0
+            };
+            await sessionCreationApi.updateSession(state.formData.sessionUuid, fallbackPayload);
+            result.sessionSuccess = true;
+            log.info('Session updated via fallback API');
+          } catch (fallbackError: any) {
+            log.error('Fallback also failed', fallbackError);
+            result.message += `${result.message ? ' | ' : ''}Erreur lors de la sauvegarde de la session: ${sessionError.message || 'Erreur inconnue'}`;
+          }
         }
       } else {
-        console.warn('⚠️ [saveAll] No sessionUuid, cannot save session data');
+        log.warn('No sessionUuid, cannot save session data');
         result.message += `${result.message ? ' | ' : ''}Aucune session à sauvegarder`;
       }
 
@@ -2312,13 +2554,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       result.success = result.courseSuccess && result.sessionSuccess;
       if (result.success) {
         result.message = 'Cours et session sauvegardés avec succès';
+      } else if (result.courseSuccess && !result.sessionSuccess) {
+        result.message = 'Cours sauvegardé, mais erreur pour la session';
+      } else if (!result.courseSuccess && result.sessionSuccess) {
+        result.message = 'Session sauvegardée, mais erreur pour le cours';
       }
 
       setState(prev => ({ ...prev, isSaving: false }));
       return result;
 
     } catch (error: any) {
-      console.error('❌ [saveAll] Unexpected error:', error);
+      log.error('Unexpected error in saveAll', error);
       setState(prev => ({ 
         ...prev, 
         isSaving: false, 

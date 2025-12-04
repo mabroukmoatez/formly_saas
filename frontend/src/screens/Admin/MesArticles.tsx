@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { Checkbox } from '../../components/ui/checkbox';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -8,7 +9,7 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { commercialService } from '../../services/commercial';
 import { Article } from '../../services/commercial.types';
 import { useToast } from '../../components/ui/toast';
-import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, ChevronDown, ChevronUp, ArrowUpDown, FileSpreadsheet, Filter } from 'lucide-react';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import {
@@ -45,23 +46,28 @@ export const MesArticles = (): JSX.Element => {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [sortField, setSortField] = useState<SortField>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterMinTTC, setFilterMinTTC] = useState<string>('');
+  const [filterMaxTTC, setFilterMaxTTC] = useState<string>('');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
-        setShowSortDropdown(false);
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilterDropdown(false);
       }
     };
-    if (showSortDropdown) {
+    if (showFilterDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showSortDropdown]);
+  }, [showFilterDropdown]);
 
   useEffect(() => {
     fetchArticles();
@@ -127,7 +133,37 @@ export const MesArticles = (): JSX.Element => {
   };
 
   const sortedArticles = useMemo(() => {
-    const sorted = [...articles];
+    let filtered = [...articles];
+
+    if (filterCategory) {
+      filtered = filtered.filter(article => article.category === filterCategory);
+    }
+
+    if (filterMinTTC || filterMaxTTC) {
+      filtered = filtered.filter(article => {
+        const priceHT = normalizeValue(article.price_ht || article.unit_price);
+        const tva = normalizeValue(article.tva || article.tax_rate);
+        const priceTTC = priceHT * (1 + tva / 100);
+
+        const min = filterMinTTC ? parseFloat(filterMinTTC) : -Infinity;
+        const max = filterMaxTTC ? parseFloat(filterMaxTTC) : Infinity;
+
+        return priceTTC >= min && priceTTC <= max;
+      });
+    }
+
+    if (filterStartDate || filterEndDate) {
+      filtered = filtered.filter(article => {
+        const articleDate = new Date(article.updated_at);
+        const startDate = filterStartDate ? new Date(filterStartDate) : new Date(0);
+        const endDate = filterEndDate ? new Date(filterEndDate) : new Date();
+        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+
+        return articleDate >= startDate && articleDate <= endDate;
+      });
+    }
+
+    const sorted = [...filtered];
     sorted.sort((a, b) => {
       let aValue: any;
       let bValue: any;
@@ -182,7 +218,7 @@ export const MesArticles = (): JSX.Element => {
       return sortDirection === 'asc' ? comparison : -comparison;
     });
     return sorted;
-  }, [articles, sortField, sortDirection]);
+  }, [articles, sortField, sortDirection, filterCategory, filterMinTTC, filterMaxTTC, filterStartDate, filterEndDate]);
 
   const confirmDeleteArticle = async () => {
     if (!articleToDelete) return;
@@ -194,17 +230,17 @@ export const MesArticles = (): JSX.Element => {
           commercialService.deleteArticle(id)
         );
         await Promise.all(deletePromises);
-        success(`${selectedArticles.size} article(s) supprimé(s) avec succès`);
+        success(t('dashboard.commercial.mes_articles.delete_success_bulk').replace('{count}', String(selectedArticles.size)));
         setSelectedArticles(new Set());
       } else {
         await commercialService.deleteArticle(articleToDelete);
-        success('Article supprimé avec succès');
+        success(t('dashboard.commercial.mes_articles.delete_success_single'));
       }
       fetchArticles();
       setShowDeleteModal(false);
       setArticleToDelete(null);
     } catch (err: any) {
-      showError('Erreur', err.message || 'Impossible de supprimer l\'article');
+      showError(t('common.error'), err.message || t('dashboard.commercial.mes_articles.delete_error'));
     } finally {
       setDeleting(false);
     }
@@ -240,7 +276,16 @@ export const MesArticles = (): JSX.Element => {
 
   const handleExportExcel = async () => {
     try {
-      const csvData = sortedArticles.map(article => {
+      const articlesToExport = selectedArticles.size > 0
+        ? sortedArticles.filter(article => selectedArticles.has(String(article.id)))
+        : sortedArticles;
+
+      if (articlesToExport.length === 0) {
+        showError(t('common.error'), t('dashboard.commercial.mes_articles.no_article_to_export'));
+        return;
+      }
+
+      const csvData = articlesToExport.map(article => {
         const priceHT = normalizeValue(article.price_ht || article.unit_price);
         const tva = normalizeValue(article.tva || article.tax_rate);
         const priceTTC = calculateTTC(priceHT, tva);
@@ -254,12 +299,12 @@ export const MesArticles = (): JSX.Element => {
           'Dernière MAJ': formatDate(article.updated_at),
         };
       });
-      
+
       const csv = [
         Object.keys(csvData[0]).join(','),
         ...csvData.map(row => Object.values(row).join(','))
       ].join('\n');
-      
+
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -267,9 +312,9 @@ export const MesArticles = (): JSX.Element => {
       a.download = `articles_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-      success('Articles exportés avec succès');
+      success(t('dashboard.commercial.mes_articles.articles_exported_success').replace('{count}', String(articlesToExport.length)));
     } catch (err) {
-      showError('Erreur', 'Impossible d\'exporter les articles');
+      showError(t('common.error'), t('dashboard.commercial.mes_articles.export_error'));
     }
   };
 
@@ -290,27 +335,14 @@ export const MesArticles = (): JSX.Element => {
   return (
     <div className="px-[27px] py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-4">
         <div className="flex items-center gap-4">
-          <div 
-            className="w-12 h-12 rounded-[12px] flex items-center justify-center"
-            style={{ backgroundColor: `${primaryColor}15` }}
-          >
-            <Package className="w-6 h-6" style={{ color: primaryColor }} />
-          </div>
-          <div>
             <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+              className={`font-bold text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
+            > 
               {t('dashboard.commercial.mes_articles.title')}
             </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              {t('dashboard.commercial.mes_articles.subtitle')}
-            </p>
-          </div>
         </div>
         
         <div className="flex items-center gap-3">
@@ -336,7 +368,7 @@ export const MesArticles = (): JSX.Element => {
             <div className={`flex items-center gap-3 px-4 py-2.5 ${isDark ? 'bg-gray-700' : 'bg-gray-100'} rounded-[10px]`} style={{ width: '400px' }}>
               <Search className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-[#698eac]'}`} />
               <Input
-                placeholder="Rechercher Un Article"
+                placeholder={t('dashboard.commercial.mes_articles.search_placeholder')}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -356,72 +388,135 @@ export const MesArticles = (): JSX.Element => {
               variant="outline"
               onClick={handleExportExcel}
               className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : ''}`}
-              style={{ 
+              style={{
                 borderColor: isDark ? undefined : primaryColor,
                 borderStyle: 'dashed',
               }}
             >
               <FileSpreadsheet className="w-4 h-4" style={{ color: primaryColor }} />
               <span className="font-medium text-sm" style={{ color: primaryColor }}>
-                Export Excel
+                {t('dashboard.commercial.mes_articles.export_excel')}
               </span>
             </Button>
 
-            {/* Delete Button */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (selectedArticles.size === 0) return;
-                setShowDeleteModal(true);
-                setArticleToDelete('bulk');
-              }}
-              disabled={selectedArticles.size === 0}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'} ${selectedArticles.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              style={{ 
-                borderColor: selectedArticles.size > 0 ? '#ef4444' : undefined,
-                borderStyle: 'dashed',
-              }}
-            >
-              <Trash2 className={`w-4 h-4 ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-              <span className={`font-medium text-sm ${selectedArticles.size > 0 ? 'text-red-500' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Supprimer {selectedArticles.size > 0 && `(${selectedArticles.size})`}
-              </span>
-            </Button>
-          </div>
-
-          {/* Right: Sort */}
-          <div className="flex items-center gap-3">
-            <div className="relative" ref={sortDropdownRef}>
+            {/* Delete Button - Only show when articles are selected */}
+            {selectedArticles.size > 0 && (
               <Button
                 variant="outline"
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                onClick={() => {
+                  setShowDeleteModal(true);
+                  setArticleToDelete('bulk');
+                }}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border-2 border-dashed ${isDark ? 'border-red-700 bg-red-900/20 hover:bg-red-900/30' : 'border-red-500 bg-transparent hover:bg-red-50'}`}
+                style={{
+                  borderColor: '#ef4444',
+                  borderStyle: 'dashed',
+                }}
+              >
+                <Trash2 className="w-4 h-4 text-red-500" />
+                <span className="font-medium text-sm text-red-500">
+                  {t('dashboard.commercial.mes_articles.delete_count').replace('{count}', String(selectedArticles.size))}
+                </span>
+              </Button>
+            )}
+          </div>
+
+          {/* Right: Filter */}
+          <div className="flex items-center gap-3">
+            <div className="relative" ref={filterDropdownRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-transparent hover:bg-gray-50'}`}
               >
-                <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
+                <Filter className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
                 <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Trier
+                  {t('dashboard.commercial.mes_articles.filter')}
                 </span>
                 <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               </Button>
-              {showSortDropdown && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                  <div className="p-2">
-                    {(['reference', 'designation', 'category', 'price_ttc', 'updated_at'] as SortField[]).map((field) => (
+              {showFilterDropdown && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2 mb-2" style={{ borderColor: isDark ? '#4b5563' : '#e5e7eb' }}>
+                      <h3 className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>{t('dashboard.commercial.mes_articles.filters')}</h3>
                       <button
-                        key={field}
                         onClick={() => {
-                          handleSort(field);
-                          setShowSortDropdown(false);
+                          setFilterCategory('');
+                          setFilterMinTTC('');
+                          setFilterMaxTTC('');
+                          setFilterStartDate('');
+                          setFilterEndDate('');
                         }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
+                        className={`text-xs ${isDark ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'}`}
                       >
-                        {field === 'reference' && 'Référence'}
-                        {field === 'designation' && 'Désignation'}
-                        {field === 'category' && 'Catégorie'}
-                        {field === 'price_ttc' && 'Montant TTC'}
-                        {field === 'updated_at' && 'Dernière MAJ'}
+                        {t('dashboard.commercial.mes_articles.reset_filters')}
                       </button>
-                    ))}
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {t('dashboard.commercial.mes_articles.category')}
+                      </Label>
+                      <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                      >
+                        <option value="">{t('dashboard.commercial.mes_articles.all_categories')}</option>
+                        <option value="Consultation">{t('dashboard.commercial.mes_articles.categories.consultation')}</option>
+                        <option value="Support">{t('dashboard.commercial.mes_articles.categories.support')}</option>
+                        <option value="Training">{t('dashboard.commercial.mes_articles.categories.training')}</option>
+                        <option value="Services">{t('dashboard.commercial.mes_articles.categories.services')}</option>
+                        <option value="Subscription">{t('dashboard.commercial.mes_articles.categories.subscription')}</option>
+                        <option value="Product">{t('dashboard.commercial.mes_articles.categories.product')}</option>
+                      </select>
+                    </div>
+
+                    {/* TTC Amount Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {t('dashboard.commercial.mes_articles.amount_ttc')}
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          placeholder={t('dashboard.commercial.mes_articles.min')}
+                          value={filterMinTTC}
+                          onChange={(e) => setFilterMinTTC(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                        <Input
+                          type="number"
+                          placeholder={t('dashboard.commercial.mes_articles.max')}
+                          value={filterMaxTTC}
+                          onChange={(e) => setFilterMaxTTC(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Date Range Filter */}
+                    <div className="space-y-2">
+                      <Label className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {t('dashboard.commercial.mes_articles.last_update_date')}
+                      </Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="date"
+                          value={filterStartDate}
+                          onChange={(e) => setFilterStartDate(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                        <Input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(e) => setFilterEndDate(e.target.value)}
+                          className={`text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : ''}`}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -455,7 +550,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('reference')}
                   >
                     <div className="flex items-center gap-2">
-                      Référence
+                      {t('dashboard.commercial.mes_articles.reference')}
                       {sortField === 'reference' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -472,7 +567,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('designation')}
                   >
                     <div className="flex items-center gap-2">
-                      Désignation
+                      {t('dashboard.commercial.mes_articles.designation')}
                       {sortField === 'designation' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -489,7 +584,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('category')}
                   >
                     <div className="flex items-center gap-2">
-                      Catégorie
+                      {t('dashboard.commercial.mes_articles.category')}
                       {sortField === 'category' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -506,7 +601,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('price_ht')}
                   >
                     <div className="flex items-center gap-2">
-                      Montant HT
+                      {t('dashboard.commercial.mes_articles.amount_ht')}
                       {sortField === 'price_ht' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -523,7 +618,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('tva')}
                   >
                     <div className="flex items-center gap-2">
-                      Montant TVA
+                      {t('dashboard.commercial.mes_articles.amount_tva')}
                       {sortField === 'tva' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -540,7 +635,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('price_ttc')}
                   >
                     <div className="flex items-center gap-2">
-                      Montant TTC
+                      {t('dashboard.commercial.mes_articles.amount_ttc')}
                       {sortField === 'price_ttc' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -557,7 +652,7 @@ export const MesArticles = (): JSX.Element => {
                     onClick={() => handleSort('updated_at')}
                   >
                     <div className="flex items-center gap-2">
-                      Dernière MAJ
+                      {t('dashboard.commercial.mes_articles.last_update')}
                       {sortField === 'updated_at' ? (
                         sortDirection === 'asc' ? (
                           <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
@@ -570,7 +665,7 @@ export const MesArticles = (): JSX.Element => {
                     </div>
                   </TableHead>
                   <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
-                    Actions
+                    {t('dashboard.commercial.mes_articles.actions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -619,23 +714,23 @@ export const MesArticles = (): JSX.Element => {
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedArticle(article);
                               setIsEditModalOpen(true);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
-                            title="Modifier"
+                            title={t('dashboard.commercial.mes_articles.edit')}
                           >
                             <Edit className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => {
                               setArticleToDelete(String(article.id));
                               setShowDeleteModal(true);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
-                            title="Supprimer"
+                            title={t('dashboard.commercial.mes_articles.delete')}
                           >
                             <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
                           </button>
@@ -709,12 +804,14 @@ export const MesArticles = (): JSX.Element => {
         isOpen={showDeleteModal}
         onClose={cancelDeleteArticle}
         onConfirm={confirmDeleteArticle}
-        title={articleToDelete === 'bulk' 
-          ? `Voulez-vous vraiment supprimer ${selectedArticles.size} article(s) ?`
-          : "Voulez-vous vraiment supprimer cet article ?"}
-        message="Cette action est irréversible. L'article sera définitivement supprimé."
-        confirmText="Supprimer"
-        cancelText="Annuler"
+        title={articleToDelete === 'bulk'
+          ? t('dashboard.commercial.mes_articles.delete_confirmation_title_bulk').replace('{count}', String(selectedArticles.size))
+          : t('dashboard.commercial.mes_articles.delete_confirmation_title_single')}
+        message={articleToDelete === 'bulk'
+          ? t('dashboard.commercial.mes_articles.delete_confirmation_message_bulk')
+          : t('dashboard.commercial.mes_articles.delete_confirmation_message_single')}
+        confirmText={t('dashboard.commercial.mes_articles.delete')}
+        cancelText={t('common.cancel')}
         type="danger"
         isLoading={deleting}
       />

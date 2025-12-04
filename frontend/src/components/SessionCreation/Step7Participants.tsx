@@ -58,8 +58,8 @@ interface ParticipantWithDetails extends SessionParticipant {
 }
 
 export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
-  participants,
-  instances,
+  participants = [],
+  instances = [],
   onEnrollParticipant,
   onEnrollMultipleParticipants,
   onUpdateParticipantStatus,
@@ -76,6 +76,10 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   const { organization } = useOrganization();
   const { success, error: showError } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
+
+  // Ensure participants is always an array
+  const safeParticipants = Array.isArray(participants) ? participants : [];
+  const safeInstances = Array.isArray(instances) ? instances : [];
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,7 +119,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
           }));
 
         // Filter out already enrolled participants
-        const enrolledUserIds = participants.map(p => p.user_id);
+        const enrolledUserIds = safeParticipants.map(p => p.user_id);
         const availableStudents = students.filter(s => !enrolledUserIds.includes(s.id));
         
         setAvailableStudents(availableStudents);
@@ -149,7 +153,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   useEffect(() => {
     if (selectAll) {
       const allIds = availableStudents
-        .filter(s => !participants.some(p => p.user_id === s.id))
+        .filter(s => !safeParticipants.some(p => p.user_id === s.id))
         .map(s => s.id);
       setSelectedStudentIds(allIds);
     } else {
@@ -351,7 +355,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   };
 
   // Empty state
-  if (participants.length === 0 && !showAddModal) {
+  if (safeParticipants.length === 0 && !showAddModal) {
     return (
       <>
         <div className="w-full flex flex-col items-center justify-center py-8 px-6">
@@ -580,7 +584,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
             <AlertCircle className="w-4 h-4 text-gray-400" />
             <div className="ml-auto flex items-center gap-2">
               <span className="text-sm font-medium">
-                {participants.length} participant{participants.length > 1 ? 's' : ''}
+                {safeParticipants.length} participant{safeParticipants.length > 1 ? 's' : ''}
               </span>
               <button className="p-1 hover:bg-gray-100 rounded">
                 <X className="w-4 h-4 rotate-45" />
@@ -605,7 +609,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
 
               {/* Table Rows */}
               <div className="divide-y">
-                {participants.map((participant) => {
+                {safeParticipants.map((participant) => {
                   const participantWithDetails = participant as ParticipantWithDetails;
                   const isEditing = editingTarif?.participantId === participant.id;
                   const tarifValue = participantWithDetails.tarif || 0;

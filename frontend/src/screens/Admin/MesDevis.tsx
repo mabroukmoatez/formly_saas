@@ -504,19 +504,6 @@ export const MesDevis = (): JSX.Element => {
     }
   };
 
-  const handleRelancerSelected = async () => {
-    if (selectedQuotes.size === 0) {
-      showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
-      return;
-    }
-    const firstQuoteId = Array.from(selectedQuotes)[0];
-    const firstQuote = quotes.find(q => String(q.id) === firstQuoteId);
-    if (firstQuote) {
-      setEmailModalQuote(firstQuote);
-      setShowEmailModal(true);
-    }
-  };
-
   const handleSendSelected = async () => {
     if (selectedQuotes.size === 0) {
       showError(t('common.error'), t('dashboard.commercial.mes_devis.select_at_least_one'));
@@ -570,17 +557,12 @@ export const MesDevis = (): JSX.Element => {
   const handleStatusClick = (quote: Quote, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // If status is 'accepted', show signed document modal
     if (quote.status === 'accepted') {
       setSignedDocQuote(quote);
       setShowSignedDocModal(true);
       return;
     }
-
-    // Otherwise, show status change options
     setStatusChangeQuote(quote);
-
-    // Determine next status based on current status
     if (quote.status === 'draft') {
       setTargetStatus('sent');
     } else if (quote.status === 'sent') {
@@ -648,7 +630,6 @@ export const MesDevis = (): JSX.Element => {
     if (!signedDocQuote) return;
 
     try {
-      // Delete document and revert status to 'sent'
       await commercialService.deleteSignedDocument(String(signedDocQuote.id));
       await commercialService.updateQuoteStatus(String(signedDocQuote.id), 'sent');
 
@@ -823,7 +804,7 @@ export const MesDevis = (): JSX.Element => {
             >
               <ArrowUpDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
               <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('dashboard.commercial.mes_devis.sort')}
+                {t('common.filter')}
               </span>
               <ChevronDown className={`w-4 h-4 ${isDark ? 'text-gray-300' : 'text-gray-700'}`} />
             </Button>

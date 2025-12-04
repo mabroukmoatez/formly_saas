@@ -27,6 +27,18 @@ import type {
   PlanningResponse,
   ApiResponse,
   PaginatedResponse,
+  // Attendance types
+  SlotAttendance,
+  MarkAttendanceData,
+  BulkAttendanceData,
+  TrainerSignatureData,
+  AttendanceCode,
+  // Workflow types
+  WorkflowAction,
+  CreateWorkflowActionData,
+  WorkflowOptions,
+  // Statistics types
+  SessionStatistics,
 } from './courseSession.types';
 
 const BASE_URL = '/api/admin/organization';
@@ -179,6 +191,17 @@ class CourseSessionService {
     return apiService.delete(`${SESSIONS_URL}/${sessionUuid}/participants/${participantUuid}`);
   }
 
+  /**
+   * Inscrit plusieurs participants à une session
+   * POST /api/admin/organization/course-sessions/{uuid}/enroll-multiple
+   */
+  async enrollMultipleParticipants(
+    sessionUuid: string, 
+    data: { user_ids: number[] }
+  ): Promise<ApiResponse<SessionParticipant[]>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/enroll-multiple`, data);
+  }
+
   // ==================== PLANNING / CALENDAR ====================
 
   /**
@@ -224,6 +247,158 @@ class CourseSessionService {
     return apiService.delete(`${SESSIONS_URL}/${sessionUuid}/trainers/${trainerUuid}`);
   }
 
+  // ==================== ATTENDANCE (ÉMARGEMENT) ====================
+
+  /**
+   * Récupère les données d'émargement d'une séance
+   */
+  async getSlotAttendance(sessionUuid: string, slotUuid: string): Promise<ApiResponse<SlotAttendance>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance`);
+  }
+
+  /**
+   * Marque la présence d'un participant
+   */
+  async markAttendance(
+    sessionUuid: string, 
+    slotUuid: string, 
+    data: MarkAttendanceData
+  ): Promise<ApiResponse<{ participant_uuid: string; period: string; present: boolean; signed_at: string }>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance`, data);
+  }
+
+  /**
+   * Marque la présence en masse
+   */
+  async markBulkAttendance(
+    sessionUuid: string, 
+    slotUuid: string, 
+    data: BulkAttendanceData
+  ): Promise<ApiResponse<{ updated_count: number }>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance/bulk`, data);
+  }
+
+  /**
+   * Enregistre la signature du formateur
+   */
+  async signTrainerAttendance(
+    sessionUuid: string, 
+    slotUuid: string, 
+    data: TrainerSignatureData
+  ): Promise<ApiResponse<{ trainer_signed: boolean; trainer_signed_at: string }>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/trainer-signature`, data);
+  }
+
+  /**
+   * Récupère le QR code et code numérique pour l'émargement
+   */
+  async getAttendanceCode(
+    sessionUuid: string, 
+    slotUuid: string, 
+    params?: { period?: 'morning' | 'afternoon'; regenerate?: boolean }
+  ): Promise<ApiResponse<AttendanceCode>> {
+    const queryParams = new URLSearchParams();
+    if (params?.period) queryParams.append('period', params.period);
+    if (params?.regenerate) queryParams.append('regenerate', 'true');
+    
+    const queryString = queryParams.toString();
+    return apiService.get(
+      `${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance-code${queryString ? `?${queryString}` : ''}`
+    );
+  }
+
+  /**
+   * Exporte la feuille d'émargement d'une séance (PDF ou Excel)
+   */
+  async exportSlotAttendance(
+    sessionUuid: string, 
+    slotUuid: string, 
+    format: 'pdf' | 'excel' = 'pdf'
+  ): Promise<Blob> {
+    const response = await apiService.get(
+      `${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance/export?format=${format}`,
+      { responseType: 'blob' }
+    );
+    return response as unknown as Blob;
+  }
+
+  /**
+   * Exporte toutes les feuilles d'émargement d'une session
+   */
+  async exportAllAttendance(
+    sessionUuid: string, 
+    format: 'pdf' | 'excel' | 'zip' = 'zip'
+  ): Promise<Blob> {
+    const response = await apiService.get(
+      `${SESSIONS_URL}/${sessionUuid}/attendance/export-all?format=${format}`,
+      { responseType: 'blob' }
+    );
+    return response as unknown as Blob;
+  }
+
+  // ==================== WORKFLOW ====================
+
+  /**
+   * Récupère les actions du workflow d'une session
+   */
+  async getWorkflowActions(sessionUuid: string): Promise<ApiResponse<WorkflowAction[]>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/workflow-actions`);
+  }
+
+  /**
+   * Crée une nouvelle action de workflow
+   */
+  async createWorkflowAction(
+    sessionUuid: string, 
+    data: CreateWorkflowActionData
+  ): Promise<ApiResponse<WorkflowAction>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/workflow-actions`, data);
+  }
+
+  /**
+   * Met à jour une action de workflow
+   */
+  async updateWorkflowAction(
+    sessionUuid: string, 
+    actionUuid: string, 
+    data: Partial<CreateWorkflowActionData>
+  ): Promise<ApiResponse<WorkflowAction>> {
+    return apiService.put(`${SESSIONS_URL}/${sessionUuid}/workflow-actions/${actionUuid}`, data);
+  }
+
+  /**
+   * Supprime une action de workflow
+   */
+  async deleteWorkflowAction(sessionUuid: string, actionUuid: string): Promise<ApiResponse<void>> {
+    return apiService.delete(`${SESSIONS_URL}/${sessionUuid}/workflow-actions/${actionUuid}`);
+  }
+
+  /**
+   * Exécute manuellement une action de workflow
+   */
+  async executeWorkflowAction(
+    sessionUuid: string, 
+    actionUuid: string
+  ): Promise<ApiResponse<{ status: string; executed_at: string; recipients_count: number }>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/workflow-actions/${actionUuid}/execute`, {});
+  }
+
+  /**
+   * Récupère les options disponibles pour les workflows
+   */
+  async getWorkflowOptions(): Promise<ApiResponse<WorkflowOptions>> {
+    return apiService.get(`${SESSIONS_URL}/workflow-options`);
+  }
+
+  // ==================== STATISTICS ====================
+
+  /**
+   * Récupère les statistiques d'une session
+   */
+  async getSessionStatistics(sessionUuid: string): Promise<ApiResponse<SessionStatistics>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/statistics`);
+  }
+
   // ==================== UTILITY METHODS ====================
 
   /**
@@ -243,6 +418,9 @@ class CourseSessionService {
 // Export singleton instance
 export const courseSessionService = new CourseSessionService();
 export default courseSessionService;
+
+
+
 
 
 

@@ -286,6 +286,7 @@ export interface AddParticipantData {
   tarif?: number;
   type?: ParticipantPaymentType;
   notes?: string;
+  status?: 'registered' | 'enrolled' | 'active' | 'completed' | 'suspended' | 'cancelled';
 }
 
 // ==================== PLANNING / CALENDAR ====================
@@ -400,5 +401,176 @@ export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
   individual: 'Individuel',
 };
 
+// ==================== ATTENDANCE (ÉMARGEMENT) ====================
 
+export interface AttendancePeriod {
+  present: number;
+  absent: number;
+  total: number;
+  percentage: number;
+}
+
+export interface ParticipantAttendance {
+  uuid: string;
+  user_uuid: string;
+  name: string;
+  email: string;
+  morning_present: boolean | null;
+  morning_signed_at: string | null;
+  morning_signature_method: 'manual' | 'qr_code' | 'numeric_code' | null;
+  afternoon_present: boolean | null;
+  afternoon_signed_at: string | null;
+  afternoon_signature_method: 'manual' | 'qr_code' | 'numeric_code' | null;
+  absence_reason: string | null;
+}
+
+export interface SlotAttendance {
+  slot_uuid: string;
+  slot_date: string;
+  morning: AttendancePeriod;
+  afternoon: AttendancePeriod;
+  trainer_signed: boolean;
+  trainer_signed_at: string | null;
+  trainer_signature_url: string | null;
+  participants: ParticipantAttendance[];
+}
+
+export interface MarkAttendanceData {
+  participant_uuid: string;
+  period: 'morning' | 'afternoon';
+  present: boolean;
+  signature_method?: 'manual' | 'qr_code' | 'numeric_code';
+  absence_reason?: string;
+}
+
+export interface BulkAttendanceData {
+  period: 'morning' | 'afternoon';
+  attendances: Array<{
+    participant_uuid: string;
+    present: boolean;
+    absence_reason?: string;
+  }>;
+}
+
+export interface TrainerSignatureData {
+  trainer_uuid: string;
+  signature_data?: string; // Base64 signature image
+  confirm?: boolean;
+}
+
+export interface AttendanceCode {
+  slot_uuid: string;
+  period: 'morning' | 'afternoon';
+  qr_code_url: string;
+  qr_code_content: string;
+  numeric_code: string;
+  valid_from: string;
+  expires_at: string;
+  is_active: boolean;
+}
+
+// ==================== WORKFLOW ====================
+
+export type WorkflowActionType = 
+  | 'send_questionnaire' 
+  | 'send_convocation' 
+  | 'send_reminder' 
+  | 'generate_certificate' 
+  | 'send_certificate' 
+  | 'send_evaluation';
+
+export type WorkflowTargetType = 'apprenant' | 'formateur' | 'entreprise';
+
+export type WorkflowActionStatus = 'pending' | 'executed' | 'not_executed' | 'skipped';
+
+export type WorkflowTriggerType = 
+  | 'before_session' 
+  | 'after_session' 
+  | 'before_slot' 
+  | 'after_slot' 
+  | 'manual';
+
+export interface WorkflowQuestionnaire {
+  uuid: string;
+  title: string;
+  responses_count?: number;
+  total_recipients?: number;
+}
+
+export interface WorkflowAttachment {
+  uuid: string;
+  name: string;
+  url: string;
+}
+
+export interface WorkflowAction {
+  uuid: string;
+  title: string;
+  type: WorkflowActionType;
+  target_type: WorkflowTargetType;
+  trigger_type: WorkflowTriggerType;
+  trigger_days: number;
+  trigger_time: string | null;
+  status: WorkflowActionStatus;
+  scheduled_for: string | null;
+  executed_at: string | null;
+  questionnaires: WorkflowQuestionnaire[];
+  attachments: WorkflowAttachment[];
+}
+
+export interface CreateWorkflowActionData {
+  title: string;
+  type: WorkflowActionType;
+  target_type: WorkflowTargetType;
+  trigger_type: WorkflowTriggerType;
+  trigger_days?: number;
+  trigger_time?: string;
+  questionnaire_uuids?: string[];
+}
+
+// ==================== STATISTICS ====================
+
+export interface SessionStatistics {
+  session_uuid: string;
+  participants: {
+    total: number;
+    confirmed: number;
+    pending: number;
+    cancelled: number;
+  };
+  attendance: {
+    average_rate: number;
+    slots_completed: number;
+    slots_total: number;
+  };
+  satisfaction: {
+    response_rate: number;
+    average_score: number;
+    recommendation_rate: number;
+  };
+  completion: {
+    rate: number;
+    passed: number;
+    failed: number;
+    pending: number;
+  };
+  financials: {
+    total_revenue: number;
+    average_price: number;
+    currency: string;
+  };
+  connection: {
+    average_duration_minutes: number;
+    total_duration_minutes: number;
+  };
+}
+
+// ==================== WORKFLOW OPTIONS ====================
+
+export interface WorkflowOptions {
+  action_types: Array<{ value: WorkflowActionType; label: string }>;
+  target_types: Array<{ value: WorkflowTargetType; label: string }>;
+  trigger_types: Array<{ value: WorkflowTriggerType; label: string }>;
+  available_questionnaires: Array<{ uuid: string; title: string }>;
+}
 

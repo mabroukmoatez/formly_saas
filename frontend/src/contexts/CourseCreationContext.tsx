@@ -184,24 +184,24 @@ export interface CourseCreationContextType {
   updateFieldAndSave: (field: keyof CourseCreationFormData, value: any) => Promise<boolean>;
   
   // Step 2 Actions
-  loadModules: () => Promise<void>;
+  loadModules: (overrideCourseUuid?: string) => Promise<void>;
   createModule: (data: CreateModuleData) => Promise<CourseModule | null>;
   updateModule: (uuid: string, data: UpdateModuleData) => Promise<CourseModule | null>;
   deleteModule: (uuid: string) => Promise<boolean>;
   reorderModules: (moduleUuids: string[]) => Promise<boolean>;
   
-  loadObjectives: () => Promise<void>;
+  loadObjectives: (overrideCourseUuid?: string) => Promise<void>;
   createObjective: (data: CreateObjectiveData) => Promise<CourseObjective | null>;
   updateObjective: (uuid: string, data: UpdateObjectiveData) => Promise<CourseObjective | null>;
   deleteObjective: (uuid: string) => Promise<boolean>;
   reorderObjectives: (objectiveUuids: string[]) => Promise<boolean>;
   
-  loadAdditionalFees: () => Promise<void>;
+  loadAdditionalFees: (overrideCourseUuid?: string) => Promise<void>;
   createAdditionalFee: (data: CreateAdditionalFeeData) => Promise<AdditionalFee | null>;
   updateAdditionalFee: (uuid: string, data: UpdateAdditionalFeeData) => Promise<AdditionalFee | null>;
   deleteAdditionalFee: (uuid: string) => Promise<boolean>;
   
-  loadChapters: () => Promise<void>;
+  loadChapters: (overrideCourseUuid?: string) => Promise<void>;
   createChapter: (data: CreateChapterData) => Promise<CourseChapter | null>;
   updateChapter: (id: string, data: UpdateChapterData) => Promise<CourseChapter | null>;
   deleteChapter: (id: string) => Promise<boolean>;
@@ -238,7 +238,7 @@ export interface CourseCreationContextType {
   deleteSupportFile: (fileId: string) => Promise<boolean>;
   
   // Step 3 Actions
-  loadDocuments: () => Promise<void>;
+  loadDocuments: (overrideCourseUuid?: string) => Promise<void>;
   createDocument: (data: CreateDocumentData) => Promise<Document | null>;
   updateDocument: (id: number, data: UpdateDocumentData) => Promise<Document | null>;
   deleteDocument: (id: number) => Promise<boolean>;
@@ -252,7 +252,7 @@ export interface CourseCreationContextType {
   assignCertificationModel: (modelId: number) => Promise<boolean>;
   
   // Step 4 Actions
-  loadQuestionnaires: () => Promise<void>;
+  loadQuestionnaires: (overrideCourseUuid?: string) => Promise<void>;
   createQuestionnaire: (data: CreateQuestionnaireData) => Promise<Questionnaire | null>;
   updateQuestionnaire: (id: string, data: UpdateQuestionnaireData) => Promise<Questionnaire | null>;
   deleteQuestionnaire: (id: number) => Promise<boolean>;
@@ -268,7 +268,7 @@ export interface CourseCreationContextType {
   
   // Step 5 Actions
   loadTrainers: () => Promise<void>;
-  loadCourseTrainers: () => Promise<void>;
+  loadCourseTrainers: (overrideCourseUuid?: string) => Promise<void>;
   assignTrainer: (trainerId: number) => Promise<boolean>;
   updateTrainerPermissions: (trainerId: number, permissions: any) => Promise<boolean>;
   removeTrainer: (trainerId: string) => Promise<boolean>;
@@ -276,12 +276,12 @@ export interface CourseCreationContextType {
   updateTrainer: (id: number, data: UpdateTrainerData) => Promise<Trainer | null>;
   
   // Step 6 Actions
-  loadWorkflow: () => Promise<void>;
+  loadWorkflow: (overrideCourseUuid?: string) => Promise<void>;
   createWorkflow: (data: CreateWorkflowData) => Promise<Workflow | null>;
   updateWorkflow: (id: number, data: UpdateWorkflowData) => Promise<Workflow | null>;
   toggleWorkflowStatus: (isActive: boolean) => Promise<boolean>;
   
-  loadWorkflowActions: () => Promise<void>;
+  loadWorkflowActions: (overrideCourseUuid?: string) => Promise<void>;
   createWorkflowAction: (data: CreateWorkflowActionData) => Promise<WorkflowAction | null>;
   updateWorkflowAction: (id: number, data: UpdateWorkflowActionData) => Promise<WorkflowAction | null>;
   deleteWorkflowAction: (id: number) => Promise<boolean>;
@@ -817,17 +817,18 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     return !!res.success;
   }, [formData.courseUuid]);
 
-  const loadChapters = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadChapters = useCallback(async (overrideCourseUuid?: string) => {
+    const courseUuid = overrideCourseUuid || formData.courseUuid;
+    if (!courseUuid) return;
     try {
-      const result = await courseCreationApi.getCourseChapters(formData.courseUuid);
+      const result = await courseCreationApi.getCourseChapters(courseUuid);
       if (result.success) {
         // Load comprehensive data for each chapter
         const chaptersWithFullData = await Promise.all(
           result.data.map(async (chapter: any) => {
             try {
               // Load sub-chapters
-              const subChaptersResult = await courseCreationApi.getSubChapters(formData.courseUuid!, chapter.uuid);
+              const subChaptersResult = await courseCreationApi.getSubChapters(courseUuid, chapter.uuid);
               const subChapters = subChaptersResult.success ? subChaptersResult.data : [];
               
               // Load content for each sub-chapter
@@ -835,15 +836,15 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
                 subChapters.map(async (subChapter: any) => {
                   try {
                     // Load content
-                    const contentResult = await courseCreationApi.getSubChapterContent(formData.courseUuid!, chapter.uuid, subChapter.uuid);
+                    const contentResult = await courseCreationApi.getSubChapterContent(courseUuid, chapter.uuid, subChapter.uuid);
                     const content = contentResult.success ? contentResult.data : [];
                     
                     // Load evaluations
-                    const evaluationsResult = await courseCreationApi.getSubChapterEvaluations(formData.courseUuid!, chapter.uuid, subChapter.uuid);
+                    const evaluationsResult = await courseCreationApi.getSubChapterEvaluations(courseUuid, chapter.uuid, subChapter.uuid);
                     const evaluations = evaluationsResult.success ? evaluationsResult.data : [];
                     
                     // Load support files
-                    const supportFilesResult = await courseCreationApi.getChapterSupportFiles(formData.courseUuid!, chapter.uuid);
+                    const supportFilesResult = await courseCreationApi.getChapterSupportFiles(courseUuid, chapter.uuid);
                     const supportFiles = supportFilesResult.success ? supportFilesResult.data : [];
                     
                     return {
@@ -865,16 +866,20 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
               );
               
               // Load chapter-level content and evaluations
-              const chapterContentResult = await courseCreationApi.getChapterContent(formData.courseUuid!, chapter.uuid);
+              const chapterContentResult = await courseCreationApi.getChapterContent(courseUuid, chapter.uuid);
               const chapterContent = chapterContentResult.success ? chapterContentResult.data : [];
               
-              const chapterEvaluationsResult = await courseCreationApi.getChapterEvaluations(formData.courseUuid!, chapter.uuid);
+              const chapterEvaluationsResult = await courseCreationApi.getChapterEvaluations(courseUuid, chapter.uuid);
               const chapterEvaluations = chapterEvaluationsResult.success ? chapterEvaluationsResult.data : [];
+              
+              // Load chapter-level support files
+              const chapterSupportFilesResult = await courseCreationApi.getChapterSupportFiles(courseUuid, chapter.uuid);
+              const chapterSupportFiles = chapterSupportFilesResult.success ? chapterSupportFilesResult.data : [];
               
               // Load chapter quiz associations
               let chapterQuizzes = [];
               try {
-                const quizzesResult = await courseCreationApi.getChapterQuizzes(formData.courseUuid!, chapter.uuid);
+                const quizzesResult = await courseCreationApi.getChapterQuizzes(courseUuid, chapter.uuid);
                 console.log(`🎯 Chapter ${chapter.uuid} quizzes API result:`, quizzesResult);
                 if (quizzesResult.success && quizzesResult.data) {
                   chapterQuizzes = Array.isArray(quizzesResult.data) ? quizzesResult.data : (quizzesResult.data.data || []);
@@ -886,13 +891,14 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
                 chapterQuizzes = chapter.quizzes || chapter.quiz_assignments || [];
               }
               
-              console.log(`🔍 Chapter ${chapter.uuid} final quizzes:`, chapterQuizzes);
+              console.log(`📖 Chapter ${chapter.uuid}: ${chapterContent.length} content, ${chapterEvaluations.length} evaluations, ${chapterSupportFiles.length} support files, ${subChaptersWithContent.length} sub-chapters`);
               
               return {
                 ...chapter,
                 sub_chapters: subChaptersWithContent,
                 content: chapterContent,
                 evaluations: chapterEvaluations,
+                support_files: chapterSupportFiles,
                 // Include quiz associations from API call or fallback
                 quizzes: chapterQuizzes,
                 quiz_assignments: chapterQuizzes
@@ -904,6 +910,7 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
                 sub_chapters: [],
                 content: [],
                 evaluations: [],
+                support_files: [],
                 quizzes: [],
                 quiz_assignments: []
               };
@@ -1117,19 +1124,27 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
     return false;
   }, [formData.courseUuid]);
-  const loadModules = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadModules = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    console.log('📦 loadModules called with UUID:', uuid);
+    if (!uuid) {
+      console.log('⚠️ loadModules: No UUID provided, skipping');
+      return;
+    }
     try {
       setIsLoading(true);
       setError(null);
-      const result = await courseCreationApi.getCourseModules(formData.courseUuid);
+      const result = await courseCreationApi.getCourseModules(uuid);
+      console.log('📦 Modules API response:', result);
       if (result.success) {
-        setModules(result.data);
+        console.log('✅ Setting modules:', result.data?.length || 0, 'modules');
+        setModules(result.data || []);
       } else {
+        console.log('❌ Failed to load modules:', result);
         setError('Failed to load modules');
       }
     } catch (error) {
-      // Error loading modules:', error);
+      console.error('❌ Error loading modules:', error);
       setError('Error loading modules');
     } finally {
       setIsLoading(false);
@@ -1219,13 +1234,22 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   }, [formData.courseUuid, loadModules]);
 
-  const loadObjectives = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadObjectives = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    console.log('🎯 loadObjectives called with UUID:', uuid);
+    if (!uuid) {
+      console.log('⚠️ loadObjectives: No UUID provided, skipping');
+      return;
+    }
     try {
-      const result = await courseCreationApi.getCourseObjectives(formData.courseUuid);
-      if (result.success) setObjectives(result.data);
+      const result = await courseCreationApi.getCourseObjectives(uuid);
+      console.log('🎯 Objectives API response:', result);
+      if (result.success) {
+        console.log('✅ Setting objectives:', result.data?.length || 0, 'objectives');
+        setObjectives(result.data || []);
+      }
     } catch (error) {
-      // Error loading objectives:', error);
+      console.error('❌ Error loading objectives:', error);
     }
   }, [formData.courseUuid]);
 
@@ -1304,10 +1328,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   }, [formData.courseUuid, loadObjectives]);
 
-  const loadAdditionalFees = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadAdditionalFees = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getAdditionalFees(formData.courseUuid);
+      const result = await courseCreationApi.getAdditionalFees(uuid);
       if (result.success) setAdditionalFees(result.data);
     } catch (error) {
       // Error loading additional fees:', error);
@@ -1584,10 +1609,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
   // Removed incorrect non-adapter deleteSupportFile (use adapter version instead)
 
   // Step 3 Actions
-  const loadDocuments = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadDocuments = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getCourseDocuments(formData.courseUuid);
+      const result = await courseCreationApi.getCourseDocuments(uuid);
       if (result.success) setDocuments(result.data);
     } catch (error) {
       // Error loading documents:', error);
@@ -1745,10 +1771,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
   }, [formData.courseUuid, certificationModels]);
 
   // Step 4 Actions
-  const loadQuestionnaires = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadQuestionnaires = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getCourseQuestionnaires(formData.courseUuid);
+      const result = await courseCreationApi.getCourseQuestionnaires(uuid);
       if (result.success) setQuestionnaires(result.data);
     } catch (error) {
       // Error loading questionnaires:', error);
@@ -1933,10 +1960,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   }, []);
 
-  const loadCourseTrainers = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadCourseTrainers = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getCourseTrainers(formData.courseUuid);
+      const result = await courseCreationApi.getCourseTrainers(uuid);
       if (result.success) {
         // According to documentation, result.data is an array of course trainers with permissions
         // Course trainers API response:', result.data);
@@ -2048,10 +2076,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
   }, []);
 
   // Step 6 Actions
-  const loadWorkflow = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadWorkflow = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getWorkflow(formData.courseUuid);
+      const result = await courseCreationApi.getWorkflow(uuid);
       if (result.success) {
         setWorkflow(result.data);
       } else {
@@ -2118,10 +2147,11 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   }, [formData.courseUuid, loadWorkflow]);
 
-  const loadWorkflowActions = useCallback(async () => {
-    if (!formData.courseUuid) return;
+  const loadWorkflowActions = useCallback(async (overrideCourseUuid?: string) => {
+    const uuid = overrideCourseUuid || formData.courseUuid;
+    if (!uuid) return;
     try {
-      const result = await courseCreationApi.getWorkflowActions(formData.courseUuid);
+      const result = await courseCreationApi.getWorkflowActions(uuid);
       if (result.success) setWorkflowActions(result.data);
     } catch (error) {
       // Error loading workflow actions:', error);
@@ -2488,15 +2518,21 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
               console.error('Error loading formation practices:', error);
             }
 
+            // Handle both nested category object and direct category_id
+            const categoryId = course.category?.id || course.category_id;
+            const subcategoryId = course.subcategory?.id || course.subcategory_id;
+            const languageId = course.language?.id || course.course_language_id;
+            const difficultyId = course.difficulty_level?.id || course.difficulty_level_id;
+
             updateFormData({
               title: course.title || '',
               subtitle: course.subtitle || 'Sous-titre du cours',
               description: course.description || '',
               course_type: course.course_type || 1,
-              category_id: course.category_id,
-              subcategory_id: course.subcategory_id,
-              course_language_id: course.course_language_id,
-              difficulty_level_id: course.difficulty_level_id,
+              category_id: categoryId,
+              subcategory_id: subcategoryId,
+              course_language_id: languageId,
+              difficulty_level_id: difficultyId,
               duration: course.duration || 0,
               duration_days: course.duration_days || 0,
               target_audience: course.target_audience || '',
@@ -2525,21 +2561,23 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
         }
       }
 
+      console.log('🚀 Loading all course data for UUID:', uuid);
       await Promise.all([
         loadCategories(),
-        loadModules(),
-        loadObjectives(),
-        loadAdditionalFees(),
-        loadChapters(),
-        loadDocuments(),
+        loadModules(uuid),
+        loadObjectives(uuid),
+        loadAdditionalFees(uuid),
+        loadChapters(uuid),
+        loadDocuments(uuid),
         loadCertificationModels(),
-        loadQuestionnaires(),
+        loadQuestionnaires(uuid),
         loadTrainers(),
-        loadCourseTrainers(),
-        loadWorkflow(),
-        loadWorkflowActions(),
+        loadCourseTrainers(uuid),
+        loadWorkflow(uuid),
+        loadWorkflowActions(uuid),
         loadEmailTemplates(),
       ]);
+      console.log('✅ All course data loaded successfully');
       hasInitializedRef.current = true;
     } catch (error) {
       // Error initializing course:', error);

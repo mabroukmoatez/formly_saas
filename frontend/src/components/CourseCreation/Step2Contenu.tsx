@@ -125,14 +125,16 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   // Load chapters and sections on component mount
   useEffect(() => {
     const loadChaptersData = async () => {
+      if (!formData.courseUuid) {
+        console.log('⚠️ Step2Contenu: No courseUuid yet, skipping chapter load');
+        return;
+      }
       try {
-        await loadChapters();
-        // Load sections if available
-        if (formData.courseUuid) {
-          await loadSectionsData();
-        }
+        console.log('📖 Step2Contenu: Loading chapters for course:', formData.courseUuid);
+        await loadChapters(formData.courseUuid);
+        await loadSectionsData();
       } catch (error) {
-        // Error loading chapters
+        console.error('❌ Step2Contenu: Error loading chapters:', error);
       }
     };
     loadChaptersData();
@@ -188,66 +190,119 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   // Update local chapters when context chapters change
   useEffect(() => {
     if (contextChapters && contextChapters.length > 0) {
-      const convertedChapters: Chapter[] = contextChapters.map((chapter: any) => ({
-        id: chapter.uuid || chapter.id,
-        title: chapter.title || '',
-        content: chapter.content || [],
-        subChapters: chapter.subChapters || [],
-        supportFiles: chapter.supportFiles || [],
-        evaluations: chapter.evaluations || [],
-        quizzes: chapter.quizzes || chapter.quiz_assignments || [],
-        isExpanded: chapter.isExpanded || false,
-        order: chapter.order || chapter.order_index || 0,
-        course_section_id: chapter.course_section_id ?? chapter.section_id ?? chapter.course_section?.id ?? null,
-        section: chapter.section ?? chapter.course_section ?? null,
-      }));
+      console.log('📚 Context chapters received:', contextChapters);
+      const convertedChapters: Chapter[] = contextChapters.map((chapter: any) => {
+        // Handle both snake_case (API) and camelCase (frontend) property names
+        const rawSubChapters = chapter.sub_chapters || chapter.subChapters || [];
+        const rawContent = chapter.content || [];
+        const rawSupportFiles = chapter.support_files || chapter.supportFiles || [];
+        const rawEvaluations = chapter.evaluations || [];
+        
+        // Convert sub-chapters with their nested content
+        const convertedSubChapters = rawSubChapters.map((sub: any) => ({
+          id: sub.uuid || sub.id,
+          title: sub.title || '',
+          content: (sub.content || []).map((c: any) => ({
+            id: c.uuid || c.id,
+            type: c.type || 'text',
+            title: c.title,
+            content: c.content,
+            file: c.file_url || c.file,
+            order: c.order || c.order_index || 0,
+          })),
+          evaluations: sub.evaluations || [],
+          supportFiles: sub.support_files || sub.supportFiles || [],
+          isExpanded: sub.isExpanded || false,
+          order: sub.order || sub.order_index || 0,
+        }));
+        
+        // Convert content items
+        const convertedContent = rawContent.map((c: any) => ({
+          id: c.uuid || c.id,
+          type: c.type || 'text',
+          title: c.title,
+          content: c.content,
+          file: c.file_url || c.file,
+          order: c.order || c.order_index || 0,
+        }));
+        
+        console.log(`📖 Chapter ${chapter.title}: ${convertedContent.length} content items, ${convertedSubChapters.length} sub-chapters, ${rawEvaluations.length} evaluations, ${rawSupportFiles.length} support files`);
+        
+        return {
+          id: chapter.uuid || chapter.id,
+          title: chapter.title || '',
+          content: convertedContent,
+          subChapters: convertedSubChapters,
+          supportFiles: rawSupportFiles.map((f: any) => ({
+            id: f.uuid || f.id,
+            name: f.name || f.file_name,
+            type: f.type || f.mime_type,
+            size: f.size || f.file_size,
+            file_url: f.file_url || f.url,
+          })),
+          evaluations: rawEvaluations,
+          quizzes: chapter.quizzes || chapter.quiz_assignments || [],
+          isExpanded: chapter.isExpanded || false,
+          order: chapter.order || chapter.order_index || 0,
+          course_section_id: chapter.course_section_id ?? chapter.section_id ?? chapter.course_section?.id ?? null,
+          section: chapter.section ?? chapter.course_section ?? null,
+        };
+      });
       
       // Always merge context data with local data to preserve content/evaluations/support files
       setChapters(prev => {
-        // If no local chapters exist, use context data
+        // If no local chapters exist, use context data directly
         if (prev.length === 0) {
+          console.log('✅ Using context chapters directly (no local chapters)');
           return convertedChapters;
         }
         
-        // Merge context data with local data, preserving local content/evaluations/support files
-        return prev.map(localChapter => {
-          const contextChapter = convertedChapters.find(c => c.id === localChapter.id);
-          if (contextChapter) {
-            // Check if there are pending updates for this chapter
-            const hasPendingChapterUpdate = chapterUpdateTimeouts[localChapter.id];
-            const hasPendingSubChapterUpdate = localChapter.subChapters.some(sub => subChapterUpdateTimeouts[sub.id]);
-            
-            if (hasPendingChapterUpdate || hasPendingSubChapterUpdate) {
-              return localChapter; // Keep local state for pending updates
-            } else {
-              // Merge context data with local data, preserving local content/evaluations/support files AND expanded state
-              return {
-                ...contextChapter, // Use context data for basic info INCLUDING course_section_id
-                course_section_id: contextChapter.course_section_id ?? localChapter.course_section_id, // Always use context course_section_id if available
-                section: contextChapter.section ?? localChapter.section, // Always use context section if available
-                isExpanded: localChapter.isExpanded, // PRESERVE local expanded state
-                content: localChapter.content.length > 0 ? localChapter.content : contextChapter.content,
-                evaluations: localChapter.evaluations.length > 0 ? localChapter.evaluations : contextChapter.evaluations,
-                quizzes: contextChapter.quizzes, // Always use context quizzes data to reflect latest associations
-                supportFiles: localChapter.supportFiles.length > 0 ? localChapter.supportFiles : contextChapter.supportFiles,
-                subChapters: localChapter.subChapters.map(localSubChapter => {
-                  const contextSubChapter = contextChapter.subChapters.find(sc => sc.id === localSubChapter.id);
-                  if (contextSubChapter) {
-                    return {
-                      ...contextSubChapter,
-                      isExpanded: localSubChapter.isExpanded, // PRESERVE local expanded state
-                      content: localSubChapter.content.length > 0 ? localSubChapter.content : contextSubChapter.content,
-                      evaluations: localSubChapter.evaluations.length > 0 ? localSubChapter.evaluations : contextSubChapter.evaluations,
-                      supportFiles: localSubChapter.supportFiles.length > 0 ? localSubChapter.supportFiles : contextSubChapter.supportFiles,
-                    };
-                  }
-                  return localSubChapter;
-                })
-              };
-            }
+        // Create a map of all chapters - start with context chapters, then merge local data
+        const mergedChapters = convertedChapters.map(contextChapter => {
+          const localChapter = prev.find(c => c.id === contextChapter.id);
+          
+          if (!localChapter) {
+            // New chapter from context, use it directly
+            return contextChapter;
           }
-          return localChapter;
+          
+          // Check if there are pending updates for this chapter
+          const hasPendingChapterUpdate = chapterUpdateTimeouts[localChapter.id];
+          const hasPendingSubChapterUpdate = localChapter.subChapters.some(sub => subChapterUpdateTimeouts[sub.id]);
+          
+          if (hasPendingChapterUpdate || hasPendingSubChapterUpdate) {
+            return localChapter; // Keep local state for pending updates
+          }
+          
+          // Merge context data with local data, preserving local UI state
+          // But ALWAYS use context data for content/evaluations/supportFiles if local is empty
+          const mergedSubChapters = contextChapter.subChapters.map(contextSub => {
+            const localSub = localChapter.subChapters.find(s => s.id === contextSub.id);
+            if (!localSub) return contextSub;
+            
+            return {
+              ...contextSub,
+              isExpanded: localSub.isExpanded, // PRESERVE local expanded state
+              // Use context data - it's the source of truth from API
+              content: contextSub.content,
+              evaluations: contextSub.evaluations,
+              supportFiles: contextSub.supportFiles,
+            };
+          });
+          
+          return {
+            ...contextChapter,
+            isExpanded: localChapter.isExpanded, // PRESERVE local expanded state
+            // Use context data - it's the source of truth from API
+            content: contextChapter.content,
+            evaluations: contextChapter.evaluations,
+            supportFiles: contextChapter.supportFiles,
+            subChapters: mergedSubChapters,
+          };
         });
+        
+        console.log('✅ Merged chapters:', mergedChapters.length);
+        return mergedChapters;
       });
     }
   }, [contextChapters, chapterUpdateTimeouts, subChapterUpdateTimeouts]);

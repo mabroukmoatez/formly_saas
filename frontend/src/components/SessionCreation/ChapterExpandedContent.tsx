@@ -888,13 +888,13 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                           <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-600 flex items-center justify-center">
                             {file.type?.startsWith('image/') ? (
                               <img 
-                                src={file.url || URL.createObjectURL(file.file)} 
+                                src={file.url || file.file_url || (file.file instanceof Blob ? URL.createObjectURL(file.file) : '')} 
                                 alt={file.name || 'Image'} 
                                 className="w-full h-full object-cover"
                               />
                             ) : file.type?.startsWith('video/') ? (
                               <video 
-                                src={file.url || URL.createObjectURL(file.file)} 
+                                src={file.url || file.file_url || (file.file instanceof Blob ? URL.createObjectURL(file.file) : '')} 
                                 className="w-full h-full object-cover"
                                 muted
                               />
@@ -950,8 +950,9 @@ export const ChapterExpandedContent: React.FC<ChapterExpandedContentProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               // Add preview functionality
-                              if (file.url || file.file) {
-                                window.open(file.url || URL.createObjectURL(file.file), '_blank');
+                              const fileUrl = file.url || file.file_url || (file.file instanceof Blob ? URL.createObjectURL(file.file) : null);
+                              if (fileUrl) {
+                                window.open(fileUrl, '_blank');
                               }
                             }}
                             className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"

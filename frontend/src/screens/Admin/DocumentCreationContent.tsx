@@ -356,8 +356,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
         }
         
         if (sessionUuid) {
-          // For sessions, use FormData
-          response = await apiService.put(`/api/organization/sessions/${sessionUuid}/documents/${documentIdState}`, formData);
+          // For sessions, use FormData - NOUVELLE API
+          response = await apiService.put(`/api/admin/organization/course-sessions/${sessionUuid}/documents/${documentIdState}`, formData);
         } else if (courseUuid) {
           // For courses, use FormData with updateDocumentEnhanced
           response = await courseCreation.updateDocumentEnhanced(courseUuid, documentIdState, formData);

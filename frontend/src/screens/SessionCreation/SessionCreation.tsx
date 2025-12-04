@@ -53,12 +53,14 @@ interface SelectedCourse {
 
 interface SessionCreationProps {
   sessionUuid?: string;
+  courseUuid?: string; // Pre-selected course UUID from URL params
   onSessionCreated?: (sessionUuid: string) => void;
   onSessionSaved?: () => void;
 }
 
 const SessionCreationContent: React.FC<SessionCreationProps> = ({
   sessionUuid,
+  courseUuid: preSelectedCourseUuid,
   onSessionSaved
 }) => {
   const { t } = useLanguage();
@@ -157,6 +159,7 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
     deleteAdditionalFee,
     autoSave,
     saveDraft,
+    saveAll,
     isSaving,
     isLoading,
     uploadIntroVideo,
@@ -177,12 +180,24 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [courseDataLoaded, setCourseDataLoaded] = useState(false); // Track if course data is fully loaded
 
-  // Show course selection modal when creating a new session (no sessionUuid)
+  // Show course selection modal when creating a new session (no sessionUuid and no pre-selected course)
   useEffect(() => {
-    if (!sessionUuid && !selectedCourse && !isInitialized) {
+    if (!sessionUuid && !selectedCourse && !isInitialized && !preSelectedCourseUuid) {
       setShowCourseModal(true);
     }
-  }, [sessionUuid, selectedCourse, isInitialized]);
+  }, [sessionUuid, selectedCourse, isInitialized, preSelectedCourseUuid]);
+
+  // Auto-load pre-selected course from URL params
+  useEffect(() => {
+    if (preSelectedCourseUuid && !selectedCourse && !isInitialized && !isLoadingCourse) {
+      // Simulate course selection with the pre-selected UUID
+      handleCourseSelected({ 
+        id: 0, 
+        uuid: preSelectedCourseUuid, 
+        title: '' // Title will be loaded from API
+      });
+    }
+  }, [preSelectedCourseUuid, selectedCourse, isInitialized, isLoadingCourse]);
 
   // Handle course selection and pre-fill data using single API call
   const handleCourseSelected = async (course: SelectedCourse) => {
@@ -382,11 +397,24 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
       setCurrentStep(currentStep + 1);
     } else if (currentStep === 8) {
       // Handle session completion
+      // Use saveAll to save both COURSE changes and SESSION data
       try {
-        const updated = await updateSession();
-        if (updated) {
-          showSuccess(t('session.completedSuccessfully'));
-          // Optionally redirect to session management or dashboard
+        const result = await saveAll();
+        if (result.success) {
+          showSuccess(t('session.completedSuccessfully') + ': ' + result.message);
+          // Call callback if provided
+          if (onSessionSaved) {
+            onSessionSaved();
+          }
+        } else {
+          // Partial success handling
+          if (result.courseSuccess && !result.sessionSuccess) {
+            showWarning('Cours sauvegardé, mais erreur pour la session: ' + result.message);
+          } else if (!result.courseSuccess && result.sessionSuccess) {
+            showWarning('Session sauvegardée, mais erreur pour le cours: ' + result.message);
+          } else {
+            showError(result.message || t('session.completionError'));
+          }
         }
       } catch (error: any) {
         console.error('Failed to complete session:', error);
@@ -423,8 +451,8 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
           <>
             <SessionInformationForm
               formData={formData}
-              categories={metadata.categories}
-              subcategories={metadata.subcategories || []}
+              categories={metadata?.categories || []}
+              subcategories={metadata?.subcategories || []}
               onInputChange={handleInputChange}
               onFileUpload={handleFileUpload}
               onFileUrlUpdate={handleFileUrlUpdate}
@@ -512,6 +540,18 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
                 }
               }}
               onReorderModules={(reorderedModules) => {
+                // Update local state immediately for instant visual feedback
+                const reorderedLocalModules = reorderedModules.map((m, index) => {
+                  const originalModule = localModules.find(mod => (mod.uuid || mod.id) === m.id);
+                  if (originalModule) {
+                    return { ...originalModule, order_index: index };
+                  }
+                  return null;
+                }).filter(Boolean);
+                
+                setLocalModules(reorderedLocalModules as typeof localModules);
+                
+                // API call (currently a stub in context)
                 reorderModules(reorderedModules);
               }}
               onAddObjective={() => createObjective({

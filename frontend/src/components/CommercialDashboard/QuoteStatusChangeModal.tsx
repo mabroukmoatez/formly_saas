@@ -15,6 +15,9 @@ interface QuoteStatusChangeModalProps {
   quoteNumber: string;
   clientEmail?: string;
   clientName?: string;
+  documentUrl?: string | null;
+  onReplaceDocument?: (file: File) => Promise<void>;
+  onDeleteDocument?: () => Promise<void>;
 }
 
 export interface StatusChangeData {
@@ -37,6 +40,9 @@ export const QuoteStatusChangeModal: React.FC<QuoteStatusChangeModalProps> = ({
   quoteNumber,
   clientEmail = '',
   clientName = '',
+  documentUrl,
+  onReplaceDocument,
+  onDeleteDocument,
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
