@@ -31,7 +31,7 @@ class QuoteManagementController extends Controller
     public function index(Request $request)
     {
         $organization_id = $this->getOrganizationId();
-        
+
         // Validate request parameters
         $validator = Validator::make($request->all(), [
             'page' => 'nullable|integer|min:1',
@@ -55,7 +55,7 @@ class QuoteManagementController extends Controller
         // Validate amount range
         $minAmount = $request->filled('min_amount') ? $request->min_amount : ($request->filled('price_from') ? $request->price_from : null);
         $maxAmount = $request->filled('max_amount') ? $request->max_amount : ($request->filled('price_to') ? $request->price_to : null);
-        
+
         if ($minAmount !== null && $maxAmount !== null && $minAmount > $maxAmount) {
             return $this->failed([], 'Validation error: min_amount (' . $minAmount . ') cannot be greater than max_amount (' . $maxAmount . ')');
         }
@@ -114,8 +114,40 @@ class QuoteManagementController extends Controller
         // Pagination
         $perPage = $request->get('per_page', 12);
         $quotes = $query->latest()->paginate($perPage);
-        
+
         return $this->success($quotes);
+    }
+
+    /**
+     * Get next quote number
+     */
+    public function getNextQuoteNumber()
+    {
+        $organization_id = $this->getOrganizationId();
+        if (!$organization_id) return $this->failed([], 'User is not associated with an organization.');
+
+        try {
+            $currentDate = date('Y-m-d');
+
+            // Get count of quotes created today for this organization
+            $todayQuoteCount = Quote::where('organization_id', $organization_id)
+                ->whereDate('created_at', $currentDate)
+                ->count();
+
+            // Format: current date (YYYY-MM-DD) + today's count + 1
+            // The number resets to 1 every day
+            $nextNumber = $todayQuoteCount + 1;
+            $quoteNumber = "D-{$currentDate}-{$nextNumber}";
+
+            return $this->success([
+                'quote_number' => $quoteNumber,
+                'count' => $todayQuoteCount,
+                'next_number' => $nextNumber
+            ], 'Next quote number generated successfully.');
+
+        } catch (\Exception $e) {
+            return $this->failed([], 'Failed to generate quote number: ' . $e->getMessage());
+        }
     }
 
     public function store(Request $request)
