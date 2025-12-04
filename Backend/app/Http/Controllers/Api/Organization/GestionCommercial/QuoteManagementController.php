@@ -127,17 +127,21 @@ class QuoteManagementController extends Controller
         if (!$organization_id) return $this->failed([], 'User is not associated with an organization.');
 
         try {
-            // Get count of quotes for this organization
-            $quoteCount = Quote::where('organization_id', $organization_id)->count();
-
-            // Format: current date (YYYY-MM-DD) + count + 1
-            $nextNumber = $quoteCount + 1;
             $currentDate = date('Y-m-d');
+
+            // Get count of quotes created today for this organization
+            $todayQuoteCount = Quote::where('organization_id', $organization_id)
+                ->whereDate('created_at', $currentDate)
+                ->count();
+
+            // Format: current date (YYYY-MM-DD) + today's count + 1
+            // The number resets to 1 every day
+            $nextNumber = $todayQuoteCount + 1;
             $quoteNumber = "D-{$currentDate}-{$nextNumber}";
 
             return $this->success([
                 'quote_number' => $quoteNumber,
-                'count' => $quoteCount,
+                'count' => $todayQuoteCount,
                 'next_number' => $nextNumber
             ], 'Next quote number generated successfully.');
 
