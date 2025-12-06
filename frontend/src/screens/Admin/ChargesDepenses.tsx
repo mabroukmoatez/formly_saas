@@ -1116,61 +1116,6 @@ export const ChargesDepenses = (): JSX.Element => {
           <div className="flex items-center gap-3">
             {/* Filter Buttons */}
             <div className="flex items-center gap-2">
-              {/* Category Filter Dropdown */}
-              <div className="relative" ref={filterDropdownRef}>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-blue-500 bg-transparent hover:bg-blue-50'}`}
-                  style={{ borderColor: isDark ? undefined : primaryColor }}
-                >
-                  <Filter className={`w-4 h-4`} style={{ color: primaryColor }} />
-                  <span className={`font-medium text-sm`} style={{ color: primaryColor }}>
-                    Catégorie
-                  </span>
-                  <ChevronDown className={`w-4 h-4`} style={{ color: primaryColor }} />
-                </Button>
-                {showFilterDropdown && (
-                  <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                    <div className="p-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Toutes les catégories
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('Moyens Humains');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Moyens Humains
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('Moyens Environnementaux');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Moyens Environnementaux
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Advanced Filters Toggle */}
               <div className="relative" ref={advancedFiltersRef}>
                 <Button
@@ -1241,6 +1186,22 @@ export const ChargesDepenses = (): JSX.Element => {
                         />
                       </div>
 
+                      {/* Category Filter */}
+                      <div className="flex flex-col gap-2 col-span-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Catégorie
+                        </Label>
+                        <select
+                          value={selectedCategory}
+                          onChange={(e) => setSelectedCategory(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                        >
+                          <option value="">Toutes les catégories</option>
+                          <option value="Moyens Humains">Moyens Humains</option>
+                          <option value="Moyens Environnementaux">Moyens Environnementaux</option>
+                        </select>
+                      </div>
+
                       {/* Formation Filter */}
                       <div className="flex flex-col gap-2 col-span-2">
                         <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1270,6 +1231,7 @@ export const ChargesDepenses = (): JSX.Element => {
                           onClick={() => {
                             setDateFilter({ start: '', end: '' });
                             setAmountFilter({ min: '', max: '' });
+                            setSelectedCategory('');
                             setFormationFilter('');
                           }}
                           className={`w-full h-10 ${isDark ? 'border-gray-600 bg-gray-800 hover:bg-gray-700' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
