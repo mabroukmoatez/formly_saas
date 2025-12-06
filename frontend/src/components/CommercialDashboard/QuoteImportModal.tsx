@@ -165,7 +165,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
         await commercialService.updateQuote(quote.id, updateData);
         showSuccess('Succès', 'Devis modifié avec succès');
       } else {
-        // Create mode: Create new quote
+        // Create mode: Create new quote with PDF upload
         // Calculate valid_until date (30 days from issue_date)
         const issueDate = new Date(formData.issue_date);
         const validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -176,28 +176,36 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
         const totalTva = parseFloat(formData.total_tva) || 0;
         const taxRate = totalHt > 0 ? (totalTva / totalHt) * 100 : 20;
 
-        const quoteData = {
-          quote_number: formData.quote_number,
-          issue_date: formData.issue_date,
-          valid_until: validUntilStr,
-          client_name: formData.client_name,
-          client_email: formData.client_email || '',
-          client_phone: formData.client_phone || '',
-          total_ht: parseFloat(formData.total_ht) || 0,
-          total_tva: parseFloat(formData.total_tva) || 0,
-          total_ttc: parseFloat(formData.total_ttc),
-          status: 'draft',
-          is_imported: 1,
-          items: [{
-            designation: 'Devis importé - Voir PDF joint',
-            description: `Devis importé depuis le fichier: ${selectedFile?.name}`,
-            quantity: 1,
-            price_ht: totalHt,
-            tva_rate: taxRate,
-          }],
-        };
+        // Create FormData to send file with quote data
+        const uploadFormData = new FormData();
+        uploadFormData.append('quote_number', formData.quote_number);
+        uploadFormData.append('issue_date', formData.issue_date);
+        uploadFormData.append('valid_until', validUntilStr);
+        uploadFormData.append('client_name', formData.client_name);
+        uploadFormData.append('client_email', formData.client_email || '');
+        uploadFormData.append('client_phone', formData.client_phone || '');
+        uploadFormData.append('total_ht', (parseFloat(formData.total_ht) || 0).toString());
+        uploadFormData.append('total_tva', (parseFloat(formData.total_tva) || 0).toString());
+        uploadFormData.append('total_ttc', parseFloat(formData.total_ttc).toString());
+        uploadFormData.append('status', 'draft');
+        uploadFormData.append('is_imported', '1');
 
-        await commercialService.createQuote(quoteData);
+        // Add items as JSON
+        const items = [{
+          designation: 'Devis importé - Voir PDF joint',
+          description: `Devis importé depuis le fichier: ${selectedFile?.name}`,
+          quantity: 1,
+          price_ht: totalHt,
+          tva_rate: taxRate,
+        }];
+        uploadFormData.append('items', JSON.stringify(items));
+
+        // Add PDF file
+        if (selectedFile) {
+          uploadFormData.append('imported_document', selectedFile);
+        }
+
+        await commercialService.createImportedQuote(uploadFormData);
         showSuccess('Succès', 'Devis importé avec succès');
       }
 

@@ -26,7 +26,8 @@ class Quote extends Model
         'notes',
         'terms',
         'signed_document_path',
-        'is_imported'
+        'is_imported',
+        'imported_document_path'
     ];
 
     protected $casts = [

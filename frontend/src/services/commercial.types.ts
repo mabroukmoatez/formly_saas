@@ -44,6 +44,7 @@ export interface Invoice {
   payment_terms?: string;
   notes?: string;
   is_imported?: number | boolean;
+  imported_document_path?: string;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +88,7 @@ export interface Quote {
   notes?: string;
   expires_at?: string;
   is_imported?: number | boolean;
+  imported_document_path?: string;
   created_at: string;
   updated_at: string;
 }

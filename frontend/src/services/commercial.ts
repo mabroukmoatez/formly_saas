@@ -66,6 +66,14 @@ class CommercialService {
     return await apiService.post<ApiResponse<{ invoice: Invoice }>>('/api/organization/commercial/invoices', data);
   }
 
+  async createImportedInvoice(formData: FormData): Promise<ApiResponse<{ invoice: Invoice }>> {
+    return await apiService.post<ApiResponse<{ invoice: Invoice }>>('/api/organization/commercial/invoices', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  }
+
   async updateInvoice(id: string, data: UpdateInvoiceData): Promise<ApiResponse<{ invoice: Invoice }>> {
     return await apiService.put<ApiResponse<{ invoice: Invoice }>>(`/api/organization/commercial/invoices/${id}`, data);
   }
@@ -131,6 +139,14 @@ class CommercialService {
 
   async createQuote(data: CreateQuoteData): Promise<ApiResponse<{ quote: Quote }>> {
     return await apiService.post<ApiResponse<{ quote: Quote }>>('/api/organization/commercial/quotes', data);
+  }
+
+  async createImportedQuote(formData: FormData): Promise<ApiResponse<{ quote: Quote }>> {
+    return await apiService.post<ApiResponse<{ quote: Quote }>>('/api/organization/commercial/quotes', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
   }
 
   async updateQuote(id: string, data: UpdateQuoteData): Promise<ApiResponse<{ quote: Quote }>> {

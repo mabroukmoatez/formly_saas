@@ -165,7 +165,7 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
         await commercialService.updateInvoice(invoice.id, updateData);
         showSuccess('Succès', 'Facture modifiée avec succès');
       } else {
-        // Create mode: Create new invoice
+        // Create mode: Create new invoice with PDF upload
         // Calculate due_date (30 days from issue_date)
         const issueDate = new Date(formData.issue_date);
         const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -176,28 +176,36 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
         const totalTva = parseFloat(formData.total_tva) || 0;
         const taxRate = totalHt > 0 ? (totalTva / totalHt) * 100 : 20;
 
-        const invoiceData = {
-          invoice_number: formData.invoice_number,
-          issue_date: formData.issue_date,
-          due_date: dueDateStr,
-          client_name: formData.client_name,
-          client_email: formData.client_email || '',
-          client_phone: formData.client_phone || '',
-          total_ht: parseFloat(formData.total_ht) || 0,
-          total_tva: parseFloat(formData.total_tva) || 0,
-          total_ttc: parseFloat(formData.total_ttc),
-          status: 'draft',
-          is_imported: 1,
-          items: [{
-            designation: 'Facture importée - Voir PDF joint',
-            description: `Facture importée depuis le fichier: ${selectedFile?.name}`,
-            quantity: 1,
-            price_ht: totalHt,
-            tva_rate: taxRate,
-          }],
-        };
+        // Create FormData to send file with invoice data
+        const uploadFormData = new FormData();
+        uploadFormData.append('invoice_number', formData.invoice_number);
+        uploadFormData.append('issue_date', formData.issue_date);
+        uploadFormData.append('due_date', dueDateStr);
+        uploadFormData.append('client_name', formData.client_name);
+        uploadFormData.append('client_email', formData.client_email || '');
+        uploadFormData.append('client_phone', formData.client_phone || '');
+        uploadFormData.append('total_ht', (parseFloat(formData.total_ht) || 0).toString());
+        uploadFormData.append('total_tva', (parseFloat(formData.total_tva) || 0).toString());
+        uploadFormData.append('total_ttc', parseFloat(formData.total_ttc).toString());
+        uploadFormData.append('status', 'draft');
+        uploadFormData.append('is_imported', '1');
 
-        await commercialService.createInvoice(invoiceData);
+        // Add items as JSON
+        const items = [{
+          designation: 'Facture importée - Voir PDF joint',
+          description: `Facture importée depuis le fichier: ${selectedFile?.name}`,
+          quantity: 1,
+          price_ht: totalHt,
+          tva_rate: taxRate,
+        }];
+        uploadFormData.append('items', JSON.stringify(items));
+
+        // Add PDF file
+        if (selectedFile) {
+          uploadFormData.append('imported_document', selectedFile);
+        }
+
+        await commercialService.createImportedInvoice(uploadFormData);
         showSuccess('Succès', 'Facture importée avec succès');
       }
 

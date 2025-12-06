@@ -26,7 +26,8 @@ class Invoice extends Model
         'payment_schedule_text',
         'notes',
         'terms',
-        'is_imported'
+        'is_imported',
+        'imported_document_path'
     ];
 
     protected $casts = [
