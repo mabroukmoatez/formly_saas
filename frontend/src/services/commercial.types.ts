@@ -43,6 +43,8 @@ export interface Invoice {
   items?: InvoiceItem[];
   payment_terms?: string;
   notes?: string;
+  is_imported?: number | boolean;
+  imported_document_path?: string;
   created_at: string;
   updated_at: string;
 }
@@ -85,6 +87,8 @@ export interface Quote {
   payment_schedule_text?: string; // New structured payment schedule text
   notes?: string;
   expires_at?: string;
+  is_imported?: number | boolean;
+  imported_document_path?: string;
   created_at: string;
   updated_at: string;
 }

@@ -25,7 +25,9 @@ class Quote extends Model
         'payment_schedule_text',
         'notes',
         'terms',
-        'signed_document_path'
+        'signed_document_path',
+        'is_imported',
+        'imported_document_path'
     ];
 
     protected $casts = [
