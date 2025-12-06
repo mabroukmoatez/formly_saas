@@ -51,7 +51,8 @@ export const InvoiceViewContent: React.FC = () => {
   const [paymentConditions, setPaymentConditions] = useState('');
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
-  // Status modification button removed per user request
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -142,7 +143,7 @@ export const InvoiceViewContent: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      draft: 'Brouillon',
+      draft: 'Créé',
       sent: 'Envoyé',
       paid: 'Payé',
       overdue: 'Impayé',
@@ -162,7 +163,42 @@ export const InvoiceViewContent: React.FC = () => {
     return colors[status] || colors.draft;
   };
 
-  // Status modification removed - status now changes through specific actions only (send email, etc.)
+  // Status list limited to: Créé (draft), Envoyé (sent), Payé (paid), Impayé (overdue)
+  const allowedStatuses = [
+    { value: 'draft', label: 'Créé' },
+    { value: 'sent', label: 'Envoyé' },
+    { value: 'paid', label: 'Payé' },
+    { value: 'overdue', label: 'Impayé' },
+  ];
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id || !currentInvoice) {
+      showError('Erreur', 'ID de facture manquant');
+      return;
+    }
+
+    if (newStatus === currentInvoice.status) {
+      setShowStatusDropdown(false);
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const response = await commercialService.updateInvoiceStatus(id, newStatus);
+      if (response.success && response.data) {
+        setCurrentInvoice({ ...currentInvoice, status: newStatus });
+        success('Statut mis à jour avec succès');
+      } else {
+        showError('Erreur', response.message || 'Impossible de mettre à jour le statut');
+      }
+    } catch (err: any) {
+      console.error('Status update error:', err);
+      showError('Erreur', err.message || 'Impossible de mettre à jour le statut');
+    } finally {
+      setUpdatingStatus(false);
+      setShowStatusDropdown(false);
+    }
+  };
 
   const calculateTotals = () => {
     const totalHT = items.reduce((sum, item) => sum + item.total, 0);
@@ -430,11 +466,56 @@ export const InvoiceViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Display (read-only) */}
+          {/* Status Dropdown */}
           {currentInvoice && (
-            <div className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] pointer-events-none`}>
-              <Check className="w-5 h-5" />
-              <span className="font-medium text-xs">{getStatusLabel(currentInvoice.status)}</span>
+            <div className="relative">
+              <button
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                disabled={updatingStatus}
+                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] hover:opacity-80 transition-opacity`}
+              >
+                {updatingStatus ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Check className="w-5 h-5" />
+                )}
+                <span className="font-medium text-xs">{getStatusLabel(currentInvoice.status)}</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {showStatusDropdown && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowStatusDropdown(false)}
+                  />
+                  {/* Dropdown menu */}
+                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-20 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                    <div className="py-1">
+                      {allowedStatuses.map((status) => (
+                        <button
+                          key={status.value}
+                          onClick={() => handleStatusChange(status.value)}
+                          disabled={updatingStatus}
+                          className={`w-full text-left px-4 py-2 text-sm ${
+                            currentInvoice.status === status.value
+                              ? isDark ? 'bg-gray-700 text-white font-medium' : 'bg-gray-100 text-gray-900 font-medium'
+                              : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
+                          } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {currentInvoice.status === status.value && (
+                              <Check className="w-4 h-4" />
+                            )}
+                            <span>{status.label}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
