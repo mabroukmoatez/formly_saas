@@ -1333,20 +1333,11 @@ export const MesFactures = (): JSX.Element => {
           setIsImportModalOpen(false);
           setEditingInvoice(null);
         }}
-        onSuccess={(extractedData) => {
-          if (editingInvoice) {
-            // Edit mode: Just refresh the list
-            setIsImportModalOpen(false);
-            setEditingInvoice(null);
-            fetchInvoices();
-          } else {
-            // Create mode: Navigate to invoice creation page with pre-filled data
-            if (subdomain) {
-              navigate(`/${subdomain}/invoice-creation`, { state: { prefillData: extractedData } });
-            } else {
-              navigate('/invoice-creation', { state: { prefillData: extractedData } });
-            }
-          }
+        onSuccess={() => {
+          // Refresh the invoices list after successful import
+          setIsImportModalOpen(false);
+          setEditingInvoice(null);
+          fetchInvoices();
         }}
         invoice={editingInvoice}
       />
