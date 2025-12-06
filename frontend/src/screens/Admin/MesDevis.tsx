@@ -1138,10 +1138,10 @@ export const MesDevis = (): JSX.Element => {
           </div>
         )}
 
-        {/* Totals Summary - Moved outside table */}
+        {/* Totals Summary Card - Bottom Right */}
         {sortedQuotes.length > 0 && (
-          <div className="flex justify-end mt-6">
-            <div className={`w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
+          <div className="flex justify-end mt-4">
+            <div className={`w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6 shadow-sm`}>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1164,7 +1164,7 @@ export const MesDevis = (): JSX.Element => {
                   </span>
                 </div>
                 <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                  <div className="flex items-center justify-end gap-4">
+                  <div className="flex items-center justify-between">
                     <span className={`font-bold text-base`} style={{ color: primaryColor }}>
                       {t('dashboard.commercial.mes_devis.total_ttc')}
                     </span>
@@ -1223,13 +1223,10 @@ export const MesDevis = (): JSX.Element => {
       <QuoteImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onSuccess={(extractedData) => {
-          // Navigate to creation page with pre-filled data
-          if (subdomain) {
-            navigate(`/${subdomain}/quote-creation`, { state: { prefillData: extractedData } });
-          } else {
-            navigate('/quote-creation', { state: { prefillData: extractedData } });
-          }
+        onSuccess={() => {
+          // Refresh the quotes list after successful import
+          setIsImportModalOpen(false);
+          fetchQuotes();
         }}
       />
 

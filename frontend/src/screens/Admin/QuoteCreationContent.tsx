@@ -177,10 +177,11 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 
@@ -256,10 +257,11 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 
@@ -330,10 +332,11 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 

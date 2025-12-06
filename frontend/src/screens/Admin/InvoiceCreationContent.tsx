@@ -169,10 +169,11 @@ export const InvoiceCreationContent: React.FC = () => {
         issue_date: new Date().toISOString().split('T')[0],
         payment_conditions: paymentConditions,
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 
@@ -226,10 +227,11 @@ export const InvoiceCreationContent: React.FC = () => {
         issue_date: new Date().toISOString().split('T')[0],
         payment_conditions: paymentConditions,
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 
@@ -298,10 +300,11 @@ export const InvoiceCreationContent: React.FC = () => {
         issue_date: new Date().toISOString().split('T')[0],
         payment_conditions: paymentConditions,
         items: items.map(item => ({
-          description: item.designation,
+          designation: item.designation,
+          description: item.description || item.designation,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
+          price_ht: item.unit_price,
+          tva_rate: item.tax_rate,
         })),
       };
 

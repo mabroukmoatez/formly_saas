@@ -32,7 +32,9 @@ import {
   DollarSign,
   TrendingUp,
   Target,
-  Eye
+  Eye,
+  Download,
+  X
 } from 'lucide-react';
 import {
   Table,
@@ -417,6 +419,10 @@ export const ChargesDepenses = (): JSX.Element => {
 
   // Modal state for expense detail popup
   const [expenseModalType, setExpenseModalType] = useState<'total' | 'environnement' | 'humains' | null>(null);
+
+  // Attachment preview modal
+  const [showAttachmentPreview, setShowAttachmentPreview] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<any>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -810,13 +816,25 @@ export const ChargesDepenses = (): JSX.Element => {
     return `${nameWithoutExtension.substring(0, maxLength)}...${extension}`;
   };
 
+  const handlePreviewDocument = (document: any) => {
+    setPreviewDocument(document);
+    setShowAttachmentPreview(true);
+  };
+
   const handleDownloadDocument = (document: any) => {
     try {
       // Use the same base URL as in ChargeViewModal
       const baseURL = 'http://localhost:8000';
       const filePath = document.file_path.startsWith('/') ? document.file_path.slice(1) : document.file_path;
       const fileUrl = `${baseURL}/storage/${filePath}`;
-      window.open(fileUrl, '_blank');
+
+      // Create a temporary link to download
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.download = document.original_name || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error('Error downloading document:', err);
       showError('Erreur', 'Impossible de télécharger le document');
@@ -1116,61 +1134,6 @@ export const ChargesDepenses = (): JSX.Element => {
           <div className="flex items-center gap-3">
             {/* Filter Buttons */}
             <div className="flex items-center gap-2">
-              {/* Category Filter Dropdown */}
-              <div className="relative" ref={filterDropdownRef}>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 h-auto rounded-[10px] border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-blue-500 bg-transparent hover:bg-blue-50'}`}
-                  style={{ borderColor: isDark ? undefined : primaryColor }}
-                >
-                  <Filter className={`w-4 h-4`} style={{ color: primaryColor }} />
-                  <span className={`font-medium text-sm`} style={{ color: primaryColor }}>
-                    Catégorie
-                  </span>
-                  <ChevronDown className={`w-4 h-4`} style={{ color: primaryColor }} />
-                </Button>
-                {showFilterDropdown && (
-                  <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-10 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} border`}>
-                    <div className="p-2">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Toutes les catégories
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('Moyens Humains');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Moyens Humains
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setSelectedCategory('Moyens Environnementaux');
-                          setShowFilterDropdown(false);
-                        }}
-                        className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${isDark ? 'hover:bg-gray-600 text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Moyens Environnementaux
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Advanced Filters Toggle */}
               <div className="relative" ref={advancedFiltersRef}>
                 <Button
@@ -1241,6 +1204,22 @@ export const ChargesDepenses = (): JSX.Element => {
                         />
                       </div>
 
+                      {/* Category Filter */}
+                      <div className="flex flex-col gap-2 col-span-2">
+                        <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Catégorie
+                        </Label>
+                        <select
+                          value={selectedCategory}
+                          onChange={(e) => setSelectedCategory(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-md border text-sm ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                        >
+                          <option value="">Toutes les catégories</option>
+                          <option value="Moyens Humains">Moyens Humains</option>
+                          <option value="Moyens Environnementaux">Moyens Environnementaux</option>
+                        </select>
+                      </div>
+
                       {/* Formation Filter */}
                       <div className="flex flex-col gap-2 col-span-2">
                         <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1270,6 +1249,7 @@ export const ChargesDepenses = (): JSX.Element => {
                           onClick={() => {
                             setDateFilter({ start: '', end: '' });
                             setAmountFilter({ min: '', max: '' });
+                            setSelectedCategory('');
                             setFormationFilter('');
                           }}
                           className={`w-full h-10 ${isDark ? 'border-gray-600 bg-gray-800 hover:bg-gray-700' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
@@ -1479,10 +1459,10 @@ export const ChargesDepenses = (): JSX.Element => {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (charge.documents && charge.documents.length > 0) {
-                                handleDownloadDocument(charge.documents[0]);
+                                handlePreviewDocument(charge.documents[0]);
                               }
                             }}
-                            title={`${firstDocName}${docCount > 1 ? ` (+${docCount - 1} fichier${docCount - 1 > 1 ? 's' : ''})` : ''} - Cliquer pour télécharger`}
+                            title={`${firstDocName}${docCount > 1 ? ` (+${docCount - 1} fichier${docCount - 1 > 1 ? 's' : ''})` : ''} - Cliquer pour prévisualiser`}
                           >
                             <FileIcon className="w-3 h-3" />
                             <span className="hover:underline">{truncateFilename(firstDocName, 10)}</span>
@@ -1624,6 +1604,78 @@ export const ChargesDepenses = (): JSX.Element => {
           humainsTotal={(dashboardStats.data as any).humains_total || 0}
           environnementTotal={(dashboardStats.data as any).environnement_total || 0}
         />
+      )}
+
+      {/* Attachment Preview Modal */}
+      {showAttachmentPreview && previewDocument && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setShowAttachmentPreview(false)}>
+          <div className="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">{previewDocument.original_name}</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDownloadDocument(previewDocument)}
+                  className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Télécharger
+                </button>
+                <button
+                  onClick={() => setShowAttachmentPreview(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* Preview Content */}
+            <div className="p-4 overflow-auto max-h-[calc(90vh-80px)]">
+              {previewDocument.file_path && (() => {
+                const baseURL = 'http://localhost:8000';
+                const filePath = previewDocument.file_path.startsWith('/') ? previewDocument.file_path.slice(1) : previewDocument.file_path;
+                const fileUrl = `${baseURL}/storage/${filePath}`;
+                const fileName = previewDocument.original_name?.toLowerCase() || '';
+
+                if (fileName.endsWith('.pdf')) {
+                  return (
+                    <iframe
+                      src={fileUrl}
+                      className="w-full h-[calc(90vh-120px)] border-0"
+                      title="PDF Preview"
+                    />
+                  );
+                } else if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
+                  return (
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={fileUrl}
+                        alt={previewDocument.original_name}
+                        className="max-w-full max-h-[calc(90vh-120px)] object-contain"
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                      <FileIcon className="w-16 h-16 mb-4" />
+                      <p className="text-lg font-medium mb-2">Aperçu non disponible</p>
+                      <p className="text-sm mb-4">Ce type de fichier ne peut pas être prévisualisé</p>
+                      <button
+                        onClick={() => handleDownloadDocument(previewDocument)}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Télécharger le fichier
+                      </button>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
