@@ -554,6 +554,30 @@ class InvoiceManagementController extends Controller
         return $this->success([], 'Invoice deleted successfully.');
     }
 
+    public function getImportedDocument($id)
+    {
+        $organization_id = $this->getOrganizationId();
+        $invoice = Invoice::where('id', $id)->where('organization_id', $organization_id)->first();
+
+        if (!$invoice || !$invoice->imported_document_path) {
+            return $this->failed([], 'No imported document found.');
+        }
+
+        $filePath = $invoice->imported_document_path;
+
+        if (!Storage::disk('public')->exists($filePath)) {
+            return $this->failed([], 'Document file not found.');
+        }
+
+        $file = Storage::disk('public')->get($filePath);
+        $mimeType = Storage::disk('public')->mimeType($filePath);
+        $fileName = 'Facture-' . $invoice->invoice_number . '-importée.pdf';
+
+        return response($file, 200)
+            ->header('Content-Type', $mimeType)
+            ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
+    }
+
     public function remindUnpaid(Request $request)
     {
         $organization_id = $this->getOrganizationId();

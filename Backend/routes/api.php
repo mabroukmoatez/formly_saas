@@ -2224,6 +2224,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::post('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::put('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/quotes/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
+    Route::get('/quotes/{id}/imported-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getImportedDocument']);
     Route::post('/quotes/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/quotes/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
     Route::post('/quotes/{id}/send-email', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'sendEmail']);
@@ -2240,6 +2241,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::get('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getSignedDocument']);
     Route::post('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'uploadSignedDocument']);
     Route::delete('/devis/{id}/signed-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'deleteSignedDocument']);
+    Route::get('/devis/{id}/imported-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'getImportedDocument']);
     Route::post('/devis/{id}/convert-to-invoice', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::post('/devis/{id}/convert-to-facture', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'convertToInvoice']);
     Route::get('/devis/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\QuoteManagementController::class, 'generatePDF']);
@@ -2252,6 +2254,7 @@ Route::middleware(['auth:api', 'organization.api'])->prefix('organization/commer
     Route::get('/invoices/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'show']);
     Route::put('/invoices/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'update']);
     Route::delete('/invoices/{id}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'destroy']);
+    Route::get('/invoices/{id}/imported-document', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'getImportedDocument']);
     Route::post('/invoices/from-quote/{quoteId}', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'storeFromQuote']);
     Route::post('/invoices/remind-unpaid', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'remindUnpaid']);
     Route::get('/invoices/{id}/pdf', [\App\Http\Controllers\Api\Organization\GestionCommercial\InvoiceManagementController::class, 'generatePDF']);

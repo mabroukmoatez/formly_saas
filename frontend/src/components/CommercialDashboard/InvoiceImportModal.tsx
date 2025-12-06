@@ -358,6 +358,33 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
             </div>
             )}
 
+            {/* PDF Preview for Edit Mode */}
+            {isEditMode && invoice?.imported_document_path && (
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Document importé
+                </label>
+                <div className={`border rounded-xl overflow-hidden ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                  <iframe
+                    src={`${import.meta.env.VITE_API_URL}/api/organization/commercial/invoices/${invoice.id}/imported-document`}
+                    className="w-full h-96"
+                    title="Facture PDF"
+                  />
+                  <div className={`p-3 border-t ${isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-gray-50'}`}>
+                    <a
+                      href={`${import.meta.env.VITE_API_URL}/api/organization/commercial/invoices/${invoice.id}/imported-document`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium hover:underline"
+                      style={{ color: primaryColor }}
+                    >
+                      Ouvrir dans un nouvel onglet →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Form Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div>
