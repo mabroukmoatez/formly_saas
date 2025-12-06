@@ -974,13 +974,11 @@ export const MesFactures = (): JSX.Element => {
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
+                          <button
                             onClick={() => {
-                              if (subdomain) {
-                                navigate(`/${subdomain}/invoice-view/${invoice.id}`);
-                              } else {
-                                navigate(`/invoice-view/${invoice.id}`);
-                              }
+                              // Open import modal in edit mode
+                              setEditingInvoice(invoice);
+                              setIsImportModalOpen(true);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
                             title="Modifier"

@@ -1109,11 +1109,9 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
-                              if (subdomain) {
-                                navigate(`/${subdomain}/quote-view/${quote.id}`);
-                              } else {
-                                navigate(`/quote-view/${quote.id}`);
-                              }
+                              // Open import modal in edit mode
+                              setEditingQuote(quote);
+                              setIsImportModalOpen(true);
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
                             title={t('dashboard.commercial.mes_devis.modify')}
