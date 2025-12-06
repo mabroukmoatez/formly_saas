@@ -51,9 +51,8 @@ export const InvoiceViewContent: React.FC = () => {
   const [paymentConditions, setPaymentConditions] = useState('');
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  
+  // Status modification button removed per user request
+
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -156,94 +155,7 @@ export const InvoiceViewContent: React.FC = () => {
     return colors[status] || colors.draft;
   };
 
-  const statuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (!id || !currentInvoice) return;
-    
-    setUpdatingStatus(true);
-    try {
-      // Include required fields from current invoice to avoid validation errors
-      const updateData: any = {
-        status: newStatus,
-      };
-      
-      // Include invoice_number if available - required field
-      if (invoiceNumber || currentInvoice.invoice_number) {
-        updateData.invoice_number = invoiceNumber || currentInvoice.invoice_number;
-      }
-      
-      // Include client information - required field
-      if (clientInfo.name) {
-        updateData.client_name = clientInfo.name;
-      } else if (currentInvoice.client_name) {
-        updateData.client_name = currentInvoice.client_name;
-      } else if (currentInvoice.client) {
-        updateData.client_name = currentInvoice.client.company_name || 
-          `${currentInvoice.client.first_name || ''} ${currentInvoice.client.last_name || ''}`.trim() || 'Client';
-      }
-      
-      // Include client email and address if available
-      if (clientInfo.email || currentInvoice.client_email || currentInvoice.client?.email) {
-        updateData.client_email = clientInfo.email || currentInvoice.client_email || currentInvoice.client?.email;
-      }
-      if (clientInfo.address || currentInvoice.client_address || currentInvoice.client?.address) {
-        updateData.client_address = clientInfo.address || currentInvoice.client_address || currentInvoice.client?.address;
-      }
-      if (clientInfo.phone || currentInvoice.client_phone || currentInvoice.client?.phone) {
-        updateData.client_phone = clientInfo.phone || currentInvoice.client_phone || currentInvoice.client?.phone;
-      }
-      
-      // Include client_id if available
-      if (client?.id || currentInvoice.client_id) {
-        updateData.client_id = client?.id || currentInvoice.client_id;
-      }
-      
-      // Include items - required to maintain invoice structure
-      if (items.length > 0) {
-        updateData.items = items.map(item => ({
-          id: item.id,
-          description: item.designation,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
-        }));
-      } else if (currentInvoice.items && currentInvoice.items.length > 0) {
-        updateData.items = currentInvoice.items.map((item: any) => ({
-          id: item.id,
-          description: item.description || item.designation,
-          quantity: item.quantity,
-          unit_price: item.unit_price || parseFloat(item.price_ht || 0),
-          tax_rate: item.tax_rate || parseFloat(item.tva_rate || 0),
-        }));
-      }
-      
-      // Include payment conditions if available
-      if (paymentConditions || currentInvoice.payment_conditions) {
-        updateData.payment_conditions = paymentConditions || currentInvoice.payment_conditions;
-      }
-      
-      // Include issue_date if available (may be required)
-      if (currentInvoice.issue_date) {
-        updateData.issue_date = currentInvoice.issue_date;
-      }
-      
-      const response = await commercialService.updateInvoice(id, updateData);
-      
-      if (response.success) {
-        success(`Statut changé en "${getStatusLabel(newStatus)}"`);
-        setShowStatusMenu(false);
-        setCurrentInvoice({ ...currentInvoice, status: newStatus } as Invoice);
-      } else {
-        showError('Erreur', response.message || 'Impossible de changer le statut');
-      }
-    } catch (err: any) {
-      console.error('Status update error:', err);
-      showError('Erreur', err.message || 'Impossible de changer le statut');
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
+  // Status modification removed - status now changes through specific actions only (send email, etc.)
 
   const calculateTotals = () => {
     const totalHT = items.reduce((sum, item) => sum + item.total, 0);
@@ -253,6 +165,35 @@ export const InvoiceViewContent: React.FC = () => {
   };
 
   const { totalHT, totalTax, totalTTC } = calculateTotals();
+
+  // Handle direct logo file selection (no modal)
+  const handleLogoUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
+
+      try {
+        // Create preview URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCompanyInfo((prev: any) => ({
+            ...prev,
+            logo_url: reader.result as string
+          }));
+        };
+        reader.readAsDataURL(file);
+
+        success('Logo sélectionné avec succès');
+      } catch (err: any) {
+        showError('Erreur', 'Erreur lors du chargement du logo');
+      }
+    };
+    input.click();
+  };
 
   const handleSave = async () => {
     if (!id) {
@@ -482,41 +423,11 @@ export const InvoiceViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Change Button */}
+          {/* Status Display (read-only) */}
           {currentInvoice && (
-            <div className="relative">
-              <Button
-                variant="ghost"
-                onClick={() => setShowStatusMenu(!showStatusMenu)}
-                disabled={updatingStatus}
-                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] relative`}
-              >
-                <Check className="w-5 h-5" />
-                <span className="font-medium text-xs">{getStatusLabel(currentInvoice.status)}</span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-
-              {/* Status Dropdown */}
-              {showStatusMenu && (
-                <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} overflow-hidden z-50`}>
-                  {statuses.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={status === currentInvoice.status}
-                      className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${
-                        status === currentInvoice.status
-                          ? `${isDark ? 'bg-gray-700' : 'bg-gray-100'} opacity-50 cursor-not-allowed`
-                          : `${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${status === 'paid' ? 'bg-green-500' : status === 'sent' ? 'bg-blue-500' : status === 'overdue' ? 'bg-red-500' : 'bg-gray-500'}`} />
-                      {getStatusLabel(status)}
-                      {status === currentInvoice.status && <Check className="w-4 h-4 ml-auto" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] pointer-events-none`}>
+              <Check className="w-5 h-5" />
+              <span className="font-medium text-xs">{getStatusLabel(currentInvoice.status)}</span>
             </div>
           )}
 
@@ -568,15 +479,15 @@ export const InvoiceViewContent: React.FC = () => {
       <div className="flex flex-col gap-[42px] max-w-[1100px] mx-auto">
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-4">
-          <div 
+          <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
-            onClick={() => setShowCompanyModal(true)}
+            onClick={handleLogoUpload}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
               <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Cliquez pour ajouter votre logo
+                Cliquez pour choisir une image
               </div>
             )}
           </div>

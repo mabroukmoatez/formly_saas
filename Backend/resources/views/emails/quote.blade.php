@@ -19,7 +19,7 @@
         
         @if(isset($customMessage) && $customMessage)
             <div style="background-color: #fff; padding: 15px; border-radius: 5px; margin-bottom: 20px; white-space: pre-line;">
-                {!! nl2br(e($customMessage)) !!}
+                {!! nl2br($customMessage) !!}
             </div>
         @else
             <p>Bonjour {{ $quote->client->company_name ?? ($quote->client->first_name . ' ' . $quote->client->last_name) }},</p>

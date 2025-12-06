@@ -796,6 +796,20 @@ export const ChargesDepenses = (): JSX.Element => {
     return '';
   };
 
+  const truncateFilename = (filename: string, maxLength: number = 10): string => {
+    if (!filename) return '';
+
+    const lastDotIndex = filename.lastIndexOf('.');
+    const extension = lastDotIndex !== -1 ? filename.substring(lastDotIndex) : '';
+    const nameWithoutExtension = lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
+
+    if (nameWithoutExtension.length <= maxLength) {
+      return filename;
+    }
+
+    return `${nameWithoutExtension.substring(0, maxLength)}...${extension}`;
+  };
+
   const handleDownloadDocument = (document: any) => {
     try {
       // Use the same base URL as in ChargeViewModal
@@ -1468,13 +1482,13 @@ export const ChargesDepenses = (): JSX.Element => {
                                 handleDownloadDocument(charge.documents[0]);
                               }
                             }}
-                            title={`Cliquer pour télécharger${docCount > 1 ? ` (${docCount} fichiers)` : ''}`}
+                            title={`${firstDocName}${docCount > 1 ? ` (+${docCount - 1} fichier${docCount - 1 > 1 ? 's' : ''})` : ''} - Cliquer pour télécharger`}
                           >
                             <FileIcon className="w-3 h-3" />
-                            <span className="hover:underline">{firstDocName}</span>
+                            <span className="hover:underline">{truncateFilename(firstDocName, 10)}</span>
                             {docCount > 1 && (
                               <span
-                                className="ml-1 text-xs"
+                                className="ml-1 text-xs font-semibold"
                                 style={{ color: '#1976D2' }}
                               >
                                 +{docCount - 1}

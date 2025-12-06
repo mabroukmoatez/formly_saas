@@ -27,6 +27,8 @@ class Item extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected $appends = ['tax_rate'];
+
     // Relationship to the organization
     public function organization()
     {
@@ -42,6 +44,15 @@ class Item extends Model
     public function getPriceWithoutTaxAttribute()
     {
         return $this->price_ht;
+    }
+
+    // Calculate tax rate percentage from TVA amount and price_ht
+    public function getTaxRateAttribute()
+    {
+        if ($this->price_ht == 0) {
+            return 20; // Default to 20% if price is 0
+        }
+        return round(($this->tva / $this->price_ht) * 100, 2);
     }
 
     // Scope for organization filtering

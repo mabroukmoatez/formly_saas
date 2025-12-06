@@ -54,6 +54,12 @@ class Quote extends Model
         return $this->belongsTo(Organization::class);
     }
 
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    // Keep backward compatibility - return first invoice
     public function invoice()
     {
         return $this->hasOne(Invoice::class);
@@ -99,7 +105,9 @@ class Quote extends Model
 
     public function canBeConverted()
     {
-        return in_array($this->status, ['accepted', 'sent']) && !$this->invoice;
+        // Allow conversion from draft, sent, or accepted statuses
+        // Allow multiple conversions - removed the invoice check
+        return in_array($this->status, ['draft', 'sent', 'accepted']);
     }
 
     public function markAsAccepted()

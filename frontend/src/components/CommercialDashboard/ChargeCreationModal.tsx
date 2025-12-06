@@ -7,6 +7,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
+import { ConfirmationModal } from '../ui/confirmation-modal';
 import { commercialService } from '../../services/commercial';
 import { apiService } from '../../services/api';
 import { Charge } from '../../services/commercial.types';
@@ -53,6 +54,8 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
   const [existingDocuments, setExistingDocuments] = useState<ExistingDocument[]>([]);
   const [documentsToDelete, setDocumentsToDelete] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Dropdown states
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
@@ -289,11 +292,21 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleDeleteExistingDocument = (docId: string) => {
-    // Add to delete list
-    setDocumentsToDelete((prev) => [...prev, docId]);
-    // Remove from existing documents display
-    setExistingDocuments((prev) => prev.filter((doc) => doc.id !== docId));
+  const confirmDeleteDocument = () => {
+    if (documentToDelete) {
+      // Add to delete list
+      setDocumentsToDelete((prev) => [...prev, documentToDelete.id]);
+      // Remove from existing documents display
+      setExistingDocuments((prev) => prev.filter((doc) => doc.id !== documentToDelete.id));
+      setShowDeleteConfirm(false);
+      setDocumentToDelete(null);
+      success('Document marqué pour suppression');
+    }
+  };
+
+  const handleDeleteExistingDocument = (doc: ExistingDocument) => {
+    setDocumentToDelete({ id: doc.id, name: doc.original_name });
+    setShowDeleteConfirm(true);
   };
 
   const isHumanResourcesCategory = category === 'Moyens Humains' || category === 'Dépenses RH';
@@ -397,7 +410,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-[950px] max-h-[90vh] overflow-hidden rounded-[18px] ${isDark ? 'bg-gray-900' : 'bg-white'} shadow-[0px_0px_75px_rgba(25,41,74,0.24)]`}
+        className={`relative w-full max-w-[1200px] max-h-[90vh] overflow-hidden rounded-[18px] ${isDark ? 'bg-gray-900' : 'bg-white'} shadow-[0px_0px_75px_rgba(25,41,74,0.24)]`}
       >
         {/* Border overlay */}
         <div aria-hidden="true" className={`absolute border ${isDark ? 'border-gray-700' : 'border-[#dbd9d9]'} border-solid inset-0 pointer-events-none rounded-[18px]`} />
@@ -762,11 +775,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
                       </span>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (window.confirm(`Êtes-vous sûr de vouloir supprimer "${doc.original_name}" ?`)) {
-                            handleDeleteExistingDocument(doc.id);
-                          }
-                        }}
+                        onClick={() => handleDeleteExistingDocument(doc)}
                         className="flex items-center justify-center w-4 h-4 rounded-full hover:bg-red-100 transition-colors"
                       >
                         <X className="w-3 h-3 text-[#19294a] opacity-40 hover:opacity-100 hover:text-red-600" />
@@ -827,6 +836,21 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
           </form>
         </div>
       </div>
+
+      {/* Delete Document Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDocumentToDelete(null);
+        }}
+        onConfirm={confirmDeleteDocument}
+        title="Supprimer le document ?"
+        message={`Êtes-vous sûr de vouloir supprimer "${documentToDelete?.name}" ? Cette action sera effective après l'enregistrement de la dépense.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        type="danger"
+      />
     </div>
   );
 };

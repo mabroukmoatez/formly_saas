@@ -828,6 +828,7 @@ export const InvoiceCreationContent: React.FC = () => {
           });
           setShowClientModal(false);
         }}
+        existingClient={client}
       />
 
       <PaymentConditionsModal
