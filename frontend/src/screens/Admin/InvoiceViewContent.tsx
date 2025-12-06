@@ -106,15 +106,22 @@ export const InvoiceViewContent: React.FC = () => {
             
             // Set items
             if (invoiceData.items && invoiceData.items.length > 0) {
-              const processedItems: InvoiceItem[] = invoiceData.items.map((item: any) => ({
-                id: item.id?.toString() || Date.now().toString(),
-                reference: item.reference || '',
-                designation: item.description || item.designation || '',
-                quantity: parseFloat(item.quantity || 1),
-                unit_price: parseFloat(item.unit_price || item.price_ht || 0),
-                tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
-                total: parseFloat(item.total || item.total_ht || 0),
-              }));
+              const processedItems: InvoiceItem[] = invoiceData.items.map((item: any) => {
+                const quantity = parseFloat(item.quantity || 1);
+                const unit_price = parseFloat(item.unit_price || item.price_ht || 0);
+                // Calculate total from quantity and unit price, not from database
+                const total = quantity * unit_price;
+
+                return {
+                  id: item.id?.toString() || Date.now().toString(),
+                  reference: item.reference || '',
+                  designation: item.description || item.designation || '',
+                  quantity: quantity,
+                  unit_price: unit_price,
+                  tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
+                  total: total,
+                };
+              });
               setItems(processedItems);
             }
           } else {
