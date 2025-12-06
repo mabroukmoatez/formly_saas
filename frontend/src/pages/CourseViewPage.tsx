@@ -9,7 +9,7 @@ export const CourseViewPage: React.FC = () => {
   const { navigateToRoute } = useSubdomainNavigation();
 
   const handleClose = () => {
-    navigateToRoute('/course-management');
+    navigateToRoute('/gestion-formations');
   };
 
   const handleEdit = () => {

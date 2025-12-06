@@ -1,14 +1,16 @@
 /**
  * AttendanceModal Component
  * Modal for QR Code and Numeric Code attendance verification
+ * Connecté au backend: GET /course-sessions/{uuid}/slots/{slot}/attendance-code
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Badge } from '../ui/badge';
-import { X, Calendar, Clock, HelpCircle } from 'lucide-react';
+import { X, Calendar, Clock, HelpCircle, Loader2, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { courseSessionService } from '../../services/courseSession';
 import type { SessionData, SessionSlot } from './types';
 
 interface AttendanceModalProps {
@@ -17,6 +19,7 @@ interface AttendanceModalProps {
   session: SessionData;
   slot?: SessionSlot;
   mode: 'qr' | 'code';
+  sessionUuid?: string;
 }
 
 export const AttendanceModal: React.FC<AttendanceModalProps> = ({
@@ -24,25 +27,84 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   onClose,
   session,
   slot,
-  mode = 'code'
+  mode = 'code',
+  sessionUuid
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#0066FF';
 
-  // Generate a random attendance code
-  const [attendanceCode, setAttendanceCode] = useState('457 - 875');
+  const [attendanceCode, setAttendanceCode] = useState('--- - ---');
   const [qrValue, setQrValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [codeInfo, setCodeInfo] = useState<any>(null);
+
+  // Load attendance code from backend
+  const loadAttendanceCode = useCallback(async (regenerate = false) => {
+    const uuid = sessionUuid || session.uuid;
+    if (!uuid || !slot?.uuid) {
+      setError('Session ou séance non définie');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await courseSessionService.getAttendanceCode(uuid, slot.uuid, {
+        regenerate
+      });
+      
+      if (response.success && response.data) {
+        const code = response.data.numeric_code || response.data.code;
+        // Format code as "XXX - XXX"
+        if (code && code.length === 6) {
+          setAttendanceCode(`${code.slice(0, 3)} - ${code.slice(3)}`);
+        } else {
+          setAttendanceCode(code || '--- - ---');
+        }
+        
+        setQrValue(response.data.qr_code_url || 
+          `${window.location.origin}/attendance/${uuid}/${slot.uuid}?code=${code}`);
+      } else {
+        throw new Error('Impossible de récupérer le code');
+      }
+    } catch (err: any) {
+      console.error('Error loading attendance code:', err);
+      setError(err.message || 'Erreur lors du chargement du code');
+      // Fallback: generate temporary code
+      const code1 = Math.floor(100 + Math.random() * 900);
+      const code2 = Math.floor(100 + Math.random() * 900);
+      setAttendanceCode(`${code1} - ${code2}`);
+      setQrValue(`${window.location.origin}/attendance/${uuid}/${slot.uuid}?code=${code1}${code2}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [session.uuid, sessionUuid, slot?.uuid]);
+
+  // Load code info
+  const loadCodeInfo = useCallback(async () => {
+    const uuid = sessionUuid || session.uuid;
+    if (!uuid || !slot?.uuid) return;
+    
+    try {
+      const response = await courseSessionService.getAttendanceCodeInfo(uuid, slot.uuid);
+      if (response.success && response.data) {
+        setCodeInfo(response.data);
+      }
+    } catch (err) {
+      console.warn('Code info endpoint not available:', err);
+    }
+  }, [sessionUuid, session.uuid, slot?.uuid]);
 
   useEffect(() => {
-    // Generate unique attendance code and QR value
-    const code1 = Math.floor(100 + Math.random() * 900);
-    const code2 = Math.floor(100 + Math.random() * 900);
-    setAttendanceCode(`${code1} - ${code2}`);
-    
-    // QR value could be a URL or unique identifier
-    setQrValue(`https://formly.com/attendance/${session.uuid}/${slot?.uuid || 'slot'}?code=${code1}${code2}`);
-  }, [session.uuid, slot?.uuid]);
+    if (isOpen && slot?.uuid) {
+      loadAttendanceCode();
+      loadCodeInfo();
+    }
+  }, [isOpen, slot?.uuid, loadAttendanceCode, loadCodeInfo]);
 
   if (!isOpen) return null;
 
@@ -63,10 +125,22 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-blue-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">F</span>
-          </div>
-          <span className="text-2xl font-bold" style={{ color: primaryColor }}>Formly</span>
+          {organization?.organization_logo_url || organization?.organization_logo ? (
+            <img 
+              src={organization.organization_logo_url || organization.organization_logo || ''} 
+              alt={organization.organization_name || 'Organization'} 
+              className="w-10 h-10 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-blue-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">
+                {(organization?.organization_name || 'O').charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
+          <span className="text-2xl font-bold" style={{ color: primaryColor }}>
+            {organization?.organization_name || 'Formly'}
+          </span>
         </div>
 
         {/* Course Title */}
@@ -76,7 +150,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         
         {/* Session Title */}
         <p className={`text-center mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          Sessoin: {session.title || 'titre de la session'}
+          Session: {session.title || 'titre de la session'}
         </p>
 
         {/* Date and Time */}
@@ -96,11 +170,27 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           </Badge>
         </div>
 
-        {/* QR Code or Numeric Code */}
-        {mode === 'qr' ? (
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-12 h-12 animate-spin text-gray-400 mb-4" />
+            <p className="text-gray-500">Chargement du code...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <p className="text-red-500 mb-4">{error}</p>
+            <button
+              onClick={() => loadAttendanceCode(true)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 inline-flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Réessayer
+            </button>
+          </div>
+        ) : mode === 'qr' ? (
           <>
             <div className="flex justify-center mb-4">
-              <div className="p-4 bg-white rounded-xl">
+              <div className="p-4 bg-white rounded-xl shadow-sm">
                 <QRCodeSVG 
                   value={qrValue}
                   size={200}
@@ -109,10 +199,20 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 />
               </div>
             </div>
-            <div className="text-center mb-4">
-              <button className="text-red-500 text-sm hover:underline inline-flex items-center gap-1">
+            <div className="text-center mb-4 flex items-center justify-center gap-4">
+              <button 
+                onClick={() => loadAttendanceCode(true)}
+                className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Régénérer
+              </button>
+              <button 
+                onClick={() => setShowInfoModal(true)}
+                className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
+              >
                 <HelpCircle className="w-4 h-4" />
-                not working?
+                Plus d'infos
               </button>
             </div>
           </>
@@ -128,17 +228,98 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             >
               {attendanceCode}
             </div>
+            <div className="flex items-center justify-center gap-4 mt-4">
+              <button 
+                onClick={() => loadAttendanceCode(true)}
+                className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Régénérer le code
+              </button>
+              <button 
+                onClick={() => setShowInfoModal(true)}
+                className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
+              >
+                <HelpCircle className="w-4 h-4" />
+                Plus d'infos
+              </button>
+            </div>
           </div>
         )}
 
         {/* Instruction */}
         <p className={`text-center text-lg ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
           {mode === 'qr' 
-            ? 'Scan the code to confirm your Presence'
-            : 'Scan the code to confirm your Presence'
+            ? 'Scannez le code QR pour confirmer votre présence'
+            : 'Entrez ce code dans l\'application pour confirmer votre présence'
           }
         </p>
       </div>
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowInfoModal(false)} />
+          <div className={`relative w-full max-w-md rounded-2xl shadow-2xl p-6 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+            <button
+              onClick={() => setShowInfoModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Informations Code de Présence
+            </h2>
+            
+            {codeInfo ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Code</p>
+                  <p className={`font-mono text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {codeInfo.code || attendanceCode}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Valide jusqu'à</p>
+                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
+                    {codeInfo.valid_until ? new Date(codeInfo.valid_until).toLocaleString('fr-FR') : slot?.endTime || 'Fin de séance'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Période</p>
+                  <p className={isDark ? 'text-white' : 'text-gray-900'}>
+                    {codeInfo.period === 'morning' ? 'Matin' : codeInfo.period === 'afternoon' ? 'Après-midi' : 'Toute la journée'}
+                  </p>
+                </div>
+                {codeInfo.instructions && (
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Instructions</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {codeInfo.instructions}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
+                  <strong>Code:</strong> {attendanceCode}
+                </p>
+                <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
+                  <strong>Séance:</strong> {slot?.title || slot?.date}
+                </p>
+                <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
+                  <strong>Date:</strong> {slot?.date} de {slot?.startTime} à {slot?.endTime}
+                </p>
+                <p className={`text-sm mt-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Entrez ce code dans l'application mobile ou web pour confirmer votre présence à cette séance.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

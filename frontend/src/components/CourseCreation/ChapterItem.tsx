@@ -97,30 +97,24 @@ export const ChapterItem: React.FC<ChapterItemProps> = ({
                     : 'bg-gray-200 border-[#e2e2ea]'
               }`}
             />
-            <span className={`[font-family:'Poppins',Helvetica] font-medium text-[17px] ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
-              {t('courseSteps.step2.sections.chapters.chapter')} {chapter.order}:
-            </span>
+            <Input
+              value={chapter.title || ''}
+              onChange={(e) => {
+                if (!chapter.id) {
+                  console.error('ChapterItem: chapter.id is undefined in onTitleChange');
+                  return;
+                }
+                onTitleChange(chapter.id, e.target.value);
+              }}
+              placeholder={t('courseSteps.step2.sections.chapters.chapterTitlePlaceholder')}
+              className={`flex-1 border-none shadow-none text-[17px] font-medium ${
+                isDark 
+                  ? 'text-white placeholder:text-gray-400 bg-transparent' 
+                  : 'text-[#6a90b9] placeholder:text-[#6a90b9]'
+              }`}
+            />
+            </div>
           </div>
-          
-          <Input
-            value={chapter.title || ''}
-            onChange={(e) => {
-              if (!chapter.id) {
-                console.error('ChapterItem: chapter.id is undefined in onTitleChange');
-                return;
-              }
-              onTitleChange(chapter.id, e.target.value);
-            }}
-            placeholder={t('courseSteps.step2.sections.chapters.chapterTitlePlaceholder')}
-            className={`flex-1 border-none shadow-none text-[17px] font-medium ${
-              isDark 
-                ? 'text-white placeholder:text-gray-400 bg-transparent' 
-                : 'text-[#6a90b9] placeholder:text-[#6a90b9]'
-            }`}
-          />
-        </div>
         
         <div className="flex items-center gap-2">
           <Button

@@ -97,6 +97,21 @@ class CourseCreationService {
     return apiService.get(`${this.orgCoursesBase}/${courseUuid}`);
   }
 
+  // Delete course
+  deleteCourse(courseUuid: UUID) {
+    return apiService.delete(`${this.orgCoursesBase}/${courseUuid}`);
+  }
+
+  // Duplicate course
+  duplicateCourse(courseUuid: UUID, options?: {
+    title_suffix?: string;
+    copy_participants?: boolean;
+    copy_sessions?: boolean;
+    status?: number | string;
+  }) {
+    return apiService.post(`${this.orgCoursesBase}/${courseUuid}/duplicate`, options || {});
+  }
+
   // Generic update course - combines multiple update endpoints
   async updateCourse(courseUuid: UUID, data: any) {
     const promises = [];

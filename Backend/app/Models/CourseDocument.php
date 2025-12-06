@@ -15,6 +15,7 @@ class CourseDocument extends Model
         'uuid',
         'course_uuid',
         'name',
+        'subtitle',
         'description',
         'category',
         'file_url',
@@ -35,7 +36,10 @@ class CourseDocument extends Model
         'questionnaire_type',
         'created_by',
         'custom_template',
-        'questions'
+        'questions',
+        'logo_url',
+        'legal_mentions_content',
+        'legal_mentions_visible'
     ];
 
     protected $casts = [
@@ -48,7 +52,8 @@ class CourseDocument extends Model
         'generated_at' => 'datetime',
         'is_certificate' => 'boolean',
         'is_questionnaire' => 'boolean',
-        'position' => 'integer'
+        'position' => 'integer',
+        'legal_mentions_visible' => 'boolean'
     ];
 
     const TYPE_TEMPLATE = 'template';
@@ -102,6 +107,11 @@ class CourseDocument extends Model
     public function responses()
     {
         return $this->hasMany(QuestionnaireResponse::class, 'document_id');
+    }
+
+    public function sections()
+    {
+        return $this->hasMany(DocumentSection::class, 'document_id')->orderBy('order_index');
     }
 
     // Scopes

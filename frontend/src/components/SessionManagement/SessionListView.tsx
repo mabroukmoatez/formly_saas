@@ -386,8 +386,21 @@ export const SessionListView: React.FC<SessionListViewProps> = ({
                       onChange={() => handleSelectSession(session.uuid)}
                     />
                   </td>
-                  <td className={`px-4 py-3 font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {session.title || session.courseTitle}
+                  <td className={`px-4 py-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{session.title}</span>
+                      {session.title !== session.courseTitle && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-xs text-gray-400">({session.courseTitle})</span>
+                          <Badge className="bg-orange-100 text-orange-600 border-0 text-[10px] px-1 py-0">
+                            Personnalisé
+                          </Badge>
+                        </div>
+                      )}
+                      {session.referenceCode && (
+                        <span className="text-[10px] text-gray-400 mt-0.5">Réf: {session.referenceCode}</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="flex items-center">

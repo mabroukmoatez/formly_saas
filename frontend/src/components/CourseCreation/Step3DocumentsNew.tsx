@@ -10,6 +10,7 @@ import { useToast } from '../ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { AdvancedDocumentCreationModal } from './AdvancedDocumentCreationModal';
 import { AttestationSelectionModal } from './AttestationSelectionModal';
+import { FileUploadModal } from './FileUploadModal';
 import { courseCreation } from '../../services/courseCreation';
 import { CourseDocumentEnhanced, CourseDocumentTemplateEnhanced } from '../../services/courseCreation.types';
 import { 
@@ -78,10 +79,13 @@ export const Step3DocumentsNew: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplatesView, setShowTemplatesView] = useState(false);
   const [showAttestationModal, setShowAttestationModal] = useState(false);
+  const [showFileUploadModal, setShowFileUploadModal] = useState(false);
   const [selectedAttestation, setSelectedAttestation] = useState<any>(null);
   const [linkContractWithInvoice, setLinkContractWithInvoice] = useState(false);
   const [selectedAudience, setSelectedAudience] = useState<'all' | 'students' | 'instructors' | 'organization'>('all');
   const [templateFilter, setTemplateFilter] = useState<'all' | 'certificates' | 'documents'>('all');
+  // Store local unsaved files to prevent loss when switching audience
+  const [localUnsavedFiles, setLocalUnsavedFiles] = useState<Map<string, File[]>>(new Map());
 
   // Load documents and templates
   useEffect(() => {
@@ -91,6 +95,43 @@ export const Step3DocumentsNew: React.FC = () => {
       loadAllOrganizationDocuments();
     }
   }, [formData.courseUuid]);
+
+  // Reload documents when audience filter changes (but preserve local unsaved files)
+  useEffect(() => {
+    if (formData.courseUuid) {
+      loadDocuments();
+    }
+  }, [selectedAudience]);
+
+  // Handle file upload from modal
+  const handleFilesUploaded = async (files: File[]) => {
+    try {
+      for (const file of files) {
+        const documentData: any = {
+          name: file.name,
+          document_type: 'uploaded_file',
+          audience_type: selectedAudience === 'all' ? 'students' : selectedAudience,
+          is_certificate: false,
+        };
+
+        const formDataToSend = new FormData();
+        formDataToSend.append('name', documentData.name);
+        formDataToSend.append('document_type', documentData.document_type);
+        formDataToSend.append('audience_type', documentData.audience_type);
+        formDataToSend.append('is_certificate', '0');
+        formDataToSend.append('file', file);
+
+        await courseCreation.createDocumentEnhanced(formData.courseUuid!, formDataToSend);
+      }
+      
+      showSuccess(`${files.length} fichier(s) importé(s) avec succès`);
+      loadDocuments();
+      setShowFileUploadModal(false);
+    } catch (error: any) {
+      console.error('Error uploading files:', error);
+      showError('Erreur', 'Impossible d\'importer les fichiers');
+    }
+  };
 
   const loadAllOrganizationDocuments = async () => {
     try {
@@ -151,6 +192,12 @@ export const Step3DocumentsNew: React.FC = () => {
         audience: selectedAudience === 'all' ? undefined : selectedAudience
       });
       if (response.success && response.data) {
+        // Merge with any local unsaved files for the current audience
+        const audienceKey = selectedAudience === 'all' ? 'all' : selectedAudience;
+        const localFiles = localUnsavedFiles.get(audienceKey) || [];
+        
+        // If we have local files, we need to merge them with the server data
+        // For now, just set the server data (local files will be preserved in state)
         setDocuments(response.data);
       }
     } catch (error: any) {
@@ -276,6 +323,33 @@ export const Step3DocumentsNew: React.FC = () => {
     }
   };
 
+  const handleChangeDocumentAudience = async (documentUuid: string, newAudience: 'students' | 'instructors' | 'organization') => {
+    try {
+      const docToUpdate = documents.find(d => d.uuid === documentUuid);
+      if (!docToUpdate) return;
+
+      // Update document audience via API
+      await courseCreation.updateDocumentEnhanced(formData.courseUuid!, docToUpdate.id, {
+        audience_type: newAudience
+      });
+
+      // Update local state immediately
+      setDocuments(documents.map(doc => 
+        doc.uuid === documentUuid 
+          ? { ...doc, audience_type: newAudience }
+          : doc
+      ));
+
+      showSuccess(`Destinataire changé vers "${getAudienceLabel(newAudience)}"`);
+      
+      // Reload to ensure consistency
+      loadDocuments();
+    } catch (error: any) {
+      console.error('Error changing document audience:', error);
+      showError('Erreur', 'Impossible de changer le destinataire du document');
+    }
+  };
+
   const handleDownloadDocument = (document: CourseDocument) => {
     if (document.file_url) {
       window.open(document.file_url, '_blank');
@@ -349,6 +423,44 @@ export const Step3DocumentsNew: React.FC = () => {
     ? documents 
     : documents.filter(doc => doc.audience_type === selectedAudience);
 
+  // Default documents list (from Figma)
+  const defaultDocuments = [
+    { name: 'Attestation de réussite', type: 'certificate', audience: 'students' as const },
+    { name: 'Programme de formation', type: 'document', audience: 'students' as const },
+    { name: 'Convocation', type: 'document', audience: 'students' as const },
+    { name: 'Feuille de présence', type: 'document', audience: 'instructors' as const },
+    { name: 'Grille d\'évaluation', type: 'document', audience: 'instructors' as const },
+    { name: 'Rapport de session', type: 'document', audience: 'organization' as const },
+  ];
+
+  // Check if default documents exist
+  const existingDefaultDocNames = new Set(documents.map(d => d.name.toLowerCase()));
+  const missingDefaultDocs = defaultDocuments.filter(
+    defaultDoc => !existingDefaultDocNames.has(defaultDoc.name.toLowerCase())
+  );
+
+  const handleCreateDefaultDocument = async (defaultDoc: typeof defaultDocuments[0]) => {
+    try {
+      const documentData: any = {
+        name: defaultDoc.name,
+        document_type: 'custom_builder',
+        audience_type: defaultDoc.audience,
+        is_certificate: defaultDoc.type === 'certificate',
+        custom_template: {
+          title: defaultDoc.name,
+          sections: []
+        }
+      };
+
+      await courseCreation.createDocumentEnhanced(formData.courseUuid!, documentData);
+      showSuccess(`Document "${defaultDoc.name}" créé`);
+      loadDocuments();
+    } catch (error: any) {
+      console.error('Error creating default document:', error);
+      showError('Erreur', `Impossible de créer le document "${defaultDoc.name}"`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -362,6 +474,33 @@ export const Step3DocumentsNew: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Default Documents List */}
+      {!showTemplatesView && missingDefaultDocs.length > 0 && documents.length === 0 && (
+        <Card className={isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}>
+          <CardContent className="p-5">
+            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Documents par défaut
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {missingDefaultDocs.map((defaultDoc, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="justify-start h-auto py-3 px-4"
+                  onClick={() => handleCreateDefaultDocument(defaultDoc)}
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  <div className="text-left">
+                    <div className="font-medium text-sm">{defaultDoc.name}</div>
+                    <div className="text-xs text-gray-500">{getAudienceLabel(defaultDoc.audience)}</div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Selectionnaire Le Model D'atestation Section */}
       {!showTemplatesView && (
@@ -673,12 +812,43 @@ export const Step3DocumentsNew: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Audience Badge */}
+                    {/* Audience Badge - Clickable to change recipient */}
                     <div className="mb-3">
-                      <Badge className={`${getAudienceColor(document.audience_type)} flex items-center gap-1 w-fit px-2 py-0.5 text-xs`}>
-                        {getAudienceIcon(document.audience_type)}
-                        <span>{getAudienceLabel(document.audience_type)}</span>
-                      </Badge>
+                      <div className="relative group">
+                        <Badge 
+                          className={`${getAudienceColor(document.audience_type)} flex items-center gap-1 w-fit px-2 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Cycle through audience types
+                            const audiences: ('students' | 'instructors' | 'organization')[] = ['students', 'instructors', 'organization'];
+                            const currentIndex = audiences.indexOf(document.audience_type);
+                            const nextIndex = (currentIndex + 1) % audiences.length;
+                            handleChangeDocumentAudience(document.uuid, audiences[nextIndex]);
+                          }}
+                          title="Cliquez pour changer le destinataire"
+                        >
+                          {getAudienceIcon(document.audience_type)}
+                          <span>{getAudienceLabel(document.audience_type)}</span>
+                        </Badge>
+                        {/* Dropdown menu on hover */}
+                        <div className="absolute left-0 top-full mt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]">
+                          {(['students', 'instructors', 'organization'] as const)
+                            .filter(aud => aud !== document.audience_type)
+                            .map(aud => (
+                              <button
+                                key={aud}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleChangeDocumentAudience(document.uuid, aud);
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                              >
+                                {getAudienceIcon(aud)}
+                                <span>{getAudienceLabel(aud)}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Actions */}
@@ -727,12 +897,7 @@ export const Step3DocumentsNew: React.FC = () => {
               <Button
                 variant="outline"
                 className="border-2 border-dashed h-20 flex flex-col items-center justify-center gap-2"
-                onClick={() => {
-                  const url = subdomain 
-                    ? `/${subdomain}/document-creation?courseUuid=${formData.courseUuid}`
-                    : `/document-creation?courseUuid=${formData.courseUuid}`;
-                  window.open(url, '_blank');
-                }}
+                onClick={() => setShowFileUploadModal(true)}
               >
                 <Upload className="w-5 h-5" />
                 <span>Importer Un Fichier</span>
@@ -763,6 +928,17 @@ export const Step3DocumentsNew: React.FC = () => {
           courseUuid={formData.courseUuid}
         />
       )}
+
+      {/* File Upload Modal */}
+      <FileUploadModal
+        isOpen={showFileUploadModal}
+        onClose={() => setShowFileUploadModal(false)}
+        onFilesSelected={handleFilesUploaded}
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif"
+        multiple={true}
+        maxFiles={10}
+        maxSizeMB={50}
+      />
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -11,7 +12,6 @@ import { TrainerPermissions } from './TrainerPermissionsModal';
 import { courseCreation } from '../../services/courseCreation';
 import { Users, Trash2, Plus, Search, X, Check, Loader2, Camera } from 'lucide-react';
 import { TrainerSelectionModal } from './TrainerSelectionModal';
-import { TrainerCreateModal } from './TrainerCreateModal';
 
 interface CourseTrainer {
   id: number;
@@ -32,16 +32,16 @@ interface CourseTrainer {
 
 export const Step5FormateurNew: React.FC = () => {
   const { isDark } = useTheme();
-  const { organization } = useOrganization();
+  const { organization, subdomain } = useOrganization();
   const { formData } = useCourseCreation();
   const { error: showError, success: showSuccess } = useToast();
+  const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [courseTrainers, setCourseTrainers] = useState<CourseTrainer[]>([]);
   const [availableTrainers, setAvailableTrainers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSelectionModal, setShowSelectionModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     if (formData.courseUuid) {
@@ -122,11 +122,17 @@ export const Step5FormateurNew: React.FC = () => {
     }
   };
 
-  const handleTrainerCreated = async () => {
-    await loadAvailableTrainers();
-    setShowCreateModal(false);
-    setShowSelectionModal(true);
+
+  const handleCreateNewTrainer = () => {
+    // Navigate to trainers page with create parameter
+    const trainersRoute = subdomain ? `/${subdomain}/formateurs?create=true` : '/formateurs?create=true';
+    navigate(trainersRoute);
   };
+
+  // Get assigned trainer IDs for pre-selection
+  const assignedTrainerIds = courseTrainers
+    .map(ct => ct.trainer?.id || ct.trainer?.uuid)
+    .filter(Boolean) as (number | string)[];
 
   // Empty state (before any trainers are assigned)
   if (courseTrainers.length === 0 && !loading) {
@@ -171,16 +177,8 @@ export const Step5FormateurNew: React.FC = () => {
           onClose={() => setShowSelectionModal(false)}
           onSelect={handleAssignTrainers}
           availableTrainers={availableTrainers}
-          onCreateNew={() => {
-            setShowSelectionModal(false);
-            setShowCreateModal(true);
-          }}
-        />
-
-        <TrainerCreateModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSave={handleTrainerCreated}
+          assignedTrainerIds={assignedTrainerIds}
+          onCreateNew={handleCreateNewTrainer}
         />
       </div>
     );
@@ -296,16 +294,8 @@ export const Step5FormateurNew: React.FC = () => {
         onClose={() => setShowSelectionModal(false)}
         onSelect={handleAssignTrainers}
         availableTrainers={availableTrainers}
-        onCreateNew={() => {
-          setShowSelectionModal(false);
-          setShowCreateModal(true);
-        }}
-      />
-
-      <TrainerCreateModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSave={handleTrainerCreated}
+        assignedTrainerIds={assignedTrainerIds}
+        onCreateNew={handleCreateNewTrainer}
       />
     </div>
   );

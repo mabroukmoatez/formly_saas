@@ -19,6 +19,8 @@ export { SessionCalendarView } from './SessionCalendarView';
 
 // Modals
 export { SessionDetailsModal } from './SessionDetailsModal';
+export { SessionActionModal } from './SessionActionModal';
+export { CreateSessionModal } from './CreateSessionModal';
 export { AttendanceModal, AttendanceEditModal } from './AttendanceModal';
+export { AttendanceCodeValidator } from './AttendanceCodeValidator';
 export { CourseSelectModal } from './CourseSelectModal';
-

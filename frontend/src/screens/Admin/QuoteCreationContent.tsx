@@ -37,7 +37,8 @@ export const QuoteCreationContent: React.FC = () => {
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [items, setItems] = useState<QuoteItem[]>([]);
-  const [quoteNumber, setQuoteNumber] = useState(`D-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+  const [quoteNumber, setQuoteNumber] = useState('');
+  const [quoteNumberLoading, setQuoteNumberLoading] = useState(true);
   const [quoteTitle, setQuoteTitle] = useState('Devis');
   const [validUntil, setValidUntil] = useState<string>('');
   const [clientInfo, setClientInfo] = useState({
@@ -51,7 +52,7 @@ export const QuoteCreationContent: React.FC = () => {
   const [paymentSchedule, setPaymentSchedule] = useState<any[]>([]);
   const [paymentOptions, setPaymentOptions] = useState<any>({});
   const [client, setClient] = useState<InvoiceClient | null>(null);
-  
+
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -75,11 +76,31 @@ export const QuoteCreationContent: React.FC = () => {
     };
     loadCompanyDetails();
 
+    // Load next quote number from backend
+    const loadQuoteNumber = async () => {
+      try {
+        setQuoteNumberLoading(true);
+        const response = await commercialService.getNextQuoteNumber();
+        if (response.success && response.data?.quote_number) {
+          setQuoteNumber(response.data.quote_number);
+        }
+      } catch (err) {
+        console.error('Error loading quote number:', err);
+        // Fallback to default format if API fails
+        setQuoteNumber(`D-${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`);
+      } finally {
+        setQuoteNumberLoading(false);
+      }
+    };
+
     // Prefill form with OCR data if available
     const prefillData = (location.state as any)?.prefillData;
     if (prefillData) {
       if (prefillData.quote_number) {
         setQuoteNumber(prefillData.quote_number);
+        setQuoteNumberLoading(false);
+      } else {
+        loadQuoteNumber();
       }
       if (prefillData.valid_until) {
         setValidUntil(prefillData.valid_until);
@@ -107,6 +128,8 @@ export const QuoteCreationContent: React.FC = () => {
       if (prefillData.payment_conditions) {
         setPaymentTerms(prefillData.payment_conditions);
       }
+    } else {
+      loadQuoteNumber();
     }
   }, [location.state]);
 
@@ -375,31 +398,6 @@ export const QuoteCreationContent: React.FC = () => {
 
   return (
     <div className="px-[27px] py-8">
-      {/* Page Title Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div 
-            className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
-            style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
-          >
-            <Receipt className="w-6 h-6" style={{ color: primaryColor }} />
-          </div>
-          <div>
-            <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
-              Créer un nouveau devis
-            </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              Créer une nouvelle proposition commerciale
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Header Actions */}
       <div className={`flex items-center justify-between p-6 border-b mb-6 ${isDark ? 'border-gray-700 bg-gray-800' : 'bg-gray-50 border-gray-200'}`}>
         <div className="flex items-center gap-3">
@@ -552,12 +550,21 @@ export const QuoteCreationContent: React.FC = () => {
 
           {/* Quote Number, Date and Valid Until */}
           <div className="flex flex-col gap-3">
-            <div className={`flex items-start gap-2 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
-              <Input
-                value={quoteNumber}
-                onChange={(e) => setQuoteNumber(e.target.value)}
-                className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
-              />
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
+              {quoteNumberLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: primaryColor }} />
+                  <span className={`font-semibold text-base ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Chargement...
+                  </span>
+                </div>
+              ) : (
+                <Input
+                  value={quoteNumber}
+                  onChange={(e) => setQuoteNumber(e.target.value)}
+                  className={`font-semibold text-base border-0 p-0 h-auto ${isDark ? 'text-white bg-transparent' : 'text-gray-800 bg-transparent'}`}
+                />
+              )}
             </div>
             <div className={`flex items-start gap-4 px-3 py-1 rounded-[3px] bg-white border border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'border-[#6a90b9]'}`}>
               <div className={`font-normal text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -900,4 +907,3 @@ export const QuoteCreationContent: React.FC = () => {
     </div>
   );
 };
-

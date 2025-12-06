@@ -544,26 +544,15 @@ export const MesFactures = (): JSX.Element => {
   return (
     <div className="px-[27px] py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 rounded-[18px] border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} p-4">
         <div className="flex items-center gap-4">
-          <div 
-            className="w-12 h-12 rounded-[12px] flex items-center justify-center"
-            style={{ backgroundColor: `${primaryColor}15` }}
-          >
-            <Receipt className="w-6 h-6" style={{ color: primaryColor }} />
-          </div>
           <div>
             <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
+              className={`font-bold text-xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {t('dashboard.commercial.mes_factures.title')}
             </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              {t('dashboard.commercial.mes_factures.subtitle')}
-            </p>
           </div>
         </div>
         

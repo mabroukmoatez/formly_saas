@@ -8,6 +8,7 @@ import { useSessionCreation } from '../../contexts/SessionCreationContext';
 import { useToast } from '../ui/toast';
 import { useSubdomainNavigation } from '../../hooks/useSubdomainNavigation';
 import { AdvancedDocumentCreationModal } from './AdvancedDocumentCreationModal';
+import { InheritedBanner, SectionOverrideHeader } from './OverrideIndicator';
 import { sessionCreation } from '../../services/sessionCreation';
 import { CourseDocumentEnhanced, CourseDocumentTemplateEnhanced } from '../../services/courseCreation.types';
 import { 
@@ -61,7 +62,14 @@ interface DocumentTemplate {
 export const Step3Documents: React.FC = () => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
-  const { formData } = useSessionCreation();
+  const { 
+    formData,
+    // Override system
+    isSessionMode,
+    hasDocumentsOverride,
+    courseTemplate,
+    resetDocumentsToTemplate
+  } = useSessionCreation();
   const { error: showError, success: showSuccess } = useToast();
   const { navigateToRoute, buildRoute, subdomain } = useSubdomainNavigation();
   const primaryColor = organization?.primary_color || '#007aff';
@@ -340,18 +348,30 @@ export const Step3Documents: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {showTemplatesView ? 'Templates de Documents' : 'Documents du Cours'}
-          </h2>
-          <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            {showTemplatesView 
+      {/* Session Mode Banner - Shows when documents are inherited from course */}
+      {isSessionMode && !hasDocumentsOverride && courseTemplate && (
+        <InheritedBanner 
+          courseName={courseTemplate.title}
+          isVisible={true}
+        />
+      )}
+      
+      {/* Header with Override Reset */}
+      <SectionOverrideHeader
+        title={showTemplatesView ? 'Templates de Documents' : 'Documents du Cours'}
+        description={
+          isSessionMode && hasDocumentsOverride 
+            ? "Documents personnalisés pour cette session" 
+            : showTemplatesView 
               ? 'Réutilisez des documents existants comme templates' 
-              : 'Gérez les documents, certificats et supports pédagogiques'}
-          </p>
-        </div>
+              : 'Gérez les documents, certificats et supports pédagogiques'
+        }
+        hasOverrides={isSessionMode && hasDocumentsOverride}
+        onResetAll={isSessionMode ? resetDocumentsToTemplate : undefined}
+      />
+      
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setShowTemplatesView(!showTemplatesView)}

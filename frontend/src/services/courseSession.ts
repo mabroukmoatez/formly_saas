@@ -399,6 +399,87 @@ class CourseSessionService {
     return apiService.get(`${SESSIONS_URL}/${sessionUuid}/statistics`);
   }
 
+  /**
+   * Récupère les statistiques individuelles d'un participant
+   */
+  async getParticipantStatistics(
+    sessionUuid: string, 
+    participantUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/participants/${participantUuid}/statistics`);
+  }
+
+  /**
+   * Récupère les statistiques individuelles d'un formateur
+   */
+  async getTrainerStatistics(
+    sessionUuid: string, 
+    trainerUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/trainers/${trainerUuid}/statistics`);
+  }
+
+  /**
+   * Récupère les quiz d'un participant
+   */
+  async getParticipantQuizzes(
+    sessionUuid: string, 
+    participantUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/participants/${participantUuid}/quizzes`);
+  }
+
+  /**
+   * Récupère les évaluations d'un participant
+   */
+  async getParticipantEvaluations(
+    sessionUuid: string, 
+    participantUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/participants/${participantUuid}/evaluations`);
+  }
+
+  /**
+   * Récupère l'historique des emails d'un participant
+   */
+  async getParticipantEmails(
+    sessionUuid: string, 
+    participantUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/participants/${participantUuid}/emails`);
+  }
+
+  /**
+   * Récupère l'historique des emails d'un formateur
+   */
+  async getTrainerEmails(
+    sessionUuid: string, 
+    trainerUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/trainers/${trainerUuid}/emails`);
+  }
+
+  /**
+   * Valide un code de présence (apprenant)
+   */
+  async validateAttendanceCode(
+    sessionUuid: string,
+    slotUuid: string,
+    data: { code: string; participant_uuid: string; period: 'morning' | 'afternoon' }
+  ): Promise<ApiResponse<any>> {
+    return apiService.post(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/validate-attendance-code`, data);
+  }
+
+  /**
+   * Récupère les informations sur le code de présence
+   */
+  async getAttendanceCodeInfo(
+    sessionUuid: string,
+    slotUuid: string
+  ): Promise<ApiResponse<any>> {
+    return apiService.get(`${SESSIONS_URL}/${sessionUuid}/slots/${slotUuid}/attendance-code/info`);
+  }
+
   // ==================== UTILITY METHODS ====================
 
   /**

@@ -16,6 +16,7 @@ import { QuizSelectionModal } from '../CourseCreation/QuizSelectionModal';
 import { AddChapterModal } from '../CourseCreation/AddChapterModal';
 import { AddBlockModal } from '../CourseCreation/AddBlockModal';
 import { DeleteConfirmationModal } from '../CourseCreation/DeleteConfirmationModal';
+import { InheritedBanner, SectionOverrideHeader } from './OverrideIndicator';
 import { courseCreation } from '../../services/courseCreation';
 import { CourseSection } from '../../services/courseCreation.types';
 
@@ -86,6 +87,11 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     createEvaluationAdapter,
     uploadSupportFilesAdapter,
     deleteSupportFile,
+    // Override system
+    isSessionMode,
+    hasChaptersOverride,
+    courseTemplate,
+    resetChaptersToTemplate,
   } = useSessionCreation();
 
   // Sections state
@@ -150,7 +156,7 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
     };
     
     if (formData.courseUuid) {
-      loadChaptersData();
+    loadChaptersData();
     } else {
       console.log('[Step2Contenu] No courseUuid yet, waiting...');
     }
@@ -252,71 +258,71 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
       const supportFilesArray = chapter.support_files || chapter.supportFiles || [];
       
       return {
-        id: chapter.uuid || chapter.id,
-        title: chapter.title || '',
-        content: Array.isArray(chapter.content) ? chapter.content.map((item: any) => ({
-          ...item,
-          id: item.uuid || item.id,
+      id: chapter.uuid || chapter.id,
+      title: chapter.title || '',
+      content: Array.isArray(chapter.content) ? chapter.content.map((item: any) => ({
+        ...item,
+        id: item.uuid || item.id,
           type: item.type || 'text',
           title: item.title || null,
           content: item.content || null,
-          url: item.file_url || item.url,
+        url: item.file_url || item.url,
           file: item.file || null,
           order: item.order || item.order_index || 0
-        })) : [],
+      })) : [],
         subChapters: Array.isArray(subChaptersArray) ? subChaptersArray.map((subChapter: any) => {
           const subChapterSupportFiles = subChapter.support_files || subChapter.supportFiles || [];
           return {
-            ...subChapter,
-            id: subChapter.uuid || subChapter.id,
-            content: Array.isArray(subChapter.content) ? subChapter.content.map((item: any) => ({
-              ...item,
-              id: item.uuid || item.id,
+        ...subChapter,
+        id: subChapter.uuid || subChapter.id,
+        content: Array.isArray(subChapter.content) ? subChapter.content.map((item: any) => ({
+          ...item,
+          id: item.uuid || item.id,
               type: item.type || 'text',
               title: item.title || null,
               content: item.content || null,
-              url: item.file_url || item.url,
+          url: item.file_url || item.url,
               file: item.file || null,
               order: item.order || item.order_index || 0
-            })) : [],
-            evaluations: Array.isArray(subChapter.evaluations) ? subChapter.evaluations.map((evaluation: any) => ({
-              ...evaluation,
-              id: evaluation.uuid || evaluation.id
-            })) : [],
+        })) : [],
+        evaluations: Array.isArray(subChapter.evaluations) ? subChapter.evaluations.map((evaluation: any) => ({
+          ...evaluation,
+          id: evaluation.uuid || evaluation.id
+        })) : [],
             supportFiles: Array.isArray(subChapterSupportFiles) ? subChapterSupportFiles.map((file: any) => ({
-              ...file,
-              id: file.uuid || file.id,
+          ...file,
+          id: file.uuid || file.id,
               url: file.file_url || file.url,
               name: file.name || file.file_name || 'File',
               type: file.type || 'application/octet-stream',
               size: file.size || file.file_size || 0
-            })) : [],
+      })) : [],
             isExpanded: subChapter.isExpanded || false,
             order: subChapter.order ?? subChapter.order_index ?? 0
           };
         }) : [],
         supportFiles: Array.isArray(supportFilesArray) ? supportFilesArray.map((file: any) => ({
-          ...file,
-          id: file.uuid || file.id,
+        ...file,
+        id: file.uuid || file.id,
           url: file.file_url || file.url,
           name: file.name || file.file_name || 'File',
           type: file.type || 'application/octet-stream',
           size: file.size || file.file_size || 0
-        })) : [],
-        evaluations: Array.isArray(chapter.evaluations) ? chapter.evaluations.map((evaluation: any) => ({
-          ...evaluation,
+      })) : [],
+      evaluations: Array.isArray(chapter.evaluations) ? chapter.evaluations.map((evaluation: any) => ({
+        ...evaluation,
           id: evaluation.uuid || evaluation.id,
           type: evaluation.type || 'devoir',
           title: evaluation.title || '',
           description: evaluation.description || '',
           due_date: evaluation.due_date || null,
           file_url: evaluation.file_url || null
-        })) : [],
-        quizzes: Array.isArray(chapter.quizzes) ? chapter.quizzes : Array.isArray(chapter.quiz_assignments) ? chapter.quiz_assignments : [],
-        isExpanded: chapter.isExpanded || false,
-        order: chapter.order ?? chapter.order_index ?? 0,
-        course_section_id: chapter.course_section_id ?? chapter.section_id ?? chapter.course_section?.id ?? null,
-        section: chapter.section ?? chapter.course_section ?? null,
+      })) : [],
+      quizzes: Array.isArray(chapter.quizzes) ? chapter.quizzes : Array.isArray(chapter.quiz_assignments) ? chapter.quiz_assignments : [],
+      isExpanded: chapter.isExpanded || false,
+      order: chapter.order ?? chapter.order_index ?? 0,
+      course_section_id: chapter.course_section_id ?? chapter.section_id ?? chapter.course_section?.id ?? null,
+      section: chapter.section ?? chapter.course_section ?? null,
       };
     });
     
@@ -1211,15 +1217,29 @@ export const Step2Contenu: React.FC<Step2ContenuProps> = ({ onProgressChange }) 
   return (
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <div className="w-full max-w-[1396px] flex flex-col gap-6">
+        
+        {/* Session Mode Banner - Shows when chapters are inherited from course */}
+        {isSessionMode && !hasChaptersOverride && courseTemplate && (
+          <InheritedBanner 
+            courseName={courseTemplate.title}
+            isVisible={true}
+            onCustomize={() => {
+              // Any modification will trigger the override initialization
+            }}
+          />
+        )}
+        
         <Card className={`rounded-[18px] shadow-[0px_0px_75.7px_#19294a17] ${
           isDark ? 'bg-transparent border-gray-600' : 'bg-transparent border-[#dbd8d8]'
         }`}>
           <CardContent className="p-5 flex flex-col gap-6">
-            <div className="flex items-center justify-between">
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Contenu du cours
-              </h3>
-            </div>
+            {/* Section Header with Reset Button for Session Mode */}
+            <SectionOverrideHeader
+              title="Contenu du cours"
+              description={isSessionMode && hasChaptersOverride ? "Chapitres personnalisés pour cette session" : undefined}
+              hasOverrides={isSessionMode && hasChaptersOverride}
+              onResetAll={isSessionMode ? resetChaptersToTemplate : undefined}
+            />
 
             {sections.length === 0 ? (
               <div 

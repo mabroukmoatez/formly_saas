@@ -44,6 +44,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
+  const [isUnorderedList, setIsUnorderedList] = useState(false);
+  const [isOrderedList, setIsOrderedList] = useState(false);
   const [alignment, setAlignment] = useState<'left' | 'center' | 'right' | 'justify'>('left');
 
   // Check formatting state - only when editor is focused
@@ -54,6 +56,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         setIsBold(document.queryCommandState('bold'));
         setIsItalic(document.queryCommandState('italic'));
         setIsUnderline(document.queryCommandState('underline'));
+        setIsUnorderedList(document.queryCommandState('insertUnorderedList'));
+        setIsOrderedList(document.queryCommandState('insertOrderedList'));
       }
     };
 
@@ -63,30 +67,38 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   }, []);
 
   const execCommand = (command: string, value?: string) => {
-    // Only focus if editor is not already focused or if we need to execute a command
-    if (editorRef.current && document.activeElement !== editorRef.current) {
-      editorRef.current.focus();
-    }
-    document.execCommand(command, false, value);
+    // Ensure editor has focus
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
-      // Update state only if editor is focused
-      if (document.activeElement === editorRef.current) {
-        setIsBold(document.queryCommandState('bold'));
-        setIsItalic(document.queryCommandState('italic'));
-        setIsUnderline(document.queryCommandState('underline'));
+      if (document.activeElement !== editorRef.current) {
+        editorRef.current.focus();
       }
+
+      // Small delay to ensure focus is set
+      setTimeout(() => {
+        document.execCommand(command, false, value);
+        if (editorRef.current) {
+          onChange(editorRef.current.innerHTML);
+          // Update state only if editor is focused
+          if (document.activeElement === editorRef.current) {
+            setIsBold(document.queryCommandState('bold'));
+            setIsItalic(document.queryCommandState('italic'));
+            setIsUnderline(document.queryCommandState('underline'));
+            setIsUnorderedList(document.queryCommandState('insertUnorderedList'));
+            setIsOrderedList(document.queryCommandState('insertOrderedList'));
+          }
+        }
+      }, 10);
     }
   };
 
   const setAlignmentCommand = (align: 'left' | 'center' | 'right' | 'justify') => {
     if (!editorRef.current) return;
-    
+
     // Only focus if not already focused
     if (document.activeElement !== editorRef.current) {
       editorRef.current.focus();
     }
-    
+
     // Use execCommand for alignment (more reliable)
     const commands: Record<string, string> = {
       left: 'justifyLeft',
@@ -94,22 +106,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       right: 'justifyRight',
       justify: 'justifyFull'
     };
-    
+
     execCommand(commands[align]);
     setAlignment(align);
-    
+
     // Also update the editor's style for consistency
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       let blockElement: HTMLElement | null = null;
-      
+
       if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE) {
         blockElement = range.commonAncestorContainer.parentElement;
       } else {
         blockElement = range.commonAncestorContainer as HTMLElement;
       }
-      
+
       const block = blockElement?.closest('p, div, h1, h2, h3, h4, h5, h6');
       if (block && block instanceof HTMLElement) {
         block.style.textAlign = align;
@@ -119,7 +131,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   return (
-    <div 
+    <div
       className="w-full"
       onClick={(e) => {
         // Stop propagation for the entire editor container
@@ -133,7 +145,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       data-rich-text-editor="true"
     >
       {/* Toolbar */}
-      <div 
+      <div
         className={`flex items-center gap-2 p-2 border-b ${isDark ? 'border-[#E2E8F0] bg-gray-800' : 'border-[#E2E8F0] bg-white'} rounded-t-md`}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -143,11 +155,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('bold')}
-          className={`px-3 py-1.5 rounded transition-colors ${
-            isBold
-              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-          }`}
+          className={`px-3 py-1.5 rounded transition-colors ${isBold
+            ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+            }`}
           title="Gras"
         >
           <strong className="font-bold">B</strong>
@@ -156,11 +167,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('italic')}
-          className={`px-3 py-1.5 rounded transition-colors ${
-            isItalic
-              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-          }`}
+          className={`px-3 py-1.5 rounded transition-colors ${isItalic
+            ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+            }`}
           title="Italique"
         >
           <em className="italic">I</em>
@@ -169,18 +179,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => execCommand('underline')}
-          className={`px-3 py-1.5 rounded transition-colors ${
-            isUnderline
-              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-          }`}
+          className={`px-3 py-1.5 rounded transition-colors ${isUnderline
+            ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+            }`}
           title="Souligné"
         >
           <u className="underline">U</u>
         </button>
-        
+
         <div className={`w-px h-6 mx-1 ${isDark ? 'bg-gray-600' : 'bg-[#E2E8F0]'}`}></div>
-        
+
         {/* Lists */}
         <button
           type="button"
@@ -193,9 +202,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             e.stopPropagation();
             execCommand('insertUnorderedList');
           }}
-          className={`px-3 py-1.5 rounded transition-colors ${
-            isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-          }`}
+          className={`px-3 py-1.5 rounded transition-colors ${isUnorderedList
+            ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+            }`}
           title="Liste à puces"
         >
           <span className="text-[14px]">• Liste</span>
@@ -211,26 +221,26 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             e.stopPropagation();
             execCommand('insertOrderedList');
           }}
-          className={`px-3 py-1.5 rounded transition-colors ${
-            isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-          }`}
+          className={`px-3 py-1.5 rounded transition-colors ${isOrderedList
+            ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+            }`}
           title="Liste numérotée"
         >
           <span className="text-[14px]">1. Numérotée</span>
         </button>
-        
+
         <div className={`w-px h-6 mx-1 ${isDark ? 'bg-gray-600' : 'bg-[#E2E8F0]'}`}></div>
-        
+
         {/* Alignment */}
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setAlignmentCommand('left')}
-            className={`px-2 py-1.5 rounded transition-colors ${
-              alignment === 'left'
-                ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-                : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-            }`}
+            className={`px-2 py-1.5 rounded transition-colors ${alignment === 'left'
+              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+              }`}
             title="Alignement gauche"
           >
             <AlignLeft className="w-4 h-4" />
@@ -238,11 +248,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setAlignmentCommand('center')}
-            className={`px-2 py-1.5 rounded transition-colors ${
-              alignment === 'center'
-                ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-                : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-            }`}
+            className={`px-2 py-1.5 rounded transition-colors ${alignment === 'center'
+              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+              }`}
             title="Alignement centre"
           >
             <AlignCenter className="w-4 h-4" />
@@ -250,11 +259,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setAlignmentCommand('right')}
-            className={`px-2 py-1.5 rounded transition-colors ${
-              alignment === 'right'
-                ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-                : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-            }`}
+            className={`px-2 py-1.5 rounded transition-colors ${alignment === 'right'
+              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+              }`}
             title="Alignement droite"
           >
             <AlignRight className="w-4 h-4" />
@@ -262,11 +270,10 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <button
             type="button"
             onClick={() => setAlignmentCommand('justify')}
-            className={`px-2 py-1.5 rounded transition-colors ${
-              alignment === 'justify'
-                ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
-                : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
-            }`}
+            className={`px-2 py-1.5 rounded transition-colors ${alignment === 'justify'
+              ? isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-[#2D3748]'
+              : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-[#718096]'
+              }`}
             title="Justifier"
           >
             <AlignJustify className="w-4 h-4" />
@@ -297,10 +304,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           // Stop propagation when editor gets focus
           e.stopPropagation();
         }}
-        className={`w-full p-4 border-0 rounded-b-md outline-none ${
-          isDark ? 'bg-gray-700 text-gray-300' : 'bg-white text-[#2D3748]'
-        } ${className}`}
-        style={{ 
+        className={`w-full p-4 border-0 rounded-b-md outline-none ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white text-[#2D3748]'
+          } ${className}`}
+        style={{
           minHeight,
           fontFamily: 'Poppins, Helvetica',
           fontSize: '14px',
@@ -324,13 +330,23 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           outline-offset: -2px;
           border-radius: 4px;
         }
-        [contentEditable] ul, [contentEditable] ol {
+        [contentEditable] ul {
           margin-left: 20px;
           margin-top: 8px;
           margin-bottom: 8px;
+          list-style-type: disc;
+          padding-left: 20px;
+        }
+        [contentEditable] ol {
+          margin-left: 20px;
+          margin-top: 8px;
+          margin-bottom: 8px;
+          list-style-type: decimal;
+          padding-left: 20px;
         }
         [contentEditable] li {
           margin-bottom: 4px;
+          display: list-item;
         }
       `}</style>
     </div>

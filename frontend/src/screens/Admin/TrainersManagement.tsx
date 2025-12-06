@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -32,6 +33,8 @@ export const TrainersManagement = (): JSX.Element => {
   const { t } = useLanguage();
   const { organization } = useOrganization();
   const { success, error: showError } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const primaryColor = organization?.primary_color || '#007aff';
 
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -57,6 +60,18 @@ export const TrainersManagement = (): JSX.Element => {
   useEffect(() => {
     fetchTrainers();
   }, [page, selectedSort, sortOrder, selectedStatus, searchTerm]);
+
+  // Check if we should open the create modal from URL parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('create') === 'true') {
+      setSelectedTrainer(null);
+      setIsFormModalOpen(true);
+      // Remove the parameter from URL without reloading
+      navigate(location.pathname, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const fetchTrainers = async () => {
     try {

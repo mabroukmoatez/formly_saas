@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseDocument;
 use App\Models\CourseDocumentTemplate;
+use App\Models\DocumentSection;
 use App\Services\DocumentService;
 use App\Traits\ImageSaveTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -451,6 +454,362 @@ class CourseDocumentController extends Controller
                 $document->file_url,
                 $document->file_name ?? 'document.pdf'
             );
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Reorder documents
+     * PUT /api/organization/courses/{courseUuid}/documents/reorder
+     */
+    public function reorderDocuments(Request $request, $courseUuid)
+    {
+        try {
+            $course = Course::where('uuid', $courseUuid)->firstOrFail();
+            
+            if (!$this->canManageCourse($course)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            $validator = Validator::make($request->all(), [
+                'document_orders' => 'required|array',
+                'document_orders.*.document_id' => 'required|integer|exists:course_documents,id',
+                'document_orders.*.position' => 'required|integer|min:0'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            DB::beginTransaction();
+            
+            try {
+                foreach ($request->document_orders as $order) {
+                    $document = CourseDocument::where('id', $order['document_id'])
+                        ->where('course_uuid', $courseUuid)
+                        ->first();
+                    
+                    if ($document) {
+                        $document->update(['position' => $order['position']]);
+                    }
+                }
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Ordre des documents mis à jour'
+                ]);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update document with enhanced features (subtitle, logo, sections, legal mentions)
+     * PUT /api/organization/courses/{courseUuid}/documents-enhanced/{documentId}
+     */
+    public function updateEnhanced(Request $request, $courseUuid, $documentId)
+    {
+        try {
+            $document = CourseDocument::where('course_uuid', $courseUuid)
+                ->with('sections')
+                ->findOrFail($documentId);
+            
+            if (!$this->canManageCourse($document->course)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            $validator = Validator::make($request->all(), [
+                'name' => 'sometimes|required|string|max:255',
+                'subtitle' => 'nullable|string|max:255',
+                'logo_url' => 'nullable|string|max:500',
+                'remove_logo' => 'boolean',
+                'sections' => 'nullable|array',
+                'sections.*.id' => 'nullable|integer|exists:document_sections,id',
+                'sections.*.type' => 'required|in:text,text_with_table,session_list,signature_space',
+                'sections.*.content' => 'nullable|string',
+                'sections.*.order' => 'required|integer|min:0',
+                'sections.*.table_data' => 'nullable|array',
+                'sections.*.session_filter' => 'nullable|in:all,completed,upcoming',
+                'sections.*.signature_fields' => 'nullable|array',
+                'legal_mentions' => 'nullable|array',
+                'legal_mentions.content' => 'nullable|string',
+                'legal_mentions.is_visible' => 'boolean'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            DB::beginTransaction();
+            
+            try {
+                // Update basic fields
+                $updateData = [];
+                if ($request->has('name')) $updateData['name'] = $request->name;
+                if ($request->has('subtitle')) $updateData['subtitle'] = $request->subtitle;
+                
+                // Handle logo
+                if ($request->boolean('remove_logo')) {
+                    if ($document->logo_url && Storage::disk('public')->exists($document->logo_url)) {
+                        Storage::disk('public')->delete($document->logo_url);
+                    }
+                    $updateData['logo_url'] = null;
+                } elseif ($request->has('logo_url')) {
+                    $updateData['logo_url'] = $request->logo_url;
+                }
+                
+                // Handle legal mentions
+                if ($request->has('legal_mentions')) {
+                    $legalMentions = $request->legal_mentions;
+                    if (isset($legalMentions['content'])) {
+                        $updateData['legal_mentions_content'] = $legalMentions['content'];
+                    }
+                    if (isset($legalMentions['is_visible'])) {
+                        $updateData['legal_mentions_visible'] = $legalMentions['is_visible'];
+                    }
+                }
+                
+                $document->update($updateData);
+                
+                // Update sections
+                if ($request->has('sections')) {
+                    $existingSectionIds = [];
+                    
+                    foreach ($request->sections as $sectionData) {
+                        if (isset($sectionData['id'])) {
+                            // Update existing section
+                            $section = DocumentSection::where('id', $sectionData['id'])
+                                ->where('document_id', $document->id)
+                                ->first();
+                            
+                            if ($section) {
+                                $section->update([
+                                    'type' => $sectionData['type'],
+                                    'content' => $sectionData['content'] ?? null,
+                                    'order_index' => $sectionData['order'],
+                                    'table_data' => $sectionData['table_data'] ?? null,
+                                    'session_filter' => $sectionData['session_filter'] ?? null,
+                                    'signature_fields' => $sectionData['signature_fields'] ?? null
+                                ]);
+                                $existingSectionIds[] = $section->id;
+                            }
+                        } else {
+                            // Create new section
+                            $section = DocumentSection::create([
+                                'document_id' => $document->id,
+                                'type' => $sectionData['type'],
+                                'content' => $sectionData['content'] ?? null,
+                                'order_index' => $sectionData['order'],
+                                'table_data' => $sectionData['table_data'] ?? null,
+                                'session_filter' => $sectionData['session_filter'] ?? null,
+                                'signature_fields' => $sectionData['signature_fields'] ?? null
+                            ]);
+                            $existingSectionIds[] = $section->id;
+                        }
+                    }
+                    
+                    // Delete sections that are no longer in the request
+                    DocumentSection::where('document_id', $document->id)
+                        ->whereNotIn('id', $existingSectionIds)
+                        ->delete();
+                }
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Document updated successfully',
+                    'data' => $document->fresh(['sections'])
+                ]);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Upload logo for document
+     * POST /api/organization/courses/{courseUuid}/documents-enhanced/{documentId}/logo
+     */
+    public function uploadLogo(Request $request, $courseUuid, $documentId)
+    {
+        try {
+            $document = CourseDocument::where('course_uuid', $courseUuid)
+                ->findOrFail($documentId);
+            
+            if (!$this->canManageCourse($document->course)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            $validator = Validator::make($request->all(), [
+                'logo' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            // Delete old logo if exists
+            if ($document->logo_url && Storage::disk('public')->exists($document->logo_url)) {
+                Storage::disk('public')->delete($document->logo_url);
+            }
+            
+            // Upload new logo
+            $logoPath = $request->file('logo')->store('documents/logos', 'public');
+            $document->update(['logo_url' => $logoPath]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Logo uploaded successfully',
+                'data' => [
+                    'logo_url' => $document->fresh()->logo_url
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Delete logo for document
+     * DELETE /api/organization/courses/{courseUuid}/documents-enhanced/{documentId}/logo
+     */
+    public function deleteLogo($courseUuid, $documentId)
+    {
+        try {
+            $document = CourseDocument::where('course_uuid', $courseUuid)
+                ->findOrFail($documentId);
+            
+            if (!$this->canManageCourse($document->course)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            if ($document->logo_url && Storage::disk('public')->exists($document->logo_url)) {
+                Storage::disk('public')->delete($document->logo_url);
+            }
+            
+            $document->update(['logo_url' => null]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Logo deleted successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Reorder sections in a document
+     * PUT /api/organization/courses/{courseUuid}/documents-enhanced/{documentId}/sections/reorder
+     */
+    public function reorderSections(Request $request, $courseUuid, $documentId)
+    {
+        try {
+            $document = CourseDocument::where('course_uuid', $courseUuid)
+                ->findOrFail($documentId);
+            
+            if (!$this->canManageCourse($document->course)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized'
+                ], 403);
+            }
+            
+            $validator = Validator::make($request->all(), [
+                'section_orders' => 'required|array',
+                'section_orders.*.section_id' => 'required|integer|exists:document_sections,id',
+                'section_orders.*.order' => 'required|integer|min:0'
+            ]);
+            
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+            
+            DB::beginTransaction();
+            
+            try {
+                foreach ($request->section_orders as $order) {
+                    $section = DocumentSection::where('id', $order['section_id'])
+                        ->where('document_id', $document->id)
+                        ->first();
+                    
+                    if ($section) {
+                        $section->update(['order_index' => $order['order']]);
+                    }
+                }
+                
+                DB::commit();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Ordre des sections mis à jour'
+                ]);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
             
         } catch (\Exception $e) {
             return response()->json([

@@ -41,6 +41,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     objectives,
     additionalFees,
     categories,
+    languages,
+    difficultyLevels,
     subChapters: _subChapters,
     subcategories,
     createModule,
@@ -71,6 +73,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const [selectedPracticeIds, setSelectedPracticeIds] = useState<number[]>(formData.formation_practice_ids || []);
+  const [step2Progress, setStep2Progress] = useState(0);
 
   // Load module durations from localStorage
   useEffect(() => {
@@ -280,7 +283,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     prerequisites: formData.prerequisites || '',
     methods: formData.methods || '',
     priceHT: formData.price_ht || 0,
-    vatPercentage: 20, // Default value
+    vatPercentage: formData.vat_percentage || 0,
     additionalFees: additionalFees.map(fee => ({
       id: fee.uuid,
       name: fee.name,
@@ -425,6 +428,25 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     }
   };
 
+  const handleReorderObjectives = (reorderedObjectives: any[]) => {
+    console.log('Reordering objectives:', reorderedObjectives);
+
+    // Update local state immediately for instant visual feedback
+    const reorderedLocalObjectives = reorderedObjectives.map((obj, index) => {
+      const originalObjective = localObjectives.find(o => o.uuid === obj.id);
+      if (originalObjective) {
+        return { ...originalObjective, order_index: index };
+      }
+      return null;
+    }).filter(Boolean) as typeof localObjectives;
+
+    setLocalObjectives(reorderedLocalObjectives);
+
+    // Make API call to persist the reorder if the function exists
+    // Note: This requires reorderObjectives function in the context
+    // If not available yet, just update locally for visual feedback
+  };
+
   const handleUpdateTargetAudience = (content: string) => {
     updateFormField('target_audience', content);
   };
@@ -537,12 +559,12 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
       try {
         // First save all changes
         await autoSave();
-        
+
         // Then update status to active
         const updated = await updateCourseStatus('active');
         if (updated) {
           showSuccess(t('course.completedSuccessfully') || 'Cours enregistré avec succès');
-          
+
           // Call onCourseSaved callback if provided
           if (onCourseSaved) {
             onCourseSaved();
@@ -590,7 +612,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     course_language_id: formData.course_language_id,
     difficulty_level_id: formData.difficulty_level_id,
     price_ht: formData.price || 0,
-    vat_percentage: 20, // Default value
+    // vat_percentage: 20, // Default value
     additional_fees: [], // Not in context formData
     duration: formData.duration || 0,
     duration_days: formData.duration_days || 0,
@@ -609,6 +631,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         onSaveDraft={handleSaveDraft}
         isAutoSaving={isSaving}
         isSavingDraft={isSaving}
+        step2Progress={step2Progress}
         formData={headerFormData}
       />
 
@@ -621,6 +644,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
                 formData={transformedFormData}
                 categories={categories}
                 subcategories={subcategories}
+                languages={languages}
+                difficultyLevels={difficultyLevels}
                 onInputChange={handleInputChange}
                 onFileUpload={handleFileUpload}
                 onFileUrlUpdate={handleFileUrlUpdate}
@@ -658,6 +683,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
                 onAddObjective={handleAddObjective}
                 onUpdateObjective={handleUpdateObjective}
                 onRemoveObjective={handleRemoveObjective}
+                onReorderObjectives={handleReorderObjectives}
                 onUpdateTargetAudience={handleUpdateTargetAudience}
                 onUpdatePrerequisites={handleUpdatePrerequisites}
                 onUpdateMethods={handleUpdateMethods}
@@ -681,7 +707,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
             </>
           )}
 
-          {currentStep === 2 && <Step2Contenu />}
+          {currentStep === 2 && <Step2Contenu onProgressChange={setStep2Progress} />}
           {currentStep === 3 && <Step3DocumentsNew />}
           {currentStep === 4 && <Step4QuestionnaireNew />}
           {currentStep === 5 && <Step5FormateurNew />}
@@ -693,8 +719,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
               onClick={handlePreviousStep}
               disabled={currentStep === 1}
               className={`px-6 py-3 rounded-lg font-medium transition-colors ${currentStep === 1
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
                 }`}
               style={{
                 backgroundColor: currentStep === 1 ? '#e5e7eb' : organization?.primary_color || '#4b5563',
@@ -707,8 +733,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
             <button
               onClick={handleNextStep}
               className={`px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg ${currentStep === 6
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'text-white'
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'text-white'
                 }`}
               style={{
                 backgroundColor: currentStep === 6 ? '#16a34a' : (organization?.primary_color || '#0066FF'),

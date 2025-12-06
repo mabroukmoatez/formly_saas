@@ -32,6 +32,7 @@ class Course extends Model
     protected $fillable = [
         'uuid',
         'user_id',
+        'created_by',
         'course_type',
         'instructor_id',
         'organization_id',
@@ -120,6 +121,11 @@ class Course extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function instructor()
@@ -527,10 +533,35 @@ class Course extends Model
     {
         self::creating(function ($model){
             $authUser = auth()->user();
-            $model->uuid = Str::uuid()->toString();
-            $model->user_id = $authUser->id;
-            $model->instructor_id = $authUser->instructor ? $authUser->instructor->id : null;
-            $model->organization_id = $authUser->organization ? $authUser->organization->id : null;
+            
+            // Generate UUID if not set
+            if (empty($model->uuid)) {
+                $model->uuid = Str::uuid()->toString();
+            }
+            
+            // Set user_id and created_by if user is authenticated
+            if ($authUser) {
+                if (empty($model->user_id)) {
+                    $model->user_id = $authUser->id;
+                }
+                
+                // Capture l'utilisateur connecté pour created_by (sauf si déjà défini)
+                if (empty($model->created_by)) {
+                    $model->created_by = $authUser->id;
+                }
+                
+                // Set instructor_id if not already set
+                if (empty($model->instructor_id) && $authUser->instructor) {
+                    $model->instructor_id = $authUser->instructor->id;
+                }
+                
+                // Set organization_id if not already set
+                if (empty($model->organization_id) && $authUser->organization) {
+                    $model->organization_id = $authUser->organization->id;
+                } elseif (empty($model->organization_id) && $authUser->organizationBelongsTo) {
+                    $model->organization_id = $authUser->organizationBelongsTo->id;
+                }
+            }
         });
     }
 }

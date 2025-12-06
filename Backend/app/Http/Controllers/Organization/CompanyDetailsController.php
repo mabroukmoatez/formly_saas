@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Organization;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
-use App\Models\BankAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -26,9 +25,6 @@ class CompanyDetailsController extends Controller
                     'message' => 'Organization not found'
                 ], 404);
             }
-
-            // Get default bank account for backward compatibility
-            $defaultBank = $organization->bankAccounts()->where('is_default', true)->first();
 
             $data = [
                 'company_name' => $organization->company_name ?? $organization->organization_name,
@@ -53,12 +49,6 @@ class CompanyDetailsController extends Controller
                 'legal_form' => $organization->legal_form,
                 'director_name' => $organization->director_name,
                 'logo_url' => $organization->logo_url,
-                // Return default bank account fields for the form
-                'bank_name' => $defaultBank->bank_name ?? '',
-                'bank_iban' => $defaultBank->iban ?? '',
-                'bank_bic' => $defaultBank->bic_swift ?? '',
-                'bank_account_holder' => $defaultBank->account_holder ?? '',
-                // Return all bank accounts array for management
                 'banks' => $organization->bankAccounts()->get()->map(function($bank) {
                     return [
                         'id' => $bank->id,
@@ -122,11 +112,6 @@ class CompanyDetailsController extends Controller
                 'capital' => 'nullable|numeric',
                 'legal_form' => 'nullable|string|max:100',
                 'director_name' => 'nullable|string|max:255',
-                // Bank details validation
-                'bank_name' => 'nullable|string|max:255',
-                'bank_iban' => 'nullable|string|max:34',
-                'bank_bic' => 'nullable|string|max:11',
-                'bank_account_holder' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -160,42 +145,6 @@ class CompanyDetailsController extends Controller
                 'legal_form',
                 'director_name'
             ]));
-
-            // Handle bank details if provided
-            if ($request->filled('bank_name') || $request->filled('bank_iban') ||
-                $request->filled('bank_bic') || $request->filled('bank_account_holder')) {
-
-                // Check if we have all required bank fields
-                if ($request->filled('bank_name') && $request->filled('bank_iban') &&
-                    $request->filled('bank_bic') && $request->filled('bank_account_holder')) {
-
-                    // Find or create the default bank account
-                    $bankAccount = $organization->bankAccounts()->where('is_default', true)->first();
-
-                    if ($bankAccount) {
-                        // Update existing default bank account
-                        $bankAccount->update([
-                            'bank_name' => $request->bank_name,
-                            'iban' => $request->bank_iban,
-                            'bic_swift' => $request->bank_bic,
-                            'account_holder' => $request->bank_account_holder,
-                        ]);
-                    } else {
-                        // Create new default bank account
-                        $bankAccount = new BankAccount();
-                        $bankAccount->organization_id = $organization->id;
-                        $bankAccount->bank_name = $request->bank_name;
-                        $bankAccount->iban = $request->bank_iban;
-                        $bankAccount->bic_swift = $request->bank_bic;
-                        $bankAccount->account_holder = $request->bank_account_holder;
-                        $bankAccount->is_default = true;
-                        $bankAccount->save();
-                    }
-                }
-            }
-
-            // Refresh organization to get updated data
-            $organization->refresh();
 
             return response()->json([
                 'success' => true,

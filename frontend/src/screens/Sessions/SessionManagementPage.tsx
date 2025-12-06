@@ -20,6 +20,8 @@ import {
   SessionDashboard,
   SessionParticipantsView,
   SessionDetailsModal,
+  SessionActionModal,
+  CreateSessionModal,
   AttendanceModal,
   AttendanceEditModal,
   type SessionData,
@@ -49,7 +51,7 @@ export const SessionManagementPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [calendarMode, setCalendarMode] = useState<'month' | 'week'>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -66,6 +68,8 @@ export const SessionManagementPage: React.FC = () => {
   // Participants data
   const [participants, setParticipants] = useState<SessionParticipant[]>([]);
   const [trainers, setTrainers] = useState<SessionTrainer[]>([]);
+  const [slots, setSlots] = useState<SessionSlot[]>([]);
+  const [workflowActions, setWorkflowActions] = useState<any[]>([]);
 
   // Filters
   const [filters, setFilters] = useState<SessionFilters>({
@@ -77,6 +81,8 @@ export const SessionManagementPage: React.FC = () => {
 
   // Modal states
   const [showCourseSelectModal, setShowCourseSelectModal] = useState(false);
+  const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
+  const [showSessionActionModal, setShowSessionActionModal] = useState(false);
   const [showSessionDetailsModal, setShowSessionDetailsModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [attendanceMode, setAttendanceMode] = useState<'qr' | 'code'>('code');
@@ -122,7 +128,7 @@ export const SessionManagementPage: React.FC = () => {
       const response = await courseSessionService.listSessions({
         per_page: 100
       });
-      
+
       if (response.success && response.data) {
         // Transform API data to our types
         const transformedSessions: SessionData[] = response.data.map(transformSession);
@@ -162,7 +168,7 @@ export const SessionManagementPage: React.FC = () => {
         // API returns { data: { session: {...}, participants: [...] } }
         const respData = response.data as any;
         const participantsList = respData.participants || (Array.isArray(respData) ? respData : []);
-        
+
         const transformedParticipants: SessionParticipant[] = participantsList.map((p: any) => ({
           uuid: p.uuid,
           user_uuid: String(p.user_id),
@@ -196,7 +202,7 @@ export const SessionManagementPage: React.FC = () => {
 
   const handleDeleteSessions = async (uuids: string[]) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer ${uuids.length} session(s) ?`)) return;
-    
+
     try {
       for (const uuid of uuids) {
         await courseSessionService.deleteSession(uuid);
@@ -208,12 +214,17 @@ export const SessionManagementPage: React.FC = () => {
     }
   };
 
-  const handleCreateSession = () => {
+  const handleCreateSessionClick = () => {
+    setShowCreateSessionModal(true);
+  };
+
+  const handleCreateSessionSubmit = (data: any) => {
+    console.log('Create session data:', data);
+    setShowCreateSessionModal(false);
     setShowCourseSelectModal(true);
   };
 
   const handleCourseSelected = (course: any) => {
-    // Close modal and navigate to session creation with pre-selected course
     setShowCourseSelectModal(false);
     navigateToRoute(`/session-creation?courseUuid=${course.uuid}`);
   };
@@ -222,11 +233,104 @@ export const SessionManagementPage: React.FC = () => {
     setViewMode(mode === 'table' ? 'list' : 'calendar');
   };
 
-  const handleCalendarSessionClick = (session: CalendarSession) => {
+  // Load full session data for modal
+  const loadFullSessionData = useCallback(async (sessionUuid: string) => {
+    try {
+      // Load full session details
+      const sessionResponse = await courseSessionService.getSession(sessionUuid);
+      if (!sessionResponse.success || !sessionResponse.data) {
+        throw new Error('Impossible de charger la session');
+      }
+
+      const apiSession = sessionResponse.data;
+      const transformedSession = transformSession(apiSession);
+      setSelectedSession(transformedSession);
+
+      // Load trainers
+      let sessionTrainers: SessionTrainer[] = [];
+      if (apiSession.trainers && apiSession.trainers.length > 0) {
+        sessionTrainers = apiSession.trainers.map((t: any) => ({
+          uuid: t.uuid || String(t.id),
+          user_uuid: String(t.id || t.user_id),
+          name: t.name || t.user?.name || 'Formateur',
+          email: t.email || t.user?.email || ''
+        }));
+      }
+      setTrainers(sessionTrainers);
+
+      // Load slots
+      try {
+        const slotsResponse = await courseSessionService.getSlots(sessionUuid);
+        if (slotsResponse.success && slotsResponse.data) {
+          const responseData = slotsResponse.data as any;
+          const slotsData = responseData.slots || responseData;
+          const slotsList = Array.isArray(slotsData) ? slotsData : [];
+          
+          const transformedSlots: SessionSlot[] = slotsList.map((slot: any) => ({
+            uuid: slot.uuid || String(slot.id),
+            title: slot.title || `Séance du ${formatDate(slot.start_date)}`,
+            date: formatDate(slot.start_date),
+            startTime: slot.start_time || '09:00',
+            endTime: slot.end_time || '17:00',
+            status: slot.status || 'scheduled',
+            participants: []
+          }));
+          setSlots(transformedSlots);
+        }
+      } catch (err) {
+        console.warn('Impossible de charger les séances:', err);
+        if (apiSession.slots && apiSession.slots.length > 0) {
+          const transformedSlots: SessionSlot[] = apiSession.slots.map((slot: any) => ({
+            uuid: slot.uuid || String(slot.id),
+            title: slot.title || `Séance du ${formatDate(slot.start_date)}`,
+            date: formatDate(slot.start_date),
+            startTime: slot.start_time || '09:00',
+            endTime: slot.end_time || '17:00',
+            status: slot.status || 'scheduled',
+            participants: []
+          }));
+          setSlots(transformedSlots);
+        } else {
+          setSlots([]);
+        }
+      }
+
+      // Load workflow actions
+      try {
+        const apiData = apiSession as any;
+        if (apiData.effective_workflow_actions && Array.isArray(apiData.effective_workflow_actions)) {
+          const transformedWorkflowActions = apiData.effective_workflow_actions.map((action: any) => ({
+            uuid: action.uuid,
+            type: action.action_type || action.type,
+            target_type: action.target_type || action.targetType,
+            target: action.target || action.target_uuid,
+            status: action.status || 'pending',
+            scheduled_for: action.scheduled_for || action.scheduledFor,
+            executed_at: action.executed_at || action.executedAt,
+            options: action.options || {},
+            questionnaires: action.questionnaires || [],
+            attachments: action.attachments || []
+          }));
+          setWorkflowActions(transformedWorkflowActions);
+        } else {
+          setWorkflowActions([]);
+        }
+      } catch (err) {
+        console.warn('Impossible de charger les actions du workflow:', err);
+        setWorkflowActions([]);
+      }
+    } catch (err) {
+      console.error('Error loading full session data:', err);
+      showError('Erreur lors du chargement des détails de la session');
+    }
+  }, [showError]);
+
+  const handleCalendarSessionClick = async (session: CalendarSession) => {
     const fullSession = sessions.find(s => s.uuid === session.uuid);
     if (fullSession) {
-      setSelectedSession(fullSession);
-      setShowSessionDetailsModal(true);
+      // Load full session data before showing modal
+      await loadFullSessionData(session.uuid);
+      setShowSessionActionModal(true);
     }
   };
 
@@ -262,7 +366,6 @@ export const SessionManagementPage: React.FC = () => {
   };
 
   const handleSaveAttendance = (data: { present: boolean; reason?: string }) => {
-    // TODO: Call API to update attendance
     console.log('Save attendance:', data);
     setShowAttendanceEditModal(false);
     success('Présence mise à jour');
@@ -361,7 +464,7 @@ export const SessionManagementPage: React.FC = () => {
           onViewModeChange={setCalendarMode}
           onSessionClick={handleCalendarSessionClick}
           onSwitchToList={() => setViewMode('list')}
-          onCreateSession={handleCreateSession}
+          onCreateSession={handleCreateSessionClick}
         />
       );
     }
@@ -376,7 +479,7 @@ export const SessionManagementPage: React.FC = () => {
         onView={handleViewSession}
         onEdit={handleEditSession}
         onDelete={handleDeleteSessions}
-        onCreateSession={handleCreateSession}
+        onCreateSession={handleCreateSessionClick}
         onViewModeChange={handleViewModeChange}
         viewMode="table"
       />
@@ -390,14 +493,29 @@ export const SessionManagementPage: React.FC = () => {
       {/* All Modals - rendered ONCE */}
       {selectedSession && (
         <>
+          <SessionActionModal
+            isOpen={showSessionActionModal}
+            onClose={() => setShowSessionActionModal(false)}
+            onViewDetails={() => setShowSessionDetailsModal(true)}
+            onViewEvaluation={() => {
+              setViewMode('dashboard');
+              setDashboardViewType('apprenant');
+            }}
+          />
+
           <SessionDetailsModal
             isOpen={showSessionDetailsModal}
             onClose={() => setShowSessionDetailsModal(false)}
             session={selectedSession}
+            sessionUuid={selectedSession.uuid}
+            slots={slots}
+            trainers={trainers}
+            workflowActions={workflowActions}
             onShowQRCode={handleShowQRCode}
             onShowAttendanceCode={handleShowAttendanceCode}
             onEditAttendance={handleEditAttendance}
             onNavigateToEvaluation={handleNavigateToEvaluation}
+            onRefresh={loadFullSessionData.bind(null, selectedSession.uuid)}
           />
 
           <AttendanceModal
@@ -406,9 +524,16 @@ export const SessionManagementPage: React.FC = () => {
             session={selectedSession}
             slot={selectedSlot || undefined}
             mode={attendanceMode}
+            sessionUuid={selectedSession.uuid}
           />
         </>
       )}
+
+      <CreateSessionModal
+        isOpen={showCreateSessionModal}
+        onClose={() => setShowCreateSessionModal(false)}
+        onCreate={handleCreateSessionSubmit}
+      />
 
       <CourseSelectionModal
         isOpen={showCourseSelectModal}
@@ -430,4 +555,3 @@ export const SessionManagementPage: React.FC = () => {
 };
 
 export default SessionManagementPage;
-

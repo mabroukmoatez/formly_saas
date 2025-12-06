@@ -12,6 +12,14 @@ export { DurationField } from './DurationField';
 export { MediaUpload } from './MediaUpload';
 export { RichTextField } from './RichTextField';
 
+// Override system components
+export { 
+  OverrideIndicator, 
+  OverrideFieldWrapper, 
+  SectionOverrideHeader, 
+  InheritedBanner 
+} from './OverrideIndicator';
+
 // Re-export course creation components (cloned for sessions)
 export { Step2Contenu } from './Step2Contenu';
 export { Step3Documents } from './Step3Documents';

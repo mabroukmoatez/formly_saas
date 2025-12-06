@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api\Organization;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
 use App\Models\CourseQuestionnaire;
+use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireTemplate;
 use App\Services\QuestionnaireImportService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -578,5 +581,252 @@ class QuestionnaireController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Reorder questions in a questionnaire
+     * PUT /api/organization/course-creation/courses/{courseUuid}/questionnaires/{questionnaireId}/questions/reorder
+     */
+    public function reorderQuestions(Request $request, string $courseUuid, string $questionnaireId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'question_orders' => 'required|array',
+                'question_orders.*.question_id' => 'required|integer|exists:questionnaire_questions,id',
+                'question_orders.*.order' => 'required|integer|min:0'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $course = Course::where('uuid', $courseUuid)->first();
+            if (!$course) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course not found'
+                ], 404);
+            }
+
+            $questionnaire = CourseQuestionnaire::where('uuid', $questionnaireId)
+                ->where('course_uuid', $courseUuid)
+                ->first();
+
+            if (!$questionnaire) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Questionnaire not found'
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                foreach ($request->question_orders as $order) {
+                    QuestionnaireQuestion::where('id', $order['question_id'])
+                        ->where('questionnaire_id', $questionnaire->uuid)
+                        ->update(['order_index' => $order['order']]);
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Questions reordered successfully'
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reorder questions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Create questions from template
+     * POST /api/organization/course-creation/courses/{courseUuid}/questionnaires/{questionnaireId}/questions/from-template
+     */
+    public function createQuestionsFromTemplate(Request $request, string $courseUuid, string $questionnaireId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'template_name' => 'required|in:satisfaction,recommendation,pedagogical_stats',
+                'customizations' => 'nullable|array',
+                'customizations.title' => 'nullable|string|max:500'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $course = Course::where('uuid', $courseUuid)->first();
+            if (!$course) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Course not found'
+                ], 404);
+            }
+
+            $questionnaire = CourseQuestionnaire::where('uuid', $questionnaireId)
+                ->where('course_uuid', $courseUuid)
+                ->first();
+
+            if (!$questionnaire) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Questionnaire not found'
+                ], 404);
+            }
+
+            $templateName = $request->template_name;
+            $customizations = $request->customizations ?? [];
+            $createdQuestions = [];
+
+            DB::beginTransaction();
+
+            try {
+                // Get the highest order_index
+                $maxOrder = QuestionnaireQuestion::where('questionnaire_id', $questionnaire->uuid)
+                    ->max('order_index') ?? -1;
+
+                // Define templates
+                $templates = $this->getQuestionTemplates($templateName, $customizations);
+
+                foreach ($templates as $template) {
+                    $maxOrder++;
+                    
+                    $question = QuestionnaireQuestion::create([
+                        'questionnaire_id' => $questionnaire->uuid,
+                        'type' => $template['type'],
+                        'question' => $template['title'],
+                        'order_index' => $maxOrder,
+                        'required' => $template['required'] ?? true,
+                        'config' => $template['config'] ?? null,
+                        'feeds_statistics' => $template['feeds_statistics'] ?? false,
+                        'statistics_key' => $template['statistics_key'] ?? null
+                    ]);
+
+                    $createdQuestions[] = $question;
+                }
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Questions created from template successfully',
+                    'data' => [
+                        'questions' => $createdQuestions
+                    ]
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create questions from template',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get question templates
+     */
+    private function getQuestionTemplates(string $templateName, array $customizations = []): array
+    {
+        $templates = [];
+
+        switch ($templateName) {
+            case 'satisfaction':
+                $title = $customizations['title'] ?? 'Dans quelle mesure êtes-vous satisfait de cette formation ?';
+                $templates[] = [
+                    'type' => 'linear_scale',
+                    'title' => $title,
+                    'required' => true,
+                    'feeds_statistics' => true,
+                    'statistics_key' => 'satisfaction',
+                    'config' => [
+                        'scale' => [
+                            'min' => 1,
+                            'max' => 10,
+                            'min_label' => 'Très insatisfait',
+                            'max_label' => 'Très satisfait'
+                        ],
+                        'hover_labels' => [
+                            '1' => 'Très insatisfait',
+                            '5' => 'Neutre',
+                            '10' => 'Très satisfait'
+                        ]
+                    ]
+                ];
+                break;
+
+            case 'recommendation':
+                $title = $customizations['title'] ?? 'Recommanderiez-vous cette formation à un collègue ?';
+                $templates[] = [
+                    'type' => 'single_choice',
+                    'title' => $title,
+                    'required' => true,
+                    'feeds_statistics' => true,
+                    'statistics_key' => 'recommendation',
+                    'config' => [
+                        'options' => [
+                            ['text' => 'Oui', 'order' => 0],
+                            ['text' => 'Non', 'order' => 1]
+                        ]
+                    ]
+                ];
+                break;
+
+            case 'pedagogical_stats':
+                $stats = [
+                    ['key' => 'clarity', 'title' => 'Clarté des explications', 'min_label' => 'Très flou', 'max_label' => 'Très clair'],
+                    ['key' => 'relevance', 'title' => 'Pertinence du contenu', 'min_label' => 'Pas pertinent', 'max_label' => 'Très pertinent'],
+                    ['key' => 'supports', 'title' => 'Qualité des supports', 'min_label' => 'Médiocre', 'max_label' => 'Excellent'],
+                    ['key' => 'pace', 'title' => 'Rythme de la formation', 'min_label' => 'Trop lent', 'max_label' => 'Trop rapide'],
+                    ['key' => 'interactivity', 'title' => 'Interactivité', 'min_label' => 'Pas interactif', 'max_label' => 'Très interactif'],
+                    ['key' => 'practical', 'title' => 'Application pratique', 'min_label' => 'Pas pratique', 'max_label' => 'Très pratique']
+                ];
+
+                foreach ($stats as $stat) {
+                    $templates[] = [
+                        'type' => 'linear_scale',
+                        'title' => $stat['title'],
+                        'required' => true,
+                        'feeds_statistics' => true,
+                        'statistics_key' => 'pedagogical_' . $stat['key'],
+                        'config' => [
+                            'scale' => [
+                                'min' => 1,
+                                'max' => 10,
+                                'min_label' => $stat['min_label'],
+                                'max_label' => $stat['max_label']
+                            ]
+                        ]
+                    ];
+                }
+                break;
+        }
+
+        return $templates;
     }
 }

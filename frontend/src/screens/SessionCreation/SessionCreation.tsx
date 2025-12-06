@@ -164,7 +164,12 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
     isLoading,
     uploadIntroVideo,
     uploadIntroImage,
-    loadFromCourse
+    loadFromCourse,
+    // Override system
+    isSessionMode,
+    courseTemplate,
+    isFieldInherited,
+    resetOverride
   } = useSessionCreation();
 
   const [isInitialized, setIsInitialized] = useState(false);
@@ -466,6 +471,11 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
               }}
               selectedPracticeIds={formData.formation_practice_ids || []}
               onPracticesChanged={(practiceIds) => updateFormField('formation_practice_ids', practiceIds)}
+              // Override system props
+              isSessionMode={isSessionMode}
+              courseTemplate={courseTemplate}
+              isFieldInherited={isFieldInherited}
+              onResetOverride={resetOverride}
             />
             
             <CollapsibleSections

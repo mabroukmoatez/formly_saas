@@ -52,7 +52,19 @@ class TrainerApiController extends Controller
                 ], 404);
             }
 
-            $query = Trainer::where('is_active', true);
+            // Filter by is_active if provided, otherwise show all active by default
+            $query = Trainer::query();
+            
+            if ($request->has('is_active')) {
+                $isActive = filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN);
+                $query->where('is_active', $isActive);
+            } else {
+                // Default: show only active trainers
+                $query->where('is_active', true);
+            }
+            
+            // Filter by organization
+            $query->where('organization_id', $organization->id);
 
             // Search filter
             if ($request->has('search') && $request->search) {

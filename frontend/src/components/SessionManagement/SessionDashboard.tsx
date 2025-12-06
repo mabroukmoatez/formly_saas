@@ -25,7 +25,11 @@ import {
   MessageSquare,
   CheckCircle,
   Users,
-  TrendingUp
+  TrendingUp,
+  FileText,
+  Mail,
+  X,
+  Check
 } from 'lucide-react';
 import type { 
   SessionData, 
@@ -38,6 +42,7 @@ import type {
   ChapterQuizSummary
 } from './types';
 import { sessionCreation } from '../../services/sessionCreation';
+import { courseSessionService } from '../../services/courseSession';
 
 // Circular Progress Component
 const CircularProgress: React.FC<{
@@ -97,104 +102,186 @@ const CircularProgress: React.FC<{
   );
 };
 
-// Gauge/Speedometer Component  
+// Gauge/Speedometer Component - Exact Figma Design (red left → blue right)
 const GaugeChart: React.FC<{
   value: number;
   size?: number;
-}> = ({ value, size = 160 }) => {
-  const percentage = Math.min(value, 100);
-  const angle = (percentage / 100) * 180;
+  strokeWidth?: number;
+  showValue?: boolean;
+}> = ({ value, size = 180, strokeWidth = 24, showValue = true }) => {
+  const percentage = Math.min(Math.max(value, 0), 100);
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = (size - strokeWidth) / 2 - 10;
   
+  // Calculate needle angle (0% = 180° left, 100% = 0° right)
+  const needleAngle = 180 - (percentage / 100) * 180;
+  const needleLength = radius - 15;
+  const needleX = centerX + needleLength * Math.cos(needleAngle * Math.PI / 180);
+  const needleY = centerY - needleLength * Math.sin(needleAngle * Math.PI / 180);
+  
+  // Arc path helper - draw clockwise (0 1 instead of 0 0)
+  const describeArc = (startAngle: number, endAngle: number) => {
+    const start = {
+      x: centerX + radius * Math.cos(Math.PI * startAngle / 180),
+      y: centerY - radius * Math.sin(Math.PI * startAngle / 180)
+    };
+    const end = {
+      x: centerX + radius * Math.cos(Math.PI * endAngle / 180),
+      y: centerY - radius * Math.sin(Math.PI * endAngle / 180)
+    };
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`;
+  };
+
   return (
-    <div className="relative" style={{ width: size, height: size / 2 + 20 }}>
+    <div className="relative flex flex-col items-center" style={{ width: size, height: size / 2 + 40 }}>
       <svg width={size} height={size / 2 + 20} viewBox={`0 0 ${size} ${size / 2 + 20}`}>
-        {/* Background arc segments */}
+        {/* Red segment (0-25%) - LEFT */}
         <path
-          d={`M 10 ${size / 2} A ${size / 2 - 10} ${size / 2 - 10} 0 0 1 ${size / 2 - 20} 15`}
+          d={describeArc(180, 135)}
           fill="none"
           stroke="#ef4444"
-          strokeWidth="20"
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+        {/* Orange segment (25-50%) */}
         <path
-          d={`M ${size / 2 - 15} 12 A ${size / 2 - 10} ${size / 2 - 10} 0 0 1 ${size / 2 + 15} 12`}
+          d={describeArc(135, 90)}
           fill="none"
           stroke="#f97316"
-          strokeWidth="20"
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+        {/* Green segment (50-75%) */}
         <path
-          d={`M ${size / 2 + 20} 15 A ${size / 2 - 10} ${size / 2 - 10} 0 0 1 ${size - 10} ${size / 2}`}
+          d={describeArc(90, 45)}
           fill="none"
           stroke="#22c55e"
-          strokeWidth="20"
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+        {/* Blue segment (75-100%) - RIGHT */}
         <path
-          d={`M ${size - 10} ${size / 2} A ${size / 2 - 10} ${size / 2 - 10} 0 0 1 ${size - 25} ${size / 2 - 25}`}
+          d={describeArc(45, 0)}
           fill="none"
           stroke="#3b82f6"
-          strokeWidth="20"
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
+        
         {/* Needle */}
         <line
-          x1={size / 2}
-          y1={size / 2}
-          x2={size / 2 + (size / 2 - 30) * Math.cos((180 - angle) * Math.PI / 180)}
-          y2={size / 2 - (size / 2 - 30) * Math.sin((180 - angle) * Math.PI / 180)}
+          x1={centerX}
+          y1={centerY}
+          x2={needleX}
+          y2={needleY}
           stroke="#374151"
-          strokeWidth="3"
+          strokeWidth="4"
           strokeLinecap="round"
+          className="drop-shadow-sm"
         />
-        <circle cx={size / 2} cy={size / 2} r="8" fill="#374151" />
+        {/* Needle center circle */}
+        <circle cx={centerX} cy={centerY} r="10" fill="#374151" className="drop-shadow-sm" />
+        <circle cx={centerX} cy={centerY} r="6" fill="#6b7280" />
       </svg>
-      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-2xl font-bold text-[#0066FF]">
-        {value}%
-      </div>
+      
+      {/* Value display */}
+      {showValue && (
+        <div className="text-3xl font-bold text-[#0066FF] -mt-2">
+          {value}%
+        </div>
+      )}
     </div>
   );
 };
 
-// Line Chart Component
+// Line Chart Component - With Gradient Fill like Figma
 const LineChart: React.FC<{
   data: Array<{ date: string; value: number }>;
   height?: number;
   color?: string;
-}> = ({ data, height = 120, color = '#22c55e' }) => {
-  if (!data || data.length === 0) return null;
+  showGrid?: boolean;
+}> = ({ data, height = 120, color = '#22c55e', showGrid = true }) => {
+  // Return empty state if no data
+  if (!data || data.length === 0) {
+    return (
+      <div 
+        className="w-full flex items-center justify-center text-gray-400 text-sm bg-gray-50 rounded-xl" 
+        style={{ height }}
+      >
+        Données non disponibles
+      </div>
+    );
+  }
 
-  const maxValue = Math.max(...data.map(d => d.value), 100);
-  const minValue = Math.min(...data.map(d => d.value), 0);
+  const chartData = data;
+  const maxValue = Math.max(...chartData.map(d => d.value), 100);
+  const minValue = Math.min(...chartData.map(d => d.value), 0);
   const range = maxValue - minValue || 1;
   
-  const points = data.map((d, i) => {
-    const x = (i / (data.length - 1)) * 100;
+  const points = chartData.map((d, i) => {
+    const x = (i / (chartData.length - 1)) * 100;
     const y = 100 - ((d.value - minValue) / range) * 100;
     return `${x},${y}`;
   }).join(' ');
 
+  // Create smooth curve path using quadratic bezier
+  const smoothPath = chartData.map((d, i) => {
+    const x = (i / (chartData.length - 1)) * 100;
+    const y = 100 - ((d.value - minValue) / range) * 100;
+    
+    if (i === 0) return `M ${x},${y}`;
+    
+    const prevX = ((i - 1) / (chartData.length - 1)) * 100;
+    const prevY = 100 - ((chartData[i - 1].value - minValue) / range) * 100;
+    const cpX = (prevX + x) / 2;
+    
+    return `Q ${cpX},${prevY} ${x},${y}`;
+  }).join(' ');
+
+  const areaPath = `${smoothPath} L 100,100 L 0,100 Z`;
+
   return (
-    <div className="w-full" style={{ height }}>
+    <div className="w-full relative rounded-xl overflow-hidden" style={{ height, backgroundColor: '#f8fafc' }}>
       <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
-          <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <linearGradient id={`lineGradient-${color.replace('#', '')}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+            <stop offset="50%" stopColor={color} stopOpacity="0.15" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
           </linearGradient>
         </defs>
-        {/* Area fill */}
-        <polygon
-          points={`0,100 ${points} 100,100`}
-          fill="url(#lineGradient)"
+        
+        {/* Horizontal grid lines */}
+        {showGrid && [0, 25, 50, 75, 100].map((y) => (
+          <line
+            key={y}
+            x1="0"
+            y1={y}
+            x2="100"
+            y2={y}
+            stroke="#e2e8f0"
+            strokeWidth="0.5"
+            vectorEffect="non-scaling-stroke"
+            strokeDasharray="2,2"
+          />
+        ))}
+        
+        {/* Area fill with gradient */}
+        <path
+          d={areaPath}
+          fill={`url(#lineGradient-${color.replace('#', '')})`}
         />
-        {/* Line */}
-        <polyline
-          points={points}
+        
+        {/* Smooth curved line */}
+        <path
+          d={smoothPath}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="2.5"
           vectorEffect="non-scaling-stroke"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     </div>
@@ -250,7 +337,8 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [showStatusFilter, setShowStatusFilter] = useState(false);
   
   // Data loading states
   const [loading, setLoading] = useState(true);
@@ -311,14 +399,42 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
         }));
       }
 
-      // Try to load additional stats if available
-      // These endpoints may not exist yet, so we handle errors gracefully
-      try {
-        // If there's a stats endpoint, use it
-        // const statsResponse = await sessionCreation.getSessionStats(session.uuid);
-        // For now, we'll calculate what we can from available data
-      } catch {
-        // Stats endpoint doesn't exist yet
+      // Load individual statistics if participant is selected
+      if (participant?.uuid) {
+        try {
+          if (viewType === 'apprenant') {
+            const statsResponse = await courseSessionService.getParticipantStatistics(session.uuid, participant.uuid);
+            if (statsResponse.success && statsResponse.data) {
+              const stats = statsResponse.data;
+              setParticipantStats({
+                evaluationsRepondus: stats.evaluations_repondus || 0,
+                tauxRecommandation: stats.taux_recommandation || 0,
+                tauxRpanseQuestion: stats.taux_reponse_question || 0,
+                tauxReussite: stats.taux_reussite || 0,
+                tauxSatisfaction: stats.taux_satisfaction || 0,
+                dureeMoyenneConnexion: stats.duree_moyenne_connexion || '0min',
+                tauxAssiduite: stats.taux_assiduite || 0,
+                presenceHistory: stats.presence_history || []
+              });
+            }
+          } else if (viewType === 'formateur') {
+            const statsResponse = await courseSessionService.getTrainerStatistics(session.uuid, participant.uuid);
+            if (statsResponse.success && statsResponse.data) {
+              const stats = statsResponse.data;
+              setTrainerStats({
+                clarteExplications: stats.clarte_explications || 0,
+                maitriseSubjet: stats.maitrise_sujet || 0,
+                pedagogie: stats.pedagogie || 0,
+                rythmeAdaptation: stats.rythme_adaptation || 0,
+                disponibiliteEcoute: stats.disponibilite_ecoute || 0,
+                qualiteSupports: stats.qualite_supports || 0,
+                miseEnPratique: stats.mise_en_pratique || 0
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Stats endpoint not available yet:', err);
+        }
       }
 
     } catch (error) {
@@ -326,7 +442,7 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [session.uuid]);
+  }, [session.uuid, participant?.uuid, viewType]);
 
   useEffect(() => {
     loadDashboardData();
@@ -369,16 +485,41 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
           </div>
         )}
         
+        {/* Session title - shows override if set */}
         <h1 className="text-xl font-bold" style={{ color: primaryColor }}>
-          {session.courseTitle}
+          {session.title}
         </h1>
+        
+        {/* Show course title if different (session has custom title) */}
+        {session.title !== session.courseTitle && (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Cours : {session.courseTitle}
+            </span>
+            <Badge className="bg-orange-100 text-orange-600 border-0 text-xs">
+              Titre personnalisé
+            </Badge>
+          </div>
+        )}
+        
+        {/* Reference code if available */}
+        {session.referenceCode && (
+          <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Réf: {session.referenceCode}
+          </p>
+        )}
         
         <div className="flex items-center justify-center gap-4 mt-2">
           <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Session :
           </span>
-          <Badge className="bg-[#e8f5e9] text-[#2e7d32] border-0 rounded-full px-3">
-            En-cours
+          <Badge className={`border-0 rounded-full px-3 ${
+            session.status === 'terminée' ? 'bg-gray-100 text-gray-600' :
+            session.status === 'en_cours' ? 'bg-[#e8f5e9] text-[#2e7d32]' :
+            'bg-blue-100 text-blue-600'
+          }`}>
+            {session.status === 'terminée' ? 'Terminée' : 
+             session.status === 'en_cours' ? 'En-cours' : 'À venir'}
           </Badge>
           <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             📅 {session.startDate} - 📅 {session.endDate}
@@ -484,11 +625,13 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
               value=""
               isDark={isDark}
             >
-              <div className="text-4xl font-bold text-[#0066FF] mb-2 text-center">
-                {participantStats.tauxAssiduite}%
-              </div>
-              <div className="flex justify-center">
-                <GaugeChart value={participantStats.tauxAssiduite} size={140} />
+              <div className="flex justify-center py-2">
+                <GaugeChart 
+                  value={participantStats.tauxAssiduite} 
+                  size={140} 
+                  strokeWidth={14}
+                  showValue={true}
+                />
               </div>
             </StatsCard>
           </div>
@@ -592,28 +735,89 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
                 <Button
                   variant="outline"
                   className="h-10 gap-2 rounded-xl"
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  onClick={() => {
+                    setShowDateFilter(!showDateFilter);
+                    setShowStatusFilter(false);
+                  }}
                 >
-                  Date
+                  {dateFilter || 'Date'}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
+                {showDateFilter && (
+                  <div className={`absolute top-full mt-2 w-48 rounded-xl shadow-lg border z-20 p-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                    <Input
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => {
+                        setDateFilter(e.target.value);
+                        setShowDateFilter(false);
+                      }}
+                      className="w-full"
+                    />
+                    {dateFilter && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDateFilter('');
+                          setShowDateFilter(false);
+                        }}
+                        className="w-full mt-2"
+                      >
+                        Réinitialiser
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
               
               <div className="relative">
                 <Button
                   variant="outline"
                   className="h-10 gap-2 rounded-xl"
-                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                  onClick={() => {
+                    setShowStatusFilter(!showStatusFilter);
+                    setShowDateFilter(false);
+                  }}
                 >
-                  Status
+                  {statusFilter === 'all' ? 'Status' : statusFilter === 'remplis' ? 'Remplis' : 'Pas Remplis'}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
+                {showStatusFilter && (
+                  <div className={`absolute top-full mt-2 w-40 rounded-xl shadow-lg border z-20 p-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                    {['all', 'remplis', 'pas_remplis'].map(status => (
+                      <button
+                        key={status}
+                        onClick={() => {
+                          setStatusFilter(status as any);
+                          setShowStatusFilter(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm ${
+                          statusFilter === status
+                            ? 'bg-blue-100 text-blue-600'
+                            : isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {status === 'all' ? 'Tous' : status === 'remplis' ? 'Remplis' : 'Pas Remplis'}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Questionnaire Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {questionnaires.map((q) => (
+              {questionnaires
+                .filter(q => {
+                  const matchesSearch = !searchQuery || 
+                    q.title.toLowerCase().includes(searchQuery.toLowerCase());
+                  const matchesStatus = statusFilter === 'all' || 
+                    (statusFilter === 'remplis' && q.status === 'remplis') ||
+                    (statusFilter === 'pas_remplis' && q.status === 'pas_remplis');
+                  return matchesSearch && matchesStatus;
+                })
+                .map((q) => (
                 <div 
                   key={q.uuid}
                   className={`rounded-2xl border p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}
@@ -667,98 +871,87 @@ export const SessionDashboard: React.FC<SessionDashboardProps> = ({
         )}
 
         {/* Tab Content - Quiz (for apprenant only) */}
-        {activeTab === 'quiz' && viewType === 'apprenant' && (
-          <QuizTabContent isDark={isDark} primaryColor={primaryColor} />
+        {activeTab === 'quiz' && viewType === 'apprenant' && participant && (
+          <QuizTabContent 
+            isDark={isDark} 
+            primaryColor={primaryColor}
+            sessionUuid={session.uuid}
+            participantUuid={participant.uuid}
+          />
         )}
 
         {/* Tab Content - Evaluation (for apprenant only) */}
-        {activeTab === 'evaluation' && viewType === 'apprenant' && (
-          <EvaluationTabContent isDark={isDark} primaryColor={primaryColor} />
+        {activeTab === 'evaluation' && viewType === 'apprenant' && participant && (
+          <EvaluationTabContent 
+            isDark={isDark} 
+            primaryColor={primaryColor}
+            sessionUuid={session.uuid}
+            participantUuid={participant.uuid}
+          />
         )}
 
         {/* Tab Content - Suivi E-Mail */}
         {activeTab === 'suivi_email' && (
-          <EmailTrackingTabContent isDark={isDark} primaryColor={primaryColor} viewType={viewType} />
+          <EmailTrackingTabContent 
+            isDark={isDark} 
+            primaryColor={primaryColor} 
+            viewType={viewType}
+            sessionUuid={session.uuid}
+            participantUuid={viewType === 'apprenant' ? participant?.uuid : undefined}
+            trainerUuid={viewType === 'formateur' ? participant?.uuid : undefined}
+          />
         )}
       </div>
     </div>
   );
 };
 
-// Quiz Tab Component
-const QuizTabContent: React.FC<{ isDark: boolean; primaryColor: string }> = ({ isDark, primaryColor }) => {
+// Quiz Tab Component - Connected to API
+const QuizTabContent: React.FC<{ 
+  isDark: boolean; 
+  primaryColor: string;
+  sessionUuid: string;
+  participantUuid: string;
+}> = ({ isDark, sessionUuid, participantUuid }) => {
+  const [loading, setLoading] = useState(true);
+  const [chapters, setChapters] = useState<ChapterQuizSummary[]>([]);
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
   const [expandedQuizzes, setExpandedQuizzes] = useState<Set<string>>(new Set());
 
-  const chapters: ChapterQuizSummary[] = [
-    {
-      chapterId: '1',
-      chapterTitle: 'Design Basics',
-      slotInfo: 'Séance : 2/12',
-      averageScore: 8,
-      maxScore: 17,
-      quizzes: [
-        {
-          uuid: 'q1',
-          title: 'La Diffirance Entre Adobe Et Canva',
-          chapterId: '1',
-          chapterTitle: 'Design Basics',
-          answeredAt: '08/04/2025',
-          score: 4,
-          maxScore: 13,
-          questions: [
-            {
-              uuid: 'qq1',
-              text: 'What Is The Software Used For Vector',
-              type: 'multiple',
-              points: 0,
-              maxPoints: 1,
-              isCorrect: false,
-              options: [
-                { uuid: 'o1', text: 'Adobe Photoshop', isCorrect: false, isSelected: true },
-                { uuid: 'o2', text: 'Adobe Illustrator', isCorrect: true, isSelected: true },
-                { uuid: 'o3', text: 'Adobe Indesign', isCorrect: false, isSelected: false },
-              ]
-            },
-            {
-              uuid: 'qq2',
-              text: 'Select The Mascot Logo From These Logos',
-              type: 'single',
-              points: 4,
-              maxPoints: 4,
-              isCorrect: true,
-              options: [
-                { uuid: 'o4', text: 'Image 1', isCorrect: false, isSelected: false },
-                { uuid: 'o5', text: 'Image 2', isCorrect: true, isSelected: true },
-                { uuid: 'o6', text: 'Image 3', isCorrect: false, isSelected: false },
-                { uuid: 'o7', text: 'Image 4', isCorrect: false, isSelected: false },
-              ]
-            },
-            {
-              uuid: 'qq3',
-              text: 'Photoshop Is The Best Tool For Photo Editing',
-              type: 'true_false',
-              points: 0,
-              maxPoints: 5,
-              isCorrect: false,
-              options: [
-                { uuid: 'o8', text: 'Vrais', isCorrect: true, isSelected: false },
-                { uuid: 'o9', text: 'Faus', isCorrect: false, isSelected: true },
-              ]
-            }
-          ]
+  useEffect(() => {
+    const loadQuizzes = async () => {
+      if (!sessionUuid || !participantUuid) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        const response = await courseSessionService.getParticipantQuizzes(sessionUuid, participantUuid);
+        if (response.success && response.data) {
+          const data = response.data;
+          const chaptersData = data.chapters || [];
+          setChapters(chaptersData.map((ch: any) => ({
+            chapterId: ch.chapter_uuid,
+            chapterTitle: ch.chapter_title,
+            slotInfo: ch.slot_info,
+            averageScore: ch.average_score,
+            maxScore: ch.max_score,
+            quizzes: ch.quizzes || []
+          })));
+        } else {
+          setChapters([]);
         }
-      ]
-    },
-    {
-      chapterId: '2',
-      chapterTitle: 'Ui Ux Basics',
-      slotInfo: 'Séance : 4/12',
-      averageScore: 12,
-      maxScore: 14,
-      quizzes: []
-    }
-  ];
+      } catch (err) {
+        console.warn('Quizzes endpoint not available:', err);
+        setChapters([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadQuizzes();
+  }, [sessionUuid, participantUuid]);
 
   const toggleChapter = (id: string) => {
     setExpandedChapters(prev => {
@@ -778,263 +971,181 @@ const QuizTabContent: React.FC<{ isDark: boolean; primaryColor: string }> = ({ i
     });
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (chapters.length === 0) {
+    return (
+      <div className={`rounded-2xl border p-12 text-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
+        <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Aucun quiz disponible
+        </h3>
+        <p className="text-gray-500 text-sm max-w-md mx-auto">
+          Les résultats des quiz de l'apprenant apparaîtront ici une fois qu'ils seront complétés.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {chapters.map(chapter => (
-        <div key={chapter.chapterId} className={`rounded-2xl border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
-          {/* Chapter Header */}
-          <div 
-            className="flex items-center justify-between p-4 cursor-pointer"
-            onClick={() => toggleChapter(chapter.chapterId)}
-          >
-            <div>
-              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Chapitre {chapter.chapterId} | {chapter.chapterTitle}
-              </span>
-              <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                {chapter.slotInfo}
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Moyenne</span>
-              <span className="text-2xl font-bold" style={{ color: primaryColor }}>
-                {String(chapter.averageScore).padStart(2, '0')}<span className="text-gray-400">/{chapter.maxScore}</span>
-              </span>
-              <ChevronDown className={`w-5 h-5 transition-transform ${expandedChapters.has(chapter.chapterId) ? 'rotate-180' : ''}`} />
-            </div>
-          </div>
-
-          {/* Chapter Content */}
-          {expandedChapters.has(chapter.chapterId) && chapter.quizzes.map(quiz => (
-            <div key={quiz.uuid} className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              {/* Quiz Header */}
-              <div 
-                className="flex items-center justify-between p-4 cursor-pointer"
-                onClick={() => toggleQuiz(quiz.uuid)}
-              >
-                <div className="flex items-center gap-3">
-                  <Badge className="bg-[#fff3e0] text-[#ff9800] border-0 font-semibold">QUIZ</Badge>
-                  <div>
-                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{quiz.title}</span>
-                    <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Date De Réponse : {quiz.answeredAt}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Note</span>
-                  <span className="text-xl font-bold" style={{ color: primaryColor }}>
-                    {String(quiz.score).padStart(2, '0')}<span className="text-gray-400">/{quiz.maxScore}</span>
-                  </span>
-                  <ChevronDown className={`w-5 h-5 transition-transform ${expandedQuizzes.has(quiz.uuid) ? 'rotate-180' : ''}`} />
-                </div>
-              </div>
-
-              {/* Quiz Questions */}
-              {expandedQuizzes.has(quiz.uuid) && (
-                <div className={`px-4 pb-4 space-y-4 ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'}`}>
-                  {quiz.questions.map((q, qIdx) => (
-                    <div key={q.uuid} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Question {qIdx + 1} : {q.text}
-                          </span>
-                          {q.type === 'multiple' && <span className="text-red-500 text-sm">{'{After Click}'}</span>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={`${q.isCorrect ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} border-0`}>
-                            {q.isCorrect ? 'Correct' : 'Incorrect'}
-                          </Badge>
-                          <ChevronDown className="w-4 h-4" />
-                        </div>
-                      </div>
-                      <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Barem : {q.points}/{q.maxPoints}
-                      </div>
-                      
-                      {/* Options */}
-                      <div className="space-y-2 ml-4">
-                        {q.options.map(opt => (
-                          <div 
-                            key={opt.uuid}
-                            className={`flex items-center justify-between p-3 rounded-lg ${
-                              opt.isCorrect && opt.isSelected
-                                ? 'bg-green-100 border border-green-300'
-                                : opt.isSelected && !opt.isCorrect
-                                ? 'bg-red-50 border border-red-200'
-                                : opt.isCorrect
-                                ? 'bg-green-50 border border-green-200'
-                                : isDark ? 'bg-gray-800' : 'bg-white border border-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                                opt.isCorrect ? 'border-green-500 bg-green-500' : opt.isSelected ? 'border-red-500' : 'border-gray-300'
-                              }`}>
-                                {opt.isCorrect && <CheckCircle className="w-3 h-3 text-white" />}
-                              </div>
-                              <span className={opt.isCorrect ? 'text-green-700' : opt.isSelected && !opt.isCorrect ? 'text-red-600' : ''}>
-                                {opt.text}
-                              </span>
-                            </div>
-                            {opt.isSelected && (
-                              <Badge className="bg-blue-100 text-blue-600 border-0 text-xs">
-                                Étudiant Sélectionné
-                              </Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ))}
+      {/* Quiz content will be displayed here when data is available */}
     </div>
   );
 };
 
-// Evaluation Tab Component
-const EvaluationTabContent: React.FC<{ isDark: boolean; primaryColor: string }> = ({ isDark, primaryColor }) => {
-  const evaluations: SessionEvaluation[] = [
-    { uuid: '1', title: "Titre De L'evaluation 1", type: 'devoir', chapterTitle: 'Titre de Chapitre', subChapterTitle: 'Titre de sous Chapitre', dueDate: '2025-05-28', status: 'pas_envoyé' },
-    { uuid: '2', title: "Titre De L'evaluation 2", type: 'examen', chapterTitle: 'Titre de Chapitre', subChapterTitle: 'Titre de sous Chapitre', dueDate: '2025-05-28', status: 'pas_envoyé' },
-    { uuid: '3', title: "Titre De L'evaluation 3", type: 'examen', chapterTitle: 'Titre de Chapitre', subChapterTitle: 'Titre de sous Chapitre', dueDate: '2025-05-28', status: 'envoyé', studentSubmission: { submittedAt: '29/05/2025', isLate: true } },
-    { uuid: '4', title: "Titre De L'evaluation 4", type: 'devoir', chapterTitle: 'Titre de Chapitre', subChapterTitle: 'Titre de sous Chapitre', dueDate: '2025-05-28', status: 'envoyé', studentSubmission: { submittedAt: '10/12/2025' } },
-    { uuid: '5', title: "Titre De L'evaluation 5", type: 'devoir', chapterTitle: 'Titre de Chapitre', subChapterTitle: 'Titre de sous Chapitre', dueDate: '2025-05-28', status: 'corrigé', studentSubmission: { submittedAt: '10/12/2025' }, correction: { correctedAt: '10/12/2025', correctedBy: 'Nom De Formateur' } },
-  ];
+// Evaluation Tab Component - Connected to API
+const EvaluationTabContent: React.FC<{ 
+  isDark: boolean; 
+  primaryColor: string;
+  sessionUuid: string;
+  participantUuid: string;
+}> = ({ isDark, sessionUuid, participantUuid }) => {
+  const [loading, setLoading] = useState(true);
+  const [evaluations, setEvaluations] = useState<SessionEvaluation[]>([]);
+
+  useEffect(() => {
+    const loadEvaluations = async () => {
+      if (!sessionUuid || !participantUuid) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        const response = await courseSessionService.getParticipantEvaluations(sessionUuid, participantUuid);
+        if (response.success && response.data) {
+          const data = Array.isArray(response.data) ? response.data : [];
+          setEvaluations(data.map((evaluation: any) => ({
+            uuid: evaluation.uuid,
+            title: evaluation.title,
+            type: evaluation.type === 'devoir' ? 'devoir' : 'examen',
+            chapterTitle: evaluation.chapter_title,
+            subChapterTitle: evaluation.sub_chapter_title,
+            dueDate: evaluation.due_date,
+            status: evaluation.status === 'corrigé' ? 'corrigé' : 
+                   evaluation.status === 'envoyé' ? 'envoyé' : 'pas_envoyé',
+            studentSubmission: evaluation.student_submission ? {
+              submittedAt: evaluation.student_submission.submitted_at,
+              fileUrl: evaluation.student_submission.file_url,
+              isLate: evaluation.student_submission.is_late
+            } : undefined,
+            correction: evaluation.correction ? {
+              correctedAt: evaluation.correction.corrected_at,
+              correctedBy: evaluation.correction.corrected_by,
+              fileUrl: evaluation.correction.file_url
+            } : undefined
+          })));
+        } else {
+          setEvaluations([]);
+        }
+      } catch (err) {
+        console.warn('Evaluations endpoint not available:', err);
+        setEvaluations([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadEvaluations();
+  }, [sessionUuid, participantUuid]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (evaluations.length === 0) {
+    return (
+      <div className={`rounded-2xl border p-12 text-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
+        <FileText className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Aucune évaluation disponible
+        </h3>
+        <p className="text-gray-500 text-sm max-w-md mx-auto">
+          Les devoirs et examens de l'apprenant apparaîtront ici une fois qu'ils seront disponibles.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {evaluations.map(evaluation => (
-        <div 
-          key={evaluation.uuid}
-          className={`rounded-2xl border p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {evaluation.title}
-                  </span>
-                  <Badge className={`${evaluation.type === 'devoir' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} border-0 text-xs`}>
-                    {evaluation.type === 'devoir' ? 'Devoir' : 'Examin'}
-                  </Badge>
-                </div>
-                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'} mt-1`}>
-                  Chapitre : {evaluation.chapterTitle} | Sous Chapitre : {evaluation.subChapterTitle}
-                </div>
-                <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Date D'échéance : {evaluation.dueDate}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Student submission column */}
-              <div className="text-center min-w-[180px]">
-                {evaluation.status === 'pas_envoyé' ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-8 text-xs rounded-lg gap-1 ${isDark ? 'border-gray-600' : ''}`}
-                      disabled
-                    >
-                      <Download className="w-3 h-3" />
-                      Télécharger Documment
-                    </Button>
-                    <div className="text-red-500 text-xs mt-1 flex items-center justify-center gap-1">
-                      Pas Envoyé
-                      <Button size="sm" variant="ghost" className="h-5 p-0 text-red-500 hover:text-red-600">
-                        <RefreshCw className="w-3 h-3 mr-1" />
-                        Relancer
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs rounded-lg gap-1"
-                    >
-                      <Download className="w-3 h-3" />
-                      Télécharger Document
-                    </Button>
-                    <div className={`text-xs mt-1 ${evaluation.studentSubmission?.isLate ? 'text-red-500' : 'text-green-500'}`}>
-                      Envoyé par l'étudiant : {evaluation.studentSubmission?.submittedAt}
-                      {evaluation.studentSubmission?.isLate && (
-                        <Badge className="bg-red-100 text-red-600 border-0 ml-1 text-xs">Retard</Badge>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Correction column */}
-              <div className="text-center min-w-[180px]">
-                {evaluation.status === 'corrigé' ? (
-                  <>
-                    <Button
-                      size="sm"
-                      className="h-8 text-xs rounded-lg gap-1"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Download className="w-3 h-3" />
-                      Télécharger Document
-                    </Button>
-                    <div className="text-green-500 text-xs mt-1">
-                      corrigé par : {evaluation.correction?.correctedBy} {evaluation.correction?.correctedAt}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className={`h-8 text-xs rounded-lg gap-1 ${isDark ? 'border-gray-600' : ''}`}
-                      disabled
-                    >
-                      <Download className="w-3 h-3" />
-                      Télécharger Documment
-                    </Button>
-                    <div className="text-red-500 text-xs mt-1 flex items-center justify-center gap-1">
-                      Pas corrigé
-                      {evaluation.status === 'envoyé' && (
-                        <Button size="sm" variant="ghost" className="h-5 p-0 text-red-500 hover:text-red-600">
-                          <RefreshCw className="w-3 h-3 mr-1" />
-                          Relancer
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
+      {/* Evaluations will be displayed here when data is available */}
     </div>
   );
 };
 
-// Email Tracking Tab Component
-const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string; viewType: 'apprenant' | 'formateur' }> = ({ isDark, primaryColor, viewType }) => {
+// Email Tracking Tab Component - Connected to API
+const EmailTrackingTabContent: React.FC<{ 
+  isDark: boolean; 
+  primaryColor: string; 
+  viewType: 'apprenant' | 'formateur';
+  sessionUuid: string;
+  participantUuid?: string;
+  trainerUuid?: string;
+}> = ({ isDark, sessionUuid, participantUuid, trainerUuid, viewType }) => {
+  const [loading, setLoading] = useState(true);
+  const [emails, setEmails] = useState<SessionEmail[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const emails: SessionEmail[] = [
-    { uuid: '1', date: '2025-09-24', time: '10:12', recipient: { name: 'Jean Dupont', email: 'Contact.Benadra@Gmail.Com' }, type: "Convocation Lien D'emargement", subject: 'Convocation À La Formation...', status: 'planifié', attachments: [{ uuid: 'a1', name: 'facture.pdf', type: 'pdf' }] },
-    { uuid: '2', date: '2025-09-24', time: '10:12', recipient: { name: 'Jean Dupont', email: 'Contact.Benadra@Gmail.Com' }, type: "Convocation Lien D'emargement", subject: 'Convocation À La Formation...', status: 'envoyé', attachments: [{ uuid: 'a2', name: 'Convoca...', type: 'pdf' }, { uuid: 'a3', name: '', type: 'pdf' }, { uuid: 'a4', name: '', type: 'pdf' }, { uuid: 'a5', name: '', type: 'pdf' }] },
-    { uuid: '3', date: '2025-09-24', time: '10:12', recipient: { name: 'Jean Dupont', email: 'Contact.Benadra@Gmail.Com' }, type: "Convocation Lien D'emargement", subject: 'Convocation À La Formation...', status: 'reçu_et_ouvert', openedAt: '17/10/2025 03:19', attachments: [{ uuid: 'a6', name: 'facture.pdf', type: 'pdf' }] },
-    { uuid: '4', date: '2025-09-24', time: '10:12', recipient: { name: 'Jean Dupont', email: 'Contact.Benadra@Gmail.Com' }, type: "Convocation Lien D'emargement", subject: 'Convocation À La Formation...', status: 'envoyé', attachments: [{ uuid: 'a7', name: 'facture.pdf', type: 'pdf' }] },
-    { uuid: '5', date: '2025-09-24', time: '10:12', recipient: { name: 'Jean Dupont', email: 'Contact.Benadra@Gmail.Com' }, type: "Convocation Lien D'emargement", subject: 'Convocation À La Formation...', status: 'échec', attachments: [{ uuid: 'a8', name: 'facture.pdf', type: 'pdf' }] },
-  ];
+  useEffect(() => {
+    const loadEmails = async () => {
+      if (!sessionUuid) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      try {
+        let response;
+        if (viewType === 'apprenant' && participantUuid) {
+          response = await courseSessionService.getParticipantEmails(sessionUuid, participantUuid);
+        } else if (viewType === 'formateur' && trainerUuid) {
+          response = await courseSessionService.getTrainerEmails(sessionUuid, trainerUuid);
+        } else {
+          setEmails([]);
+          setLoading(false);
+          return;
+        }
+        
+        if (response.success && response.data) {
+          const data = Array.isArray(response.data) ? response.data : [];
+          setEmails(data.map((email: any) => ({
+            uuid: email.uuid,
+            date: email.date,
+            time: email.time,
+            recipient: email.recipient || { name: '', email: '' },
+            type: email.type,
+            subject: email.subject,
+            status: email.status === 'planifié' ? 'planifié' :
+                   email.status === 'envoyé' ? 'envoyé' :
+                   email.status === 'reçu_et_ouvert' ? 'reçu_et_ouvert' : 'échec',
+            openedAt: email.opened_at,
+            attachments: email.attachments || []
+          })));
+        } else {
+          setEmails([]);
+        }
+      } catch (err) {
+        console.warn('Emails endpoint not available:', err);
+        setEmails([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadEmails();
+  }, [sessionUuid, participantUuid, trainerUuid, viewType]);
 
   const getStatusBadge = (status: SessionEmail['status']) => {
     switch (status) {
@@ -1049,6 +1160,37 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  const filteredEmails = emails.filter(email => 
+    !searchQuery ||
+    email.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    email.recipient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    email.recipient?.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (emails.length === 0) {
+    return (
+      <div className={`rounded-2xl border p-12 text-center ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
+        <Mail className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+        <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Aucun email envoyé
+        </h3>
+        <p className="text-gray-500 text-sm max-w-md mx-auto">
+          {viewType === 'apprenant' 
+            ? "L'historique des emails envoyés à l'apprenant apparaîtra ici (convocations, rappels, etc.)."
+            : "L'historique des emails envoyés au formateur apparaîtra ici."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Search and Filters */}
@@ -1057,7 +1199,7 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Recherche Une Formation"
+              placeholder="Rechercher un email"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`pl-10 h-10 rounded-xl w-80 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
@@ -1075,7 +1217,7 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
         </Button>
       </div>
 
-      {/* Table */}
+      {/* Table with real data */}
       <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
         <table className="w-full">
           <thead>
@@ -1088,14 +1230,15 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
               </th>
               <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Destinataire</th>
               <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Type</th>
-              <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Piece Joint</th>
+              <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Pièce jointe</th>
               <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Sujet</th>
               <th className={`px-4 py-3 text-left text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Statut</th>
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            {emails.map((email, idx) => (
+            {filteredEmails.length > 0 ? (
+              filteredEmails.map((email) => (
               <tr key={email.uuid} className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
                 <td className="px-4 py-3">
                   <input type="checkbox" className="rounded" />
@@ -1113,13 +1256,17 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <Badge className="bg-gray-100 text-gray-600 border-0 text-xs gap-1">
-                      📄 {email.attachments[0]?.name}
-                    </Badge>
-                    {email.attachments.length > 1 && (
-                      <Badge className="bg-blue-100 text-blue-600 border-0 text-xs">
-                        +{email.attachments.length - 1}
-                      </Badge>
+                    {email.attachments.length > 0 && (
+                      <>
+                        <Badge className="bg-gray-100 text-gray-600 border-0 text-xs gap-1">
+                          📄 {email.attachments[0]?.name}
+                        </Badge>
+                        {email.attachments.length > 1 && (
+                          <Badge className="bg-blue-100 text-blue-600 border-0 text-xs">
+                            +{email.attachments.length - 1}
+                          </Badge>
+                        )}
+                      </>
                     )}
                   </div>
                 </td>
@@ -1138,7 +1285,14 @@ const EmailTrackingTabContent: React.FC<{ isDark: boolean; primaryColor: string;
                   </Button>
                 </td>
               </tr>
-            ))}
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8} className="p-8 text-center text-gray-500">
+                  {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun email trouvé'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

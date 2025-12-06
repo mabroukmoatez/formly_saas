@@ -73,12 +73,21 @@ export const Step8WorkflowNew: React.FC = () => {
       if (formData.sessionUuid) {
         const response = await sessionCreation.getWorkflowActions(formData.sessionUuid);
         if (response.success && response.data) {
-          setFlowActions(response.data);
+          // Ensure we always get an array
+          const actions = Array.isArray(response.data) 
+            ? response.data 
+            : response.data.actions || response.data.data || [];
+          setFlowActions(actions);
+        } else {
+          setFlowActions([]);
         }
+      } else {
+        setFlowActions([]);
       }
     } catch (error: any) {
       console.error('Error loading flow actions:', error);
       showError('Erreur', 'Impossible de charger les workflows');
+      setFlowActions([]);
     } finally {
       setLoading(false);
     }
@@ -236,18 +245,21 @@ export const Step8WorkflowNew: React.FC = () => {
     }
   };
 
+  // Ensure flowActions is always an array for safety
+  const safeFlowActions = Array.isArray(flowActions) ? flowActions : [];
+
   // Filter actions by recipient
-  const filteredActions = flowActions.filter(action => {
+  const filteredActions = safeFlowActions.filter(action => {
     if (activeFilter === 'all') return true;
     return action.recipient === activeFilter;
   });
 
   // Count actions by recipient
   const counts = {
-    all: flowActions.length,
-    apprenant: flowActions.filter(a => a.recipient === 'apprenant').length,
-    formateur: flowActions.filter(a => a.recipient === 'formateur').length,
-    entreprise: flowActions.filter(a => a.recipient === 'entreprise').length,
+    all: safeFlowActions.length,
+    apprenant: safeFlowActions.filter(a => a.recipient === 'apprenant').length,
+    formateur: safeFlowActions.filter(a => a.recipient === 'formateur').length,
+    entreprise: safeFlowActions.filter(a => a.recipient === 'entreprise').length,
   };
 
   // Get trigger text (e.g., "3 jours avant la première séance")

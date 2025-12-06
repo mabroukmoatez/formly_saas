@@ -124,12 +124,33 @@ class QuestionnaireQuestionApiController extends Controller
 
             // Validation
             $validator = Validator::make($request->all(), [
-                'type' => 'required|in:multiple_choice,true_false,text,rating',
-                'question' => 'required|string',
-                'options' => 'required_if:type,multiple_choice|array',
-                'correct_answer' => 'nullable',
+                'type' => 'required|in:single_choice,multiple_choice,ordered_choice,date,file_upload,linear_scale,text,textarea,multiple_choice,true_false,rating',
+                'title' => 'required|string|max:500',
+                'description' => 'nullable|string',
                 'required' => 'boolean',
-                'order' => 'nullable|integer|min:0'
+                'order' => 'nullable|integer|min:0',
+                'config' => 'nullable|array',
+                'feeds_statistics' => 'boolean',
+                'statistics_key' => 'nullable|string|max:100',
+                // Config validation based on type
+                'config.options' => 'required_if:type,single_choice,multiple_choice,ordered_choice|array',
+                'config.min_selections' => 'nullable|integer|min:0',
+                'config.max_selections' => 'nullable|integer|min:1',
+                'config.date_format' => 'nullable|string',
+                'config.min_date' => 'nullable|date',
+                'config.max_date' => 'nullable|date',
+                'config.file_count' => 'nullable|array',
+                'config.file_count.min' => 'nullable|integer|min:0',
+                'config.file_count.max' => 'nullable|integer|min:1',
+                'config.file_size' => 'nullable|array',
+                'config.file_size.max' => 'nullable|integer|min:1',
+                'config.allowed_extensions' => 'nullable|array',
+                'config.scale' => 'nullable|array',
+                'config.scale.min' => 'nullable|integer|min:1',
+                'config.scale.max' => 'nullable|integer|min:1',
+                'config.scale.min_label' => 'nullable|string',
+                'config.scale.max_label' => 'nullable|string',
+                'config.hover_labels' => 'nullable|array'
             ]);
 
             if ($validator->fails()) {
@@ -141,16 +162,22 @@ class QuestionnaireQuestionApiController extends Controller
             }
 
             // Get next order index if not provided
-            $orderIndex = $request->order ?? $questionnaire->questions()->max('order_index') + 1;
+            $orderIndex = $request->order ?? ($questionnaire->questions()->max('order_index') ?? -1) + 1;
+
+            // Use title or question field (backward compatibility)
+            $questionText = $request->title ?? $request->question ?? '';
 
             $question = QuestionnaireQuestion::create([
                 'questionnaire_id' => $questionnaire->uuid,
                 'type' => $request->type,
-                'question' => $request->question,
-                'options' => $request->options,
-                'correct_answer' => $request->correct_answer,
+                'question' => $questionText,
+                'options' => $request->options ?? ($request->config['options'] ?? null),
+                'correct_answer' => $request->correct_answer ?? null,
                 'required' => $request->get('required', false),
-                'order_index' => $orderIndex
+                'order_index' => $orderIndex,
+                'config' => $request->config ?? null,
+                'feeds_statistics' => $request->get('feeds_statistics', false),
+                'statistics_key' => $request->statistics_key ?? null
             ]);
 
             return response()->json([
@@ -229,11 +256,33 @@ class QuestionnaireQuestionApiController extends Controller
 
             // Validation
             $validator = Validator::make($request->all(), [
-                'type' => 'required|in:multiple_choice,true_false,text,rating',
-                'question' => 'required|string',
-                'options' => 'required_if:type,multiple_choice|array',
-                'correct_answer' => 'nullable',
-                'required' => 'boolean'
+                'type' => 'sometimes|required|in:single_choice,multiple_choice,ordered_choice,date,file_upload,linear_scale,text,textarea,multiple_choice,true_false,rating',
+                'title' => 'sometimes|required|string|max:500',
+                'question' => 'sometimes|required|string',
+                'description' => 'nullable|string',
+                'required' => 'boolean',
+                'config' => 'nullable|array',
+                'feeds_statistics' => 'boolean',
+                'statistics_key' => 'nullable|string|max:100',
+                // Config validation based on type
+                'config.options' => 'required_if:type,single_choice,multiple_choice,ordered_choice|array',
+                'config.min_selections' => 'nullable|integer|min:0',
+                'config.max_selections' => 'nullable|integer|min:1',
+                'config.date_format' => 'nullable|string',
+                'config.min_date' => 'nullable|date',
+                'config.max_date' => 'nullable|date',
+                'config.file_count' => 'nullable|array',
+                'config.file_count.min' => 'nullable|integer|min:0',
+                'config.file_count.max' => 'nullable|integer|min:1',
+                'config.file_size' => 'nullable|array',
+                'config.file_size.max' => 'nullable|integer|min:1',
+                'config.allowed_extensions' => 'nullable|array',
+                'config.scale' => 'nullable|array',
+                'config.scale.min' => 'nullable|integer|min:1',
+                'config.scale.max' => 'nullable|integer|min:1',
+                'config.scale.min_label' => 'nullable|string',
+                'config.scale.max_label' => 'nullable|string',
+                'config.hover_labels' => 'nullable|array'
             ]);
 
             if ($validator->fails()) {
@@ -244,13 +293,18 @@ class QuestionnaireQuestionApiController extends Controller
                 ], 422);
             }
 
-            $question->update([
-                'type' => $request->type,
-                'question' => $request->question,
-                'options' => $request->options,
-                'correct_answer' => $request->correct_answer,
-                'required' => $request->get('required', $question->required)
-            ]);
+            $updateData = [];
+            if ($request->has('type')) $updateData['type'] = $request->type;
+            if ($request->has('title')) $updateData['question'] = $request->title;
+            if ($request->has('question')) $updateData['question'] = $request->question;
+            if ($request->has('options')) $updateData['options'] = $request->options;
+            if ($request->has('correct_answer')) $updateData['correct_answer'] = $request->correct_answer;
+            if ($request->has('required')) $updateData['required'] = $request->get('required', false);
+            if ($request->has('config')) $updateData['config'] = $request->config;
+            if ($request->has('feeds_statistics')) $updateData['feeds_statistics'] = $request->get('feeds_statistics', false);
+            if ($request->has('statistics_key')) $updateData['statistics_key'] = $request->statistics_key;
+
+            $question->update($updateData);
 
             return response()->json([
                 'success' => true,

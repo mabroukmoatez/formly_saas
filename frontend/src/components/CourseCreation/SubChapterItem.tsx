@@ -74,25 +74,17 @@ export const SubChapterItem: React.FC<SubChapterItemProps> = ({
                     : 'bg-gray-200 border-gray-300'
               }`}
             />
-            <span className={`[font-family:'Poppins',Helvetica] font-medium text-[16px] ${
-              isDark ? 'text-purple-300' : 'text-purple-700'
-            }`} style={{
-              color: isDark ? '#E9D5FF' : '#9333EA' // Violet/Rose selon la documentation
-            }}>
-              {t('courseSteps.step2.sections.chapters.subChapter')} {subChapter.order}:
-            </span>
+            <Input
+              value={subChapter.title}
+              onChange={(e) => onTitleChange(chapterId, subChapter.id, e.target.value)}
+              placeholder={t('courseSteps.step2.sections.chapters.subChapterTitlePlaceholder')}
+              className={`flex-1 border-none shadow-none text-[16px] font-medium ${
+                isDark 
+                  ? 'text-white placeholder:text-gray-400 bg-transparent' 
+                  : 'text-[#6a90b9] placeholder:text-[#6a90b9]'
+              }`}
+            />
           </div>
-          
-          <Input
-            value={subChapter.title}
-            onChange={(e) => onTitleChange(chapterId, subChapter.id, e.target.value)}
-            placeholder={t('courseSteps.step2.sections.chapters.subChapterTitlePlaceholder')}
-            className={`flex-1 border-none shadow-none text-[16px] font-medium ${
-              isDark 
-                ? 'text-white placeholder:text-gray-400 bg-transparent' 
-                : 'text-[#6a90b9] placeholder:text-[#6a90b9]'
-            }`}
-          />
         </div>
         
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

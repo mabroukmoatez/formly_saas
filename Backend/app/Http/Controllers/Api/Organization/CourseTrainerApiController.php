@@ -49,28 +49,70 @@ class CourseTrainerApiController extends Controller
 
             // Get trainers assigned to this course with their details and permissions
             try {
-                $courseTrainers = $course->trainers()->withPivot('permissions', 'assigned_at')->get();
+                // Try to get from course_trainers table (new system)
+                $courseTrainers = DB::table('course_trainers')
+                    ->where('course_uuid', $course->uuid)
+                    ->get();
                 
-                // Transform the data to include trainer details and permissions
-                $trainers = $courseTrainers->map(function ($trainer) {
-                    return [
-                        'id' => $trainer->id,
-                        'uuid' => $trainer->uuid,
-                        'name' => $trainer->name,
-                        'email' => $trainer->email,
-                        'phone' => $trainer->phone,
-                        'specialization' => $trainer->specialization,
-                        'experience_years' => $trainer->experience_years,
-                        'description' => $trainer->description,
-                        'competencies' => $trainer->competencies,
-                        'avatar_url' => $trainer->avatar_url,
-                        'is_active' => $trainer->is_active,
-                        'permissions' => json_decode($trainer->pivot->permissions ?? '{}', true),
-                        'assigned_at' => $trainer->pivot->assigned_at,
-                        'created_at' => $trainer->created_at,
-                        'updated_at' => $trainer->updated_at,
-                    ];
-                });
+                $trainers = collect();
+                
+                foreach ($courseTrainers as $assignment) {
+                    // Get trainer by UUID
+                    $trainer = Trainer::where('uuid', $assignment->trainer_id)
+                        ->orWhere('id', $assignment->trainer_id)
+                        ->first();
+                    
+                    if ($trainer) {
+                        $trainers->push([
+                            'id' => $assignment->id ?? null,
+                            'trainer_id' => $trainer->id, // ID numérique du formateur
+                            'course_uuid' => $course->uuid,
+                            'permissions' => json_decode($assignment->permissions ?? '{}', true),
+                            'assigned_at' => $assignment->assigned_at,
+                            'trainer' => [
+                                'id' => $trainer->id, // ⚠️ REQUIS pour la correspondance
+                                'uuid' => $trainer->uuid, // ⚠️ REQUIS pour la correspondance
+                                'name' => $trainer->name,
+                                'email' => $trainer->email,
+                                'phone' => $trainer->phone,
+                                'specialization' => $trainer->specialization,
+                                'experience_years' => $trainer->experience_years,
+                                'description' => $trainer->description,
+                                'competencies' => $trainer->competencies,
+                                'avatar_url' => $trainer->avatar_url,
+                                'is_active' => $trainer->is_active,
+                            ]
+                        ]);
+                    }
+                }
+                
+                // Fallback: if no trainers found in course_trainers, try the old relationship
+                if ($trainers->isEmpty()) {
+                    $courseTrainers = $course->trainers()->withPivot('permissions', 'assigned_at')->get();
+                    
+                    $trainers = $courseTrainers->map(function ($trainer) use ($course) {
+                        return [
+                            'id' => $trainer->pivot->id ?? null,
+                            'trainer_id' => $trainer->id,
+                            'course_uuid' => $course->uuid,
+                            'permissions' => json_decode($trainer->pivot->permissions ?? '{}', true),
+                            'assigned_at' => $trainer->pivot->assigned_at ?? $trainer->pivot->created_at,
+                            'trainer' => [
+                                'id' => $trainer->id, // ⚠️ REQUIS pour la correspondance
+                                'uuid' => $trainer->uuid ?? null, // ⚠️ REQUIS pour la correspondance
+                                'name' => $trainer->name,
+                                'email' => $trainer->email,
+                                'phone' => $trainer->phone ?? null,
+                                'specialization' => $trainer->specialization ?? null,
+                                'experience_years' => $trainer->experience_years ?? 0,
+                                'description' => $trainer->description ?? null,
+                                'competencies' => $trainer->competencies ?? [],
+                                'avatar_url' => $trainer->avatar_url ?? null,
+                                'is_active' => $trainer->is_active ?? true,
+                            ]
+                        ];
+                    });
+                }
             } catch (\Exception $e) {
                 // If the relationship fails (e.g., table doesn't exist), return empty array
                 $trainers = collect([]);
@@ -259,10 +301,22 @@ class CourseTrainerApiController extends Controller
                 ], 422);
             }
 
-            // Update trainer permissions
+            // If trainerId is numeric, try to find the trainer's UUID first
+            $trainerUuidOrId = $trainerId;
+            if (is_numeric($trainerId)) {
+                $trainer = \App\Models\Trainer::find($trainerId);
+                if ($trainer) {
+                    $trainerUuidOrId = $trainer->uuid;
+                }
+            }
+
+            // Update trainer permissions (try both trainer_id column values)
             $updated = DB::table('course_trainers')
                 ->where('course_uuid', $course->uuid)
-                ->where('trainer_id', $trainerId)
+                ->where(function($query) use ($trainerId, $trainerUuidOrId) {
+                    $query->where('trainer_id', $trainerId)
+                          ->orWhere('trainer_id', $trainerUuidOrId);
+                })
                 ->update([
                     'permissions' => json_encode($request->permissions),
                     'updated_at' => now()
@@ -328,10 +382,22 @@ class CourseTrainerApiController extends Controller
                 ], 404);
             }
 
-            // Remove trainer from course
+            // If trainerId is numeric, try to find the trainer's UUID first
+            $trainerUuidOrId = $trainerId;
+            if (is_numeric($trainerId)) {
+                $trainer = \App\Models\Trainer::find($trainerId);
+                if ($trainer) {
+                    $trainerUuidOrId = $trainer->uuid;
+                }
+            }
+
+            // Remove trainer from course (try both trainer_id column values)
             $deleted = DB::table('course_trainers')
                 ->where('course_uuid', $course->uuid)
-                ->where('trainer_id', $trainerId)
+                ->where(function($query) use ($trainerId, $trainerUuidOrId) {
+                    $query->where('trainer_id', $trainerId)
+                          ->orWhere('trainer_id', $trainerUuidOrId);
+                })
                 ->delete();
 
             if (!$deleted) {

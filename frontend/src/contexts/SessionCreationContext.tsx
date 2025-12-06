@@ -1,21 +1,31 @@
 /**
  * Session Creation Context
  * 
- * ARCHITECTURE (selon docs/COURSE_SESSIONS_API.md):
- * - Course (Cours) = Template/Modèle de formation (contenu pédagogique)
- * - CourseSession = Instance planifiée d'un cours (dates, lieu, formateurs)
+ * ARCHITECTURE (selon docs/SESSION_OVERRIDE_ARCHITECTURE.md):
+ * - Course (Cours) = Template/Modèle de formation (JAMAIS MODIFIÉ lors de création de session)
+ * - CourseSession = Instance planifiée d'un cours avec OVERRIDES possibles
  * - SessionSlot = Créneau/Séance individuelle
  * 
+ * SYSTÈME D'OVERRIDE:
+ * - Une session HÉRITE de son cours template
+ * - Toute modification est stockée comme OVERRIDE dans la session
+ * - Le template du cours reste INTACT
+ * - override = null → la session utilise la valeur du cours
+ * - override = "value" → la session utilise cette valeur personnalisée
+ * 
  * FLOW DE SAUVEGARDE:
- * - Steps 1-5: Modifications du COURS (via courseCreation API)
- * - Steps 6-7: Modifications de la SESSION (via courseSessionService API)
- * - saveAll(): Sauvegarde les deux (cours + session)
+ * - Steps 1-5: Modifications stockées comme OVERRIDES sur la SESSION (pas le cours!)
+ * - Steps 6-7: Modifications de la SESSION (dates, participants, séances)
+ * - saveAll(): Sauvegarde les overrides + données session
+ * 
+ * ⚠️ IMPORTANT: Ne JAMAIS appeler courseCreation.updateXxx lors de création/édition de session!
  */
 
 import React, { createContext, useContext, useState, useCallback, ReactNode, useRef } from 'react';
 import { sessionCreation as sessionCreationApi } from '../services/sessionCreation';
 import { courseCreation } from '../services/courseCreation';
 import { courseSessionService } from '../services/courseSession';
+import { sessionOverrideService } from '../services/sessionOverride';
 import { sessionLogger as log } from '../utils/logger';
 import { parseApiError } from '../utils/apiErrorHandler';
 import type {
@@ -48,10 +58,10 @@ interface SessionCreationState {
   // Session participants
   participants: SessionParticipant[];
   
-  // Session chapters
+  // Session chapters (effectifs = hérités ou overridés)
   chapters: SessionChapter[];
   
-  // Session documents
+  // Session documents (effectifs = hérités ou overridés)
   documents: SessionDocument[];
   
   // Trainers
@@ -81,6 +91,37 @@ interface SessionCreationState {
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
+  
+  // ===== OVERRIDE SYSTEM =====
+  // Indique si on est en mode "création de session" (vs "création de cours")
+  isSessionMode: boolean;
+  
+  // Flags d'override - true = les données sont overridées pour cette session
+  hasChaptersOverride: boolean;
+  hasDocumentsOverride: boolean;
+  hasWorkflowOverride: boolean;
+  
+  // Données du cours template (pour référence/comparaison)
+  courseTemplate: {
+    uuid: string;
+    title: string;
+    description: string | null;
+    duration: number | null;
+    price_ht: number | null;
+    chapters_count: number;
+    documents_count: number;
+  } | null;
+  
+  // Champs overridés (null = hérite du cours)
+  overrides: {
+    title: string | null;
+    subtitle: string | null;
+    description: string | null;
+    duration: number | null;
+    price_ht: number | null;
+    objectives: string[] | null;
+    prerequisites: string[] | null;
+  };
 }
 
 // Context Actions Interface
@@ -252,8 +293,47 @@ interface SessionCreationActions {
   setDocuments: (documents: any[]) => void;
   setQuestionnaires: (questionnaires: any[]) => void;
   
-  // Save all - saves COURSE changes + SESSION data (séances + participants)
+  // Save all - saves SESSION OVERRIDES + SESSION data (séances + participants)
+  // ⚠️ NE MODIFIE PAS le cours template!
   saveAll: () => Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }>;
+  
+  // ===== OVERRIDE SYSTEM ACTIONS =====
+  
+  // Enable session mode (modifications go to session, not course)
+  enableSessionMode: () => void;
+  
+  // Set override for a simple field
+  setOverride: (field: keyof SessionCreationState['overrides'], value: any) => void;
+  
+  // Reset an override (revert to course template value)
+  resetOverride: (field: keyof SessionCreationState['overrides']) => void;
+  
+  // Reset all overrides for a category
+  resetAllOverrides: () => void;
+  
+  // Initialize chapters override (copy from course to enable modifications)
+  initializeChaptersOverride: () => Promise<boolean>;
+  
+  // Initialize documents override
+  initializeDocumentsOverride: () => Promise<boolean>;
+  
+  // Initialize workflow override
+  initializeWorkflowOverride: () => Promise<boolean>;
+  
+  // Reset chapters to course template
+  resetChaptersToTemplate: () => Promise<boolean>;
+  
+  // Reset documents to course template
+  resetDocumentsToTemplate: () => Promise<boolean>;
+  
+  // Reset workflow to course template
+  resetWorkflowToTemplate: () => Promise<boolean>;
+  
+  // Check if a field is inherited or overridden
+  isFieldInherited: (field: string) => boolean;
+  
+  // Get the original course template value for comparison
+  getCourseTemplateValue: (field: string) => any;
 }
 
 // Context Type
@@ -325,7 +405,23 @@ const defaultState: SessionCreationState = {
   currentStep: 1,
   isLoading: false,
   isSaving: false,
-  error: null
+  error: null,
+  
+  // ===== OVERRIDE SYSTEM =====
+  isSessionMode: false,
+  hasChaptersOverride: false,
+  hasDocumentsOverride: false,
+  hasWorkflowOverride: false,
+  courseTemplate: null,
+  overrides: {
+    title: null,
+    subtitle: null,
+    description: null,
+    duration: null,
+    price_ht: null,
+    objectives: null,
+    prerequisites: null,
+  }
 };
 
 // Valid formation_action values
@@ -1209,6 +1305,37 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   }, [getChapters]);
 
   const createChapter = useCallback(async (data: CreateSessionChapterData): Promise<boolean> => {
+    // In SESSION MODE: create chapter on SESSION (override)
+    if (state.isSessionMode && state.formData.sessionUuid) {
+      try {
+        // Initialize override if not already done
+        if (!state.hasChaptersOverride) {
+          await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
+          setState(prev => ({ ...prev, hasChaptersOverride: true }));
+        }
+        
+        await sessionOverrideService.createSessionChapter(state.formData.sessionUuid, {
+          title: data.title,
+          description: data.description,
+          order_index: data.order_index,
+          duration: data.duration
+        });
+        
+        // Refresh effective chapters
+        const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
+        if (response.success && response.data) {
+          setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
+        }
+        
+        log.info('Chapter created on SESSION (override)');
+        return true;
+      } catch (error: any) {
+        log.error('Error creating session chapter', error);
+        return false;
+      }
+    }
+    
+    // In COURSE MODE: create chapter on COURSE template
     if (!state.formData.courseUuid) return false;
 
     try {
@@ -1219,9 +1346,40 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       log.error('Error creating chapter', error);
       return false;
     }
-  }, [state.formData.courseUuid, getChapters]);
+  }, [state.formData.courseUuid, state.formData.sessionUuid, state.isSessionMode, state.hasChaptersOverride, getChapters]);
 
   const updateChapter = useCallback(async (chapterUuid: string, data: UpdateSessionChapterData): Promise<boolean> => {
+    // In SESSION MODE: update chapter on SESSION (override)
+    if (state.isSessionMode && state.formData.sessionUuid) {
+      try {
+        // Initialize override if not already done
+        if (!state.hasChaptersOverride) {
+          await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
+          setState(prev => ({ ...prev, hasChaptersOverride: true }));
+        }
+        
+        await sessionOverrideService.updateSessionChapter(state.formData.sessionUuid, chapterUuid, {
+          title: data.title,
+          description: data.description,
+          order_index: data.order_index,
+          duration: data.duration
+        });
+        
+        // Refresh effective chapters
+        const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
+        if (response.success && response.data) {
+          setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
+        }
+        
+        log.info('Chapter updated on SESSION (override)');
+        return true;
+      } catch (error: any) {
+        log.error('Error updating session chapter', error);
+        return false;
+      }
+    }
+    
+    // In COURSE MODE: update chapter on COURSE template
     if (!state.formData.courseUuid) return false;
     try {
       await courseCreation.updateChapter(state.formData.courseUuid, chapterUuid, data);
@@ -1231,9 +1389,35 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       log.error('Error updating chapter', error);
       return false;
     }
-  }, [state.formData.courseUuid, getChapters]);
+  }, [state.formData.courseUuid, state.formData.sessionUuid, state.isSessionMode, state.hasChaptersOverride, getChapters]);
 
   const deleteChapter = useCallback(async (chapterUuid: string): Promise<boolean> => {
+    // In SESSION MODE: delete chapter on SESSION (override - soft delete)
+    if (state.isSessionMode && state.formData.sessionUuid) {
+      try {
+        // Initialize override if not already done
+        if (!state.hasChaptersOverride) {
+          await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
+          setState(prev => ({ ...prev, hasChaptersOverride: true }));
+        }
+        
+        await sessionOverrideService.deleteSessionChapter(state.formData.sessionUuid, chapterUuid);
+        
+        // Refresh effective chapters
+        const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
+        if (response.success && response.data) {
+          setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
+        }
+        
+        log.info('Chapter deleted from SESSION (override)');
+        return true;
+      } catch (error: any) {
+        log.error('Error deleting session chapter', error);
+        return false;
+      }
+    }
+    
+    // In COURSE MODE: delete chapter from COURSE template
     if (!state.formData.courseUuid) return false;
     try {
       await courseCreation.deleteChapter(state.formData.courseUuid, chapterUuid);
@@ -1544,6 +1728,38 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   }, [getDocuments]);
 
   const uploadDocument = useCallback(async (data: CreateSessionDocumentData): Promise<boolean> => {
+    // In SESSION MODE: upload document to SESSION (override)
+    if (state.isSessionMode && state.formData.sessionUuid) {
+      try {
+        // Initialize override if not already done
+        if (!state.hasDocumentsOverride) {
+          await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
+          setState(prev => ({ ...prev, hasDocumentsOverride: true }));
+        }
+        
+        await sessionOverrideService.createSessionDocument(state.formData.sessionUuid, {
+          title: data.title || data.name || 'Document',
+          description: data.description,
+          document_type: (data.document_type as any) || 'support',
+          visibility: 'all',
+          file: data.file
+        });
+        
+        // Refresh effective documents
+        const response = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid);
+        if (response.success && response.data) {
+          setState(prev => ({ ...prev, documents: response.data.documents || [] }));
+        }
+        
+        log.info('Document uploaded to SESSION (override)');
+        return true;
+      } catch (error: any) {
+        log.error('Error uploading session document', error);
+        return false;
+      }
+    }
+    
+    // In COURSE MODE: upload document to COURSE template
     if (!state.formData.courseUuid) return false;
 
     try {
@@ -1554,9 +1770,35 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       log.error('Error uploading document', error);
       return false;
     }
-  }, [state.formData.courseUuid, getDocuments]);
+  }, [state.formData.courseUuid, state.formData.sessionUuid, state.isSessionMode, state.hasDocumentsOverride, getDocuments]);
 
   const deleteDocument = useCallback(async (documentUuid: string): Promise<boolean> => {
+    // In SESSION MODE: delete document from SESSION (override - soft delete)
+    if (state.isSessionMode && state.formData.sessionUuid) {
+      try {
+        // Initialize override if not already done
+        if (!state.hasDocumentsOverride) {
+          await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
+          setState(prev => ({ ...prev, hasDocumentsOverride: true }));
+        }
+        
+        await sessionOverrideService.deleteSessionDocument(state.formData.sessionUuid, documentUuid);
+        
+        // Refresh effective documents
+        const response = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid);
+        if (response.success && response.data) {
+          setState(prev => ({ ...prev, documents: response.data.documents || [] }));
+        }
+        
+        log.info('Document deleted from SESSION (override)');
+        return true;
+      } catch (error: any) {
+        log.error('Error deleting session document', error);
+        return false;
+      }
+    }
+    
+    // In COURSE MODE: delete document from COURSE template
     if (!state.formData.courseUuid) return false;
     try {
       await courseCreation.deleteDocument(state.formData.courseUuid, documentUuid);
@@ -1566,7 +1808,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       log.error('Error deleting document', error);
       return false;
     }
-  }, [state.formData.courseUuid, getDocuments]);
+  }, [state.formData.courseUuid, state.formData.sessionUuid, state.isSessionMode, state.hasDocumentsOverride, getDocuments]);
 
   // Questionnaires - Use COURSE API (not session API)
   const loadQuestionnaires = useCallback(async (): Promise<void> => {
@@ -2359,7 +2601,18 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         hasWorkflow: !!workflowData?.workflow
       });
 
-      // Update state with all course data at once
+      // Store course template for reference (override system)
+      const courseTemplate = {
+        uuid: courseUuid,
+        title: data.course?.title || '',
+        description: data.course?.description || null,
+        duration: data.course?.duration || null,
+        price_ht: data.course?.price_ht || null,
+        chapters_count: chaptersData.length,
+        documents_count: documentsData.length
+      };
+
+      // Update state with all course data at once + enable session mode
       setState(prev => ({
         ...prev,
         modules: modulesData,
@@ -2368,7 +2621,20 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         documents: documentsData,
         questionnaires: questionnairesData,
         trainers: trainersData,
-        workflow: workflowData?.workflow || null
+        workflow: workflowData?.workflow || null,
+        // Enable session mode - modifications will be overrides
+        isSessionMode: true,
+        courseTemplate,
+        // Reset overrides (inherit everything from course initially)
+        overrides: {
+          title: null,
+          subtitle: null,
+          description: null,
+          duration: null,
+          price_ht: null,
+          objectives: null,
+          prerequisites: null
+        }
       }));
 
       return true;
@@ -2378,19 +2644,275 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
   }, []);
 
+  // ===== OVERRIDE SYSTEM IMPLEMENTATION =====
+
   /**
-   * saveAll - Save both COURSE changes and SESSION data
+   * Enable session mode - modifications will be stored as overrides
+   */
+  const enableSessionMode = useCallback(() => {
+    setState(prev => ({ ...prev, isSessionMode: true }));
+    log.info('Session mode enabled - modifications will be stored as overrides');
+  }, []);
+
+  /**
+   * Set an override value for a simple field
+   * The session will use this value instead of the course template value
+   */
+  const setOverride = useCallback((field: keyof SessionCreationState['overrides'], value: any) => {
+    setState(prev => ({
+      ...prev,
+      overrides: {
+        ...prev.overrides,
+        [field]: value
+      }
+    }));
+    log.info(`Override set for field: ${field}`, { value });
+  }, []);
+
+  /**
+   * Reset an override - the session will inherit the course template value
+   */
+  const resetOverride = useCallback((field: keyof SessionCreationState['overrides']) => {
+    setState(prev => ({
+      ...prev,
+      overrides: {
+        ...prev.overrides,
+        [field]: null
+      }
+    }));
+    log.info(`Override reset for field: ${field}`);
+  }, []);
+
+  /**
+   * Reset all simple field overrides
+   */
+  const resetAllOverrides = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      overrides: {
+        title: null,
+        subtitle: null,
+        description: null,
+        duration: null,
+        price_ht: null,
+        objectives: null,
+        prerequisites: null
+      }
+    }));
+    log.info('All overrides reset');
+  }, []);
+
+  /**
+   * Initialize chapters override - copy chapters from course to enable modifications
+   */
+  const initializeChaptersOverride = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) {
+      log.error('Cannot initialize chapters override: no session UUID');
+      return false;
+    }
+
+    try {
+      log.info('Initializing chapters override...');
+      const response = await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasChaptersOverride: true }));
+        
+        // Reload effective chapters
+        const chaptersResponse = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid!);
+        if (chaptersResponse.success && chaptersResponse.data) {
+          setState(prev => ({ ...prev, chapters: chaptersResponse.data.chapters || [] }));
+        }
+        
+        log.info('Chapters override initialized successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error initializing chapters override', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid]);
+
+  /**
+   * Initialize documents override
+   */
+  const initializeDocumentsOverride = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) {
+      log.error('Cannot initialize documents override: no session UUID');
+      return false;
+    }
+
+    try {
+      log.info('Initializing documents override...');
+      const response = await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasDocumentsOverride: true }));
+        
+        // Reload effective documents
+        const docsResponse = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid!);
+        if (docsResponse.success && docsResponse.data) {
+          setState(prev => ({ ...prev, documents: docsResponse.data.documents || [] }));
+        }
+        
+        log.info('Documents override initialized successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error initializing documents override', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid]);
+
+  /**
+   * Initialize workflow override
+   */
+  const initializeWorkflowOverride = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) {
+      log.error('Cannot initialize workflow override: no session UUID');
+      return false;
+    }
+
+    try {
+      log.info('Initializing workflow override...');
+      const response = await sessionOverrideService.initializeWorkflowOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasWorkflowOverride: true }));
+        
+        // Reload effective workflow actions
+        const workflowResponse = await sessionOverrideService.getEffectiveWorkflowActions(state.formData.sessionUuid!);
+        if (workflowResponse.success && workflowResponse.data) {
+          setState(prev => ({ ...prev, workflowActions: workflowResponse.data.workflow_actions || [] }));
+        }
+        
+        log.info('Workflow override initialized successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error initializing workflow override', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid]);
+
+  /**
+   * Reset chapters to course template
+   */
+  const resetChaptersToTemplate = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) return false;
+
+    try {
+      log.info('Resetting chapters to course template...');
+      const response = await sessionOverrideService.resetChaptersOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasChaptersOverride: false }));
+        
+        // Reload chapters from course
+        if (state.formData.courseUuid) {
+          await loadFromCourse(state.formData.courseUuid);
+        }
+        
+        log.info('Chapters reset to template successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error resetting chapters to template', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid, state.formData.courseUuid, loadFromCourse]);
+
+  /**
+   * Reset documents to course template
+   */
+  const resetDocumentsToTemplate = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) return false;
+
+    try {
+      log.info('Resetting documents to course template...');
+      const response = await sessionOverrideService.resetDocumentsOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasDocumentsOverride: false }));
+        
+        // Reload documents from course
+        if (state.formData.courseUuid) {
+          await loadFromCourse(state.formData.courseUuid);
+        }
+        
+        log.info('Documents reset to template successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error resetting documents to template', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid, state.formData.courseUuid, loadFromCourse]);
+
+  /**
+   * Reset workflow to course template
+   */
+  const resetWorkflowToTemplate = useCallback(async (): Promise<boolean> => {
+    if (!state.formData.sessionUuid) return false;
+
+    try {
+      log.info('Resetting workflow to course template...');
+      const response = await sessionOverrideService.resetWorkflowOverride(state.formData.sessionUuid);
+      
+      if (response.success) {
+        setState(prev => ({ ...prev, hasWorkflowOverride: false }));
+        
+        // Reload workflow from course
+        if (state.formData.courseUuid) {
+          await loadFromCourse(state.formData.courseUuid);
+        }
+        
+        log.info('Workflow reset to template successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      log.error('Error resetting workflow to template', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid, state.formData.courseUuid, loadFromCourse]);
+
+  /**
+   * Check if a field is inherited from course or overridden
+   */
+  const isFieldInherited = useCallback((field: string): boolean => {
+    if (!state.isSessionMode) return false;
+    
+    const overrideValue = state.overrides[field as keyof SessionCreationState['overrides']];
+    return overrideValue === null || overrideValue === undefined;
+  }, [state.isSessionMode, state.overrides]);
+
+  /**
+   * Get the course template value for a field (for comparison)
+   */
+  const getCourseTemplateValue = useCallback((field: string): any => {
+    if (!state.courseTemplate) return null;
+    return state.courseTemplate[field as keyof typeof state.courseTemplate];
+  }, [state.courseTemplate]);
+
+  /**
+   * saveAll - Save SESSION data with OVERRIDES
    * 
-   * This function implements the new architecture:
-   * 1. Steps 1-5 modify the COURSE → save to course API
-   * 2. Steps 6-7 add séances and participants → save to session API
+   * NEW ARCHITECTURE (Override System):
+   * - In SESSION MODE: Save overrides to SESSION (course template is NEVER modified)
+   * - In COURSE MODE: Save to course template (when creating/editing a course, not a session)
    * 
    * @returns Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }>
    */
   const saveAll = useCallback(async (): Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }> => {
     const result = {
       success: false,
-      courseSuccess: false,
+      courseSuccess: false, // Now means "overrides saved" in session mode
       sessionSuccess: false,
       message: ''
     };
@@ -2399,12 +2921,76 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       // ═══════════════════════════════════════════════════════════════════════
-      // 1. SAVE COURSE CHANGES (Template pédagogique)
-      // API: PUT /api/organization/courses/{courseUuid}
+      // 1. SAVE OVERRIDES or COURSE (depending on mode)
       // ═══════════════════════════════════════════════════════════════════════
-      if (state.formData.courseUuid) {
+      
+      if (state.isSessionMode && state.formData.sessionUuid) {
+        // ╔═══════════════════════════════════════════════════════════════════╗
+        // ║ SESSION MODE: Save OVERRIDES (course template is NEVER modified) ║
+        // ╚═══════════════════════════════════════════════════════════════════╝
         try {
-          log.info('Step 1: Saving COURSE template', { courseUuid: state.formData.courseUuid });
+          log.info('Step 1: Saving SESSION OVERRIDES (course template untouched)', { 
+            sessionUuid: state.formData.sessionUuid,
+            overrides: state.overrides 
+          });
+          
+          // Build overrides payload - only include fields that differ from template
+          const overridesPayload: Record<string, any> = {};
+          
+          // Check each override field
+          if (state.overrides.title !== null) {
+            overridesPayload.title_override = state.overrides.title;
+          }
+          if (state.overrides.subtitle !== null) {
+            overridesPayload.subtitle_override = state.overrides.subtitle;
+          }
+          if (state.overrides.description !== null) {
+            overridesPayload.description_override = state.overrides.description;
+          }
+          if (state.overrides.duration !== null) {
+            overridesPayload.duration_override = state.overrides.duration;
+          }
+          if (state.overrides.price_ht !== null) {
+            overridesPayload.price_ht_override = state.overrides.price_ht;
+          }
+          if (state.overrides.objectives !== null) {
+            overridesPayload.objectives_override = state.overrides.objectives;
+          }
+          if (state.overrides.prerequisites !== null) {
+            overridesPayload.prerequisites_override = state.overrides.prerequisites;
+          }
+          
+          // Also check if title/description changed from form (auto-detect override)
+          if (state.courseTemplate) {
+            if (state.formData.title && state.formData.title !== state.courseTemplate.title) {
+              overridesPayload.title_override = state.formData.title;
+            }
+            if (state.formData.description && state.formData.description !== state.courseTemplate.description) {
+              overridesPayload.description_override = state.formData.description;
+            }
+            if (state.formData.price_ht && state.formData.price_ht !== state.courseTemplate.price_ht) {
+              overridesPayload.price_ht_override = state.formData.price_ht;
+            }
+          }
+          
+          // Save overrides to session if any
+          if (Object.keys(overridesPayload).length > 0) {
+            await sessionOverrideService.updateSessionOverrides(state.formData.sessionUuid, overridesPayload);
+            log.info('Session overrides saved', overridesPayload);
+          }
+          
+          result.courseSuccess = true; // Means "overrides saved successfully"
+          log.info('Session overrides saved successfully (course template untouched)');
+        } catch (overrideError: any) {
+          log.error('Error saving session overrides', overrideError);
+          result.message = `Erreur lors de la sauvegarde des modifications: ${overrideError.message || 'Erreur inconnue'}`;
+        }
+      } else if (state.formData.courseUuid && !state.isSessionMode) {
+        // ╔═══════════════════════════════════════════════════════════════════╗
+        // ║ COURSE MODE: Update the COURSE template (only when editing course)║
+        // ╚═══════════════════════════════════════════════════════════════════╝
+        try {
+          log.info('Step 1: Saving COURSE template (not in session mode)', { courseUuid: state.formData.courseUuid });
           
           // Données du template de cours (contenu pédagogique)
           const courseUpdateData = {
@@ -2699,7 +3285,20 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     setChapters,
     setDocuments,
     setQuestionnaires,
-    saveAll
+    saveAll,
+    // Override system
+    enableSessionMode,
+    setOverride,
+    resetOverride,
+    resetAllOverrides,
+    initializeChaptersOverride,
+    initializeDocumentsOverride,
+    initializeWorkflowOverride,
+    resetChaptersToTemplate,
+    resetDocumentsToTemplate,
+    resetWorkflowToTemplate,
+    isFieldInherited,
+    getCourseTemplateValue
   };
 
   return (

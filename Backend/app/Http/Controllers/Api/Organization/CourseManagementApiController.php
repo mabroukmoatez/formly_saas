@@ -84,11 +84,11 @@ class CourseManagementApiController extends Controller
             }
 
             // Get courses with pagination
-            $courses = $query->with(['category', 'subcategory', 'language', 'difficultyLevel', 'tags', 'course_instructors.user', 'trainers'])
+            $courses = $query->with(['category', 'subcategory', 'language', 'difficultyLevel', 'tags', 'course_instructors.user', 'trainers', 'createdByUser'])
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
-            // Transform courses to include media information
+            // Transform courses to include media information and created_by
             $courses->getCollection()->transform(function ($course) {
                 // Ensure media URLs are properly generated
                 $course->image_url = $course->image_url;
@@ -96,6 +96,19 @@ class CourseManagementApiController extends Controller
                 $course->has_image = $course->has_image;
                 $course->has_video = $course->has_video;
                 $course->media_status = $course->media_status;
+                
+                // Add created_by_user information
+                if ($course->createdByUser) {
+                    $course->created_by_user = [
+                        'id' => $course->createdByUser->id,
+                        'name' => $course->createdByUser->name,
+                        'email' => $course->createdByUser->email,
+                        'avatar_url' => $course->createdByUser->avatar_url ?? null,
+                    ];
+                } else {
+                    $course->created_by_user = null;
+                }
+                
                 return $course;
             });
 
@@ -880,7 +893,7 @@ class CourseManagementApiController extends Controller
                     $courseData['og_image'] = $this->saveImage('meta', $request->og_image, null, null);
                 }
 
-                // Create course
+                // Create course (created_by is set automatically in booted method)
                 $course = Course::create($courseData);
 
                 // Add key points
@@ -2010,6 +2023,86 @@ class CourseManagementApiController extends Controller
         }
     }
 
+
+/**
+* Update course additional information
+*
+* @param Request $request
+* @param string $uuid
+* @return \Illuminate\Http\JsonResponse
+*/
+public function updateAdditionalInfo(Request $request, $uuid)
+{
+try {
+// Check permission
+if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+return response()->json([
+'success' => false,
+'message' => 'You do not have permission to manage courses'
+], 403);
+}
+
+// Get organization
+$organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+if (!$organization) {
+return response()->json([
+'success' => false,
+'message' => 'Organization not found'
+], 404);
+}
+
+// Get course
+$course = Course::where('uuid', $uuid)
+->where('organization_id', $organization->id)
+->first();
+
+if (!$course) {
+return response()->json([
+'success' => false,
+'message' => 'Course not found'
+], 404);
+}
+
+// Validation
+$validator = Validator::make($request->all(), [
+'evaluation_modalities' => 'nullable|string',
+'access_modalities' => 'nullable|string',
+'accessibility' => 'nullable|string',
+'contacts' => 'nullable|string',
+'update_date' => 'nullable|string',
+]);
+
+if ($validator->fails()) {
+return response()->json([
+'success' => false,
+'message' => 'Validation failed',
+'errors' => $validator->errors()
+], 422);
+}
+
+// Update course additional info
+$course->update($request->only([
+'evaluation_modalities',
+'access_modalities',
+'accessibility',
+'contacts',
+'update_date'
+]));
+
+return response()->json([
+'success' => true,
+'message' => 'Course additional info updated successfully',
+'data' => $course
+]);
+
+} catch (\Exception $e) {
+return response()->json([
+'success' => false,
+'message' => 'An error occurred while updating course additional info',
+'error' => $e->getMessage()
+], 500);
+}
+}
     /**
      * Update course specifics
      * 
@@ -2309,4 +2402,259 @@ class CourseManagementApiController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Duplicate a course
+     * POST /api/admin/organization/courses/{courseUuid}/duplicate
+     * 
+     * @param Request $request
+     * @param string $courseUuid
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function duplicate(Request $request, $courseUuid)
+    {
+        try {
+            // Check permission
+            if (!Auth::user()->hasOrganizationPermission('organization_manage_courses')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous n\'avez pas la permission de dupliquer cette formation',
+                    'error' => 'Insufficient permissions'
+                ], 403);
+            }
+
+            // Get organization
+            $organization = Auth::user()->organization ?? Auth::user()->organizationBelongsTo;
+            if (!$organization) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Organization not found'
+                ], 404);
+            }
+
+            // Get original course
+            $originalCourse = Course::where('uuid', $courseUuid)
+                ->where('organization_id', $organization->id)
+                ->with([
+                    'chapters.subChapters',
+                    'documents',
+                    'questionnaires.questions',
+                    'trainers',
+                    'workflowActions',
+                    'objectives',
+                    'modules',
+                    'additionalFees',
+                    'formationPractices',
+                    'tags',
+                    'key_points'
+                ])
+                ->first();
+
+            if (!$originalCourse) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Formation non trouvée',
+                    'error' => 'Course not found'
+                ], 404);
+            }
+
+            // Get options
+            $titleSuffix = $request->input('title_suffix', ' (Copie)');
+            $copySessions = $request->boolean('copy_sessions', false);
+            $copyParticipants = $request->boolean('copy_participants', false);
+            $status = $request->input('status', 0); // Default to draft
+
+            DB::beginTransaction();
+
+            try {
+                // 1. Create new course with base data
+                // Don't use toArray() as it converts relationships to arrays
+                // Instead, manually copy the attributes we need
+                $newCourseData = $originalCourse->getAttributes();
+                unset($newCourseData['id'], $newCourseData['uuid'], $newCourseData['created_at'], $newCourseData['updated_at']);
+                
+                $newCourseData['title'] = $originalCourse->title . $titleSuffix;
+                $newCourseData['status'] = $status;
+                $newCourseData['created_by'] = Auth::id();
+                $newCourseData['uuid'] = (string) Str::uuid();
+                
+                // Generate unique slug
+                $slug = Str::slug($newCourseData['title']);
+                if (Course::where('slug', $slug)->exists()) {
+                    $slug = $slug . '-' . rand(100000, 999999);
+                }
+                $newCourseData['slug'] = $slug;
+
+                $newCourse = Course::create($newCourseData);
+
+                // 2. Duplicate chapters and sub-chapters
+                foreach ($originalCourse->chapters as $chapter) {
+                    $newChapter = $chapter->replicate();
+                    $newChapter->course_uuid = $newCourse->uuid;
+                    $newChapter->uuid = (string) Str::uuid();
+                    $newChapter->save();
+
+                    // Duplicate sub-chapters
+                    foreach ($chapter->subChapters as $subChapter) {
+                        $newSubChapter = $subChapter->replicate();
+                        $newSubChapter->chapter_uuid = $newChapter->uuid;
+                        $newSubChapter->uuid = (string) Str::uuid();
+                        $newSubChapter->save();
+                    }
+                }
+
+                // 3. Duplicate documents
+                foreach ($originalCourse->documents as $document) {
+                    $newDocument = $document->replicate();
+                    $newDocument->course_uuid = $newCourse->uuid;
+                    $newDocument->uuid = (string) Str::uuid();
+                    $newDocument->created_by = Auth::id();
+                    $newDocument->save();
+                }
+
+                // 4. Duplicate questionnaires
+                foreach ($originalCourse->questionnaires as $questionnaire) {
+                    $newQuestionnaire = $questionnaire->replicate();
+                    $newQuestionnaire->course_uuid = $newCourse->uuid;
+                    $newQuestionnaire->uuid = (string) Str::uuid();
+                    $newQuestionnaire->save();
+
+                    // Duplicate questions
+                    foreach ($questionnaire->questions as $question) {
+                        $newQuestion = $question->replicate();
+                        $newQuestion->questionnaire_uuid = $newQuestionnaire->uuid;
+                        $newQuestion->uuid = (string) Str::uuid();
+                        $newQuestion->save();
+                    }
+                }
+
+                // 5. Duplicate trainers
+                foreach ($originalCourse->trainers as $trainer) {
+                    $newCourse->trainers()->attach($trainer->id, [
+                        'permissions' => $trainer->pivot->permissions ?? null,
+                        'status' => $trainer->pivot->status ?? 'pending',
+                    ]);
+                }
+
+                // 6. Duplicate workflow actions
+                foreach ($originalCourse->workflowActions as $action) {
+                    $newAction = $action->replicate();
+                    $newAction->course_id = $newCourse->id;
+                    $newAction->course_uuid = $newCourse->uuid;
+                    $newAction->uuid = (string) Str::uuid();
+                    $newAction->save();
+                }
+
+                // 7. Duplicate objectives
+                foreach ($originalCourse->objectives as $objective) {
+                    $newObjective = $objective->replicate();
+                    $newObjective->course_uuid = $newCourse->uuid;
+                    $newObjective->uuid = (string) Str::uuid();
+                    $newObjective->save();
+                }
+
+                // 8. Duplicate modules
+                foreach ($originalCourse->modules as $module) {
+                    $newModule = $module->replicate();
+                    $newModule->course_uuid = $newCourse->uuid;
+                    $newModule->uuid = (string) Str::uuid();
+                    $newModule->save();
+                }
+
+                // 9. Duplicate additional fees
+                foreach ($originalCourse->additionalFees as $fee) {
+                    $newFee = $fee->replicate();
+                    $newFee->course_uuid = $newCourse->uuid;
+                    $newFee->uuid = (string) Str::uuid();
+                    $newFee->save();
+                }
+
+                // 10. Duplicate formation practices
+                $formationPractices = $originalCourse->relationLoaded('formationPractices') 
+                    ? $originalCourse->formationPractices 
+                    : $originalCourse->formationPractices()->get();
+                
+                if ($formationPractices && $formationPractices->isNotEmpty()) {
+                    $practiceIds = $formationPractices->pluck('id')->toArray();
+                    $newCourse->formationPractices()->sync($practiceIds);
+                }
+
+                // 11. Duplicate tags
+                $tags = $originalCourse->relationLoaded('tags') 
+                    ? $originalCourse->tags 
+                    : $originalCourse->tags()->get();
+                
+                if ($tags && $tags->isNotEmpty()) {
+                    $tagIds = $tags->pluck('id')->toArray();
+                    $newCourse->tags()->sync($tagIds);
+                }
+
+                // 12. Duplicate key points
+                foreach ($originalCourse->key_points as $keyPoint) {
+                    \App\Models\LearnKeyPoint::create([
+                        'course_id' => $newCourse->id,
+                        'name' => $keyPoint->name,
+                    ]);
+                }
+
+                // 13. Duplicate sessions (if requested)
+                if ($copySessions) {
+                    foreach ($originalCourse->sessions as $session) {
+                        $newSession = $session->replicate();
+                        $newSession->course_uuid = $newCourse->uuid;
+                        $newSession->uuid = (string) Str::uuid();
+                        $newSession->created_by = Auth::id();
+                        $newSession->status = 'draft';
+                        $newSession->save();
+
+                        // Duplicate participants if requested
+                        if ($copyParticipants) {
+                            foreach ($session->participants as $participant) {
+                                $newParticipant = $participant->replicate();
+                                $newParticipant->course_session_uuid = $newSession->uuid;
+                                $newParticipant->uuid = (string) Str::uuid();
+                                $newParticipant->status = 'pending';
+                                $newParticipant->save();
+                            }
+                        }
+                    }
+                }
+
+                DB::commit();
+
+                // Reload course with relationships
+                $newCourse->load(['category', 'subcategory', 'createdByUser']);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Formation dupliquée avec succès',
+                    'data' => [
+                        'id' => $newCourse->id,
+                        'uuid' => $newCourse->uuid,
+                        'title' => $newCourse->title,
+                        'status' => $newCourse->status,
+                        'created_by' => $newCourse->created_by,
+                        'created_at' => $newCourse->created_at->toIso8601String(),
+                        'created_by_user' => $newCourse->createdByUser ? [
+                            'id' => $newCourse->createdByUser->id,
+                            'name' => $newCourse->createdByUser->name,
+                            'email' => $newCourse->createdByUser->email,
+                        ] : null,
+                    ]
+                ], 201);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while duplicating course',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

@@ -47,103 +47,81 @@ export const ModulesSection: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.sections.modules')}
-        </h3>
+      {/* Add Module Button - Left aligned, cyan color */}
+      <div>
         <Button
           data-action="add-module"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // ('Add Module clicked - preventing propagation');
             onAddModule();
           }}
-          className="flex items-center gap-2"
-          style={{ backgroundColor: primaryColor }}
+          variant="outline"
+          className="flex items-center gap-2 border-cyan-400 text-cyan-500 hover:bg-cyan-50 px-4 py-2"
         >
           <PlusIcon className="w-4 h-4" />
-          {t('courseCreation.form.addModule')}
+          Ajouter Un Module
         </Button>
       </div>
 
+      {/* Modules List */}
       <div className="space-y-3">
         {modules.length === 0 && (
-          <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            <p>No modules added yet. Click "Add Module" to get started.</p>
+          <div className={`text-center py-6 ${isDark ? 'text-gray-400' : 'text-gray-400'} text-sm`}>
+            Aucun module ajouté pour le moment
           </div>
         )}
         {modules.map((module, index) => (
-          <Card 
-            key={module.id} 
+          <div
+            key={module.id}
             draggable
             onDragStart={(e) => handleDragStart(e, index)}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
-            className={`transition-all duration-200 ${
-              isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-            } ${
-              dragOverIndex === index ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-            } ${
-              draggedItem?.id === module.id ? 'opacity-50' : ''
-            }`}
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+              } ${dragOverIndex === index ? 'ring-2 ring-blue-400' : ''
+              } ${draggedItem?.id === module.id ? 'opacity-50' : ''
+              }`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <GripVerticalIcon 
-                  className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'} cursor-move hover:text-blue-500 transition-colors`} 
-                />
-                
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {index + 1}.
-                    </span>
-                    <Input
-                      value={module.title}
-                      onChange={(e) => onUpdateModule(module.id, 'title', e.target.value)}
-                      placeholder={t('courseCreation.form.moduleTitle')}
-                      className={`flex-1 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                    />
-                  </div>
-                </div>
+            {/* Drag Handle - More subtle */}
+            <GripVerticalIcon
+              className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'} cursor-move flex-shrink-0`}
+            />
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateModule(module.id, 'title', prompt('Edit module title:', module.title) || module.title);
-                    }}
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveModule(module.id);
-                    }}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Module Number and Input */}
+            <div className="flex items-center gap-2 flex-1">
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                {index + 1}.
+              </span>
+              <Input
+                value={module.title}
+                onChange={(e) => onUpdateModule(module.id, 'title', e.target.value)}
+                placeholder="Titre du module"
+                className={`flex-1 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            {/* Delete Button - Gray rounded */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveModule(module.id);
+              }}
+              className={`p-2 rounded-full ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'
+                } transition-colors flex-shrink-0`}
+            >
+              <TrashIcon className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            </button>
+          </div>
         ))}
-        
-        {/* Drop zone at the end for modules */}
+
+        {/* Drop zone at the end */}
         {draggedItem && (
-          <div 
-            className={`h-2 rounded-lg transition-all duration-200 ${
-              dragOverIndex === modules.length ? 'bg-blue-500 opacity-50' : 'bg-transparent'
-            }`}
+          <div
+            className={`h-2 rounded-lg transition-all duration-200 ${dragOverIndex === modules.length ? 'bg-blue-400 opacity-50' : 'bg-transparent'
+              }`}
             onDragOver={(e) => handleDragOver(e, modules.length)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, modules.length)}
@@ -164,11 +142,30 @@ export const ObjectivesSection: React.FC<{
   onAddObjective: () => void;
   onUpdateObjective: (id: string, field: string, value: any) => void;
   onRemoveObjective: (id: string) => void;
-}> = ({ objectives, onAddObjective, onUpdateObjective, onRemoveObjective }) => {
+  onReorderObjectives?: (objectives: any[]) => void;
+}> = ({ objectives, onAddObjective, onUpdateObjective, onRemoveObjective, onReorderObjectives }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const primaryColor = organization?.primary_color || '#007aff';
+
+  // Ref to store input references for auto-focus
+  const inputRefs = React.useRef<{ [key: string]: HTMLInputElement | null }>({});
+  const prevObjectivesLength = React.useRef(objectives.length);
+
+  // Auto-focus on newly added objective
+  React.useEffect(() => {
+    if (objectives.length > prevObjectivesLength.current) {
+      // A new objective was added, focus on the last one
+      const lastObjective = objectives[objectives.length - 1];
+      if (lastObjective && inputRefs.current[lastObjective.id]) {
+        setTimeout(() => {
+          inputRefs.current[lastObjective.id]?.focus();
+        }, 100);
+      }
+    }
+    prevObjectivesLength.current = objectives.length;
+  }, [objectives.length]);
 
   const {
     draggedItem,
@@ -181,102 +178,107 @@ export const ObjectivesSection: React.FC<{
   } = useDragAndDrop({
     items: objectives,
     onReorder: (reorderedObjectives) => {
-      // Update the order property for each objective
-      const updatedObjectives = reorderedObjectives.map((obj, index) => ({
-        ...obj,
-        order: index
-      }));
-      // Call a reorder function if it exists, or update each objective individually
-      updatedObjectives.forEach((obj, index) => {
-        onUpdateObjective(obj.id, 'order', index);
-      });
+      // Use onReorderObjectives if provided (optimal - updates entire array)
+      if (onReorderObjectives) {
+        onReorderObjectives(reorderedObjectives);
+      } else {
+        // Fallback to individual updates
+        reorderedObjectives.forEach((obj, index) => {
+          onUpdateObjective(obj.id, 'order', index);
+        });
+      }
     },
     itemIdField: 'id'
   });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {t('courseCreation.sections.objectives')}
-        </h3>
+      {/* Add Objective Button - Left aligned, cyan color */}
+      <div>
         <Button
           data-action="add-objective"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // ('Add Objective clicked - preventing propagation');
             onAddObjective();
           }}
-          className="flex items-center gap-2"
-          style={{ backgroundColor: primaryColor }}
+          variant="outline"
+          className="flex items-center gap-2 border-cyan-400 text-cyan-500 hover:bg-cyan-50 px-4 py-2"
         >
           <PlusIcon className="w-4 h-4" />
-          {t('courseCreation.form.addObjective')}
+          Ajouter Un Objectif
         </Button>
       </div>
 
+      {/* Objectives List */}
       <div className="space-y-3">
         {objectives.length === 0 && (
-          <div className={`text-center py-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            <p>No objectives added yet. Click "Add Objective" to get started.</p>
+          <div className={`text-center py-6 ${isDark ? 'text-gray-400' : 'text-gray-400'} text-sm`}>
+            Aucun objectif ajouté pour le moment
           </div>
         )}
         {objectives.map((objective, index) => (
-          <Card 
-            key={objective.id} 
+          <div
+            key={objective.id}
             draggable
-            onDragStart={(e) => handleDragStart(e, index)}
+            onDragStart={(e) => {
+              // Only allow drag if starting from the grip icon area
+              const target = e.target as HTMLElement;
+              if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.closest('button')) {
+                e.preventDefault();
+                return;
+              }
+              handleDragStart(e, index);
+            }}
             onDragEnd={handleDragEnd}
             onDragOver={(e) => handleDragOver(e, index)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, index)}
-            className={`transition-all duration-200 ${
-              isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
-            } ${
-              dragOverIndex === index ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
-            } ${
-              draggedItem?.id === objective.id ? 'opacity-50' : ''
-            }`}
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all duration-200 cursor-move ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+              } ${dragOverIndex === index ? 'ring-2 ring-blue-400' : ''
+              } ${draggedItem?.id === objective.id ? 'opacity-50' : ''
+              }`}
           >
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <GripVerticalIcon 
-                  className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-600'} cursor-move hover:text-blue-500 transition-colors`} 
-                />
-                
-                <div className="flex-1">
-                  <Input
-                    type="text"
-                    value={objective.text.replace(/<[^>]*>/g, '')} // Strip HTML tags for display
-                    onChange={(e) => onUpdateObjective(objective.id, 'text', e.target.value)}
-                    placeholder={t('courseCreation.form.objectiveText')}
-                    className={`${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                  />
-                </div>
+            {/* Drag Handle - More subtle */}
+            <GripVerticalIcon
+              className={`w-4 h-4 ${isDark ? 'text-gray-500' : 'text-gray-400'} flex-shrink-0`}
+            />
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveObjective(objective.id);
-                  }}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <TrashIcon className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Input Field */}
+            <div
+              className="flex-1"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <Input
+                ref={(el) => inputRefs.current[objective.id] = el}
+                type="text"
+                value={objective.text.replace(/<[^>]*>/g, '')}
+                onChange={(e) => onUpdateObjective(objective.id, 'text', e.target.value)}
+                placeholder="Saisir l'objectif pédagogique"
+                className={`w-full ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            {/* Delete Button - Gray rounded */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveObjective(objective.id);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className={`p-2 rounded-full ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'
+                } transition-colors flex-shrink-0`}
+            >
+              <TrashIcon className={`w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+            </button>
+          </div>
         ))}
-        
-        {/* Drop zone at the end for objectives */}
+
+        {/* Drop zone at the end */}
         {draggedItem && (
-          <div 
-            className={`h-2 rounded-lg transition-all duration-200 ${
-              dragOverIndex === objectives.length ? 'bg-blue-500 opacity-50' : 'bg-transparent'
-            }`}
+          <div
+            className={`h-2 rounded-lg transition-all duration-200 ${dragOverIndex === objectives.length ? 'bg-blue-400 opacity-50' : 'bg-transparent'
+              }`}
             onDragOver={(e) => handleDragOver(e, objectives.length)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, objectives.length)}
@@ -342,7 +344,7 @@ export const MethodsSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         {t('courseCreation.sections.methods')}
       </h3>
-      
+
       <RichTextEditor
         content={methods}
         onChange={onUpdateMethods}
@@ -409,7 +411,7 @@ const AdditionalFeeModal: React.FC<AdditionalFeeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div 
+      <div
         className={`w-full max-w-md rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -511,193 +513,200 @@ export const PricingSection: React.FC<{
   onAddAdditionalFee: (initialData?: { name: string; amount: number; description: string }) => void;
   onUpdateAdditionalFee: (id: string, field: string, value: any) => void;
   onRemoveAdditionalFee: (id: string) => void;
-}> = ({ 
-  priceHT, 
-  vatPercentage, 
-  additionalFees, 
-  onUpdatePriceHT, 
-  onUpdateVATPercentage, 
-  onAddAdditionalFee, 
-  onUpdateAdditionalFee, 
-  onRemoveAdditionalFee 
+}> = ({
+  priceHT,
+  vatPercentage,
+  additionalFees,
+  onUpdatePriceHT,
+  onUpdateVATPercentage,
+  onAddAdditionalFee,
+  onUpdateAdditionalFee,
+  onRemoveAdditionalFee
 }) => {
-  const { t } = useLanguage();
-  const { isDark } = useTheme();
-  const { organization } = useOrganization();
-  const primaryColor = organization?.primary_color || '#007aff';
-  const [showModal, setShowModal] = useState(false);
-  const [editingFee, setEditingFee] = useState<{ id: string; name: string; amount: number; description?: string } | null>(null);
+    const { t } = useLanguage();
+    const { isDark } = useTheme();
+    const { organization } = useOrganization();
+    const primaryColor = organization?.primary_color || '#007aff';
+    const [showModal, setShowModal] = useState(false);
+    const [editingFee, setEditingFee] = useState<{ id: string; name: string; amount: number; description?: string } | null>(null);
 
-  const handleOpenModal = (fee?: { id: string; name: string; amount: number; description?: string }) => {
-    if (fee) {
-      setEditingFee(fee);
-    } else {
+    const handleOpenModal = (fee?: { id: string; name: string; amount: number; description?: string }) => {
+      if (fee) {
+        setEditingFee(fee);
+      } else {
+        setEditingFee(null);
+      }
+      setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+      setShowModal(false);
       setEditingFee(null);
-    }
-    setShowModal(true);
-  };
+    };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingFee(null);
-  };
+    const handleSaveFee = (data: { name: string; amount: number; description: string }) => {
+      if (editingFee) {
+        // Update existing fee
+        onUpdateAdditionalFee(editingFee.id, 'name', data.name);
+        onUpdateAdditionalFee(editingFee.id, 'amount', data.amount);
+        onUpdateAdditionalFee(editingFee.id, 'description', data.description);
+      } else {
+        // Create new fee with initial data
+        onAddAdditionalFee(data);
+      }
+    };
 
-  const handleSaveFee = (data: { name: string; amount: number; description: string }) => {
-    if (editingFee) {
-      // Update existing fee
-      onUpdateAdditionalFee(editingFee.id, 'name', data.name);
-      onUpdateAdditionalFee(editingFee.id, 'amount', data.amount);
-      onUpdateAdditionalFee(editingFee.id, 'description', data.description);
-    } else {
-      // Create new fee with initial data
-      onAddAdditionalFee(data);
-    }
-  };
-
-  return (
-    <>
-      <div className="space-y-6">
-        {/* Prix Section - Inline layout */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {t('courseCreation.form.price')}
-          </h3>
-          
-          <div className="flex items-end gap-6">
-            <div className="flex-1">
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('courseCreation.form.priceHT')}:
-              </label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  value={priceHT || ''}
-                  onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
-                  placeholder="0,00"
-                  min="0"
-                  step="0.01"
-                  className={`pr-12 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
-                <span className={`absolute right-3 top-1/2 -translate-y-1/2 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  €
-                </span>
-              </div>
-            </div>
-            
-            <div className="flex-1">
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {t('courseCreation.form.vatPercentage')}:
-              </label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  value={vatPercentage || ''}
-                  onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
-                  placeholder="20"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className={`pr-10 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
-                />
-                <span className={`absolute right-3 top-1/2 -translate-y-1/2 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  %
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Frais Annexes Section - Simple list format */}
-        <div className={`p-4 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {t('courseCreation.form.additionalFees')} ({additionalFees.length})
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-6">
+          {/* Left Column - Prix */}
+          <div>
+            <h3 className={`text-base font-medium mb-3 ${isDark ? 'text-white' : 'text-gray-700'}`}>
+              Prix
             </h3>
-          </div>
-          
-          {/* Fees List */}
-          <div className="space-y-2 mb-4">
-            {additionalFees.map((fee) => (
-              <div 
-                key={fee.id} 
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                }`}
-              >
-                <div className="flex-1">
-                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {fee.name}
-                    {fee.vat_applied && (
-                      <span className={`ml-1 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        (TVA À {vatPercentage}%)
-                      </span>
-                    )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <label className={`text-sm font-normal whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Prix HT (En €):
+                </label>
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    value={priceHT || ''}
+                    onChange={(e) => onUpdatePriceHT(parseFloat(e.target.value) || 0)}
+                    placeholder=""
+                    min="0"
+                    step="0.01"
+                    className={`pr-10 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    €
                   </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenModal({
-                        id: fee.id,
-                        name: fee.name,
-                        amount: fee.amount,
-                        description: ''
-                      });
-                    }}
-                    className="h-8 w-8"
-                  >
-                    <EditIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemoveAdditionalFee(fee.id);
-                    }}
-                    className="h-8 w-8 text-red-600 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
-            ))}
+
+              <div className="flex items-center gap-3">
+                <label className={`text-sm font-normal whitespace-nowrap ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                  TVA (En %):
+                </label>
+                <div className="relative flex-1">
+                  <Input
+                    type="number"
+                    value={vatPercentage || ''}
+                    onChange={(e) => onUpdateVATPercentage(parseFloat(e.target.value) || 0)}
+                    placeholder=""
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className={`pr-10 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                  <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    %
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Add Fee Button */}
-          <Button
-            data-action="add-additional-fee"
-            variant="outline"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleOpenModal();
-            }}
-            className={`w-full flex items-center justify-center gap-2 border-dashed ${
-              isDark ? 'border-gray-500 hover:bg-gray-600' : 'border-gray-300 hover:bg-gray-100'
-            }`}
-          >
-            <PlusIcon className="w-4 h-4" />
-            {t('courseCreation.form.addAdditionalFee')}
-          </Button>
-        </div>
-      </div>
+          {/* Right Column - Frais Annexes */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-700'}`}>
+                Frais annexes ({additionalFees.length})
+              </h3>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
 
-      <AdditionalFeeModal
-        isOpen={showModal}
-        onClose={handleCloseModal}
-        onSave={handleSaveFee}
-        fee={editingFee}
-      />
-    </>
-  );
-};
+            {/* Fees List */}
+            <div className="space-y-3 mb-3">
+              {additionalFees.map((fee) => (
+                <div
+                  key={fee.id}
+                  className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 flex-1">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <div>
+                      <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {fee.name}
+                      </span>
+                      {fee.vat_applied && (
+                        <span className={`ml-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          (TVA à {vatPercentage}%)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {fee.amount}€ HT{fee.unit && `/${fee.unit}`}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenModal({
+                          id: fee.id,
+                          name: fee.name,
+                          amount: fee.amount,
+                          description: ''
+                        });
+                      }}
+                      className="h-7 w-7"
+                    >
+                      <EditIcon className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveAdditionalFee(fee.id);
+                      }}
+                      className="h-7 w-7 text-red-600 hover:text-red-700"
+                    >
+                      <TrashIcon className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add Fee Button */}
+            <Button
+              data-action="add-additional-fee"
+              variant="outline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleOpenModal();
+              }}
+              className={`w-full flex items-center justify-center gap-2 py-2 text-sm border-dashed ${isDark ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                }`}
+              style={{ color: isDark ? undefined : primaryColor }}
+            >
+              <PlusIcon className="w-4 h-4" />
+              Ajouter Un Frais Annexe
+            </Button>
+          </div>
+        </div>
+
+        <AdditionalFeeModal
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          onSave={handleSaveFee}
+          fee={editingFee}
+        />
+      </>
+    );
+  };
 
 // Specifics Section
 export const SpecificsSection: React.FC<{
@@ -712,7 +721,7 @@ export const SpecificsSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         {t('courseCreation.sections.specifics')}
       </h3>
-      
+
       <RichTextEditor
         content={specifics}
         onChange={onUpdateSpecifics}
@@ -736,7 +745,7 @@ export const EvaluationModalitiesSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Modalités D'évaluation
       </h3>
-      
+
       <RichTextEditor
         content={evaluationModalities}
         onChange={onUpdateEvaluationModalities}
@@ -760,7 +769,7 @@ export const AccessModalitiesSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Modalités Et Délais D'accès
       </h3>
-      
+
       <RichTextEditor
         content={accessModalities}
         onChange={onUpdateAccessModalities}
@@ -784,7 +793,7 @@ export const AccessibilitySection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Accessibilité Aux Personnes Handicapées
       </h3>
-      
+
       <RichTextEditor
         content={accessibility}
         onChange={onUpdateAccessibility}
@@ -808,7 +817,7 @@ export const ContactsSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Contacts
       </h3>
-      
+
       <RichTextEditor
         content={contacts}
         onChange={onUpdateContacts}
@@ -850,7 +859,7 @@ export const UpdateDateSection: React.FC<{
       <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
         Date De MAJ
       </h3>
-      
+
       <Input
         type="date"
         value={formatDateForInput(updateDate)}

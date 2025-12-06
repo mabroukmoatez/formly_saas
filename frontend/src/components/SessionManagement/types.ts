@@ -211,6 +211,14 @@ export interface SessionData {
   durationDays?: number;
   image?: string;
   modules?: number;
+  // Override indicators
+  referenceCode?: string;
+  titleInherited?: boolean;
+  descriptionInherited?: boolean;
+  priceInherited?: boolean;
+  // Override values (when different from course)
+  description?: string;
+  priceHT?: number;
 }
 
 // ============ Filter Types ============

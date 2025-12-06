@@ -8,6 +8,7 @@ import { MediaUpload } from '../CourseCreation/MediaUpload';
 import { RichTextField } from '../CourseCreation/RichTextField';
 import { CategoryButtons } from '../CourseCreation/CategoryButtons';
 import { FormationActionBadge } from '../CourseCreation/FormationActionBadge';
+import { InheritedBanner, OverrideIndicator } from './OverrideIndicator';
 
 interface SessionInformationFormProps {
   formData: {
@@ -48,6 +49,16 @@ interface SessionInformationFormProps {
   onSubcategoryCreated?: () => void;
   selectedPracticeIds?: number[];
   onPracticesChanged?: (practiceIds: number[]) => void;
+  
+  // Override system props
+  isSessionMode?: boolean;
+  courseTemplate?: {
+    title: string;
+    description: string | null;
+    duration: number | null;
+  } | null;
+  isFieldInherited?: (field: string) => boolean;
+  onResetOverride?: (field: string) => void;
 }
 
 export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
@@ -62,10 +73,28 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
   onCategoryCreated,
   onSubcategoryCreated,
   selectedPracticeIds = [],
-  onPracticesChanged
+  onPracticesChanged,
+  // Override system props
+  isSessionMode = false,
+  courseTemplate = null,
+  isFieldInherited,
+  onResetOverride
 }) => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
+  
+  // Helper to check if a field is inherited
+  const checkInherited = (field: string): boolean => {
+    if (!isSessionMode || !isFieldInherited) return false;
+    return isFieldInherited(field);
+  };
+  
+  // Helper to reset an override
+  const handleResetOverride = (field: string) => {
+    if (onResetOverride) {
+      onResetOverride(field);
+    }
+  };
 
   const handleVideoUpload = (file: File, url: string) => {
     onFileUpload('intro_video', file);
@@ -88,17 +117,41 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
   return (
     <section className="w-full flex justify-center py-7 px-0 opacity-0 translate-y-[-1rem] animate-fade-in [--animation-delay:200ms]">
       <div className="w-full max-w-[1396px] flex flex-col gap-6 bg-white">
+        
+        {/* Session Mode Banner */}
+        {isSessionMode && courseTemplate && (
+          <InheritedBanner 
+            courseName={courseTemplate.title}
+            isVisible={true}
+          />
+        )}
+        
         {/* Session Basic Information */}
         <Card className="border border-[#e2e2ea] rounded-[18px]">
           <CardContent className="p-6">
             <div className="space-y-4">
-              <FormField
-                label={t('sessionCreation.form.title')}
-                value={formData.title}
-                onChange={(value) => onInputChange('title', value)}
-                placeholder="Your Session Title"
-                maxLength={110}
-              />
+              {/* Title with Override Indicator */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('sessionCreation.form.title')}
+                  </label>
+                  {isSessionMode && (
+                    <OverrideIndicator
+                      isInherited={checkInherited('title')}
+                      originalValue={courseTemplate?.title}
+                      onReset={() => handleResetOverride('title')}
+                      showOnlyWhenModified
+                    />
+                  )}
+                </div>
+                <FormField
+                  value={formData.title}
+                  onChange={(value) => onInputChange('title', value)}
+                  placeholder="Your Session Title"
+                  maxLength={110}
+                />
+              </div>
 
               <FormationActionBadge
                 selectedAction={formData.formation_action || "Actions de formation"}
@@ -120,13 +173,28 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
                 onPracticesChanged={onPracticesChanged}
               />
 
-              <RichTextField
-                label={t('sessionCreation.form.description')}
-                value={formData.description}
-                onChange={(content) => onInputChange('description', content)}
-                placeholder="Text Comes Here.."
-                minHeight="200px"
-              />
+              {/* Description with Override Indicator */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('sessionCreation.form.description')}
+                  </label>
+                  {isSessionMode && (
+                    <OverrideIndicator
+                      isInherited={checkInherited('description')}
+                      originalValue={courseTemplate?.description || undefined}
+                      onReset={() => handleResetOverride('description')}
+                      showOnlyWhenModified
+                    />
+                  )}
+                </div>
+                <RichTextField
+                  value={formData.description}
+                  onChange={(content) => onInputChange('description', content)}
+                  placeholder="Text Comes Here.."
+                  minHeight="200px"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, Plus, Users, Check, Eye, Edit, Award, FileText, Upload, GitBranch, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -23,6 +23,7 @@ interface TrainerSelectionModalProps {
   onClose: () => void;
   onSelect: (trainerIds: (number | string)[], permissions: TrainerPermissions) => Promise<void>;
   availableTrainers: Trainer[];
+  assignedTrainerIds?: (number | string)[];
   onCreateNew: () => void;
 }
 
@@ -98,6 +99,7 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
   onClose,
   onSelect,
   availableTrainers,
+  assignedTrainerIds = [],
   onCreateNew
 }) => {
   const { isDark } = useTheme();
@@ -108,20 +110,42 @@ export const TrainerSelectionModal: React.FC<TrainerSelectionModalProps> = ({
   const [selectedTrainers, setSelectedTrainers] = useState<Set<number | string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
   const [permissions, setPermissions] = useState<TrainerPermissions>(defaultPermissions);
-
-  useEffect(() => {
-    if (selectAll) {
-      const allIds = filteredTrainers.map(t => t.id || t.uuid);
-      setSelectedTrainers(new Set(allIds));
-    } else {
-      setSelectedTrainers(new Set());
-    }
-  }, [selectAll]);
+  const isInitializing = useRef(false);
 
   const filteredTrainers = availableTrainers.filter(trainer =>
     trainer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     trainer.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Pre-select assigned trainers when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      isInitializing.current = true;
+      if (assignedTrainerIds.length > 0) {
+        const assignedSet = new Set(assignedTrainerIds);
+        setSelectedTrainers(assignedSet);
+        // Update selectAll based on whether all filtered trainers are selected
+        const filteredIds = filteredTrainers.map(t => t.id || t.uuid);
+        setSelectAll(filteredIds.length > 0 && filteredIds.every(id => assignedSet.has(id)));
+      } else {
+        // Reset selection when modal opens with no assigned trainers
+        setSelectedTrainers(new Set());
+        setSelectAll(false);
+      }
+      // Reset initialization flag after a short delay
+      setTimeout(() => {
+        isInitializing.current = false;
+      }, 100);
+    }
+  }, [isOpen, assignedTrainerIds]);
+
+  // Handle selectAll toggle - only apply when user manually toggles, not on initial load
+  useEffect(() => {
+    if (!isInitializing.current && selectAll) {
+      const allIds = filteredTrainers.map(t => t.id || t.uuid);
+      setSelectedTrainers(new Set(allIds));
+    }
+  }, [selectAll, filteredTrainers]);
 
   const handleToggleTrainer = (trainerId: number | string) => {
     const newSelected = new Set(selectedTrainers);

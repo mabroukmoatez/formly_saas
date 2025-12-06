@@ -1,6 +1,7 @@
 /**
  * SessionCalendarView Component
  * Calendar view for sessions with month and week views
+ * Matches Figma design with expanded filters and specific styling
  */
 
 import React, { useState, useMemo } from 'react';
@@ -9,13 +10,17 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { 
-  Search, 
-  Filter, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import {
+  Search,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  X,
   List
 } from 'lucide-react';
 import type { CalendarSession, SessionFilters } from './types';
@@ -34,12 +39,12 @@ interface SessionCalendarViewProps {
   onCreateSession?: () => void;
 }
 
-// Color mapping for session modes
-const MODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  'présentiel': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
-  'distanciel': { bg: '#dbeafe', border: '#3b82f6', text: '#1d4ed8' },
-  'e-learning': { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-  'hybride': { bg: '#f3e8ff', border: '#a855f7', text: '#7c3aed' },
+// Color mapping for session modes (Pill style)
+const MODE_STYLES: Record<string, { bg: string; border: string; text: string }> = {
+  'présentiel': { bg: '#dcfce7', border: '#22c55e', text: '#166534' }, // Green
+  'distanciel': { bg: '#dbeafe', border: '#3b82f6', text: '#1d4ed8' }, // Blue
+  'e-learning': { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' }, // Yellow/Orange
+  'hybride': { bg: '#f3e8ff', border: '#a855f7', text: '#7c3aed' },    // Purple
 };
 
 export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
@@ -60,10 +65,6 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
   const primaryColor = organization?.primary_color || '#0066FF';
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [showDayModal, setShowDayModal] = useState(false);
-  const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null);
-  const [selectedDaySessions, setSelectedDaySessions] = useState<CalendarSession[]>([]);
 
   // French month names
   const monthNames = [
@@ -77,33 +78,33 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
   const getMonthDays = useMemo(() => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    
+
     // Get the day of week for the first day (0 = Sunday, adjust for Monday start)
     let startDayOfWeek = firstDay.getDay() - 1;
     if (startDayOfWeek < 0) startDayOfWeek = 6;
-    
+
     const days: Array<{ date: Date; isCurrentMonth: boolean }> = [];
-    
+
     // Add days from previous month
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       const date = new Date(year, month, -i);
       days.push({ date, isCurrentMonth: false });
     }
-    
+
     // Add days of current month
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    
+
     // Add days from next month to complete the grid
     const remainingDays = 42 - days.length; // 6 rows * 7 days
     for (let i = 1; i <= remainingDays; i++) {
       days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
-    
+
     return days;
   }, [currentDate]);
 
@@ -113,7 +114,7 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
     const day = startOfWeek.getDay();
     const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
     startOfWeek.setDate(diff);
-    
+
     const days: Date[] = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
@@ -149,19 +150,8 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
     onDateChange(newDate);
   };
 
-  const handleDayClick = (date: Date, daySessions: CalendarSession[]) => {
-    if (daySessions.length > 4) {
-      setSelectedDayDate(date);
-      setSelectedDaySessions(daySessions);
-      setShowDayModal(true);
-    }
-    onDayClick?.(date, daySessions);
-  };
-
   const formatHour = (hour: number) => {
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const h = hour % 12 || 12;
-    return `${h} ${ampm}`;
+    return `${hour}:00`;
   };
 
   const isToday = (date: Date) => {
@@ -169,19 +159,19 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
     return date.toDateString() === today.toDateString();
   };
 
-  const getSessionColor = (mode: string) => {
-    return MODE_COLORS[mode] || MODE_COLORS['présentiel'];
+  const getSessionStyle = (mode: string) => {
+    return MODE_STYLES[mode] || MODE_STYLES['présentiel'];
   };
 
   return (
-    <div className={`p-6 ${isDark ? 'bg-gray-900' : 'bg-[#f5f5f5]'}`}>
+    <div className={`p-6 ${isDark ? 'bg-gray-900' : 'bg-[#f5f5f5]'} min-h-screen`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Session
         </h1>
-        <Button 
-          className="h-10 gap-2 rounded-xl text-white"
+        <Button
+          className="h-10 gap-2 rounded-xl text-white px-6"
           style={{ backgroundColor: primaryColor }}
           onClick={onCreateSession}
         >
@@ -189,61 +179,115 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
         </Button>
       </div>
 
-      {/* Calendar Controls */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              placeholder="Recherche Une Formation"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-10 h-10 rounded-xl w-64 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-            />
-          </div>
-          
-          <Button
-            variant="outline"
-            className="h-10 gap-2 rounded-xl"
-            onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-          >
-            <Filter className="w-4 h-4" />
-            Filtre
-            <ChevronDown className="w-4 h-4" />
-          </Button>
+      {/* Filters Bar */}
+      <div className={`p-4 rounded-2xl mb-6 flex flex-wrap items-center gap-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Recherche Une Formation"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`pl-10 h-10 rounded-xl border-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}
+          />
         </div>
 
-        {/* Month/Week Navigation */}
+        {/* Formation Filter */}
+        <div className="w-[200px]">
+          <Select value={filters.formation} onValueChange={(val) => onFiltersChange({ ...filters, formation: val })}>
+            <SelectTrigger className={`h-10 rounded-xl border-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <SelectValue placeholder="Formation" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les formations</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Formateur Filter */}
+        <div className="w-[200px]">
+          <Select value={filters.formateur} onValueChange={(val) => onFiltersChange({ ...filters, formateur: val })}>
+            <SelectTrigger className={`h-10 rounded-xl border-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <SelectValue placeholder="Formateur" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les formateurs</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Status Filter */}
+        <div className="w-[150px]">
+          <Select value={filters.status} onValueChange={(val) => onFiltersChange({ ...filters, status: val as any })}>
+            <SelectTrigger className={`h-10 rounded-xl border-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Status</SelectItem>
+              <SelectItem value="à venir">À venir</SelectItem>
+              <SelectItem value="en cours">En cours</SelectItem>
+              <SelectItem value="terminée">Terminée</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Type Filter */}
+        <div className="w-[150px]">
+          <Select value={filters.type} onValueChange={(val) => onFiltersChange({ ...filters, type: val as any })}>
+            <SelectTrigger className={`h-10 rounded-xl border-0 ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+              <SelectValue placeholder="Type De Formation" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Type</SelectItem>
+              <SelectItem value="présentiel">Présentiel</SelectItem>
+              <SelectItem value="distanciel">Distanciel</SelectItem>
+              <SelectItem value="e-learning">E-Learning</SelectItem>
+              <SelectItem value="hybride">Hybride</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Reset Button */}
+        <Button
+          variant="ghost"
+          className="text-blue-500 hover:text-blue-600"
+          onClick={() => onFiltersChange({ formation: '', formateur: '', status: 'all', type: 'all' })}
+        >
+          Reset
+        </Button>
+      </div>
+
+      {/* Calendar Navigation & View Toggle */}
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={navigatePrevious}>
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={navigateNext}>
-              <ChevronRight className="w-5 h-5" />
-            </Button>
-          </div>
-          
-          <h2 className={`text-xl font-bold min-w-[200px] text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h2 className={`text-2xl font-bold text-blue-500`}>
             {currentDate.getDate()} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="icon" onClick={navigatePrevious} className="rounded-full w-8 h-8">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={navigateNext} className="rounded-full w-8 h-8">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-1 rounded-xl border p-1">
+        <div className="flex items-center gap-2">
+          <div className={`flex items-center p-1 rounded-xl ${isDark ? 'bg-gray-800' : 'bg-white'} border`}>
             <Button
-              variant={viewMode === 'month' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => onViewModeChange('month')}
-              className="rounded-lg"
-              style={viewMode === 'month' ? { backgroundColor: primaryColor } : {}}
+              className={`rounded-lg px-4 ${viewMode === 'month' ? 'bg-blue-50 text-blue-600' : 'text-gray-500'}`}
             >
               Month
             </Button>
             <Button
-              variant={viewMode === 'week' ? 'default' : 'ghost'}
+              variant="ghost"
               size="sm"
               onClick={() => onViewModeChange('week')}
-              className="rounded-lg"
-              style={viewMode === 'week' ? { backgroundColor: primaryColor } : {}}
+              className={`rounded-lg px-4 ${viewMode === 'week' ? 'bg-blue-50 text-blue-600' : 'text-gray-500'}`}
             >
               week
             </Button>
@@ -251,7 +295,7 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
 
           <Button
             variant="outline"
-            className="h-10 gap-2 rounded-xl"
+            className="h-9 gap-2 rounded-xl bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100"
             onClick={onSwitchToList}
           >
             <List className="w-4 h-4" />
@@ -262,15 +306,14 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
 
       {/* Calendar Grid */}
       {viewMode === 'month' ? (
-        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
+        <div className={`rounded-3xl border overflow-hidden shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           {/* Day Headers */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 border-b border-gray-100">
             {dayNames.map(day => (
-              <div 
-                key={day} 
-                className={`py-3 text-center text-sm font-medium border-b ${
-                  isDark ? 'text-gray-300 border-gray-700' : 'text-gray-600 border-gray-200'
-                }`}
+              <div
+                key={day}
+                className={`py-4 text-center text-sm font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'
+                  }`}
               >
                 {day}
               </div>
@@ -278,53 +321,51 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
           </div>
 
           {/* Calendar Days */}
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 auto-rows-[140px]">
             {getMonthDays.map(({ date, isCurrentMonth }, idx) => {
               const daySessions = getSessionsForDate(date);
-              const displaySessions = daySessions.slice(0, 4);
-              const moreCount = daySessions.length - 4;
+              const displaySessions = daySessions.slice(0, 3);
+              const moreCount = daySessions.length - 3;
+              const isTodayDate = isToday(date);
 
               return (
                 <div
                   key={idx}
-                  className={`min-h-[120px] p-2 border-b border-r cursor-pointer transition-colors ${
-                    isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'
-                  } ${!isCurrentMonth ? 'opacity-50' : ''}`}
-                  onClick={() => handleDayClick(date, daySessions)}
+                  className={`p-2 border-b border-r relative group transition-colors ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-gray-100 hover:bg-gray-50'
+                    } ${!isCurrentMonth ? 'opacity-40 bg-gray-50/50' : ''}`}
+                  onClick={() => onDayClick?.(date, daySessions)}
                 >
-                  <div className={`text-sm font-medium mb-1 ${
-                    isToday(date) 
-                      ? 'w-6 h-6 rounded-full flex items-center justify-center text-white'
+                  <div className={`text-sm font-medium mb-2 ml-1 ${isTodayDate
+                      ? 'text-blue-500'
                       : isDark ? 'text-gray-300' : 'text-gray-700'
-                  }`}
-                  style={isToday(date) ? { backgroundColor: primaryColor } : {}}
-                  >
+                    }`}>
                     {date.getDate()}
                   </div>
-                  
-                  <div className="space-y-1">
+
+                  <div className="space-y-1.5">
                     {displaySessions.map(session => {
-                      const colors = getSessionColor(session.mode);
+                      const style = getSessionStyle(session.mode);
                       return (
                         <div
                           key={session.uuid}
-                          className="text-xs px-2 py-1 rounded truncate"
-                          style={{ 
-                            backgroundColor: colors.bg,
-                            borderLeft: `3px solid ${colors.border}`,
-                            color: colors.text
+                          className="text-[10px] px-2 py-1 rounded-md truncate cursor-pointer transition-transform hover:scale-[1.02]"
+                          style={{
+                            backgroundColor: style.bg,
+                            border: `1px solid ${style.border}`,
+                            color: style.text
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
                             onSessionClick(session);
                           }}
                         >
-                          ⊙ {session.title}
+                          <span className="mr-1">●</span>
+                          {session.title}
                         </div>
                       );
                     })}
                     {moreCount > 0 && (
-                      <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className="text-[10px] font-medium text-blue-500 px-2">
                         + {moreCount} Plus
                       </div>
                     )}
@@ -336,21 +377,16 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
         </div>
       ) : (
         /* Week View */
-        <div className={`rounded-2xl border overflow-hidden ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#e2e2ea]'}`}>
+        <div className={`rounded-3xl border overflow-hidden shadow-sm ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex">
             {/* Time Column */}
-            <div className="w-16 flex-shrink-0">
-              <div className={`h-12 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className={`text-xs p-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  GMT<br />+1
-                </div>
-              </div>
-              {Array.from({ length: 15 }, (_, i) => i + 7).map(hour => (
-                <div 
-                  key={hour} 
-                  className={`h-16 border-b text-xs text-right pr-2 pt-1 ${
-                    isDark ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-gray-200'
-                  }`}
+            <div className="w-16 flex-shrink-0 border-r border-gray-100">
+              <div className="h-14 border-b border-gray-100"></div>
+              {Array.from({ length: 13 }, (_, i) => i + 8).map(hour => (
+                <div
+                  key={hour}
+                  className={`h-20 border-b border-gray-100 text-xs text-right pr-3 pt-2 ${isDark ? 'text-gray-400' : 'text-gray-400'
+                    }`}
                 >
                   {formatHour(hour)}
                 </div>
@@ -358,130 +394,78 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
             </div>
 
             {/* Days Columns */}
-            {getWeekDays.map((date, idx) => {
-              const daySessions = getSessionsForDate(date);
-              
-              return (
-                <div key={idx} className="flex-1 border-l">
-                  {/* Day Header */}
-                  <div className={`h-12 border-b text-center py-2 ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <div className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {dayNames[idx]}
-                    </div>
-                    <div className={`text-lg font-bold ${
-                      isToday(date) ? '' : isDark ? 'text-white' : 'text-gray-900'
-                    }`}
-                    style={isToday(date) ? { color: '#ef4444' } : {}}
-                    >
-                      {date.getDate()}
-                    </div>
-                  </div>
-                  
-                  {/* Time slots */}
-                  <div className="relative">
-                    {Array.from({ length: 15 }, (_, i) => i + 7).map(hour => (
-                      <div 
-                        key={hour} 
-                        className={`h-16 border-b border-dashed ${isDark ? 'border-gray-700' : 'border-gray-200'}`}
-                      />
-                    ))}
-                    
-                    {/* Sessions */}
-                    {daySessions.map(session => {
-                      const startHour = parseInt(session.startTime.split(':')[0]);
-                      const endHour = parseInt(session.endTime.split(':')[0]);
-                      const startMin = parseInt(session.startTime.split(':')[1]) || 0;
-                      const duration = endHour - startHour + (startMin > 0 ? 0 : 0);
-                      const top = (startHour - 7) * 64 + (startMin / 60) * 64;
-                      const height = Math.max(duration * 64, 32);
-                      const colors = getSessionColor(session.mode);
+            <div className="flex-1 flex overflow-x-auto">
+              {getWeekDays.map((date, idx) => {
+                const daySessions = getSessionsForDate(date);
+                const isTodayDate = isToday(date);
 
-                      return (
-                        <div
-                          key={session.uuid}
-                          className="absolute left-1 right-1 rounded-lg p-2 overflow-hidden cursor-pointer"
-                          style={{
-                            top: `${top}px`,
-                            height: `${height}px`,
-                            backgroundColor: colors.bg,
-                            borderLeft: `3px solid ${colors.border}`,
-                          }}
-                          onClick={() => onSessionClick(session)}
-                        >
-                          <div className="text-xs font-medium truncate" style={{ color: colors.text }}>
-                            ⊙ {session.title}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* GMT column on right */}
-            <div className="w-16 flex-shrink-0 border-l">
-              <div className={`h-12 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-                <div className={`text-xs p-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  GMT<br />+1
-                </div>
-              </div>
-              {Array.from({ length: 15 }, (_, i) => i + 7).map(hour => (
-                <div 
-                  key={hour} 
-                  className={`h-16 border-b text-xs pl-2 pt-1 ${
-                    isDark ? 'text-gray-400 border-gray-700' : 'text-gray-500 border-gray-200'
-                  }`}
-                >
-                  {formatHour(hour)}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Day Sessions Modal */}
-      {showDayModal && selectedDayDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDayModal(false)} />
-          <div className={`relative w-full max-w-md rounded-2xl shadow-xl p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <button
-              onClick={() => setShowDayModal(false)}
-              className="absolute top-4 right-4"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            
-            <h2 className={`text-xl font-bold mb-4 text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {selectedDayDate.getDate()} {monthNames[selectedDayDate.getMonth()]} {selectedDayDate.getFullYear()}
-            </h2>
-            
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {selectedDaySessions.map(session => {
-                const colors = getSessionColor(session.mode);
                 return (
-                  <div
-                    key={session.uuid}
-                    className="flex items-center justify-between p-3 rounded-xl cursor-pointer"
-                    style={{ 
-                      backgroundColor: colors.bg,
-                      borderLeft: `4px solid ${colors.border}`
-                    }}
-                    onClick={() => {
-                      setShowDayModal(false);
-                      onSessionClick(session);
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: colors.text }}>⊙</span>
-                      <span className="font-medium truncate" style={{ color: colors.text }}>
-                        {session.title}
-                      </span>
+                  <div key={idx} className="flex-1 min-w-[120px] border-r border-gray-100 last:border-r-0">
+                    {/* Day Header */}
+                    <div className={`h-14 border-b border-gray-100 text-center py-2 ${isTodayDate ? 'bg-blue-50/50' : ''
+                      }`}>
+                      <div className={`text-xs font-medium mb-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {dayNames[idx]}
+                      </div>
+                      <div className={`text-lg font-bold ${isTodayDate ? 'text-blue-500' : isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                        {date.getDate()}
+                      </div>
                     </div>
-                    <span className="text-sm" style={{ color: colors.text }}>
-                      {session.startTime} - {session.endTime}
-                    </span>
+
+                    {/* Time slots */}
+                    <div className="relative h-[1040px]">
+                      {Array.from({ length: 13 }, (_, i) => i + 8).map(hour => (
+                        <div
+                          key={hour}
+                          className="h-20 border-b border-gray-50"
+                        />
+                      ))}
+
+                      {/* Sessions */}
+                      {daySessions.map(session => {
+                        const startHour = parseInt(session.startTime.split(':')[0]);
+                        const endHour = parseInt(session.endTime.split(':')[0]);
+                        const startMin = parseInt(session.startTime.split(':')[1]) || 0;
+
+                        const startOffset = startHour - 8;
+                        if (startOffset < 0) return null;
+
+                        const top = (startOffset * 80) + (startMin / 60 * 80);
+                        const duration = (endHour - startHour) + ((parseInt(session.endTime.split(':')[1]) || 0) - startMin) / 60;
+                        const height = Math.max(duration * 80, 40);
+
+                        const style = getSessionStyle(session.mode);
+
+                        return (
+                          <div
+                            key={session.uuid}
+                            className="absolute left-1 right-1 rounded-lg p-2 overflow-hidden cursor-pointer hover:brightness-95 transition-all shadow-sm"
+                            style={{
+                              top: `${top}px`,
+                              height: `${height}px`,
+                              backgroundColor: style.bg,
+                              border: `1px solid ${style.border}`,
+                              color: style.text
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSessionClick(session);
+                            }}
+                          >
+                            <div className="text-xs font-semibold truncate">
+                              {session.title}
+                            </div>
+                            <div className="text-[10px] opacity-80 truncate">
+                              {session.startTime} - {session.endTime}
+                            </div>
+                            <div className="mt-1 inline-block px-1.5 py-0.5 rounded text-[9px] bg-white/50 font-medium">
+                              {session.mode}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
@@ -494,4 +478,3 @@ export const SessionCalendarView: React.FC<SessionCalendarViewProps> = ({
 };
 
 export default SessionCalendarView;
-

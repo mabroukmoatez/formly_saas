@@ -26,7 +26,10 @@ class QuestionnaireQuestion extends Model
         'conditional_logic',
         'table_columns',
         'table_rows',
-        'content'
+        'content',
+        'config',
+        'feeds_statistics',
+        'statistics_key'
     ];
 
     protected $casts = [
@@ -37,7 +40,9 @@ class QuestionnaireQuestion extends Model
         'is_required' => 'boolean',
         'conditional_logic' => 'array',
         'table_columns' => 'array',
-        'table_rows' => 'array'
+        'table_rows' => 'array',
+        'config' => 'array',
+        'feeds_statistics' => 'boolean'
     ];
 
     protected static function booted()

@@ -1,6 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
+import { X, AlertTriangle, Info, Trash2, Copy } from 'lucide-react';
 import { Button } from './button';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useOrganization } from '../../contexts/OrganizationContext';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -25,40 +27,40 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   type = 'danger',
   isLoading = false,
 }) => {
+  const { isDark } = useTheme();
+  const { organization } = useOrganization();
+  const primaryColor = organization?.primary_color || '#3b82f6';
+
+  if (!isOpen) return null;
+
   const getTypeStyles = () => {
     switch (type) {
       case 'danger':
         return {
-          icon: (
-            <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          ),
+          icon: <AlertTriangle className="w-5 h-5 text-red-600" />,
+          iconBg: 'bg-red-100',
           confirmButton: 'bg-red-600 hover:bg-red-700 text-white',
           warningBg: 'bg-red-50 border-red-200',
-          warningText: 'text-red-800',
+          warningText: 'text-red-700',
+          confirmIcon: <Trash2 className="w-4 h-4" />,
         };
       case 'warning':
         return {
-          icon: (
-            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          ),
+          icon: <AlertTriangle className="w-5 h-5 text-yellow-600" />,
+          iconBg: 'bg-yellow-100',
           confirmButton: 'bg-yellow-600 hover:bg-yellow-700 text-white',
           warningBg: 'bg-yellow-50 border-yellow-200',
-          warningText: 'text-yellow-800',
+          warningText: 'text-yellow-700',
+          confirmIcon: null,
         };
       case 'info':
         return {
-          icon: (
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          ),
+          icon: <Info className="w-5 h-5 text-blue-600" />,
+          iconBg: 'bg-blue-100',
           confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white',
           warningBg: 'bg-blue-50 border-blue-200',
-          warningText: 'text-blue-800',
+          warningText: 'text-blue-700',
+          confirmIcon: <Copy className="w-4 h-4" />,
         };
     }
   };
@@ -66,62 +68,74 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   const styles = getTypeStyles();
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="sr-only">{title}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex flex-col items-center space-y-4">
-          {/* Warning Banner */}
-          <div className={`w-full p-4 rounded-lg border ${styles.warningBg}`}>
-            <div className="flex items-center space-x-3">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`relative w-full max-w-md rounded-[20px] shadow-2xl ${
+          isDark ? 'bg-gray-800' : 'bg-white'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center hover:bg-blue-200 transition-colors"
+        >
+          <X className="w-4 h-4 text-blue-600" />
+        </button>
+
+        {/* Warning Header */}
+        <div className={`${styles.warningBg} border ${styles.warningBg.includes('red') ? 'border-red-200' : styles.warningBg.includes('yellow') ? 'border-yellow-200' : 'border-blue-200'} rounded-[12px] p-4 m-6 mb-4`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 ${styles.iconBg} rounded-full flex items-center justify-center`}>
               {styles.icon}
-              <p className={`font-semibold ${styles.warningText}`}>
-                {title}
-              </p>
             </div>
-          </div>
-
-          {/* Message */}
-          <p className="text-gray-600 text-center">
-            {message}
-          </p>
-
-          {/* Action Buttons */}
-          <div className="flex space-x-3 w-full">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-              disabled={isLoading}
-            >
-              {cancelText}
-            </Button>
-            <Button
-              onClick={onConfirm}
-              className={`flex-1 ${styles.confirmButton}`}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Chargement...</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  {type === 'danger' && (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  )}
-                  <span>{confirmText}</span>
-                </div>
-              )}
-            </Button>
+            <span className={`font-medium text-sm [font-family:'Poppins',Helvetica] ${styles.warningText}`}>
+              {title}
+            </span>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {/* Main Message */}
+        <div className="text-center mb-8 px-6">
+          <p className={`text-base [font-family:'Poppins',Helvetica] ${
+            isDark ? 'text-gray-300' : 'text-gray-800'
+          }`}>
+            {message}
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 px-6 pb-6">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            disabled={isLoading}
+            className="flex-1 h-12 border-blue-200 text-blue-600 hover:bg-blue-50 rounded-[10px] font-medium [font-family:'Poppins',Helvetica]"
+          >
+            {cancelText}
+          </Button>
+          <Button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={`flex-1 h-12 ${styles.confirmButton} rounded-[10px] font-medium [font-family:'Poppins',Helvetica] flex items-center justify-center gap-2`}
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Chargement...</span>
+              </>
+            ) : (
+              <>
+                {styles.confirmIcon}
+                <span>{confirmText}</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };

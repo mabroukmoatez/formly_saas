@@ -93,27 +93,65 @@ export const SessionParticipantsView: React.FC<SessionParticipantsViewProps> = (
     return <span className="text-gray-400">-</span>;
   };
 
-  const filteredParticipants = participants.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredParticipants = participants.filter(p => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (p.name && p.name.toLowerCase().includes(query)) ||
+      (p.email && p.email.toLowerCase().includes(query)) ||
+      (p.phone && p.phone.toLowerCase().includes(query)) ||
+      (p.company && p.company.toLowerCase().includes(query)) ||
+      (p.companyName && p.companyName.toLowerCase().includes(query))
+    );
+  });
 
-  const filteredTrainers = trainers.filter(t => 
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTrainers = trainers.filter(t => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (t.name && t.name.toLowerCase().includes(query)) ||
+      (t.email && t.email.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-gray-900' : 'bg-[#f5f5f5]'}`}>
       {/* Header with Stats */}
       <div className="text-center py-6 px-6">
+        {/* Session title - shows override if set */}
         <h1 className="text-xl font-bold" style={{ color: primaryColor }}>
-          {session.courseTitle}
+          {session.title}
         </h1>
+        
+        {/* Show course title if different (session has custom title) */}
+        {session.title !== session.courseTitle && (
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Cours : {session.courseTitle}
+            </span>
+            <Badge className="bg-orange-100 text-orange-600 border-0 text-xs">
+              Titre personnalisé
+            </Badge>
+          </div>
+        )}
+        
+        {/* Reference code if available */}
+        {session.referenceCode && (
+          <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Réf: {session.referenceCode}
+          </p>
+        )}
         
         <div className="flex items-center justify-center gap-4 mt-2">
           <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Session :</span>
-          <Badge className="bg-[#e8f5e9] text-[#2e7d32] border-0 rounded-full px-3">En-cours</Badge>
+          <Badge className={`border-0 rounded-full px-3 ${
+            session.status === 'terminée' ? 'bg-gray-100 text-gray-600' :
+            session.status === 'en_cours' ? 'bg-[#e8f5e9] text-[#2e7d32]' :
+            'bg-blue-100 text-blue-600'
+          }`}>
+            {session.status === 'terminée' ? 'Terminée' : 
+             session.status === 'en_cours' ? 'En-cours' : 'À venir'}
+          </Badge>
           <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             📅 {session.startDate} - 📅 {session.endDate}
           </span>
@@ -318,7 +356,8 @@ export const SessionParticipantsView: React.FC<SessionParticipantsViewProps> = (
             </thead>
             <tbody>
               {viewType === 'apprenant' ? (
-                filteredParticipants.map((participant) => (
+                filteredParticipants.length > 0 ? (
+                  filteredParticipants.map((participant) => (
                   <tr key={participant.uuid} className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
                     <td className="px-4 py-3">
                       <input 
@@ -381,9 +420,17 @@ export const SessionParticipantsView: React.FC<SessionParticipantsViewProps> = (
                       </div>
                     </td>
                   </tr>
-                ))
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={viewType === 'apprenant' ? 9 : 6} className="p-8 text-center text-gray-500">
+                      {searchQuery ? `Aucun résultat pour "${searchQuery}"` : `Aucun ${viewType === 'apprenant' ? 'participant' : 'formateur'} inscrit`}
+                    </td>
+                  </tr>
+                )
               ) : (
-                filteredTrainers.map((trainer) => (
+                filteredTrainers.length > 0 ? (
+                  filteredTrainers.map((trainer) => (
                   <tr key={trainer.uuid} className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
                     <td className="px-4 py-3">
                       <input 
@@ -434,7 +481,14 @@ export const SessionParticipantsView: React.FC<SessionParticipantsViewProps> = (
                       </div>
                     </td>
                   </tr>
-                ))
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                      {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun formateur assigné'}
+                    </td>
+                  </tr>
+                )
               )}
             </tbody>
           </table>

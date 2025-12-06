@@ -11,11 +11,10 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { ArrowLeft, Eye, Users, AlertTriangle, Filter, Download, Star, Clock, ThumbsUp, Trash2 } from 'lucide-react';
 
-// Simple Circular Progress for global dashboard
-const CircularProgress: React.FC<{ value: number; color?: string; bgColor?: string }> = ({ 
-  value, color = '#f97316', bgColor = '#ffedd5' 
+// Circular Progress for global dashboard
+const CircularProgress: React.FC<{ value: number; color?: string; bgColor?: string; size?: number }> = ({ 
+  value, color = '#f97316', bgColor = '#ffedd5', size = 80 
 }) => {
-  const size = 80;
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -26,9 +25,108 @@ const CircularProgress: React.FC<{ value: number; color?: string; bgColor?: stri
       <svg width={size} height={size} className="transform -rotate-90">
         <circle cx={size/2} cy={size/2} r={radius} stroke={bgColor} strokeWidth={strokeWidth} fill="none" />
         <circle cx={size/2} cy={size/2} r={radius} stroke={color} strokeWidth={strokeWidth} fill="none" 
-          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" 
+          className="transition-all duration-500" />
       </svg>
       <span className="absolute text-lg font-semibold" style={{ color }}>{value}%</span>
+    </div>
+  );
+};
+
+// Gauge Chart - Exact Figma Design (red left → blue right)
+const GaugeChart: React.FC<{ value: number; size?: number }> = ({ value, size = 140 }) => {
+  const percentage = Math.min(Math.max(value, 0), 100);
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const strokeWidth = 20;
+  const radius = (size - strokeWidth) / 2 - 5;
+  
+  // Calculate needle angle (0% = 180° left, 100% = 0° right)
+  const needleAngle = 180 - (percentage / 100) * 180;
+  const needleLength = radius - 10;
+  const needleX = centerX + needleLength * Math.cos(needleAngle * Math.PI / 180);
+  const needleY = centerY - needleLength * Math.sin(needleAngle * Math.PI / 180);
+  
+  // Arc path helper - draw clockwise (0 1 instead of 0 0)
+  const describeArc = (startAngle: number, endAngle: number) => {
+    const start = {
+      x: centerX + radius * Math.cos(Math.PI * startAngle / 180),
+      y: centerY - radius * Math.sin(Math.PI * startAngle / 180)
+    };
+    const end = {
+      x: centerX + radius * Math.cos(Math.PI * endAngle / 180),
+      y: centerY - radius * Math.sin(Math.PI * endAngle / 180)
+    };
+    return `M ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${end.x} ${end.y}`;
+  };
+
+  return (
+    <div className="relative flex flex-col items-center" style={{ width: size, height: size / 2 + 30 }}>
+      <svg width={size} height={size / 2 + 15} viewBox={`0 0 ${size} ${size / 2 + 15}`}>
+        {/* Red segment (0-25%) - LEFT */}
+        <path d={describeArc(180, 135)} fill="none" stroke="#ef4444" strokeWidth={strokeWidth} strokeLinecap="round" />
+        {/* Orange segment (25-50%) */}
+        <path d={describeArc(135, 90)} fill="none" stroke="#f97316" strokeWidth={strokeWidth} strokeLinecap="round" />
+        {/* Green segment (50-75%) */}
+        <path d={describeArc(90, 45)} fill="none" stroke="#22c55e" strokeWidth={strokeWidth} strokeLinecap="round" />
+        {/* Blue segment (75-100%) - RIGHT */}
+        <path d={describeArc(45, 0)} fill="none" stroke="#3b82f6" strokeWidth={strokeWidth} strokeLinecap="round" />
+        
+        {/* Needle */}
+        <line x1={centerX} y1={centerY} x2={needleX} y2={needleY} stroke="#374151" strokeWidth="3" strokeLinecap="round" />
+        <circle cx={centerX} cy={centerY} r="8" fill="#374151" />
+        <circle cx={centerX} cy={centerY} r="4" fill="#6b7280" />
+      </svg>
+      <div className="text-2xl font-bold text-[#0066FF] -mt-1">{value}%</div>
+    </div>
+  );
+};
+
+// Line Chart with gradient - Figma style (no mocked data)
+const LineChartSmall: React.FC<{ data?: Array<{ value: number }>; color?: string; height?: number }> = ({ 
+  data, color = '#22c55e', height = 80 
+}) => {
+  // Return empty state if no data
+  if (!data || data.length === 0) {
+    return (
+      <div 
+        className="w-full flex items-center justify-center text-gray-400 text-sm bg-gray-50 rounded-xl" 
+        style={{ height }}
+      >
+        Données non disponibles
+      </div>
+    );
+  }
+  
+  const chartData = data;
+  const maxValue = Math.max(...chartData.map(d => d.value), 100);
+  const minValue = Math.min(...chartData.map(d => d.value), 0);
+  const range = maxValue - minValue || 1;
+  
+  const smoothPath = chartData.map((d, i) => {
+    const x = (i / (chartData.length - 1)) * 100;
+    const y = 100 - ((d.value - minValue) / range) * 100;
+    if (i === 0) return `M ${x},${y}`;
+    const prevX = ((i - 1) / (chartData.length - 1)) * 100;
+    const prevY = 100 - ((chartData[i - 1].value - minValue) / range) * 100;
+    return `Q ${(prevX + x) / 2},${prevY} ${x},${y}`;
+  }).join(' ');
+
+  return (
+    <div className="w-full rounded-xl overflow-hidden" style={{ height, backgroundColor: '#f8fafc' }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[0, 25, 50, 75, 100].map(y => (
+          <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#e2e8f0" strokeWidth="0.5" vectorEffect="non-scaling-stroke" strokeDasharray="2,2" />
+        ))}
+        <path d={`${smoothPath} L 100,100 L 0,100 Z`} fill="url(#chartGradient)" />
+        <path d={smoothPath} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      </svg>
     </div>
   );
 };
@@ -75,8 +173,25 @@ export const SessionViewPage: React.FC = () => {
   const [participants, setParticipants] = useState<SessionParticipant[]>([]);
   const [trainers, setTrainers] = useState<SessionTrainer[]>([]);
   const [slots, setSlots] = useState<SessionSlot[]>([]);
+  const [workflowActions, setWorkflowActions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Statistics state (from API)
+  const [sessionStats, setSessionStats] = useState<{
+    tauxRecommandation: number;
+    dureeMoyenneConnexion: string;
+    tauxAssiduite: number;
+    presenceHistory: Array<{ value: number }>;
+  }>({
+    tauxRecommandation: 0,
+    dureeMoyenneConnexion: '-',
+    tauxAssiduite: 0,
+    presenceHistory: []
+  });
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Selected participant for dashboard
   const [selectedParticipant, setSelectedParticipant] = useState<{ uuid: string; name: string; avatar?: string } | null>(null);
@@ -90,6 +205,7 @@ export const SessionViewPage: React.FC = () => {
   const [editingParticipant, setEditingParticipant] = useState<SlotParticipantAttendance | null>(null);
 
   // Transform API session to component SessionData
+  // Uses override values when available, otherwise falls back to course values
   const transformSession = (apiSession: CourseSession): SessionData => {
     const getStatus = (): SessionData['status'] => {
       if (apiSession.status === 'completed') return 'terminée';
@@ -105,10 +221,24 @@ export const SessionViewPage: React.FC = () => {
       return 'hybride';
     };
 
+    // Use override values if available, otherwise use course values
+    // title_override is set → use apiSession.title (which contains the override)
+    // title_override is null → apiSession.title might still have value from display_title
+    const effectiveTitle = apiSession.title || apiSession.display_title || apiSession.course?.title || '';
+    const courseOriginalTitle = apiSession.course?.title || apiSession.display_title || '';
+    
+    // Check if values are inherited or overridden
+    const apiData = apiSession as any;
+    const titleInherited = apiData.title_inherited !== false; // Default to inherited if not specified
+    const descriptionInherited = apiData.description_inherited !== false;
+    const priceInherited = apiData.pricing?.price_inherited !== false;
+
     return {
       uuid: apiSession.uuid,
-      title: apiSession.title || apiSession.display_title,
-      courseTitle: apiSession.course?.title || apiSession.display_title,
+      // Session's effective title (override or inherited)
+      title: effectiveTitle,
+      // Original course title for reference
+      courseTitle: courseOriginalTitle,
       courseUuid: apiSession.course?.uuid || '',
       status: getStatus(),
       startDate: formatDate(apiSession.start_date),
@@ -124,7 +254,18 @@ export const SessionViewPage: React.FC = () => {
       })),
       duration: apiSession.total_hours ? `${apiSession.total_hours}h` : undefined,
       durationDays: apiSession.total_days || undefined,
-      image: apiSession.course?.image_url
+      image: apiSession.image_url || apiSession.course?.image_url,
+      // Override indicators
+      titleInherited,
+      descriptionInherited,
+      priceInherited,
+      // Reference code
+      referenceCode: apiData.reference_code,
+      // Description and price (with override support)
+      description: apiSession.description || apiData.course?.description,
+      priceHT: apiSession.pricing?.effective_price 
+        ? parseFloat(apiSession.pricing.effective_price) 
+        : apiData.pricing?.price_ht
     };
   };
 
@@ -148,41 +289,67 @@ export const SessionViewPage: React.FC = () => {
 
   // Transform API slots to component format
   const transformSlots = (apiSlots: APISessionSlot[], slotParticipants: SessionParticipant[]): SessionSlot[] => {
-    return apiSlots.map((s, index) => {
+    console.log('Transforming slots:', apiSlots);
+    
+    return apiSlots.map((s: any, index) => {
       const getSlotStatus = (): SessionSlot['status'] => {
-        if (s.status === 'completed') return 'effectuée';
-        if (s.status === 'in_progress') return 'en_cours';
-        if (s.status === 'cancelled') return 'terminée';
+        const status = s.status?.toLowerCase();
+        if (status === 'completed') return 'effectuée';
+        if (status === 'in_progress') return 'en_cours';
+        if (status === 'cancelled') return 'terminée';
+        if (status === 'scheduled') return 'à_venir';
         return 'à_venir';
       };
 
       const getSlotMode = (): SessionSlot['mode'] => {
-        const type = s.instance_type;
+        const type = s.instance_type?.toLowerCase();
         if (type === 'presentiel') return 'présentiel';
         if (type === 'distanciel') return 'distanciel';
         if (type === 'e-learning') return 'e-learning';
-        return 'hybride';
+        if (type === 'hybrid') return 'hybride';
+        return 'présentiel';
       };
 
-      // Default attendance - in real app this would come from API
+      // Default attendance - will be loaded from API when slot is expanded
       const totalParticipants = slotParticipants.length;
 
       return {
         uuid: s.uuid,
         slotNumber: index + 1,
+        title: s.title || `Séance ${index + 1}`,
+        description: s.description,
+        // Date formats - handle both API formats
         date: formatDate(s.start_date),
+        start_date: s.start_date,
         startTime: s.start_time || '09:00',
+        start_time: s.start_time,
         endTime: s.end_time || '17:00',
+        end_time: s.end_time,
         status: getSlotStatus(),
         mode: getSlotMode(),
+        instance_type: s.instance_type,
+        // Location info
         location: s.location_room,
+        location_room: s.location_room,
+        location_address: s.location_address,
+        location_city: s.location_city,
+        address: s.location_address ? `${s.location_address}${s.location_city ? ', ' + s.location_city : ''}` : null,
+        // Online info
+        meeting_link: s.meeting_link,
+        platform_type: s.platform_type,
+        // Trainer info
+        trainer_uuids: s.trainer_uuids || [],
+        trainers: s.trainers || [],
+        // Attendance placeholders
         attendance: {
           morning: { present: 0, total: totalParticipants, percentage: 0 },
           afternoon: { present: 0, total: totalParticipants, percentage: 0 }
         },
+        // Map participants for this slot
         participants: slotParticipants.map(p => ({
           uuid: p.uuid,
           name: p.name,
+          email: p.email,
           morningPresent: false,
           afternoonPresent: false
         }))
@@ -224,6 +391,26 @@ export const SessionViewPage: React.FC = () => {
       console.log('Session loaded:', apiSession);
       setRawSession(apiSession);
       setSession(transformSession(apiSession));
+
+      // Extract workflow actions from session if available (override)
+      const apiData = apiSession as any;
+      if (apiData.effective_workflow_actions && Array.isArray(apiData.effective_workflow_actions)) {
+        const transformedWorkflowActions = apiData.effective_workflow_actions.map((action: any) => ({
+          uuid: action.uuid,
+          type: action.action_type || action.type,
+          target_type: action.target_type || action.targetType,
+          target: action.target || action.target_uuid,
+          status: action.status || 'pending',
+          scheduled_for: action.scheduled_for || action.scheduledFor,
+          executed_at: action.executed_at || action.executedAt,
+          options: action.options || {},
+          questionnaires: action.questionnaires || [],
+          attachments: action.attachments || []
+        }));
+        setWorkflowActions(transformedWorkflowActions);
+      } else {
+        setWorkflowActions([]);
+      }
 
       // Extract trainers from session (or from course if not in session)
       let sessionTrainers: SessionTrainer[] = [];
@@ -286,24 +473,49 @@ export const SessionViewPage: React.FC = () => {
         setParticipants([]);
       }
 
-      // 3. Load slots
+      // 3. Load slots (séances)
       try {
+        console.log('Loading slots for session:', sessionUuid);
         const slotsResponse = await courseSessionService.getSlots(sessionUuid);
+        console.log('Slots API response:', slotsResponse);
+        
         if (slotsResponse.success && slotsResponse.data) {
-          // API returns { data: { session: {...}, slots: [...] } }
-          const slotsData = (slotsResponse.data as any).slots || slotsResponse.data;
+          // API returns { data: { session: {...}, slots: [...] } } or { data: [...] }
+          const responseData = slotsResponse.data as any;
+          const slotsData = responseData.slots || responseData;
           const slotsList = Array.isArray(slotsData) ? slotsData : [];
+          
+          console.log('Slots loaded:', slotsList.length, 'slots');
           
           setSlots(transformSlots(slotsList, loadedParticipants));
         }
       } catch (err) {
-        console.warn('Impossible de charger les séances:', err);
-        // Use slots from session if available
+        console.warn('Impossible de charger les séances via API dédiée:', err);
+        // Fallback: Use slots from session response if available
         if (apiSession.slots && apiSession.slots.length > 0) {
+          console.log('Using slots from session response:', apiSession.slots.length, 'slots');
           setSlots(transformSlots(apiSession.slots, loadedParticipants));
         } else {
+          console.log('No slots found');
           setSlots([]);
         }
+      }
+
+      // 4. Load session statistics
+      try {
+        const statsResponse = await courseSessionService.getSessionStatistics(sessionUuid);
+        if (statsResponse.success && statsResponse.data) {
+          const stats = statsResponse.data as any;
+          setSessionStats({
+            tauxRecommandation: stats.taux_recommandation_global || stats.tauxRecommandation || 0,
+            dureeMoyenneConnexion: stats.duree_moyenne_connexion_global || stats.dureeMoyenneConnexion || '-',
+            tauxAssiduite: stats.taux_assiduite_global || stats.tauxAssiduite || 0,
+            presenceHistory: stats.presence_history || stats.presenceHistory || []
+          });
+        }
+      } catch (err) {
+        console.warn('Impossible de charger les statistiques:', err);
+        // Keep default values
       }
 
     } catch (err: any) {
@@ -464,8 +676,8 @@ export const SessionViewPage: React.FC = () => {
 
   // Participants view
   if (viewMode === 'participants') {
-    return (
-      <DashboardLayout>
+  return (
+    <DashboardLayout>
         <div className="mb-4 px-6 pt-4">
           <Button variant="ghost" onClick={() => setViewMode('dashboard')} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
@@ -567,9 +779,28 @@ export const SessionViewPage: React.FC = () => {
         <div className="p-6">
           {/* En-tête de la session */}
           <div className="text-center mb-8">
+            {/* Session Title - shows override if set */}
             <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-[#0095A8]'}`}>
-              {session.courseTitle}
+              {session.title}
             </h1>
+            
+            {/* Show course title if different (i.e., session has custom title) */}
+            {session.title !== session.courseTitle && (
+              <p className="text-sm text-gray-500 mt-1">
+                Cours : {session.courseTitle}
+                <Badge className="ml-2 bg-orange-100 text-orange-600 border-0 text-xs">
+                  Titre personnalisé
+                </Badge>
+              </p>
+            )}
+            
+            {/* Reference code if available */}
+            {(session as any).referenceCode && (
+              <p className="text-xs text-gray-400 mt-1">
+                Réf: {(session as any).referenceCode}
+              </p>
+            )}
+            
             <div className="flex items-center justify-center gap-4 mt-2">
               <span className="text-sm text-gray-500">Session :</span>
               <Badge className="bg-green-100 text-green-700 border-0">
@@ -585,45 +816,73 @@ export const SessionViewPage: React.FC = () => {
             </div>
           </div>
 
-          {/* KPIs globaux */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* KPIs globaux - Exact Figma Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            {/* 1. Nombres d'apprenants */}
             <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
                   <Users className="w-4 h-4 text-green-600" />
                 </div>
-                <span className="text-sm text-gray-500">Nombres d'apprenants</span>
+                <span className="text-sm text-gray-500">Nombres D'apprenants</span>
               </div>
-              <p className="text-3xl font-bold text-green-500">{participants.length}</p>
+              <p className="text-4xl font-bold text-green-500">{participants.length}</p>
             </div>
+            
+            {/* 2. Taux De Recommandation avec cercle */}
             <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
                   <Star className="w-4 h-4 text-orange-500" />
                 </div>
                 <span className="text-sm text-gray-500">Taux De Recommandation</span>
               </div>
-              <div className="w-20 h-20 mx-auto">
-                <CircularProgress value={0} color="#f97316" bgColor="#ffedd5" />
+              <div className="flex justify-center">
+                <CircularProgress value={sessionStats.tauxRecommandation} color="#f97316" bgColor="#fff3e0" size={90} />
               </div>
             </div>
-            <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+            
+            {/* 3. Durée Moyenne De Connexion avec graphique */}
+            <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'} relative`}>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                  <Clock className="w-4 h-4 text-cyan-600" />
+                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-green-600" />
                 </div>
                 <span className="text-sm text-gray-500">Durée Moyenne De Connexion</span>
+                <button className="ml-auto text-gray-400 hover:text-gray-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <path strokeWidth="2" d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </button>
               </div>
-              <p className="text-3xl font-bold text-cyan-500">-</p>
+              <p className="text-3xl font-bold text-green-500 mb-3">{sessionStats.dureeMoyenneConnexion}</p>
+              {sessionStats.presenceHistory.length > 0 ? (
+                <LineChartSmall data={sessionStats.presenceHistory} color="#22c55e" height={70} />
+              ) : (
+                <div className="h-[70px] flex items-center justify-center text-gray-400 text-sm bg-gray-50 rounded-xl">
+                  Données non disponibles
+                </div>
+              )}
             </div>
-            <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+            
+            {/* 4. Taux D'assiduité avec gauge */}
+            <div className={`p-4 rounded-2xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-sm border ${isDark ? 'border-gray-700' : 'border-gray-100'} relative`}>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                   <ThumbsUp className="w-4 h-4 text-blue-600" />
                 </div>
                 <span className="text-sm text-gray-500">Taux D'assiduité</span>
+                <button className="ml-auto text-gray-400 hover:text-gray-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                    <path strokeWidth="2" d="M12 16v-4M12 8h.01" />
+                  </svg>
+                </button>
               </div>
-              <p className="text-3xl font-bold text-blue-500">0%</p>
+              <div className="flex justify-center">
+                <GaugeChart value={sessionStats.tauxAssiduite} size={130} />
+              </div>
             </div>
           </div>
 
@@ -633,8 +892,10 @@ export const SessionViewPage: React.FC = () => {
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-4">
                 <Input 
-                  placeholder="Recherche Apprenants" 
+                  placeholder={dashboardViewType === 'apprenant' ? "Recherche Apprenants" : "Recherche Formateurs"}
                   className="w-64"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <Button variant="outline" className="gap-2">
                   <Filter className="w-4 h-4" />
@@ -684,8 +945,20 @@ export const SessionViewPage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y">
                   {dashboardViewType === 'apprenant' ? (
-                    participants.length > 0 ? (
-                      participants.map((p) => (
+                    (() => {
+                      const filteredParticipants = participants.filter(p => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          (p.name && p.name.toLowerCase().includes(query)) ||
+                          (p.email && p.email.toLowerCase().includes(query)) ||
+                          (p.phone && p.phone.toLowerCase().includes(query)) ||
+                          (p.company && p.company.toLowerCase().includes(query)) ||
+                          (p.companyName && p.companyName.toLowerCase().includes(query))
+                        );
+                      });
+                      return filteredParticipants.length > 0 ? (
+                      filteredParticipants.map((p) => (
                         <tr 
                           key={p.uuid}
                           onClick={() => {
@@ -744,13 +1017,23 @@ export const SessionViewPage: React.FC = () => {
                     ) : (
                       <tr>
                         <td colSpan={9} className="p-8 text-center text-gray-500">
-                          Aucun participant inscrit
+                          {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun participant inscrit'}
                         </td>
                       </tr>
-                    )
+                    );
+                    })()
                   ) : (
-                    trainers.length > 0 ? (
-                      trainers.map((t) => (
+                    (() => {
+                      const filteredTrainers = trainers.filter(t => {
+                        if (!searchQuery) return true;
+                        const query = searchQuery.toLowerCase();
+                        return (
+                          (t.name && t.name.toLowerCase().includes(query)) ||
+                          (t.email && t.email.toLowerCase().includes(query))
+                        );
+                      });
+                      return filteredTrainers.length > 0 ? (
+                      filteredTrainers.map((t) => (
                         <tr 
                           key={t.uuid}
                           onClick={() => {
@@ -788,10 +1071,11 @@ export const SessionViewPage: React.FC = () => {
                     ) : (
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-gray-500">
-                          Aucun formateur assigné
+                          {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun formateur assigné'}
                         </td>
                       </tr>
-                    )
+                    );
+                    })()
                   )}
                 </tbody>
               </table>
@@ -805,10 +1089,14 @@ export const SessionViewPage: React.FC = () => {
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}
         session={session}
+        sessionUuid={sessionUuid}
         slots={slots}
+        trainers={trainers}
+        workflowActions={workflowActions}
         onShowQRCode={handleShowQRCode}
         onShowAttendanceCode={handleShowAttendanceCode}
         onEditAttendance={handleEditAttendance}
+        onRefresh={loadSessionData}
         onNavigateToEvaluation={() => {
           setShowDetailsModal(false);
           setViewMode('dashboard');
