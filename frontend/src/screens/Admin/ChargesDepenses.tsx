@@ -445,7 +445,7 @@ export const ChargesDepenses = (): JSX.Element => {
   useEffect(() => {
     fetchCharges();
     fetchDashboardStats();
-  }, [page, selectedCategory, searchTerm, sortField, sortDirection]);
+  }, [page, selectedCategory, searchTerm]);
 
   const fetchDashboardStats = async () => {
     try {
