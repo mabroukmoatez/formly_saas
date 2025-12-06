@@ -1460,9 +1460,8 @@ export const ChargesDepenses = (): JSX.Element => {
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (charge.documents && charge.documents.length > 0) {
-                                  handleDownloadDocument(charge.documents[0]);
-                                }
+                                setSelectedCharge(charge);
+                                setIsEditModalOpen(true);
                               }}
                               title={`Cliquer pour télécharger${docCount > 1 ? ` (${docCount} fichiers)` : ''}`}
                             >
@@ -1480,9 +1479,8 @@ export const ChargesDepenses = (): JSX.Element => {
                                 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (charge.documents && charge.documents.length > 0) {
-                                    handleDownloadDocument(charge.documents[0]);
-                                  }
+                                  setSelectedCharge(charge);
+                                  setIsEditModalOpen(true);
                                 }}
                                 title={`Voir les ${docCount} fichiers`}
                               >
