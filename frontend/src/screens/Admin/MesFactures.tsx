@@ -63,6 +63,7 @@ export const MesFactures = (): JSX.Element => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -911,7 +912,22 @@ export const MesFactures = (): JSX.Element => {
                   return (
                     <TableRow
                       key={String(invoice.id)}
-                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-blue-50' : ''}`}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-blue-50' : ''} cursor-pointer`}
+                      onClick={(e) => {
+                        // Don't open modal if clicking on checkbox, action buttons, or status badge
+                        const target = e.target as HTMLElement;
+                        if (
+                          target.closest('button') ||
+                          target.closest('[role="checkbox"]') ||
+                          target.type === 'checkbox' ||
+                          target.closest('.status-badge')
+                        ) {
+                          return;
+                        }
+                        // Open import modal in edit mode
+                        setEditingInvoice(invoice);
+                        setIsImportModalOpen(true);
+                      }}
                     >
                       <TableCell className="px-4 py-4">
                         <Checkbox
@@ -951,8 +967,8 @@ export const MesFactures = (): JSX.Element => {
                           {formatCurrency(invoice.total_ttc || invoice.total_amount)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-4 py-4 text-center">
-                        <Badge className={`${statusColors.bg} ${statusColors.text} rounded-full px-3 py-1 font-medium text-sm`}>
+                      <TableCell className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Badge className={`status-badge ${statusColors.bg} ${statusColors.text} rounded-full px-3 py-1 font-medium text-sm`}>
                           {getStatusLabel(invoice.status)}
                         </Badge>
                       </TableCell>
@@ -1284,15 +1300,26 @@ export const MesFactures = (): JSX.Element => {
       {/* Invoice Import Modal */}
       <InvoiceImportModal
         isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          setEditingInvoice(null);
+        }}
         onSuccess={(extractedData) => {
-          // Navigate to invoice creation page with pre-filled data
-          if (subdomain) {
-            navigate(`/${subdomain}/invoice-creation`, { state: { prefillData: extractedData } });
+          if (editingInvoice) {
+            // Edit mode: Just refresh the list
+            setIsImportModalOpen(false);
+            setEditingInvoice(null);
+            fetchInvoices();
           } else {
-            navigate('/invoice-creation', { state: { prefillData: extractedData } });
+            // Create mode: Navigate to invoice creation page with pre-filled data
+            if (subdomain) {
+              navigate(`/${subdomain}/invoice-creation`, { state: { prefillData: extractedData } });
+            } else {
+              navigate('/invoice-creation', { state: { prefillData: extractedData } });
+            }
           }
         }}
+        invoice={editingInvoice}
       />
 
       {/* Email Modal for Relance */}

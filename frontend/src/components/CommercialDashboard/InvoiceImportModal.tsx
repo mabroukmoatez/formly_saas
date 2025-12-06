@@ -1,9 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
+import { Invoice } from '../../services/commercial.types';
 import { extractDocumentData } from '../../services/ocrService';
 import { mapExtractedDataToForm } from '../../utils/dataMapper';
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2, X, FileUp } from 'lucide-react';
@@ -12,6 +14,18 @@ interface InvoiceImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (extractedData: any) => void;
+  invoice?: Invoice | null; // Optional invoice for edit mode
+}
+
+interface InvoiceFormData {
+  invoice_number: string;
+  issue_date: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  total_ht: string;
+  total_tva: string;
+  total_ttc: string;
 }
 
 type ProcessingStatus = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
@@ -20,11 +34,14 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  invoice,
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { success: showSuccess, error: showError } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
+
+  const isEditMode = !!invoice;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [status, setStatus] = useState<ProcessingStatus>('idle');
@@ -32,6 +49,48 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
   const [extractedData, setExtractedData] = useState<any>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState<InvoiceFormData>({
+    invoice_number: '',
+    issue_date: '',
+    client_name: '',
+    client_email: '',
+    client_phone: '',
+    total_ht: '',
+    total_tva: '',
+    total_ttc: '',
+  });
+
+  // Pre-fill form when invoice is provided (edit mode)
+  useEffect(() => {
+    if (invoice) {
+      setFormData({
+        invoice_number: invoice.invoice_number || '',
+        issue_date: invoice.issue_date || '',
+        client_name: invoice.client?.company_name || invoice.client?.first_name && invoice.client?.last_name
+          ? `${invoice.client.first_name} ${invoice.client.last_name}`.trim()
+          : invoice.client_name || '',
+        client_email: invoice.client?.email || invoice.client_email || '',
+        client_phone: invoice.client?.phone || invoice.client_phone || '',
+        total_ht: invoice.total_ht?.toString() || '',
+        total_tva: invoice.total_tva?.toString() || '',
+        total_ttc: invoice.total_ttc?.toString() || invoice.total_amount?.toString() || '',
+      });
+      setStatus('idle');
+    } else {
+      // Reset form when not in edit mode
+      setFormData({
+        invoice_number: '',
+        issue_date: '',
+        client_name: '',
+        client_email: '',
+        client_phone: '',
+        total_ht: '',
+        total_tva: '',
+        total_ttc: '',
+      });
+    }
+  }, [invoice]);
 
   const handleFileSelection = useCallback((file: File) => {
     // Validate file type
@@ -143,6 +202,45 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
     }
   };
 
+  const handleInputChange = (field: keyof InvoiceFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!formData.invoice_number || !formData.issue_date || !formData.client_name || !formData.total_ttc) {
+      showError('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isEditMode && invoice) {
+        // Edit mode: Update existing invoice
+        const updateData = {
+          invoice_number: formData.invoice_number,
+          issue_date: formData.issue_date,
+          client_name: formData.client_name,
+          client_email: formData.client_email || '',
+          client_phone: formData.client_phone || '',
+          total_ht: parseFloat(formData.total_ht) || 0,
+          total_tva: parseFloat(formData.total_tva) || 0,
+          total_ttc: parseFloat(formData.total_ttc),
+        };
+
+        await commercialService.updateInvoice(invoice.id, updateData);
+        showSuccess('Succès', 'Facture modifiée avec succès');
+        onSuccess(updateData);
+        handleClose();
+      }
+    } catch (err: any) {
+      console.error('Error saving invoice:', err);
+      showError('Erreur', err.response?.data?.message || 'Impossible de modifier la facture');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleClose = () => {
     setSelectedFile(null);
     setStatus('idle');
@@ -153,6 +251,146 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
   };
 
   const renderContent = () => {
+    // If in edit mode, show editable form
+    if (isEditMode) {
+      return (
+        <div className="space-y-6">
+          {/* Form Fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                N° Facture <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={formData.invoice_number}
+                onChange={(e) => handleInputChange('invoice_number', e.target.value)}
+                placeholder="FAC-2024-001"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Date d'émission <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={formData.issue_date}
+                onChange={(e) => handleInputChange('issue_date', e.target.value)}
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Nom du client <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={formData.client_name}
+                onChange={(e) => handleInputChange('client_name', e.target.value)}
+                placeholder="Nom de l'entreprise ou du particulier"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Email du client
+              </label>
+              <Input
+                type="email"
+                value={formData.client_email}
+                onChange={(e) => handleInputChange('client_email', e.target.value)}
+                placeholder="client@example.com"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Téléphone du client
+              </label>
+              <Input
+                type="tel"
+                value={formData.client_phone}
+                onChange={(e) => handleInputChange('client_phone', e.target.value)}
+                placeholder="+33 6 00 00 00 00"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Montant HT (€)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.total_ht}
+                onChange={(e) => handleInputChange('total_ht', e.target.value)}
+                placeholder="0.00"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div>
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Montant TVA (€)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.total_tva}
+                onChange={(e) => handleInputChange('total_tva', e.target.value)}
+                placeholder="0.00"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className={`block text-sm font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Montant TTC (€) <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.total_ttc}
+                onChange={(e) => handleInputChange('total_ttc', e.target.value)}
+                placeholder="0.00"
+                className={`${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              className="flex-1"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="flex-1"
+              style={{ backgroundColor: primaryColor }}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Modification en cours...
+                </>
+              ) : (
+                'Enregistrer les modifications'
+              )}
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     switch (status) {
       case 'idle':
         return (
@@ -448,10 +686,10 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
             </div>
             <div>
               <h2 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Importer une facture
+                {isEditMode ? 'Modifier la facture' : 'Importer une facture'}
               </h2>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Extraction automatique des données par OCR
+                {isEditMode ? 'Modifiez les informations de la facture' : 'Extraction automatique des données par OCR'}
               </p>
             </div>
           </div>

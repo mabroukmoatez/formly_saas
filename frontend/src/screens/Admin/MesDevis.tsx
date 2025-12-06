@@ -62,6 +62,7 @@ export const MesDevis = (): JSX.Element => {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -1023,20 +1024,19 @@ export const MesDevis = (): JSX.Element => {
                       key={String(quote.id)}
                       className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedQuotes.has(String(quote.id)) ? 'bg-blue-50' : ''} cursor-pointer`}
                       onClick={(e) => {
-                        // Don't navigate if clicking on checkbox or action buttons
+                        // Don't open modal if clicking on checkbox, action buttons, or status badge
                         const target = e.target as HTMLElement;
                         if (
                           target.closest('button') ||
                           target.closest('[role="checkbox"]') ||
-                          target.type === 'checkbox'
+                          target.type === 'checkbox' ||
+                          target.closest('.status-badge')
                         ) {
                           return;
                         }
-                        if (subdomain) {
-                          navigate(`/${subdomain}/quote-view/${quote.id}`);
-                        } else {
-                          navigate(`/quote-view/${quote.id}`);
-                        }
+                        // Open import modal in edit mode
+                        setEditingQuote(quote);
+                        setIsImportModalOpen(true);
                       }}
                     >
                       <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
@@ -1081,7 +1081,7 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <Badge
                             onClick={(e) => handleStatusClick(quote, e)}
-                            className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                            className={`status-badge rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
                             style={{
                               backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
                               color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
@@ -1225,12 +1225,17 @@ export const MesDevis = (): JSX.Element => {
       {/* Quote Import Modal */}
       <QuoteImportModal
         isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
+        onClose={() => {
+          setIsImportModalOpen(false);
+          setEditingQuote(null);
+        }}
         onSuccess={() => {
           // Refresh the quotes list after successful import
           setIsImportModalOpen(false);
+          setEditingQuote(null);
           fetchQuotes();
         }}
+        quote={editingQuote}
       />
 
       {/* Filter Modal */}
