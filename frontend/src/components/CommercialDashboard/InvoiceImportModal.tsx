@@ -187,6 +187,7 @@ export const InvoiceImportModal: React.FC<InvoiceImportModalProps> = ({
           total_tva: parseFloat(formData.total_tva) || 0,
           total_ttc: parseFloat(formData.total_ttc),
           status: 'draft',
+          is_imported: 1,
           items: [{
             designation: 'Facture importée - Voir PDF joint',
             description: `Facture importée depuis le fichier: ${selectedFile?.name}`,

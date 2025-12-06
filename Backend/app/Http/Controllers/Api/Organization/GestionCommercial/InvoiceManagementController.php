@@ -345,6 +345,7 @@ class InvoiceManagementController extends Controller
                 'payment_schedule_text' => $request->payment_schedule_text,
                 'notes' => $request->notes,
                 'terms' => $request->terms,
+                'is_imported' => $request->is_imported ?? 0,
             ]);
 
             foreach ($request->items as $itemData) {
@@ -487,6 +488,7 @@ class InvoiceManagementController extends Controller
                     'payment_schedule_text' => $request->payment_schedule_text ?? $invoice->payment_schedule_text,
                     'notes' => $request->notes ?? $invoice->notes,
                     'terms' => $request->terms ?? $invoice->terms,
+                    'is_imported' => $request->is_imported ?? $invoice->is_imported,
                 ]);
 
                 // Delete old items and create new ones
@@ -522,6 +524,7 @@ class InvoiceManagementController extends Controller
                 'payment_schedule_text' => $request->payment_schedule_text ?? $invoice->payment_schedule_text,
                 'notes' => $request->notes ?? $invoice->notes,
                 'terms' => $request->terms ?? $invoice->terms,
+                'is_imported' => $request->is_imported ?? $invoice->is_imported,
             ]);
 
             return $this->success(['invoice' => $invoice->fresh()->load('client', 'items')], 'Invoice updated successfully.');

@@ -187,6 +187,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
           total_tva: parseFloat(formData.total_tva) || 0,
           total_ttc: parseFloat(formData.total_ttc),
           status: 'draft',
+          is_imported: 1,
           items: [{
             designation: 'Devis importé - Voir PDF joint',
             description: `Devis importé depuis le fichier: ${selectedFile?.name}`,

@@ -309,6 +309,7 @@ class QuoteManagementController extends Controller
                 'payment_conditions' => $request->payment_conditions,
                 'notes' => $request->notes,
                 'terms' => $request->terms,
+                'is_imported' => $request->is_imported ?? 0,
             ]);
 
             foreach ($request->items as $itemData) {
@@ -404,6 +405,7 @@ class QuoteManagementController extends Controller
                 'payment_conditions' => $request->payment_conditions ?? $quote->payment_conditions,
                 'notes' => $request->notes ?? $quote->notes,
                 'terms' => $request->terms ?? $quote->terms,
+                'is_imported' => $request->is_imported ?? $quote->is_imported,
             ]);
 
             // Delete and recreate items

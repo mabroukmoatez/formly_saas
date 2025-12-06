@@ -1035,11 +1035,8 @@ export const MesDevis = (): JSX.Element => {
                           return;
                         }
 
-                        // Check if this is an imported quote (has "Devis importé" in items)
-                        const isImported = quote.items?.some(item =>
-                          item.designation?.includes('Devis importé') ||
-                          item.description?.includes('Devis importé depuis le fichier')
-                        );
+                        // Check if this is an imported quote using is_imported field
+                        const isImported = quote.is_imported === 1 || quote.is_imported === true;
 
                         if (isImported) {
                           // Imported quote: Open import modal in edit mode
@@ -1125,11 +1122,8 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
-                              // Check if this is an imported quote
-                              const isImported = quote.items?.some(item =>
-                                item.designation?.includes('Devis importé') ||
-                                item.description?.includes('Devis importé depuis le fichier')
-                              );
+                              // Check if this is an imported quote using is_imported field
+                              const isImported = quote.is_imported === 1 || quote.is_imported === true;
 
                               if (isImported) {
                                 // Imported quote: Open import modal in edit mode

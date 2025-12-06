@@ -925,11 +925,8 @@ export const MesFactures = (): JSX.Element => {
                           return;
                         }
 
-                        // Check if this is an imported invoice (has "Facture importée" in items)
-                        const isImported = invoice.items?.some(item =>
-                          item.designation?.includes('Facture importée') ||
-                          item.description?.includes('Facture importée depuis le fichier')
-                        );
+                        // Check if this is an imported invoice using is_imported field
+                        const isImported = invoice.is_imported === 1 || invoice.is_imported === true;
 
                         if (isImported) {
                           // Imported invoice: Open import modal in edit mode
@@ -992,11 +989,8 @@ export const MesFactures = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
-                              // Check if this is an imported invoice
-                              const isImported = invoice.items?.some(item =>
-                                item.designation?.includes('Facture importée') ||
-                                item.description?.includes('Facture importée depuis le fichier')
-                              );
+                              // Check if this is an imported invoice using is_imported field
+                              const isImported = invoice.is_imported === 1 || invoice.is_imported === true;
 
                               if (isImported) {
                                 // Imported invoice: Open import modal in edit mode
