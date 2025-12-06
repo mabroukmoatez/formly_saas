@@ -1,16 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
+import { Quote } from '../../services/commercial.types';
 import { Upload, FileText, X, FileUp, Calendar, Loader2 } from 'lucide-react';
 
 interface QuoteImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  quote?: Quote | null; // Optional quote for edit mode
 }
 
 interface QuoteFormData {
@@ -28,11 +30,14 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  quote,
 }) => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { success: showSuccess, error: showError } = useToast();
   const primaryColor = organization?.primary_color || '#007aff';
+
+  const isEditMode = !!quote;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -47,6 +52,36 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
     total_tva: '',
     total_ttc: '',
   });
+
+  // Pre-fill form when quote is provided (edit mode)
+  useEffect(() => {
+    if (quote) {
+      setFormData({
+        quote_number: quote.quote_number || '',
+        issue_date: quote.issue_date || '',
+        client_name: quote.client?.company_name || quote.client?.first_name && quote.client?.last_name
+          ? `${quote.client.first_name} ${quote.client.last_name}`.trim()
+          : quote.client_name || '',
+        client_email: quote.client?.email || quote.client_email || '',
+        client_phone: quote.client?.phone || quote.client_phone || '',
+        total_ht: quote.total_ht?.toString() || '',
+        total_tva: quote.total_tva?.toString() || '',
+        total_ttc: quote.total_ttc?.toString() || quote.total_amount?.toString() || '',
+      });
+    } else {
+      // Reset form when not in edit mode
+      setFormData({
+        quote_number: '',
+        issue_date: '',
+        client_name: '',
+        client_email: '',
+        client_phone: '',
+        total_ht: '',
+        total_tva: '',
+        total_ttc: '',
+      });
+    }
+  }, [quote]);
 
   const handleFileSelection = useCallback((file: File) => {
     // Validate file type - Only PDF
@@ -102,7 +137,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!selectedFile) {
+    if (!isEditMode && !selectedFile) {
       showError('Erreur', 'Veuillez sélectionner un fichier PDF');
       return;
     }
@@ -114,43 +149,62 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
 
     setSaving(true);
     try {
-      // Calculate valid_until date (30 days from issue_date)
-      const issueDate = new Date(formData.issue_date);
-      const validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-      const validUntilStr = validUntil.toISOString().split('T')[0];
+      if (isEditMode && quote) {
+        // Edit mode: Update existing quote
+        const updateData = {
+          quote_number: formData.quote_number,
+          issue_date: formData.issue_date,
+          client_name: formData.client_name,
+          client_email: formData.client_email || '',
+          client_phone: formData.client_phone || '',
+          total_ht: parseFloat(formData.total_ht) || 0,
+          total_tva: parseFloat(formData.total_tva) || 0,
+          total_ttc: parseFloat(formData.total_ttc),
+        };
 
-      // Calculate tax rate from TVA and HT amounts
-      const totalHt = parseFloat(formData.total_ht) || 0;
-      const totalTva = parseFloat(formData.total_tva) || 0;
-      const taxRate = totalHt > 0 ? (totalTva / totalHt) * 100 : 20;
+        await commercialService.updateQuote(quote.id, updateData);
+        showSuccess('Succès', 'Devis modifié avec succès');
+      } else {
+        // Create mode: Create new quote
+        // Calculate valid_until date (30 days from issue_date)
+        const issueDate = new Date(formData.issue_date);
+        const validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const validUntilStr = validUntil.toISOString().split('T')[0];
 
-      const quoteData = {
-        quote_number: formData.quote_number,
-        issue_date: formData.issue_date,
-        valid_until: validUntilStr,
-        client_name: formData.client_name,
-        client_email: formData.client_email || '',
-        client_phone: formData.client_phone || '',
-        total_ht: parseFloat(formData.total_ht) || 0,
-        total_tva: parseFloat(formData.total_tva) || 0,
-        total_ttc: parseFloat(formData.total_ttc),
-        status: 'draft',
-        items: [{
-          designation: 'Devis importé - Voir PDF joint',
-          description: `Devis importé depuis le fichier: ${selectedFile.name}`,
-          quantity: 1,
-          price_ht: totalHt,
-          tva_rate: taxRate,
-        }],
-      };
+        // Calculate tax rate from TVA and HT amounts
+        const totalHt = parseFloat(formData.total_ht) || 0;
+        const totalTva = parseFloat(formData.total_tva) || 0;
+        const taxRate = totalHt > 0 ? (totalTva / totalHt) * 100 : 20;
 
-      await commercialService.createQuote(quoteData);
-      showSuccess('Succès', 'Devis importé avec succès');
+        const quoteData = {
+          quote_number: formData.quote_number,
+          issue_date: formData.issue_date,
+          valid_until: validUntilStr,
+          client_name: formData.client_name,
+          client_email: formData.client_email || '',
+          client_phone: formData.client_phone || '',
+          total_ht: parseFloat(formData.total_ht) || 0,
+          total_tva: parseFloat(formData.total_tva) || 0,
+          total_ttc: parseFloat(formData.total_ttc),
+          status: 'draft',
+          items: [{
+            designation: 'Devis importé - Voir PDF joint',
+            description: `Devis importé depuis le fichier: ${selectedFile?.name}`,
+            quantity: 1,
+            price_ht: totalHt,
+            tva_rate: taxRate,
+          }],
+        };
+
+        await commercialService.createQuote(quoteData);
+        showSuccess('Succès', 'Devis importé avec succès');
+      }
+
       onSuccess();
       handleClose();
     } catch (err: any) {
-      console.error('Error creating quote:', err);
-      showError('Erreur', err.response?.data?.message || 'Impossible de créer le devis');
+      console.error('Error saving quote:', err);
+      showError('Erreur', err.response?.data?.message || `Impossible de ${isEditMode ? 'modifier' : 'créer'} le devis`);
     } finally {
       setSaving(false);
     }
@@ -188,10 +242,10 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
             </div>
             <div>
               <h2 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Importer un devis
+                {isEditMode ? 'Modifier le devis' : 'Importer un devis'}
               </h2>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Importez un PDF et renseignez les informations
+                {isEditMode ? 'Modifiez les informations du devis' : 'Importez un PDF et renseignez les informations'}
               </p>
             </div>
           </div>
@@ -209,7 +263,8 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
         {/* Content */}
         <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
           <div className="space-y-6">
-            {/* File Upload Area */}
+            {/* File Upload Area - Only show in create mode */}
+            {!isEditMode && (
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Fichier PDF <span className="text-red-500">*</span>
@@ -292,6 +347,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* Form Fields */}
             <div className="grid grid-cols-2 gap-4">
@@ -420,10 +476,10 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Importation en cours...
+                    {isEditMode ? 'Modification en cours...' : 'Importation en cours...'}
                   </>
                 ) : (
-                  'Importer le devis'
+                  isEditMode ? 'Enregistrer les modifications' : 'Importer le devis'
                 )}
               </Button>
             </div>
