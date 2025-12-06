@@ -85,6 +85,7 @@ class ItemManagementController extends Controller
 
         $price_ht = $request->price_ht;
         $tva_rate = $request->tva / 100;
+        $tva_amount = $price_ht * $tva_rate;
         $price_ttc = $price_ht * (1 + $tva_rate);
 
         $item = Item::create([
@@ -93,7 +94,7 @@ class ItemManagementController extends Controller
             'designation' => $request->designation,
             'category' => $request->category,
             'price_ht' => $price_ht,
-            'tva' => $request->tva,
+            'tva' => $tva_amount,
             'price_ttc' => $price_ttc,
         ]);
 
@@ -133,13 +134,14 @@ class ItemManagementController extends Controller
 
         $price_ht = $request->price_ht;
         $tva_rate = $request->tva / 100;
+        $tva_amount = $price_ht * $tva_rate;
         $price_ttc = $price_ht * (1 + $tva_rate);
 
         $item->update([
             'designation' => $request->designation,
             'category' => $request->category,
             'price_ht' => $price_ht,
-            'tva' => $request->tva,
+            'tva' => $tva_amount,
             'price_ttc' => $price_ttc,
         ]);
 
