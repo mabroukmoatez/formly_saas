@@ -182,13 +182,15 @@ export const MesDevis = (): JSX.Element => {
         client_type: filterType || undefined,
       });
       if (response.success && response.data) {
-        const quotesData = response.data.quotes?.data || response.data.data || [];
+        // Backend returns paginated data directly in response.data
+        const quotesData = response.data.data || [];
         setQuotes(quotesData);
-        
-        const paginationData = response.data.quotes || response.data.pagination || {};
+
+        // Pagination metadata is in response.data, not response.data.quotes
+        const paginationData = response.data;
         setPagination({
-          total: paginationData.total || paginationData.total || 0,
-          total_pages: paginationData.last_page || paginationData.total_pages || 0,
+          total: paginationData.total || 0,
+          total_pages: paginationData.last_page || 0,
         });
       }
     } catch (err) {
