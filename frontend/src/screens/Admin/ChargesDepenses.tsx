@@ -1397,21 +1397,10 @@ export const ChargesDepenses = (): JSX.Element => {
                     Pièce jointe
                   </TableHead>
                   <TableHead
-                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] cursor-pointer hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
-                    onClick={() => handleSort('formation')}
+                    className={`text-left font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] hover:bg-gray-50 ${isDark ? 'hover:bg-gray-700' : ''} px-4 py-3 select-none`}
+                    
                   >
-                    <div className="flex items-center gap-2">
                       Formation liée
-                      {sortField === 'formation' ? (
-                        sortDirection === 'asc' ? (
-                          <ChevronUp className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 opacity-100" style={{ color: primaryColor }} />
-                        )
-                      ) : (
-                        <ChevronDown className="w-4 h-4 opacity-30" />
-                      )}
-                    </div>
                   </TableHead>
                   <TableHead className={`text-center font-semibold ${isDark ? 'text-gray-300' : 'text-[#19294a]'} text-[15px] px-4 py-3`}>
                     Actions
