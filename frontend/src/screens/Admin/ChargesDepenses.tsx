@@ -797,7 +797,7 @@ export const ChargesDepenses = (): JSX.Element => {
 
   const getFirstDocumentName = (charge: Charge): string => {
     if (charge.documents && charge.documents.length > 0) {
-      return charge.documents[0].original_name || charge.documents[0].file_path.split('/').pop() || 'document.pdf';
+      return truncateFilename(charge.documents[0].original_name || charge.documents[0].file_path.split('/').pop() || 'document.pdf');
     }
     return '';
   };
@@ -1453,7 +1453,7 @@ export const ChargesDepenses = (): JSX.Element => {
                           <div className="flex items-center gap-2">
                             {/* Main document badge */}
                             <Badge
-                              className="rounded-full px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                              className="rounded-full w-max px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
                               style={{
                                 backgroundColor: '#E3F2FD',
                                 color: '#2196F3',
