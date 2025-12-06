@@ -54,8 +54,9 @@ export const QuoteViewContent: React.FC = () => {
   const [paymentOptions, setPaymentOptions] = useState<any>({});
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
-  // Status modification button removed per user request
   const [converting, setConverting] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -172,9 +173,9 @@ export const QuoteViewContent: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      draft: 'Brouillon',
+      draft: 'Créé',
       sent: 'Envoyé',
-      accepted: 'Accepté',
+      accepted: 'Signé',
       rejected: 'Refusé',
       expired: 'Expiré',
       cancelled: 'Annulé',
@@ -195,7 +196,40 @@ export const QuoteViewContent: React.FC = () => {
   };
 
   // Status list limited to: Créé (draft), Envoyé (sent), Signé (accepted) only
-  // Status modification removed - status now changes through specific actions only (send email, upload signed document, etc.)
+  const allowedStatuses = [
+    { value: 'draft', label: 'Créé' },
+    { value: 'sent', label: 'Envoyé' },
+    { value: 'accepted', label: 'Signé' },
+  ];
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id || !currentQuote) {
+      showError('Erreur', 'ID de devis manquant');
+      return;
+    }
+
+    if (newStatus === currentQuote.status) {
+      setShowStatusDropdown(false);
+      return;
+    }
+
+    setUpdatingStatus(true);
+    try {
+      const response = await commercialService.updateQuoteStatus(id, newStatus);
+      if (response.success && response.data) {
+        setCurrentQuote({ ...currentQuote, status: newStatus });
+        success('Statut mis à jour avec succès');
+      } else {
+        showError('Erreur', response.message || 'Impossible de mettre à jour le statut');
+      }
+    } catch (err: any) {
+      console.error('Status update error:', err);
+      showError('Erreur', err.message || 'Impossible de mettre à jour le statut');
+    } finally {
+      setUpdatingStatus(false);
+      setShowStatusDropdown(false);
+    }
+  };
 
   // Handle direct logo file selection (no modal)
   const handleLogoUpload = () => {
@@ -503,11 +537,56 @@ export const QuoteViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Display (read-only) */}
+          {/* Status Dropdown */}
           {currentQuote && (
-            <div className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] pointer-events-none`}>
-              <Check className="w-5 h-5" />
-              <span className="font-medium text-xs">{getStatusLabel(currentQuote.status)}</span>
+            <div className="relative">
+              <button
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                disabled={updatingStatus}
+                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] hover:opacity-80 transition-opacity`}
+              >
+                {updatingStatus ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Check className="w-5 h-5" />
+                )}
+                <span className="font-medium text-xs">{getStatusLabel(currentQuote.status)}</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+
+              {showStatusDropdown && (
+                <>
+                  {/* Backdrop to close dropdown */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowStatusDropdown(false)}
+                  />
+                  {/* Dropdown menu */}
+                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-20 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                    <div className="py-1">
+                      {allowedStatuses.map((status) => (
+                        <button
+                          key={status.value}
+                          onClick={() => handleStatusChange(status.value)}
+                          disabled={updatingStatus}
+                          className={`w-full text-left px-4 py-2 text-sm ${
+                            currentQuote.status === status.value
+                              ? isDark ? 'bg-gray-700 text-white font-medium' : 'bg-gray-100 text-gray-900 font-medium'
+                              : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
+                          } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {currentQuote.status === status.value && (
+                              <Check className="w-4 h-4" />
+                            )}
+                            <span>{status.label}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
