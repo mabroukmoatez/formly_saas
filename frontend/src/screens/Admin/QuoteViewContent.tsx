@@ -54,10 +54,9 @@ export const QuoteViewContent: React.FC = () => {
   const [paymentOptions, setPaymentOptions] = useState<any>({});
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  // Status modification button removed per user request
   const [converting, setConverting] = useState(false);
-  
+
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -188,99 +187,8 @@ export const QuoteViewContent: React.FC = () => {
     return colors[status] || colors.draft;
   };
 
-  const statuses = ['draft', 'sent', 'accepted', 'rejected', 'expired', 'cancelled'];
-
-  const handleStatusChange = async (newStatus: string) => {
-    if (!id || !currentQuote) return;
-    
-    setUpdatingStatus(true);
-    try {
-      // Include required fields from current invoice to avoid validation errors
-      const updateData: any = {
-        status: newStatus,
-      };
-      
-      // Include quote_number if available - required field
-      if (quoteNumber || currentQuote.quote_number) {
-        updateData.quote_number = quoteNumber || currentQuote.quote_number;
-      }
-      
-      // Include client information - required field
-      if (clientInfo.name) {
-        updateData.client_name = clientInfo.name;
-      } else if (currentQuote.client_name) {
-        updateData.client_name = currentQuote.client_name;
-      } else if (currentQuote.client) {
-        updateData.client_name = currentQuote.client.company_name || 
-          `${currentQuote.client.first_name || ''} ${currentQuote.client.last_name || ''}`.trim() || 'Client';
-      }
-      
-      // Include client email and address if available
-      if (clientInfo.email || currentQuote.client_email || currentQuote.client?.email) {
-        updateData.client_email = clientInfo.email || currentQuote.client_email || currentQuote.client?.email;
-      }
-      if (clientInfo.address || currentQuote.client_address || currentQuote.client?.address) {
-        updateData.client_address = clientInfo.address || currentQuote.client_address || currentQuote.client?.address;
-      }
-      if (clientInfo.phone || currentQuote.client_phone || currentQuote.client?.phone) {
-        updateData.client_phone = clientInfo.phone || currentQuote.client_phone || currentQuote.client?.phone;
-      }
-      
-      // Include client_id if available
-      if (client?.id || currentQuote.client_id) {
-        updateData.client_id = client?.id || currentQuote.client_id;
-      }
-      
-      // Include items - required to maintain quote structure
-      if (items.length > 0) {
-        updateData.items = items.map(item => ({
-          id: item.id,
-          description: item.designation,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          tax_rate: item.tax_rate,
-        }));
-      } else if (currentQuote.items && currentQuote.items.length > 0) {
-        updateData.items = currentQuote.items.map((item: any) => ({
-          id: item.id,
-          description: item.description || item.designation,
-          quantity: item.quantity,
-          unit_price: item.unit_price || parseFloat(item.price_ht || 0),
-          tax_rate: item.tax_rate || parseFloat(item.tva_rate || 0),
-        }));
-      }
-      
-      // Include payment_conditions if available
-      if (paymentTerms || currentQuote.payment_conditions) {
-        updateData.payment_conditions = paymentTerms || currentQuote.payment_conditions;
-      }
-      
-      // Include valid_until if available
-      if (validUntil || currentQuote.valid_until) {
-        updateData.valid_until = validUntil || currentQuote.valid_until;
-      }
-      
-      // Include issue_date if available (may be required)
-      if (currentQuote.issue_date) {
-        updateData.issue_date = currentQuote.issue_date;
-      }
-      
-      const response = await commercialService.updateQuote(id, updateData);
-      
-      if (response.success) {
-        success(`Statut changé en "${getStatusLabel(newStatus)}"`);
-        setShowStatusMenu(false);
-        setCurrentQuote({ ...currentQuote, status: newStatus } as Quote);
-      } else {
-        showError('Erreur', response.message || 'Impossible de changer le statut');
-      }
-    } catch (err: any) {
-      console.error('Status update error:', err);
-      showError('Erreur', err.message || 'Impossible de changer le statut');
-    } finally {
-      setUpdatingStatus(false);
-    }
-  };
+  // Status list limited to: Créé (draft), Envoyé (sent), Signé (accepted) only
+  // Status modification removed - status now changes through specific actions only (send email, upload signed document, etc.)
 
   const calculateTotals = () => {
     const totalHT = items.reduce((sum, item) => sum + item.total, 0);
@@ -559,41 +467,11 @@ export const QuoteViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Change Button */}
+          {/* Status Display (read-only) */}
           {currentQuote && (
-            <div className="relative">
-              <Button
-                variant="ghost"
-                onClick={() => setShowStatusMenu(!showStatusMenu)}
-                disabled={updatingStatus}
-                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] relative`}
-              >
-                <Check className="w-5 h-5" />
-                <span className="font-medium text-xs">{getStatusLabel(currentQuote.status)}</span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-
-              {/* Status Dropdown */}
-              {showStatusMenu && (
-                <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} overflow-hidden z-50`}>
-                  {statuses.map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={status === currentQuote.status}
-                      className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${
-                        status === currentQuote.status
-                          ? `${isDark ? 'bg-gray-700' : 'bg-gray-100'} opacity-50 cursor-not-allowed`
-                          : `${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${status === 'accepted' ? 'bg-green-500' : status === 'sent' ? 'bg-blue-500' : status === 'rejected' ? 'bg-red-500' : status === 'expired' ? 'bg-orange-500' : 'bg-gray-500'}`} />
-                      {getStatusLabel(status)}
-                      {status === currentQuote.status && <Check className="w-4 h-4 ml-auto" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] pointer-events-none`}>
+              <Check className="w-5 h-5" />
+              <span className="font-medium text-xs">{getStatusLabel(currentQuote.status)}</span>
             </div>
           )}
 
