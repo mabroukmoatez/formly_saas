@@ -1450,31 +1450,46 @@ export const ChargesDepenses = (): JSX.Element => {
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         {docCount > 0 ? (
-                          <Badge
-                            className="rounded-full px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-                            style={{
-                              backgroundColor: '#E3F2FD',
-                              color: '#2196F3',
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (charge.documents && charge.documents.length > 0) {
-                                handlePreviewDocument(charge.documents[0]);
-                              }
-                            }}
-                            title={`${firstDocName}${docCount > 1 ? ` (+${docCount - 1} fichier${docCount - 1 > 1 ? 's' : ''})` : ''} - Cliquer pour prévisualiser`}
-                          >
-                            <FileIcon className="w-3 h-3" />
-                            <span className="hover:underline">{truncateFilename(firstDocName, 10)}</span>
+                          <div className="flex items-center gap-2">
+                            {/* Main document badge */}
+                            <Badge
+                              className="rounded-full px-3 py-1 font-medium text-sm inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+                              style={{
+                                backgroundColor: '#E3F2FD',
+                                color: '#2196F3',
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (charge.documents && charge.documents.length > 0) {
+                                  handleDownloadDocument(charge.documents[0]);
+                                }
+                              }}
+                              title={`Cliquer pour télécharger${docCount > 1 ? ` (${docCount} fichiers)` : ''}`}
+                            >
+                              <FileIcon className="w-3 h-3" />
+                              <span className="hover:underline">{firstDocName}</span>
+                            </Badge>
+
+                            {/* +N ADDITIONAL FILES BADGE */}
                             {docCount > 1 && (
-                              <span
-                                className="ml-1 text-xs font-semibold"
-                                style={{ color: '#1976D2' }}
+                              <Badge
+                                className="rounded-full px-3 py-1 font-medium text-xs cursor-pointer hover:opacity-80 transition-opacity"
+                                style={{
+                                  backgroundColor: '#BBDEFB',
+                                  color: '#0D47A1',
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (charge.documents && charge.documents.length > 0) {
+                                    handleDownloadDocument(charge.documents[0]);
+                                  }
+                                }}
+                                title={`Voir les ${docCount} fichiers`}
                               >
                                 +{docCount - 1}
-                              </span>
+                              </Badge>
                             )}
-                          </Badge>
+                          </div>
                         ) : (
                           <span className={`${isDark ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
                         )}
