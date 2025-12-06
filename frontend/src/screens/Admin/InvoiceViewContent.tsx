@@ -166,6 +166,35 @@ export const InvoiceViewContent: React.FC = () => {
 
   const { totalHT, totalTax, totalTTC } = calculateTotals();
 
+  // Handle direct logo file selection (no modal)
+  const handleLogoUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
+
+      try {
+        // Create preview URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCompanyInfo((prev: any) => ({
+            ...prev,
+            logo_url: reader.result as string
+          }));
+        };
+        reader.readAsDataURL(file);
+
+        success('Logo sélectionné avec succès');
+      } catch (err: any) {
+        showError('Erreur', 'Erreur lors du chargement du logo');
+      }
+    };
+    input.click();
+  };
+
   const handleSave = async () => {
     if (!id) {
       showError('Erreur', 'ID de facture manquant');
@@ -450,15 +479,15 @@ export const InvoiceViewContent: React.FC = () => {
       <div className="flex flex-col gap-[42px] max-w-[1100px] mx-auto">
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-4">
-          <div 
+          <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
-            onClick={() => setShowCompanyModal(true)}
+            onClick={handleLogoUpload}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
               <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Cliquez pour ajouter votre logo
+                Cliquez pour choisir une image
               </div>
             )}
           </div>
