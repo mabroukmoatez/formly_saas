@@ -1034,9 +1034,25 @@ export const MesDevis = (): JSX.Element => {
                         ) {
                           return;
                         }
-                        // Open import modal in edit mode
-                        setEditingQuote(quote);
-                        setIsImportModalOpen(true);
+
+                        // Check if this is an imported quote (has "Devis importé" in items)
+                        const isImported = quote.items?.some(item =>
+                          item.designation?.includes('Devis importé') ||
+                          item.description?.includes('Devis importé depuis le fichier')
+                        );
+
+                        if (isImported) {
+                          // Imported quote: Open import modal in edit mode
+                          setEditingQuote(quote);
+                          setIsImportModalOpen(true);
+                        } else {
+                          // Manually created quote: Navigate to full edit page
+                          if (subdomain) {
+                            navigate(`/${subdomain}/quote-view/${quote.id}`);
+                          } else {
+                            navigate(`/quote-view/${quote.id}`);
+                          }
+                        }
                       }}
                     >
                       <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
@@ -1109,9 +1125,24 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
-                              // Open import modal in edit mode
-                              setEditingQuote(quote);
-                              setIsImportModalOpen(true);
+                              // Check if this is an imported quote
+                              const isImported = quote.items?.some(item =>
+                                item.designation?.includes('Devis importé') ||
+                                item.description?.includes('Devis importé depuis le fichier')
+                              );
+
+                              if (isImported) {
+                                // Imported quote: Open import modal in edit mode
+                                setEditingQuote(quote);
+                                setIsImportModalOpen(true);
+                              } else {
+                                // Manually created quote: Navigate to full edit page
+                                if (subdomain) {
+                                  navigate(`/${subdomain}/quote-view/${quote.id}`);
+                                } else {
+                                  navigate(`/quote-view/${quote.id}`);
+                                }
+                              }
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
                             title={t('dashboard.commercial.mes_devis.modify')}
