@@ -821,20 +821,41 @@ export const ChargesDepenses = (): JSX.Element => {
     setShowAttachmentPreview(true);
   };
 
-  const handleDownloadDocument = (document: any) => {
+  const handleDownloadDocument = async (document: any) => {
     try {
-      // Use the same base URL as in ChargeViewModal
-      const baseURL = 'http://localhost:8000';
+      // Get base URL from env or default to localhost
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const filePath = document.file_path.startsWith('/') ? document.file_path.slice(1) : document.file_path;
       const fileUrl = `${baseURL}/storage/${filePath}`;
 
-      // Create a temporary link to download
+      // Fetch the file with authentication
+      const response = await fetch(fileUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to download file');
+      }
+
+      // Create blob from response
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = fileUrl;
+      link.href = url;
       link.download = document.original_name || 'document';
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      success('Document téléchargé avec succès');
     } catch (err) {
       console.error('Error downloading document:', err);
       showError('Erreur', 'Impossible de télécharger le document');

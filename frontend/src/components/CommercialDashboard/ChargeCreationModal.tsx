@@ -410,7 +410,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-[1200px] max-h-[90vh] overflow-hidden rounded-[18px] ${isDark ? 'bg-gray-900' : 'bg-white'} shadow-[0px_0px_75px_rgba(25,41,74,0.24)]`}
+        className={`relative w-full max-w-[1600px] max-h-[95vh] overflow-hidden rounded-[18px] ${isDark ? 'bg-gray-900' : 'bg-white'} shadow-[0px_0px_75px_rgba(25,41,74,0.24)]`}
       >
         {/* Border overlay */}
         <div aria-hidden="true" className={`absolute border ${isDark ? 'border-gray-700' : 'border-[#dbd9d9]'} border-solid inset-0 pointer-events-none rounded-[18px]`} />
@@ -424,7 +424,7 @@ export const ChargeCreationModal: React.FC<ChargeCreationModalProps> = ({
         </button>
 
         {/* Content */}
-        <div className="px-5 py-8 overflow-y-auto max-h-[90vh]">
+        <div className="px-5 py-8 overflow-y-auto max-h-[95vh]">
           {/* Header */}
           <h2 className={`font-semibold text-[17px] mb-6 ${isDark ? 'text-white' : 'text-[#19294a]'}`} style={{ fontFamily: 'Poppins, sans-serif' }}>
             {charge ? 'Modifier la Dépense' : 'Ajouter une Dépense'}
