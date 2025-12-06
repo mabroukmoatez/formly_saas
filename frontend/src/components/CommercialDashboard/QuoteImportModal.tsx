@@ -4,12 +4,13 @@ import { Input } from '../ui/input';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
-import { Upload, FileText, X, FileUp, Calendar } from 'lucide-react';
+import { commercialService } from '../../services/commercial';
+import { Upload, FileText, X, FileUp, Calendar, Loader2 } from 'lucide-react';
 
 interface QuoteImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (extractedData: any) => void;
+  onSuccess: () => void;
 }
 
 interface QuoteFormData {
@@ -35,6 +36,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState<QuoteFormData>({
     quote_number: '',
     issue_date: '',
@@ -98,7 +100,7 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Validate required fields
     if (!selectedFile) {
       showError('Erreur', 'Veuillez sélectionner un fichier PDF');
@@ -110,14 +112,48 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
       return;
     }
 
-    // Create data object with file
-    const data = {
-      ...formData,
-      file: selectedFile,
-    };
+    setSaving(true);
+    try {
+      // Calculate valid_until date (30 days from issue_date)
+      const issueDate = new Date(formData.issue_date);
+      const validUntil = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const validUntilStr = validUntil.toISOString().split('T')[0];
 
-    onSuccess(data);
-    handleClose();
+      // Calculate tax rate from TVA and HT amounts
+      const totalHt = parseFloat(formData.total_ht) || 0;
+      const totalTva = parseFloat(formData.total_tva) || 0;
+      const taxRate = totalHt > 0 ? (totalTva / totalHt) * 100 : 20;
+
+      const quoteData = {
+        quote_number: formData.quote_number,
+        issue_date: formData.issue_date,
+        valid_until: validUntilStr,
+        client_name: formData.client_name,
+        client_email: formData.client_email || '',
+        client_phone: formData.client_phone || '',
+        total_ht: parseFloat(formData.total_ht) || 0,
+        total_tva: parseFloat(formData.total_tva) || 0,
+        total_ttc: parseFloat(formData.total_ttc),
+        status: 'draft',
+        items: [{
+          designation: 'Devis importé - Voir PDF joint',
+          description: `Devis importé depuis le fichier: ${selectedFile.name}`,
+          quantity: 1,
+          price_ht: totalHt,
+          tva_rate: taxRate,
+        }],
+      };
+
+      await commercialService.createQuote(quoteData);
+      showSuccess('Succès', 'Devis importé avec succès');
+      onSuccess();
+      handleClose();
+    } catch (err: any) {
+      console.error('Error creating quote:', err);
+      showError('Erreur', err.response?.data?.message || 'Impossible de créer le devis');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleClose = () => {
@@ -379,8 +415,16 @@ export const QuoteImportModal: React.FC<QuoteImportModalProps> = ({
                 onClick={handleSubmit}
                 className="flex-1"
                 style={{ backgroundColor: primaryColor }}
+                disabled={saving}
               >
-                Importer le devis
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Importation en cours...
+                  </>
+                ) : (
+                  'Importer le devis'
+                )}
               </Button>
             </div>
           </div>
