@@ -70,9 +70,9 @@ class CommercialDashboardController extends Controller
         $overdueAmount = Invoice::where('organization_id', $organization_id)
             ->whereIn('status', ['overdue', 'partially_paid'])
             ->sum(DB::raw('total_ttc - COALESCE(amount_paid, 0)'));
+        // Calculate received payments from all paid invoices (all time)
         $receivedPayments = Invoice::where('organization_id', $organization_id)
             ->where('status', 'paid')
-            ->whereBetween('issue_date', [$currentMonthStart, $currentMonthEnd])
             ->sum('total_ttc');
 
         // 5. KPI: Charges (Expenses) - Total expenses this month

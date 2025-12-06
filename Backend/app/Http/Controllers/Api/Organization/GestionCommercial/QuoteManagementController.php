@@ -546,16 +546,14 @@ class QuoteManagementController extends Controller
         if (!$quote) return $this->failed([], 'Quote not found.');
 
         // Allow conversion for 'accepted' or 'sent' status
-        if (!in_array($quote->status, ['accepted', 'sent'])) {
-            return $this->failed([], 'Only accepted or sent quotes can be converted to invoices.');
+        if (!in_array($quote->status, ['accepted', 'sent', 'draft'])) {
+            return $this->failed([], 'Only draft, sent, or accepted quotes can be converted to invoices.');
         }
 
-        // Check if already converted
-        if ($quote->invoice) {
-            return $this->failed([], 'Quote already converted to invoice.');
-        }
+        // Allow multiple conversions - removed the check for existing invoice
+        // Users can convert the same quote multiple times to create multiple invoices
 
-        try {
+        try{
             DB::beginTransaction();
 
             // Use custom invoice number if provided, otherwise auto-generate
