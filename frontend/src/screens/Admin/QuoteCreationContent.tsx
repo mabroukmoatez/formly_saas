@@ -809,28 +809,28 @@ export const QuoteCreationContent: React.FC = () => {
           <div className={`w-[278px] h-[154px] rounded-[10px] p-6`} style={{ backgroundColor: primaryColor }}>
             <div className="flex flex-col gap-3 h-full">
               <div className="flex items-center justify-between pt-1 pb-3 border-b border-solid" style={{ borderColor: `${primaryColor}33` }}>
-                <div className="font-normal text-sm text-white/90">
+                <div className="font-normal text-sm text-white">
                   Total HT
                 </div>
-                <div className="font-normal text-sm text-white/90">
+                <div className="font-normal text-sm text-white">
                   {totalHT.toFixed(2)} €
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-1 pb-3 border-b border-solid" style={{ borderColor: `${primaryColor}33` }}>
-                <div className="font-normal text-sm text-white/90">
+                <div className="font-normal text-sm text-white">
                   TVA
                 </div>
-                <div className="font-normal text-sm text-white/90">
+                <div className="font-normal text-sm text-white">
                   {totalTax.toFixed(2)} €
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-1 px-0">
-                <div className="font-semibold text-lg text-white/95">
+                <div className="font-semibold text-lg text-white">
                   Total TTC
                 </div>
-                <div className="font-semibold text-lg text-white/95">
+                <div className="font-semibold text-lg text-white">
                   {totalTTC.toFixed(2)} €
                 </div>
               </div>
