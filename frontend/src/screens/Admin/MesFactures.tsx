@@ -1018,7 +1018,7 @@ export const MesFactures = (): JSX.Element => {
    
            {/* Totals Summary Card - Bottom Right */}
         {sortedInvoices.length > 0 && (
-          <div className="rounded-[18px]  p-4 mt-4">
+          <div className="rounded-[18px]  p-4 mt-4 ${isDark ? 'bg-gray-800' : 'bg-white'}">
             <div className="flex justify-end mt-4 ">
               <div className={`border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6 shadow-sm`}>
                 <div className="flex flex-col gap-3">
