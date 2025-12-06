@@ -1223,13 +1223,10 @@ export const MesDevis = (): JSX.Element => {
       <QuoteImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        onSuccess={(extractedData) => {
-          // Navigate to creation page with pre-filled data
-          if (subdomain) {
-            navigate(`/${subdomain}/quote-creation`, { state: { prefillData: extractedData } });
-          } else {
-            navigate('/quote-creation', { state: { prefillData: extractedData } });
-          }
+        onSuccess={() => {
+          // Refresh the quotes list after successful import
+          setIsImportModalOpen(false);
+          fetchQuotes();
         }}
       />
 
