@@ -873,6 +873,7 @@ export const QuoteCreationContent: React.FC = () => {
           });
           setShowClientModal(false);
         }}
+        existingClient={client}
       />
 
       <PaymentConditionsModal
