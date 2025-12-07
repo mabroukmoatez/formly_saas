@@ -10,6 +10,7 @@ import { useToast } from '../../components/ui/toast';
 import { ArrowLeft, Lock, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { LoginHeader } from '../../components/LoginHeader';
 import { apiService } from '../../services/api';
+import { fixImageUrl } from '../../lib/utils';
 
 export const SetupPassword = (): JSX.Element => {
   const [searchParams] = useSearchParams();
@@ -18,9 +19,9 @@ export const SetupPassword = (): JSX.Element => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const { success, error: showError } = useToast();
-  
+
   const token = searchParams.get('token');
-  
+
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +47,7 @@ export const SetupPassword = (): JSX.Element => {
       try {
         setVerifying(true);
         const response = await apiService.verifyInvitationToken(token);
-        
+
         if (response.success && response.data) {
           setTokenValid(true);
           setUserInfo({
@@ -92,14 +93,14 @@ export const SetupPassword = (): JSX.Element => {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validatePassword() || !token) {
       return;
     }
 
     try {
       setLoading(true);
-      
+
       const response = await apiService.setupPassword({
         token,
         password,
@@ -109,7 +110,7 @@ export const SetupPassword = (): JSX.Element => {
       if (response.success) {
         setPasswordSet(true);
         success('Succès', 'Mot de passe défini avec succès. Vous pouvez maintenant vous connecter.');
-        
+
         // Redirect to login after 2 seconds
         setTimeout(() => {
           navigate('/login');
@@ -138,7 +139,7 @@ export const SetupPassword = (): JSX.Element => {
    */
   const getLogoUrl = (): string => {
     if (organization?.organization_logo_url) {
-      return organization.organization_logo_url;
+      return fixImageUrl(organization.organization_logo_url);
     }
     return '/assets/logos/login-logo.svg';
   };
@@ -167,9 +168,8 @@ export const SetupPassword = (): JSX.Element => {
   if (verifying) {
     return (
       <div
-        className={`w-full min-h-screen flex items-center justify-center ${
-          isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-        }`}
+        className={`w-full min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+          }`}
       >
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-white mx-auto mb-4" />
@@ -182,9 +182,8 @@ export const SetupPassword = (): JSX.Element => {
   if (!token || !tokenValid) {
     return (
       <div
-        className={`w-full min-h-screen flex items-center justify-center ${
-          isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-        }`}
+        className={`w-full min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+          }`}
       >
         <div className="text-center max-w-md px-4">
           <div className="mb-6">
@@ -210,12 +209,11 @@ export const SetupPassword = (): JSX.Element => {
   if (passwordSet) {
     return (
       <div
-        className={`w-full min-h-screen relative flex flex-col lg:flex-row ${
-          isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-        }`}
+        className={`w-full min-h-screen relative flex flex-col lg:flex-row ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+          }`}
       >
         <LoginHeader />
-        
+
         {/* Hero Section */}
         <section className="relative w-full lg:w-[824px] h-[300px] lg:h-screen flex-shrink-0 hidden lg:block overflow-hidden">
           <img
@@ -270,15 +268,15 @@ export const SetupPassword = (): JSX.Element => {
               <div className="flex justify-center mb-6">
                 <CheckCircle className="w-16 h-16 text-green-400" />
               </div>
-              
+
               <h2 className="[font-family:'Urbanist',Helvetica] font-bold text-[#ffffff] text-3xl lg:text-4xl tracking-[-0.72px] leading-[42px] lg:leading-[56px] mb-4">
                 Mot de passe défini avec succès
               </h2>
-              
+
               <p className="[font-family:'Urbanist',Helvetica] font-light text-[#d2d2d2] text-sm lg:text-base tracking-[-0.32px] leading-4 mb-8">
                 Votre mot de passe a été défini avec succès. Vous allez être redirigé vers la page de connexion...
               </p>
-              
+
               <Button
                 onClick={handleBackToLogin}
                 className="w-full h-[55px] lg:h-[61.71px] bg-colorsblue rounded-2xl [font-family:'Urbanist',Helvetica] font-bold text-[#ffffff] text-sm tracking-[-0.28px] leading-[14px] hover:bg-colorsblue/90 transition-colors"
@@ -294,9 +292,8 @@ export const SetupPassword = (): JSX.Element => {
 
   return (
     <div
-      className={`w-full min-h-screen relative flex flex-col lg:flex-row ${
-        isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-      }`}
+      className={`w-full min-h-screen relative flex flex-col lg:flex-row ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+        }`}
       style={{
         '--org-primary-color': organization?.primary_color || '#007bff',
         '--org-secondary-color': organization?.secondary_color || '#6c757d',
@@ -304,7 +301,7 @@ export const SetupPassword = (): JSX.Element => {
       } as React.CSSProperties}
     >
       <LoginHeader />
-      
+
       {/* Hero Section */}
       <section className="relative w-full lg:w-[824px] h-[300px] lg:h-screen flex-shrink-0 hidden lg:block overflow-hidden">
         <img

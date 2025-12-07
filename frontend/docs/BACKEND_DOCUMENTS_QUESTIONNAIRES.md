@@ -1,4 +1,29 @@
-git add # Backend Requirements - Documents et Questionnaires (Étape 3/6 et 4/6)
+# Backend Requirements - Documents et Questionnaires (Étape 3/6 et 4/6)
+
+## 📋 Résumé Exécutif
+
+Cette documentation détaille les besoins backend pour les fonctionnalités avancées des **Documents** (étape 3/6) et **Questionnaires** (étape 4/6) lors de la création d'un cours.
+
+### 🎯 Fonctionnalités Principales
+
+**Documents :**
+- ✅ Drag & drop pour réorganiser les documents
+- ✅ Modification/suppression du logo
+- ✅ Ajout de sous-titre
+- ✅ Sections avancées (texte, tableau, liste séances, signature)
+- ✅ Mentions légales (masquables mais non supprimables)
+
+**Questionnaires :**
+- ✅ Drag & drop pour réorganiser les questions
+- ✅ 6 nouveaux types de questions (single, multiple, ordered, date, file, linear scale)
+- ✅ Templates de questions (satisfaction, recommendation, statistiques pédagogiques)
+- ✅ Alimentation automatique des statistiques de session
+
+### ⚠️ Priorité
+
+**Haute priorité** : Toutes les fonctionnalités sont nécessaires pour compléter l'étape 3/6 et 4/6 selon les spécifications Figma.
+
+---
 
 ## Contexte
 

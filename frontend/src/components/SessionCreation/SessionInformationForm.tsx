@@ -5,6 +5,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { FormField } from '../CourseCreation/FormField';
 import { DurationField } from '../CourseCreation/DurationField';
 import { MediaUpload } from '../CourseCreation/MediaUpload';
+import { fixImageUrl } from '../../utils';
 import { RichTextField } from '../CourseCreation/RichTextField';
 import { CategoryButtons } from '../CourseCreation/CategoryButtons';
 import { FormationActionBadge } from '../CourseCreation/FormationActionBadge';
@@ -310,8 +311,8 @@ export const SessionInformationForm: React.FC<SessionInformationFormProps> = ({
             <MediaUpload
               introVideo={formData.intro_video}
               introImage={formData.intro_image}
-              introVideoUrl={formData.intro_video_url}
-              introImageUrl={formData.intro_image_url}
+              introVideoUrl={fixImageUrl(formData.intro_video_url)}
+              introImageUrl={fixImageUrl(formData.intro_image_url)}
               courseUuid={formData.sessionUuid}
               uploadIntroVideo={uploadIntroVideo}
               uploadIntroImage={uploadIntroImage}

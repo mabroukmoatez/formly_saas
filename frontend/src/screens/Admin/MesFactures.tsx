@@ -63,7 +63,6 @@ export const MesFactures = (): JSX.Element => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -912,35 +911,7 @@ export const MesFactures = (): JSX.Element => {
                   return (
                     <TableRow
                       key={String(invoice.id)}
-                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-blue-50' : ''} cursor-pointer`}
-                      onClick={(e) => {
-                        // Don't open modal if clicking on checkbox, action buttons, or status badge
-                        const target = e.target as HTMLElement;
-                        if (
-                          target.closest('button') ||
-                          target.closest('[role="checkbox"]') ||
-                          target.type === 'checkbox' ||
-                          target.closest('.status-badge')
-                        ) {
-                          return;
-                        }
-
-                        // Check if this is an imported invoice using is_imported field
-                        const isImported = invoice.is_imported === 1 || invoice.is_imported === true;
-
-                        if (isImported) {
-                          // Imported invoice: Open import modal in edit mode
-                          setEditingInvoice(invoice);
-                          setIsImportModalOpen(true);
-                        } else {
-                          // Manually created invoice: Navigate to full edit page
-                          if (subdomain) {
-                            navigate(`/${subdomain}/invoice-view/${invoice.id}`);
-                          } else {
-                            navigate(`/invoice-view/${invoice.id}`);
-                          }
-                        }
-                      }}
+                      className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedInvoices.has(String(invoice.id)) ? 'bg-blue-50' : ''}`}
                     >
                       <TableCell className="px-4 py-4">
                         <Checkbox
@@ -980,29 +951,19 @@ export const MesFactures = (): JSX.Element => {
                           {formatCurrency(invoice.total_ttc || invoice.total_amount)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <Badge className={`status-badge ${statusColors.bg} ${statusColors.text} rounded-full px-3 py-1 font-medium text-sm`}>
+                      <TableCell className="px-4 py-4 text-center">
+                        <Badge className={`${statusColors.bg} ${statusColors.text} rounded-full px-3 py-1 font-medium text-sm`}>
                           {getStatusLabel(invoice.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="px-4 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button
+                          <button 
                             onClick={() => {
-                              // Check if this is an imported invoice using is_imported field
-                              const isImported = invoice.is_imported === 1 || invoice.is_imported === true;
-
-                              if (isImported) {
-                                // Imported invoice: Open import modal in edit mode
-                                setEditingInvoice(invoice);
-                                setIsImportModalOpen(true);
+                              if (subdomain) {
+                                navigate(`/${subdomain}/invoice-view/${invoice.id}`);
                               } else {
-                                // Manually created invoice: Navigate to full edit page
-                                if (subdomain) {
-                                  navigate(`/${subdomain}/invoice-view/${invoice.id}`);
-                                } else {
-                                  navigate(`/invoice-view/${invoice.id}`);
-                                }
+                                navigate(`/invoice-view/${invoice.id}`);
                               }
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
@@ -1027,39 +988,10 @@ export const MesFactures = (): JSX.Element => {
                 })}
               </TableBody>
             </Table>
-          </div>
-        )}
-        {/* Pagination */}
-        {pagination.total_pages > 0 && (
-          <div className="flex justify-center items-center gap-2 py-4">
-            <Button
-              variant="outline"
-              disabled={page === 1}
-              onClick={() => setPage(Math.max(1, page - 1))}
-              className={`${isDark ? 'border-gray-600' : ''}`}
-            >
-              {t('common.previous')}
-            </Button>
-            <span className={`px-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-              {t('common.page')} {page} {t('common.of')} {pagination.total_pages || 1}
-            </span>
-            <Button
-              variant="outline"
-              disabled={page >= (pagination.total_pages || 1)}
-              onClick={() => setPage(page + 1)}
-              className={`${isDark ? 'border-gray-600' : ''}`}
-            >
-              {t('common.next')}
-            </Button>
-          </div>
-        )}
-      </div>
-   
-           {/* Totals Summary Card - Bottom Right */}
-        {sortedInvoices.length > 0 && (
-          <div className="rounded-[18px]  p-4 mt-4 ${isDark ? 'bg-gray-800' : 'bg-white'}">
-            <div className="flex justify-end mt-4 ">
-              <div className={`border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6 shadow-sm`}>
+
+            {/* Totals Summary */}
+            {sortedInvoices.length > 0 && (
+              <div className={`mt-6 ml-auto w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1095,10 +1027,36 @@ export const MesFactures = (): JSX.Element => {
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
-      
+
+        {/* Pagination */}
+        {pagination.total_pages > 0 && (
+          <div className="flex justify-center items-center gap-2 py-4">
+            <Button
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage(Math.max(1, page - 1))}
+              className={`${isDark ? 'border-gray-600' : ''}`}
+            >
+              {t('common.previous')}
+            </Button>
+            <span className={`px-4 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+              {t('common.page')} {page} {t('common.of')} {pagination.total_pages || 1}
+            </span>
+            <Button
+              variant="outline"
+              disabled={page >= (pagination.total_pages || 1)}
+              onClick={() => setPage(page + 1)}
+              className={`${isDark ? 'border-gray-600' : ''}`}
+            >
+              {t('common.next')}
+            </Button>
+          </div>
+        )}
+      </div>
+
 
       {/* Filter Modal */}
       <Dialog open={showFilterModal} onOpenChange={setShowFilterModal}>
@@ -1323,17 +1281,15 @@ export const MesFactures = (): JSX.Element => {
       {/* Invoice Import Modal */}
       <InvoiceImportModal
         isOpen={isImportModalOpen}
-        onClose={() => {
-          setIsImportModalOpen(false);
-          setEditingInvoice(null);
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={(extractedData) => {
+          // Navigate to invoice creation page with pre-filled data
+          if (subdomain) {
+            navigate(`/${subdomain}/invoice-creation`, { state: { prefillData: extractedData } });
+          } else {
+            navigate('/invoice-creation', { state: { prefillData: extractedData } });
+          }
         }}
-        onSuccess={() => {
-          // Refresh the invoices list after successful import
-          setIsImportModalOpen(false);
-          setEditingInvoice(null);
-          fetchInvoices();
-        }}
-        invoice={editingInvoice}
       />
 
       {/* Email Modal for Relance */}

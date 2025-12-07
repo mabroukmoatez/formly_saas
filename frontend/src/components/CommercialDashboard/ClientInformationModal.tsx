@@ -303,11 +303,6 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                     )}
                   </div>
 
-                  {/* INSEE Search - Position 2 */}
-                  <div className="text-[12px] text-[#6a90ba]">
-                    <InseeSearchInput onSelect={handleInseeSelect} />
-                  </div>
-
                   {/* Company Name and SIRET */}
                   <div className="flex gap-4">
                     <div className="flex-1 bg-white rounded-[8px] h-[44px] relative">
@@ -335,6 +330,11 @@ export const ClientInformationModal: React.FC<ClientInformationModalProps> = ({
                       </div>
                       <div className="absolute border border-[#ebf1ff] inset-0 pointer-events-none rounded-[8px] shadow-[0px_1px_2px_0px_rgba(10,13,18,0.05)]" />
                     </div>
+                  </div>
+
+                  {/* INSEE Search */}
+                  <div className="text-[12px] text-[#6a90ba]">
+                    <InseeSearchInput onSelect={handleInseeSelect} />
                   </div>
                 </div>
 

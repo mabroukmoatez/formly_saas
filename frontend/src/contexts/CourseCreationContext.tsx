@@ -2254,9 +2254,19 @@ export const CourseCreationProvider: React.FC<{ children: ReactNode }> = ({ chil
   const loadEmailTemplates = useCallback(async () => {
     try {
       const result = await courseCreationApi.getEmailTemplates();
-      if (result.success) setEmailTemplates(result.data);
+      if (result.success && result.data) {
+        // La réponse peut avoir la structure { data: { templates: [...], pagination: {...} } } ou { data: [...] }
+        const templates = Array.isArray(result.data) 
+          ? result.data 
+          : (result.data.templates || result.data.data || []);
+        setEmailTemplates(Array.isArray(templates) ? templates : []);
+      } else {
+        // Si pas de succès, initialiser avec un tableau vide
+        setEmailTemplates([]);
+      }
     } catch (error) {
-      // Error loading email templates:', error);
+      console.error('Error loading email templates:', error);
+      setEmailTemplates([]);
     }
   }, []);
 

@@ -247,12 +247,9 @@ class ExpensesChargesController extends Controller
             'label' => 'sometimes|required|string|max:255',
             'amount' => 'sometimes|required|numeric|min:0.01',
             'course_id' => 'nullable|exists:courses,id',
-            'documents.*' => 'sometimes|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'documents_to_add.*' => 'sometimes|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'documents_to_delete' => 'sometimes|array',
             'documents_to_delete.*' => 'integer|exists:expense_documents,id',
-            'delete_documents' => 'sometimes|array',
-            'delete_documents.*' => 'integer|exists:expense_documents,id',
             'expense_date' => 'nullable|date',
             'payment_date' => 'nullable|date',
             'date' => 'nullable|date',
@@ -279,9 +276,6 @@ class ExpensesChargesController extends Controller
             'role.required' => 'Le champ "Poste / Rôle" est requis pour la catégorie "Moyens Humains"',
             'contract_type.required' => 'Le champ "Type De Contrat" est requis pour la catégorie "Moyens Humains"',
             'course_id.exists' => 'La formation sélectionnée n\'existe pas',
-            'documents.*.file' => 'Les documents doivent être des fichiers valides',
-            'documents.*.mimes' => 'Les documents doivent être de type PDF, JPG, JPEG ou PNG',
-            'documents.*.max' => 'Chaque document ne doit pas dépasser 10MB',
             'documents_to_add.*.file' => 'Les documents doivent être des fichiers valides',
             'documents_to_add.*.mimes' => 'Les documents doivent être de type PDF, JPG, JPEG ou PNG',
             'documents_to_add.*.max' => 'Chaque document ne doit pas dépasser 10MB',
@@ -298,46 +292,31 @@ class ExpensesChargesController extends Controller
 
         DB::beginTransaction();
         try {
-            $updateData = $request->except(['documents_to_add', 'documents_to_delete', 'documents', 'delete_documents', '_method']);
-
+            $updateData = $request->except(['documents_to_add', 'documents_to_delete', 'documents']);
+            
             // Handle date fields
             if ($request->has('expense_date') || $request->has('payment_date') || $request->has('date')) {
                 $updateData['expense_date'] = $request->expense_date ?? $request->payment_date ?? $request->date ?? $expense->expense_date;
             }
-
-            // Handle course_id: if empty string is sent, clear the course_id
-            if ($request->has('course_id') && $request->course_id === '') {
-                $updateData['course_id'] = null;
-            }
-
+            
             // Ensure role and contract_type are null for "Moyens Environnementaux"
             if (isset($updateData['category']) && $updateData['category'] === 'Moyens Environnementaux') {
                 $updateData['role'] = null;
                 $updateData['contract_type'] = null;
             }
-
+            
             $expense->update($updateData);
-
-            // Handle document deletions - support both 'documents_to_delete' and 'delete_documents'
-            $documentsToDelete = $request->filled('delete_documents')
-                ? $request->delete_documents
-                : ($request->filled('documents_to_delete') ? $request->documents_to_delete : []);
-
-            if (!empty($documentsToDelete)) {
-                $docsToDelete = ExpenseDocument::where('expense_id', $expense->id)->whereIn('id', $documentsToDelete)->get();
+            
+            if ($request->filled('documents_to_delete')) {
+                $docsToDelete = ExpenseDocument::where('expense_id', $expense->id)->whereIn('id', $request->documents_to_delete)->get();
                 foreach ($docsToDelete as $doc) {
                     Storage::disk('public')->delete($doc->file_path);
                     $doc->delete();
                 }
             }
-
-            // Handle document additions - support both 'documents' and 'documents_to_add'
-            $documentsToAdd = $request->hasFile('documents')
-                ? $request->file('documents')
-                : ($request->hasFile('documents_to_add') ? $request->file('documents_to_add') : []);
-
-            if (!empty($documentsToAdd)) {
-                foreach ($documentsToAdd as $file) {
+            
+            if ($request->hasFile('documents_to_add')) {
+                foreach ($request->file('documents_to_add') as $file) {
                     // Store in charges/{expense_id}/ directory structure
                     $path = $file->store("charges/{$expense->id}", 'public');
                     $expense->documents()->create([

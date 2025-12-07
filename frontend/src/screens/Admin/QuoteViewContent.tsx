@@ -18,6 +18,7 @@ import { PaymentConditionsModal } from '../../components/CommercialDashboard/Pay
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { Article, InvoiceClient, Quote } from '../../services/commercial.types';
+import { fixImageUrl } from '../../lib/utils';
 
 interface QuoteItem {
   id: string;
@@ -54,9 +55,9 @@ export const QuoteViewContent: React.FC = () => {
   const [paymentOptions, setPaymentOptions] = useState<any>({});
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentQuote, setCurrentQuote] = useState<Quote | null>(null);
-  const [converting, setConverting] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -86,12 +87,12 @@ export const QuoteViewContent: React.FC = () => {
           if (quoteResponse.success && quoteResponse.data) {
             const quoteData = quoteResponse.data as any;
             setCurrentQuote(quoteData);
-            
+
             // Populate form with quote data
             setQuoteNumber(quoteData.quote_number || '');
             setValidUntil(quoteData.valid_until || '');
             setPaymentTerms(quoteData.payment_schedule_text || quoteData.payment_conditions || '');
-            
+
             // Set client info
             if (quoteData.client) {
               setClient(quoteData.client);
@@ -109,25 +110,18 @@ export const QuoteViewContent: React.FC = () => {
                 phone: quoteData.client_phone || '',
               });
             }
-            
+
             // Set items
             if (quoteData.items && quoteData.items.length > 0) {
-              const processedItems: QuoteItem[] = quoteData.items.map((item: any) => {
-                const quantity = parseFloat(item.quantity || 1);
-                const unit_price = parseFloat(item.unit_price || item.price_ht || 0);
-                // Calculate total from quantity and unit price, not from database
-                const total = quantity * unit_price;
-
-                return {
-                  id: item.id?.toString() || Date.now().toString(),
-                  reference: item.reference || '',
-                  designation: item.description || item.designation || '',
-                  quantity: quantity,
-                  unit_price: unit_price,
-                  tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
-                  total: total,
-                };
-              });
+              const processedItems: QuoteItem[] = quoteData.items.map((item: any) => ({
+                id: item.id?.toString() || Date.now().toString(),
+                reference: item.reference || '',
+                designation: item.description || item.designation || '',
+                quantity: parseFloat(item.quantity || 1),
+                unit_price: parseFloat(item.unit_price || item.price_ht || 0),
+                tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
+                total: parseFloat(item.total || item.total_ht || 0),
+              }));
               setItems(processedItems);
             }
 
@@ -173,9 +167,9 @@ export const QuoteViewContent: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      draft: 'Créé',
+      draft: 'Brouillon',
       sent: 'Envoyé',
-      accepted: 'Signé',
+      accepted: 'Accepté',
       rejected: 'Refusé',
       expired: 'Expiré',
       cancelled: 'Annulé',
@@ -195,69 +189,98 @@ export const QuoteViewContent: React.FC = () => {
     return colors[status] || colors.draft;
   };
 
-  // Status list limited to: Créé (draft), Envoyé (sent), Signé (accepted) only
-  const allowedStatuses = [
-    { value: 'draft', label: 'Créé' },
-    { value: 'sent', label: 'Envoyé' },
-    { value: 'accepted', label: 'Signé' },
-  ];
+  const statuses = ['draft', 'sent', 'accepted', 'rejected', 'expired', 'cancelled'];
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!id || !currentQuote) {
-      showError('Erreur', 'ID de devis manquant');
-      return;
-    }
-
-    if (newStatus === currentQuote.status) {
-      setShowStatusDropdown(false);
-      return;
-    }
+    if (!id || !currentQuote) return;
 
     setUpdatingStatus(true);
     try {
-      const response = await commercialService.updateQuoteStatus(id, newStatus);
-      if (response.success && response.data) {
-        setCurrentQuote({ ...currentQuote, status: newStatus });
-        success('Statut mis à jour avec succès');
+      // Include required fields from current invoice to avoid validation errors
+      const updateData: any = {
+        status: newStatus,
+      };
+
+      // Include quote_number if available - required field
+      if (quoteNumber || currentQuote.quote_number) {
+        updateData.quote_number = quoteNumber || currentQuote.quote_number;
+      }
+
+      // Include client information - required field
+      if (clientInfo.name) {
+        updateData.client_name = clientInfo.name;
+      } else if (currentQuote.client_name) {
+        updateData.client_name = currentQuote.client_name;
+      } else if (currentQuote.client) {
+        updateData.client_name = currentQuote.client.company_name ||
+          `${currentQuote.client.first_name || ''} ${currentQuote.client.last_name || ''}`.trim() || 'Client';
+      }
+
+      // Include client email and address if available
+      if (clientInfo.email || currentQuote.client_email || currentQuote.client?.email) {
+        updateData.client_email = clientInfo.email || currentQuote.client_email || currentQuote.client?.email;
+      }
+      if (clientInfo.address || currentQuote.client_address || currentQuote.client?.address) {
+        updateData.client_address = clientInfo.address || currentQuote.client_address || currentQuote.client?.address;
+      }
+      if (clientInfo.phone || currentQuote.client_phone || currentQuote.client?.phone) {
+        updateData.client_phone = clientInfo.phone || currentQuote.client_phone || currentQuote.client?.phone;
+      }
+
+      // Include client_id if available
+      if (client?.id || currentQuote.client_id) {
+        updateData.client_id = client?.id || currentQuote.client_id;
+      }
+
+      // Include items - required to maintain quote structure
+      if (items.length > 0) {
+        updateData.items = items.map(item => ({
+          id: item.id,
+          description: item.designation,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+        }));
+      } else if (currentQuote.items && currentQuote.items.length > 0) {
+        updateData.items = currentQuote.items.map((item: any) => ({
+          id: item.id,
+          description: item.description || item.designation,
+          quantity: item.quantity,
+          unit_price: item.unit_price || parseFloat(item.price_ht || 0),
+          tax_rate: item.tax_rate || parseFloat(item.tva_rate || 0),
+        }));
+      }
+
+      // Include payment_conditions if available
+      if (paymentTerms || currentQuote.payment_conditions) {
+        updateData.payment_conditions = paymentTerms || currentQuote.payment_conditions;
+      }
+
+      // Include valid_until if available
+      if (validUntil || currentQuote.valid_until) {
+        updateData.valid_until = validUntil || currentQuote.valid_until;
+      }
+
+      // Include issue_date if available (may be required)
+      if (currentQuote.issue_date) {
+        updateData.issue_date = currentQuote.issue_date;
+      }
+
+      const response = await commercialService.updateQuote(id, updateData);
+
+      if (response.success) {
+        success(`Statut changé en "${getStatusLabel(newStatus)}"`);
+        setShowStatusMenu(false);
+        setCurrentQuote({ ...currentQuote, status: newStatus } as Quote);
       } else {
-        showError('Erreur', response.message || 'Impossible de mettre à jour le statut');
+        showError('Erreur', response.message || 'Impossible de changer le statut');
       }
     } catch (err: any) {
       console.error('Status update error:', err);
-      showError('Erreur', err.message || 'Impossible de mettre à jour le statut');
+      showError('Erreur', err.message || 'Impossible de changer le statut');
     } finally {
       setUpdatingStatus(false);
-      setShowStatusDropdown(false);
     }
-  };
-
-  // Handle direct logo file selection (no modal)
-  const handleLogoUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (!file) return;
-
-      try {
-        // Create preview URL
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setCompanyInfo((prev: any) => ({
-            ...prev,
-            logo_url: reader.result as string
-          }));
-        };
-        reader.readAsDataURL(file);
-
-        success('Logo sélectionné avec succès');
-      } catch (err: any) {
-        showError('Erreur', 'Erreur lors du chargement du logo');
-      }
-    };
-    input.click();
   };
 
   const calculateTotals = () => {
@@ -481,20 +504,20 @@ export const QuoteViewContent: React.FC = () => {
       {/* Page Title Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div 
+          <div
             className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
             style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
           >
             <Receipt className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {currentQuote ? `Devis ${quoteNumber}` : 'Détails du Devis'}
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               {currentQuote ? 'Visualiser et modifier le devis' : 'Gérer les informations du devis'}
@@ -537,55 +560,39 @@ export const QuoteViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Dropdown */}
+          {/* Status Change Button */}
           {currentQuote && (
             <div className="relative">
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              <Button
+                variant="ghost"
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
                 disabled={updatingStatus}
-                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] hover:opacity-80 transition-opacity`}
+                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentQuote.status)} rounded-[53px] relative`}
               >
-                {updatingStatus ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Check className="w-5 h-5" />
-                )}
+                <Check className="w-5 h-5" />
                 <span className="font-medium text-xs">{getStatusLabel(currentQuote.status)}</span>
                 <ChevronDown className="w-4 h-4" />
-              </button>
+              </Button>
 
-              {showStatusDropdown && (
-                <>
-                  {/* Backdrop to close dropdown */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowStatusDropdown(false)}
-                  />
-                  {/* Dropdown menu */}
-                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-20 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-                    <div className="py-1">
-                      {allowedStatuses.map((status) => (
-                        <button
-                          key={status.value}
-                          onClick={() => handleStatusChange(status.value)}
-                          disabled={updatingStatus}
-                          className={`w-full text-left px-4 py-2 text-sm ${
-                            currentQuote.status === status.value
-                              ? isDark ? 'bg-gray-700 text-white font-medium' : 'bg-gray-100 text-gray-900 font-medium'
-                              : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
-                          } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {currentQuote.status === status.value && (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span>{status.label}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
+              {/* Status Dropdown */}
+              {showStatusMenu && (
+                <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} overflow-hidden z-50`}>
+                  {statuses.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusChange(status)}
+                      disabled={status === currentQuote.status}
+                      className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${status === currentQuote.status
+                          ? `${isDark ? 'bg-gray-700' : 'bg-gray-100'} opacity-50 cursor-not-allowed`
+                          : `${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`
+                        }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${status === 'accepted' ? 'bg-green-500' : status === 'sent' ? 'bg-blue-500' : status === 'rejected' ? 'bg-red-500' : status === 'expired' ? 'bg-orange-500' : 'bg-gray-500'}`} />
+                      {getStatusLabel(status)}
+                      {status === currentQuote.status && <Check className="w-4 h-4 ml-auto" />}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -596,20 +603,20 @@ export const QuoteViewContent: React.FC = () => {
             currentQuote.status === 'accepted' ||
             currentQuote.status === 'draft' // Allow conversion from draft if previously converted and modified
           ) && (
-            <Button
-              variant="ghost"
-              onClick={handleConvertToInvoice}
-              disabled={converting || saving}
-              className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${isDark ? 'bg-green-900 text-green-300' : 'bg-green-50 text-green-700'} rounded-[53px]`}
-            >
-              {converting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <ArrowRight className="w-5 h-5" />
-              )}
-              <span className="font-medium text-xs">Convertir en Facture</span>
-            </Button>
-          )}
+              <Button
+                variant="ghost"
+                onClick={handleConvertToInvoice}
+                disabled={converting || saving}
+                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${isDark ? 'bg-green-900 text-green-300' : 'bg-green-50 text-green-700'} rounded-[53px]`}
+              >
+                {converting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <ArrowRight className="w-5 h-5" />
+                )}
+                <span className="font-medium text-xs">Convertir en Facture</span>
+              </Button>
+            )}
 
           <Button
             variant="ghost"
@@ -661,13 +668,13 @@ export const QuoteViewContent: React.FC = () => {
         <div className="flex items-center justify-between gap-4">
           <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
-            onClick={handleLogoUpload}
+            onClick={() => setShowCompanyModal(true)}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
-              <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
+              <img src={fixImageUrl(companyInfo?.logo_url || organization?.organization_logo_url)} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Cliquez pour choisir une image
+                Cliquez pour ajouter votre logo
               </div>
             )}
           </div>
@@ -682,7 +689,7 @@ export const QuoteViewContent: React.FC = () => {
         {/* Company and Client Info */}
         <div className="flex items-start justify-between gap-4">
           {/* Company Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowCompanyModal(true)}
           >
@@ -694,7 +701,7 @@ export const QuoteViewContent: React.FC = () => {
               {(() => {
                 // Build address line with only available information
                 const addressParts = [];
-                
+
                 if (companyInfo) {
                   // Address with zip code and city if available
                   if (companyInfo.address) {
@@ -732,7 +739,7 @@ export const QuoteViewContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to organization description if no companyInfo
                 return organization?.description || 'Adresse\nN° TVA\nSIRET';
               })()}
@@ -765,21 +772,21 @@ export const QuoteViewContent: React.FC = () => {
           </div>
 
           {/* Client Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowClientModal(true)}
           >
             <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
             <div className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-              {client?.company_name || (client?.first_name && client?.last_name 
-                ? `${client.first_name} ${client.last_name}` 
+              {client?.company_name || (client?.first_name && client?.last_name
+                ? `${client.first_name} ${client.last_name}`
                 : clientInfo.name || 'Informations du client')}
             </div>
             <div className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} whitespace-pre-line`}>
               {(() => {
                 // Build client info display with only available information
                 const addressParts = [];
-                
+
                 if (client) {
                   // Address with zip code and city if available
                   if (client.address) {
@@ -817,7 +824,7 @@ export const QuoteViewContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to clientInfo if client object not available
                 if (clientInfo.name || clientInfo.address || clientInfo.email || clientInfo.phone) {
                   const infoParts = [];
@@ -826,7 +833,7 @@ export const QuoteViewContent: React.FC = () => {
                   if (clientInfo.phone) infoParts.push(clientInfo.phone);
                   return infoParts.length > 0 ? infoParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 return 'Cliquez pour ajouter les informations';
               })()}
             </div>
@@ -1013,7 +1020,7 @@ export const QuoteViewContent: React.FC = () => {
         </div>
 
         {/* Payment Terms - Clickable */}
-        <div 
+        <div
           className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >
@@ -1060,7 +1067,7 @@ export const QuoteViewContent: React.FC = () => {
           setPaymentTerms(text);
           setPaymentSchedule(schedule);
           setPaymentOptions(options);
-          
+
           // Save payment schedule to backend if quote exists
           if (id) {
             try {
@@ -1071,7 +1078,7 @@ export const QuoteViewContent: React.FC = () => {
                 show_dates: options.showDates,
                 show_conditions: options.showConditions,
               };
-              
+
               const response = await commercialService.createQuotePaymentSchedule(id, scheduleData);
               if (response.success) {
                 success('Conditions de paiement enregistrées');
@@ -1087,7 +1094,7 @@ export const QuoteViewContent: React.FC = () => {
               showError('Erreur', err.message || 'Impossible de sauvegarder les conditions de paiement');
             }
           }
-          
+
           setShowPaymentModal(false);
         }}
         totalAmount={totalTTC}

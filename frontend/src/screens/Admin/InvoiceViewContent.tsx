@@ -13,6 +13,7 @@ import { ArticleSearchModal } from '../../components/CommercialDashboard/Article
 import { ArticleCreationModal } from '../../components/CommercialDashboard/ArticleCreationModal';
 import { InseeSearchInput } from '../../components/CommercialDashboard/InseeSearchInput';
 import { CompanyInformationModal } from '../../components/CommercialDashboard/CompanyInformationModal';
+import { fixImageUrl } from '../../lib/utils';
 import { ClientInformationModal } from '../../components/CommercialDashboard/ClientInformationModal';
 import { PaymentConditionsModal } from '../../components/CommercialDashboard/PaymentConditionsModal';
 import { EmailModal, EmailData } from '../../components/CommercialDashboard/EmailModal';
@@ -51,7 +52,7 @@ export const InvoiceViewContent: React.FC = () => {
   const [paymentConditions, setPaymentConditions] = useState('');
   const [client, setClient] = useState<InvoiceClient | null>(null);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -82,11 +83,11 @@ export const InvoiceViewContent: React.FC = () => {
           if (invoiceResponse.success && invoiceResponse.data) {
             const invoiceData = invoiceResponse.data as any;
             setCurrentInvoice(invoiceData);
-            
+
             // Populate form with invoice data
             setInvoiceNumber(invoiceData.invoice_number || '');
             setPaymentConditions(invoiceData.payment_conditions || '');
-            
+
             // Set client info
             if (invoiceData.client) {
               setClient(invoiceData.client);
@@ -104,25 +105,18 @@ export const InvoiceViewContent: React.FC = () => {
                 phone: invoiceData.client_phone || '',
               });
             }
-            
+
             // Set items
             if (invoiceData.items && invoiceData.items.length > 0) {
-              const processedItems: InvoiceItem[] = invoiceData.items.map((item: any) => {
-                const quantity = parseFloat(item.quantity || 1);
-                const unit_price = parseFloat(item.unit_price || item.price_ht || 0);
-                // Calculate total from quantity and unit price, not from database
-                const total = quantity * unit_price;
-
-                return {
-                  id: item.id?.toString() || Date.now().toString(),
-                  reference: item.reference || '',
-                  designation: item.description || item.designation || '',
-                  quantity: quantity,
-                  unit_price: unit_price,
-                  tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
-                  total: total,
-                };
-              });
+              const processedItems: InvoiceItem[] = invoiceData.items.map((item: any) => ({
+                id: item.id?.toString() || Date.now().toString(),
+                reference: item.reference || '',
+                designation: item.description || item.designation || '',
+                quantity: parseFloat(item.quantity || 1),
+                unit_price: parseFloat(item.unit_price || item.price_ht || 0),
+                tax_rate: parseFloat(item.tax_rate || item.tva_rate || 0),
+                total: parseFloat(item.total || item.total_ht || 0),
+              }));
               setItems(processedItems);
             }
           } else {
@@ -143,7 +137,7 @@ export const InvoiceViewContent: React.FC = () => {
 
   const getStatusLabel = (status: string): string => {
     const labels: Record<string, string> = {
-      draft: 'Créé',
+      draft: 'Brouillon',
       sent: 'Envoyé',
       paid: 'Payé',
       overdue: 'Impayé',
@@ -163,40 +157,92 @@ export const InvoiceViewContent: React.FC = () => {
     return colors[status] || colors.draft;
   };
 
-  // Status list limited to: Créé (draft), Envoyé (sent), Payé (paid), Impayé (overdue)
-  const allowedStatuses = [
-    { value: 'draft', label: 'Créé' },
-    { value: 'sent', label: 'Envoyé' },
-    { value: 'paid', label: 'Payé' },
-    { value: 'overdue', label: 'Impayé' },
-  ];
+  const statuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!id || !currentInvoice) {
-      showError('Erreur', 'ID de facture manquant');
-      return;
-    }
-
-    if (newStatus === currentInvoice.status) {
-      setShowStatusDropdown(false);
-      return;
-    }
+    if (!id || !currentInvoice) return;
 
     setUpdatingStatus(true);
     try {
-      const response = await commercialService.updateInvoiceStatus(id, newStatus);
-      if (response.success && response.data) {
-        setCurrentInvoice({ ...currentInvoice, status: newStatus });
-        success('Statut mis à jour avec succès');
+      // Include required fields from current invoice to avoid validation errors
+      const updateData: any = {
+        status: newStatus,
+      };
+
+      // Include invoice_number if available - required field
+      if (invoiceNumber || currentInvoice.invoice_number) {
+        updateData.invoice_number = invoiceNumber || currentInvoice.invoice_number;
+      }
+
+      // Include client information - required field
+      if (clientInfo.name) {
+        updateData.client_name = clientInfo.name;
+      } else if (currentInvoice.client_name) {
+        updateData.client_name = currentInvoice.client_name;
+      } else if (currentInvoice.client) {
+        updateData.client_name = currentInvoice.client.company_name ||
+          `${currentInvoice.client.first_name || ''} ${currentInvoice.client.last_name || ''}`.trim() || 'Client';
+      }
+
+      // Include client email and address if available
+      if (clientInfo.email || currentInvoice.client_email || currentInvoice.client?.email) {
+        updateData.client_email = clientInfo.email || currentInvoice.client_email || currentInvoice.client?.email;
+      }
+      if (clientInfo.address || currentInvoice.client_address || currentInvoice.client?.address) {
+        updateData.client_address = clientInfo.address || currentInvoice.client_address || currentInvoice.client?.address;
+      }
+      if (clientInfo.phone || currentInvoice.client_phone || currentInvoice.client?.phone) {
+        updateData.client_phone = clientInfo.phone || currentInvoice.client_phone || currentInvoice.client?.phone;
+      }
+
+      // Include client_id if available
+      if (client?.id || currentInvoice.client_id) {
+        updateData.client_id = client?.id || currentInvoice.client_id;
+      }
+
+      // Include items - required to maintain invoice structure
+      if (items.length > 0) {
+        updateData.items = items.map(item => ({
+          id: item.id,
+          description: item.designation,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+        }));
+      } else if (currentInvoice.items && currentInvoice.items.length > 0) {
+        updateData.items = currentInvoice.items.map((item: any) => ({
+          id: item.id,
+          description: item.description || item.designation,
+          quantity: item.quantity,
+          unit_price: item.unit_price || parseFloat(item.price_ht || 0),
+          tax_rate: item.tax_rate || parseFloat(item.tva_rate || 0),
+        }));
+      }
+
+      // Include payment conditions if available
+      if (paymentConditions || currentInvoice.payment_conditions) {
+        updateData.payment_conditions = paymentConditions || currentInvoice.payment_conditions;
+      }
+
+      // Include issue_date if available (may be required)
+      if (currentInvoice.issue_date) {
+        updateData.issue_date = currentInvoice.issue_date;
+      }
+
+      const response = await commercialService.updateInvoice(id, updateData);
+
+      if (response.success) {
+        success(`Statut changé en "${getStatusLabel(newStatus)}"`);
+        setShowStatusMenu(false);
+        setCurrentInvoice({ ...currentInvoice, status: newStatus } as Invoice);
       } else {
-        showError('Erreur', response.message || 'Impossible de mettre à jour le statut');
+        showError('Erreur', response.message || 'Impossible de changer le statut');
       }
     } catch (err: any) {
       console.error('Status update error:', err);
-      showError('Erreur', err.message || 'Impossible de mettre à jour le statut');
+      showError('Erreur', err.message || 'Impossible de changer le statut');
     } finally {
       setUpdatingStatus(false);
-      setShowStatusDropdown(false);
     }
   };
 
@@ -208,35 +254,6 @@ export const InvoiceViewContent: React.FC = () => {
   };
 
   const { totalHT, totalTax, totalTTC } = calculateTotals();
-
-  // Handle direct logo file selection (no modal)
-  const handleLogoUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (!file) return;
-
-      try {
-        // Create preview URL
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setCompanyInfo((prev: any) => ({
-            ...prev,
-            logo_url: reader.result as string
-          }));
-        };
-        reader.readAsDataURL(file);
-
-        success('Logo sélectionné avec succès');
-      } catch (err: any) {
-        showError('Erreur', 'Erreur lors du chargement du logo');
-      }
-    };
-    input.click();
-  };
 
   const handleSave = async () => {
     if (!id) {
@@ -410,20 +427,20 @@ export const InvoiceViewContent: React.FC = () => {
       {/* Page Title Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div 
+          <div
             className={`flex items-center justify-center w-12 h-12 rounded-xl ${isDark ? 'bg-gray-700' : 'bg-[#ecf1fd]'}`}
             style={{ backgroundColor: isDark ? undefined : '#ecf1fd' }}
           >
             <Receipt className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               {currentInvoice ? `Facture ${invoiceNumber}` : 'Détails de la Facture'}
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               {currentInvoice ? 'Visualiser et modifier la facture' : 'Gérer les informations de la facture'}
@@ -466,55 +483,39 @@ export const InvoiceViewContent: React.FC = () => {
             )}
           </Button>
 
-          {/* Status Dropdown */}
+          {/* Status Change Button */}
           {currentInvoice && (
             <div className="relative">
-              <button
-                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              <Button
+                variant="ghost"
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
                 disabled={updatingStatus}
-                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] hover:opacity-80 transition-opacity`}
+                className={`h-auto inline-flex items-center gap-2 px-3 py-3 ${getStatusColor(currentInvoice.status)} rounded-[53px] relative`}
               >
-                {updatingStatus ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Check className="w-5 h-5" />
-                )}
+                <Check className="w-5 h-5" />
                 <span className="font-medium text-xs">{getStatusLabel(currentInvoice.status)}</span>
                 <ChevronDown className="w-4 h-4" />
-              </button>
+              </Button>
 
-              {showStatusDropdown && (
-                <>
-                  {/* Backdrop to close dropdown */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowStatusDropdown(false)}
-                  />
-                  {/* Dropdown menu */}
-                  <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-20 ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-                    <div className="py-1">
-                      {allowedStatuses.map((status) => (
-                        <button
-                          key={status.value}
-                          onClick={() => handleStatusChange(status.value)}
-                          disabled={updatingStatus}
-                          className={`w-full text-left px-4 py-2 text-sm ${
-                            currentInvoice.status === status.value
-                              ? isDark ? 'bg-gray-700 text-white font-medium' : 'bg-gray-100 text-gray-900 font-medium'
-                              : isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'
-                          } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <div className="flex items-center gap-2">
-                            {currentInvoice.status === status.value && (
-                              <Check className="w-4 h-4" />
-                            )}
-                            <span>{status.label}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
+              {/* Status Dropdown */}
+              {showStatusMenu && (
+                <div className={`absolute right-0 top-full mt-2 w-48 rounded-lg shadow-lg ${isDark ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'} overflow-hidden z-50`}>
+                  {statuses.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => handleStatusChange(status)}
+                      disabled={status === currentInvoice.status}
+                      className={`w-full px-4 py-2.5 text-left text-sm flex items-center gap-2 ${status === currentInvoice.status
+                          ? `${isDark ? 'bg-gray-700' : 'bg-gray-100'} opacity-50 cursor-not-allowed`
+                          : `${isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'}`
+                        }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${status === 'paid' ? 'bg-green-500' : status === 'sent' ? 'bg-blue-500' : status === 'overdue' ? 'bg-red-500' : 'bg-gray-500'}`} />
+                      {getStatusLabel(status)}
+                      {status === currentInvoice.status && <Check className="w-4 h-4 ml-auto" />}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -569,13 +570,13 @@ export const InvoiceViewContent: React.FC = () => {
         <div className="flex items-center justify-between gap-4">
           <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed cursor-pointer hover:border-solid transition-all ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
-            onClick={handleLogoUpload}
+            onClick={() => setShowCompanyModal(true)}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
-              <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
+              <img src={fixImageUrl(companyInfo?.logo_url || organization?.organization_logo_url)} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                Cliquez pour choisir une image
+                Cliquez pour ajouter votre logo
               </div>
             )}
           </div>
@@ -590,7 +591,7 @@ export const InvoiceViewContent: React.FC = () => {
         {/* Company and Client Info */}
         <div className="flex items-start justify-between gap-4">
           {/* Company Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowCompanyModal(true)}
           >
@@ -602,7 +603,7 @@ export const InvoiceViewContent: React.FC = () => {
               {(() => {
                 // Build address line with only available information
                 const addressParts = [];
-                
+
                 if (companyInfo) {
                   // Address with zip code and city if available
                   if (companyInfo.address) {
@@ -640,7 +641,7 @@ export const InvoiceViewContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to organization description if no companyInfo
                 return organization?.description || 'Adresse\nN° TVA\nSIRET';
               })()}
@@ -664,21 +665,21 @@ export const InvoiceViewContent: React.FC = () => {
           </div>
 
           {/* Client Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowClientModal(true)}
           >
             <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
             <div className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-              {client?.company_name || (client?.first_name && client?.last_name 
-                ? `${client.first_name} ${client.last_name}` 
+              {client?.company_name || (client?.first_name && client?.last_name
+                ? `${client.first_name} ${client.last_name}`
                 : clientInfo.name || 'Informations du client')}
             </div>
             <div className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} whitespace-pre-line`}>
               {(() => {
                 // Build client info display with only available information
                 const addressParts = [];
-                
+
                 if (client) {
                   // Address with zip code and city if available
                   if (client.address) {
@@ -716,7 +717,7 @@ export const InvoiceViewContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to clientInfo if client object not available
                 if (clientInfo.name || clientInfo.address || clientInfo.email || clientInfo.phone) {
                   const infoParts = [];
@@ -725,7 +726,7 @@ export const InvoiceViewContent: React.FC = () => {
                   if (clientInfo.phone) infoParts.push(clientInfo.phone);
                   return infoParts.length > 0 ? infoParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 return 'Cliquez pour ajouter les informations';
               })()}
             </div>
@@ -912,7 +913,7 @@ export const InvoiceViewContent: React.FC = () => {
         </div>
 
         {/* Payment Terms - Clickable */}
-        <div 
+        <div
           className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >

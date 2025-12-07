@@ -62,7 +62,6 @@ export const MesDevis = (): JSX.Element => {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, total_pages: 0 });
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -183,15 +182,13 @@ export const MesDevis = (): JSX.Element => {
         client_type: filterType || undefined,
       });
       if (response.success && response.data) {
-        // Backend returns paginated data directly in response.data
-        const quotesData = response.data.data || [];
+        const quotesData = response.data.quotes?.data || response.data.data || [];
         setQuotes(quotesData);
-
-        // Pagination metadata is in response.data, not response.data.quotes
-        const paginationData = response.data;
+        
+        const paginationData = response.data.quotes || response.data.pagination || {};
         setPagination({
-          total: paginationData.total || 0,
-          total_pages: paginationData.last_page || 0,
+          total: paginationData.total || paginationData.total || 0,
+          total_pages: paginationData.last_page || paginationData.total_pages || 0,
         });
       }
     } catch (err) {
@@ -1024,31 +1021,19 @@ export const MesDevis = (): JSX.Element => {
                       key={String(quote.id)}
                       className={`border-b ${isDark ? 'border-gray-700 hover:bg-gray-700/50' : 'border-[#e2e2ea] hover:bg-gray-50'} ${selectedQuotes.has(String(quote.id)) ? 'bg-blue-50' : ''} cursor-pointer`}
                       onClick={(e) => {
-                        // Don't open modal if clicking on checkbox, action buttons, or status badge
+                        // Don't navigate if clicking on checkbox or action buttons
                         const target = e.target as HTMLElement;
                         if (
                           target.closest('button') ||
                           target.closest('[role="checkbox"]') ||
-                          target.type === 'checkbox' ||
-                          target.closest('.status-badge')
+                          target.type === 'checkbox'
                         ) {
                           return;
                         }
-
-                        // Check if this is an imported quote using is_imported field
-                        const isImported = quote.is_imported === 1 || quote.is_imported === true;
-
-                        if (isImported) {
-                          // Imported quote: Open import modal in edit mode
-                          setEditingQuote(quote);
-                          setIsImportModalOpen(true);
+                        if (subdomain) {
+                          navigate(`/${subdomain}/quote-view/${quote.id}`);
                         } else {
-                          // Manually created quote: Navigate to full edit page
-                          if (subdomain) {
-                            navigate(`/${subdomain}/quote-view/${quote.id}`);
-                          } else {
-                            navigate(`/quote-view/${quote.id}`);
-                          }
+                          navigate(`/quote-view/${quote.id}`);
                         }
                       }}
                     >
@@ -1094,7 +1079,7 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <Badge
                             onClick={(e) => handleStatusClick(quote, e)}
-                            className={`status-badge rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
+                            className={`rounded-full px-3 py-1 font-medium text-sm flex items-center justify-center gap-1 inline-flex cursor-pointer hover:opacity-80 transition-opacity ${statusColors.bg.startsWith('#') ? '' : statusColors.bg} ${statusColors.text.startsWith('#') ? '' : statusColors.text}`}
                             style={{
                               backgroundColor: statusColors.bg.startsWith('#') ? statusColors.bg : undefined,
                               color: statusColors.text.startsWith('#') ? statusColors.text : undefined,
@@ -1122,20 +1107,10 @@ export const MesDevis = (): JSX.Element => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => {
-                              // Check if this is an imported quote using is_imported field
-                              const isImported = quote.is_imported === 1 || quote.is_imported === true;
-
-                              if (isImported) {
-                                // Imported quote: Open import modal in edit mode
-                                setEditingQuote(quote);
-                                setIsImportModalOpen(true);
+                              if (subdomain) {
+                                navigate(`/${subdomain}/quote-view/${quote.id}`);
                               } else {
-                                // Manually created quote: Navigate to full edit page
-                                if (subdomain) {
-                                  navigate(`/${subdomain}/quote-view/${quote.id}`);
-                                } else {
-                                  navigate(`/quote-view/${quote.id}`);
-                                }
+                                navigate(`/quote-view/${quote.id}`);
                               }
                             }}
                             className={`w-8 h-8 flex items-center justify-center rounded-full border ${isDark ? 'border-gray-600 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 bg-white hover:bg-gray-50'} transition-all`}
@@ -1160,6 +1135,48 @@ export const MesDevis = (): JSX.Element => {
                 })}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {/* Totals Summary - Moved outside table */}
+        {sortedQuotes.length > 0 && (
+          <div className="flex justify-end mt-6">
+            <div className={`w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6`}>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('dashboard.commercial.mes_devis.total_ht')}
+                  </span>
+                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {formatCurrency(
+                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {t('dashboard.commercial.mes_devis.tva')}
+                  </span>
+                  <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                    {formatCurrency(
+                      sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
+                    )}
+                  </span>
+                </div>
+                <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
+                  <div className="flex items-center justify-end gap-4">
+                    <span className={`font-bold text-base`} style={{ color: primaryColor }}>
+                      {t('dashboard.commercial.mes_devis.total_ttc')}
+                    </span>
+                    <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
+                      {formatCurrency(
+                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1188,50 +1205,7 @@ export const MesDevis = (): JSX.Element => {
           </div>
         )}
       </div>
-        
-        {/* Totals Summary Card - Bottom Right */}
-        {sortedQuotes.length > 0 && (
-          <div className="rounded-[18px]  p-4 mt-4 ${isDark ? 'bg-gray-800' : 'bg-white'}" >
-            <div className="flex justify-end mt-4">
-              <div className={`border border-solid ${isDark ? 'border-gray-700' : 'border-[#e2e2ea]'} w-[350px] rounded-xl ${isDark ? 'bg-gray-700' : 'bg-gray-50'} p-6 shadow-sm`}>
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {t('dashboard.commercial.mes_devis.total_ht')}
-                    </span>
-                    <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {formatCurrency(
-                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ht), 0)
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-medium text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {t('dashboard.commercial.mes_devis.tva')}
-                    </span>
-                    <span className={`font-semibold text-sm ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {formatCurrency(
-                        sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_tva), 0)
-                      )}
-                    </span>
-                  </div>
-                  <div className={`pt-3 border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`font-bold text-base`} style={{ color: primaryColor }}>
-                        {t('dashboard.commercial.mes_devis.total_ttc')}
-                      </span>
-                      <span className={`font-bold text-xl`} style={{ color: primaryColor }}>
-                        {formatCurrency(
-                          sortedQuotes.reduce((sum, quote) => sum + normalizeValue(quote.total_ttc || quote.total_amount), 0)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+
       {/* Confirmation Delete Modal */}
       <ConfirmationModalComponent
         isOpen={showDeleteModal}
@@ -1248,17 +1222,15 @@ export const MesDevis = (): JSX.Element => {
       {/* Quote Import Modal */}
       <QuoteImportModal
         isOpen={isImportModalOpen}
-        onClose={() => {
-          setIsImportModalOpen(false);
-          setEditingQuote(null);
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={(extractedData) => {
+          // Navigate to creation page with pre-filled data
+          if (subdomain) {
+            navigate(`/${subdomain}/quote-creation`, { state: { prefillData: extractedData } });
+          } else {
+            navigate('/quote-creation', { state: { prefillData: extractedData } });
+          }
         }}
-        onSuccess={() => {
-          // Refresh the quotes list after successful import
-          setIsImportModalOpen(false);
-          setEditingQuote(null);
-          fetchQuotes();
-        }}
-        quote={editingQuote}
       />
 
       {/* Filter Modal */}

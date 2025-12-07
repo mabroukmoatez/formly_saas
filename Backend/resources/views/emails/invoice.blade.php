@@ -19,7 +19,7 @@
         
         @if(isset($customMessage) && $customMessage)
             <div style="background-color: #fff; padding: 15px; border-radius: 5px; margin-bottom: 20px; white-space: pre-line;">
-                {!! nl2br($customMessage) !!}
+                {!! nl2br(e($customMessage)) !!}
             </div>
         @else
             <p>Bonjour {{ $invoice->client->company_name ?? ($invoice->client->first_name . ' ' . $invoice->client->last_name) }},</p>

@@ -14,6 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { LoadingScreen } from '../../components/LoadingScreen';
 import { useToast } from '../../components/ui/toast';
+import { X, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface CourseCreationProps {
   courseUuid?: string;
@@ -74,6 +75,8 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
   const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{ [key: string]: ReturnType<typeof setTimeout> }>({});
   const [selectedPracticeIds, setSelectedPracticeIds] = useState<number[]>(formData.formation_practice_ids || []);
   const [step2Progress, setStep2Progress] = useState(0);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // Load module durations from localStorage
   useEffect(() => {
@@ -555,31 +558,42 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
         }
       }
     } else if (currentStep === 6) {
-      // Handle course completion
-      try {
-        // First save all changes
-        await autoSave();
-
-        // Then update status to active
-        const updated = await updateCourseStatus('active');
-        if (updated) {
-          showSuccess(t('course.completedSuccessfully') || 'Cours enregistré avec succès');
-
-          // Call onCourseSaved callback if provided
-          if (onCourseSaved) {
-            onCourseSaved();
-          }
-        }
-      } catch (error: any) {
-        console.error('Failed to complete course:', error);
-        showError(t('course.completionError') || 'Erreur lors de l\'enregistrement du cours');
-      }
+      // Ouvrir le modal de confirmation au lieu de publier directement
+      setShowPublishModal(true);
     }
   };
 
   const handlePreviousStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  // Handler pour confirmer la publication
+  const handleConfirmPublish = async () => {
+    setIsPublishing(true);
+    try {
+      // First save all changes
+      await autoSave();
+
+      // Then update status to active (published)
+      const updated = await updateCourseStatus('active');
+      if (updated) {
+        showSuccess(t('course.completedSuccessfully') || 'Formation publiée avec succès');
+        setShowPublishModal(false);
+
+        // Call onCourseSaved callback if provided
+        if (onCourseSaved) {
+          onCourseSaved();
+        }
+      } else {
+        showError('Erreur lors de la publication de la formation');
+      }
+    } catch (error: any) {
+      console.error('Failed to publish course:', error);
+      showError(t('course.completionError') || 'Erreur lors de la publication de la formation');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -612,7 +626,7 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
     course_language_id: formData.course_language_id,
     difficulty_level_id: formData.difficulty_level_id,
     price_ht: formData.price || 0,
-    // vat_percentage: 20, // Default value
+    vat_percentage: formData.vat_percentage || 20, // Default value
     additional_fees: [], // Not in context formData
     duration: formData.duration || 0,
     duration_days: formData.duration_days || 0,
@@ -748,6 +762,97 @@ const CourseCreationContent: React.FC<CourseCreationProps> = ({
           </div>
         </div>
       </main>
+
+      {/* Modal de confirmation de publication */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-md mx-4 rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Confirmer la publication
+                </h3>
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={isPublishing}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="mb-6">
+                <div className={`flex items-start gap-4 p-4 rounded-lg ${
+                  isDark ? 'bg-blue-900/20 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${
+                    isDark ? 'text-blue-400' : 'text-blue-600'
+                  }`} />
+                  <div className="flex-1">
+                    <p className={`font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Êtes-vous sûr de vouloir publier cette formation ?
+                    </p>
+                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Une fois publiée, la formation sera visible et accessible aux apprenants. 
+                      Vous pourrez toujours la modifier ou la désactiver par la suite.
+                    </p>
+                  </div>
+                </div>
+
+                {formData.title && (
+                  <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Formation à publier :
+                    </p>
+                    <p className={`font-medium mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {formData.title}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={isPublishing}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmPublish}
+                  disabled={isPublishing}
+                  className="px-6 py-2 rounded-lg font-medium text-white transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  style={{
+                    backgroundColor: isPublishing ? '#6b7280' : '#16a34a'
+                  }}
+                >
+                  {isPublishing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Publication...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Confirmer la publication
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
+import { fixImageUrl } from '../../lib/utils';
 
 interface FooterProps {
   className?: string;
@@ -27,7 +28,7 @@ export const CommercialFooter: React.FC<FooterProps> = ({ className }) => {
           <img
             className="w-6 h-6"
             alt={`${organization?.organization_name || 'Formly'} logo`}
-            src={organization?.organization_logo_url || '/assets/logos/formly-logo.png'}
+            src={fixImageUrl(organization?.organization_logo_url) || '/assets/logos/formly-logo.png'}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = '/assets/logos/formly-logo.png';
@@ -37,7 +38,7 @@ export const CommercialFooter: React.FC<FooterProps> = ({ className }) => {
             {organization?.organization_name || 'Formly'}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <span className={`text-xs transition-colors ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             {getCopyrightText()}

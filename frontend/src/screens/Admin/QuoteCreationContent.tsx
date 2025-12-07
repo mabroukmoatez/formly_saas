@@ -15,6 +15,7 @@ import { InseeSearchInput } from '../../components/CommercialDashboard/InseeSear
 import { CompanyInformationModal } from '../../components/CommercialDashboard/CompanyInformationModal';
 import { ClientInformationModal } from '../../components/CommercialDashboard/ClientInformationModal';
 import { PaymentConditionsModal } from '../../components/CommercialDashboard/PaymentConditionsModal';
+import { fixImageUrl } from '../../lib/utils';
 import { Article, InvoiceClient } from '../../services/commercial.types';
 
 interface QuoteItem {
@@ -177,16 +178,15 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          designation: item.designation,
-          description: item.description || item.designation,
+          description: item.designation,
           quantity: item.quantity,
-          price_ht: item.unit_price,
-          tva_rate: item.tax_rate,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
         })),
       };
 
       const response = await commercialService.createQuote(quoteData);
-      
+
       // Save payment schedule if defined
       if (response.success && response.data?.quote?.id && paymentSchedule.length > 0) {
         try {
@@ -197,7 +197,7 @@ export const QuoteCreationContent: React.FC = () => {
             show_dates: paymentOptions.showDates,
             show_conditions: paymentOptions.showConditions,
           };
-          
+
           await commercialService.createQuotePaymentSchedule(response.data.quote.id.toString(), scheduleData);
           success('Devis et conditions de paiement créés avec succès');
         } catch (scheduleErr) {
@@ -207,7 +207,7 @@ export const QuoteCreationContent: React.FC = () => {
       } else {
         success('Devis créé avec succès');
       }
-      
+
       // Navigate back
       if (subdomain) {
         navigate(`/${subdomain}/mes-devis`);
@@ -257,11 +257,10 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          designation: item.designation,
-          description: item.description || item.designation,
+          description: item.designation,
           quantity: item.quantity,
-          price_ht: item.unit_price,
-          tva_rate: item.tax_rate,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
         })),
       };
 
@@ -332,11 +331,10 @@ export const QuoteCreationContent: React.FC = () => {
         valid_until: validUntil || undefined,
         payment_conditions: paymentTerms, // Backend expects payment_conditions
         items: items.map(item => ({
-          designation: item.designation,
-          description: item.description || item.designation,
+          description: item.designation,
           quantity: item.quantity,
-          price_ht: item.unit_price,
-          tva_rate: item.tax_rate,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
         })),
       };
 
@@ -469,11 +467,11 @@ export const QuoteCreationContent: React.FC = () => {
       <div className="flex flex-col gap-[42px] max-w-[1100px] mx-auto">
         {/* Logo Section */}
         <div className="flex items-center justify-between gap-4">
-          <div 
+          <div
             className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] border-2 border-dashed ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           >
             {companyInfo?.logo_url || organization?.organization_logo_url ? (
-              <img src={companyInfo?.logo_url || organization?.organization_logo_url} alt="Logo" className="h-full object-contain" />
+              <img src={fixImageUrl(companyInfo?.logo_url || organization?.organization_logo_url)} alt="Logo" className="h-full object-contain" />
             ) : (
               <div className={`text-xs text-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 Logo
@@ -494,7 +492,7 @@ export const QuoteCreationContent: React.FC = () => {
         {/* Company and Client Info */}
         <div className="flex items-start justify-between gap-4">
           {/* Company Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowCompanyModal(true)}
           >
@@ -506,7 +504,7 @@ export const QuoteCreationContent: React.FC = () => {
               {(() => {
                 // Build address line with only available information
                 const addressParts = [];
-                
+
                 if (companyInfo) {
                   // Address with zip code and city if available
                   if (companyInfo.address) {
@@ -544,7 +542,7 @@ export const QuoteCreationContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to organization description if no companyInfo
                 return organization?.description || 'Adresse\nN° TVA\nSIRET';
               })()}
@@ -591,21 +589,21 @@ export const QuoteCreationContent: React.FC = () => {
           </div>
 
           {/* Client Block - Clickable */}
-          <div 
+          <div
             className={`flex-1 bg-white rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
             onClick={() => setShowClientModal(true)}
           >
             <Edit className={`absolute top-2 right-2 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-600'}`} />
             <div className={`font-semibold text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
-              {client?.company_name || (client?.first_name && client?.last_name 
-                ? `${client.first_name} ${client.last_name}` 
+              {client?.company_name || (client?.first_name && client?.last_name
+                ? `${client.first_name} ${client.last_name}`
                 : clientInfo.name || 'Informations du client')}
             </div>
             <div className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'} whitespace-pre-line`}>
               {(() => {
                 // Build client info display with only available information
                 const addressParts = [];
-                
+
                 if (client) {
                   // Address with zip code and city if available
                   if (client.address) {
@@ -643,7 +641,7 @@ export const QuoteCreationContent: React.FC = () => {
 
                   return addressParts.length > 0 ? addressParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 // Fallback to clientInfo if client object not available
                 if (clientInfo.name || clientInfo.address || clientInfo.email || clientInfo.phone) {
                   const infoParts = [];
@@ -652,7 +650,7 @@ export const QuoteCreationContent: React.FC = () => {
                   if (clientInfo.phone) infoParts.push(clientInfo.phone);
                   return infoParts.length > 0 ? infoParts.join('\n') : 'Cliquez pour ajouter les informations';
                 }
-                
+
                 return 'Cliquez pour ajouter les informations';
               })()}
             </div>
@@ -809,28 +807,28 @@ export const QuoteCreationContent: React.FC = () => {
           <div className={`w-[278px] h-[154px] rounded-[10px] p-6`} style={{ backgroundColor: primaryColor }}>
             <div className="flex flex-col gap-3 h-full">
               <div className="flex items-center justify-between pt-1 pb-3 border-b border-solid" style={{ borderColor: `${primaryColor}33` }}>
-                <div className="font-normal text-sm text-white">
+                <div className="font-normal text-sm text-white/90">
                   Total HT
                 </div>
-                <div className="font-normal text-sm text-white">
+                <div className="font-normal text-sm text-white/90">
                   {totalHT.toFixed(2)} €
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-1 pb-3 border-b border-solid" style={{ borderColor: `${primaryColor}33` }}>
-                <div className="font-normal text-sm text-white">
+                <div className="font-normal text-sm text-white/90">
                   TVA
                 </div>
-                <div className="font-normal text-sm text-white">
+                <div className="font-normal text-sm text-white/90">
                   {totalTax.toFixed(2)} €
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-1 px-0">
-                <div className="font-semibold text-lg text-white">
+                <div className="font-semibold text-lg text-white/95">
                   Total TTC
                 </div>
-                <div className="font-semibold text-lg text-white">
+                <div className="font-semibold text-lg text-white/95">
                   {totalTTC.toFixed(2)} €
                 </div>
               </div>
@@ -839,7 +837,7 @@ export const QuoteCreationContent: React.FC = () => {
         </div>
 
         {/* Payment Terms - Clickable */}
-        <div 
+        <div
           className={`min-h-[120px] w-full rounded-[5px] border-2 border-dashed p-6 cursor-pointer hover:border-solid transition-all relative group ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-[#6a90b9]'}`}
           onClick={() => setShowPaymentModal(true)}
         >
@@ -876,7 +874,6 @@ export const QuoteCreationContent: React.FC = () => {
           });
           setShowClientModal(false);
         }}
-        existingClient={client}
       />
 
       <PaymentConditionsModal

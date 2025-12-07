@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ChevronDown, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -36,79 +36,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
     tva: 20,
   });
   const [saving, setSaving] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([
-    'Consultation',
-    'Support',
-    'Training',
-    'Services',
-    'Subscription',
-    'Product',
-  ]);
-
-  const categoryRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (categoryRef.current && !categoryRef.current.contains(event.target as Node)) {
-        setCategoryDropdownOpen(false);
-      }
-    };
-
-    if (isOpen && categoryDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen, categoryDropdownOpen]);
-
-  // Load existing categories from articles
-  useEffect(() => {
-    if (isOpen) {
-      fetchExistingCategories();
-    }
-  }, [isOpen]);
-
-  const fetchExistingCategories = async () => {
-    try {
-      const response = await commercialService.getArticles({
-        page: 1,
-        per_page: 100,
-      });
-
-      if (response.success && response.data) {
-        const articles = response.data.data || [];
-        const usedCategories = new Set<string>();
-
-        articles.forEach((art: Article) => {
-          if (art.category) usedCategories.add(art.category);
-        });
-
-        // Merge with defaults
-        const defaultCategories = [
-          'Consultation',
-          'Support',
-          'Training',
-          'Services',
-          'Subscription',
-          'Product',
-        ];
-        const newCategories = [...defaultCategories];
-        usedCategories.forEach(cat => {
-          if (!newCategories.includes(cat)) {
-            newCategories.push(cat);
-          }
-        });
-        setAvailableCategories(newCategories);
-      }
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-    }
-  };
 
   // Load article data when editing
   useEffect(() => {
@@ -123,7 +50,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         discount: 0,
         tva: parseFloat(String(article.tva || article.tax_rate || 20)),
       });
-      setIsCustomCategory(false);
     } else if (isOpen && !article) {
       const nextRef = `ART-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
       setFormData({
@@ -136,7 +62,6 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
         discount: 0,
         tva: 20,
       });
-      setIsCustomCategory(false);
     }
   }, [isOpen, article]);
 
@@ -305,75 +230,21 @@ export const ArticleCreationModal: React.FC<ArticleCreationModalProps> = ({
                 {/* Category Field */}
                 <div className="bg-white rounded-[8px] px-[13px] py-[6px] flex flex-col gap-[4px] flex-1 relative">
                   <div className="absolute border border-[rgba(106,144,186,0.33)] inset-0 pointer-events-none rounded-[8px]" />
-                  <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
-                  <div className="relative" ref={categoryRef}>
-                    {isCustomCategory ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Nouvelle catégorie"
-                          value={formData.category}
-                          onChange={(e) => handleInputChange('category', e.target.value)}
-                          className="flex-1 text-[15px] font-semibold text-[#19294a] text-center bg-transparent border-none outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCustomCategory(false);
-                            handleInputChange('category', '');
-                          }}
-                          className="text-gray-500 hover:text-gray-700"
-                          title="Annuler"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
-                          className="w-full flex items-center justify-center gap-1 py-1"
-                        >
-                          <span className={`text-[15px] font-semibold ${formData.category ? 'text-[#19294a]' : 'text-[#6a90ba]'}`}>
-                            {formData.category || 'Sélectionner'}
-                          </span>
-                          <ChevronDown className={`w-4 h-4 text-[#6a90ba] transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {categoryDropdownOpen && (
-                          <div className="absolute z-50 w-full mt-1 border rounded-md shadow-lg bg-white border-gray-300 max-h-60 overflow-y-auto">
-                            <div className="p-1">
-                              <div
-                                onClick={() => {
-                                  setIsCustomCategory(true);
-                                  handleInputChange('category', '');
-                                  setCategoryDropdownOpen(false);
-                                }}
-                                className="p-2 cursor-pointer hover:bg-blue-50 flex items-center gap-2 border-b border-gray-200"
-                              >
-                                <Plus className="w-4 h-4 text-blue-500" />
-                                <span className="text-blue-500 font-medium text-sm">Créer une nouvelle catégorie</span>
-                              </div>
-                              {availableCategories.map((cat) => (
-                                <div
-                                  key={cat}
-                                  onClick={() => {
-                                    handleInputChange('category', cat);
-                                    setCategoryDropdownOpen(false);
-                                  }}
-                                  className={`p-2 cursor-pointer hover:bg-gray-100 ${formData.category === cat ? 'bg-blue-50' : ''}`}
-                                >
-                                  <span className="text-gray-900 text-sm">{cat}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <p className="text-[12px] font-medium text-[#6a90ba] text-center capitalize">catégorie</p>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => handleInputChange('category', e.target.value)}
+                      className={`w-full px-3 py-2 rounded-md border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    >
+                      <option value="">{t('dashboard.commercial.mes_articles.modal.category_placeholder')}</option>
+                      <option value="Consultation">{t('dashboard.commercial.mes_articles.categories.consultation')}</option>
+                      <option value="Support">{t('dashboard.commercial.mes_articles.categories.support')}</option>
+                      <option value="Training">{t('dashboard.commercial.mes_articles.categories.training')}</option>
+                      <option value="Services">{t('dashboard.commercial.mes_articles.categories.services')}</option>
+                      <option value="Subscription">{t('dashboard.commercial.mes_articles.categories.subscription')}</option>
+                      <option value="Product">{t('dashboard.commercial.mes_articles.categories.product')}</option>
+                    </select>
                   </div>
-                </div>
                 
               </div>
             </div>

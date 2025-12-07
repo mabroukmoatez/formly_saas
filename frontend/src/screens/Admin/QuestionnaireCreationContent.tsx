@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { 
-  Eye, 
-  Check, 
-  Plus, 
-  Trash2, 
+import {
+  Eye,
+  Check,
+  Plus,
+  Trash2,
   ChevronDown,
   GripVertical,
   ArrowLeft,
@@ -40,8 +40,9 @@ import { courseCreation } from '../../services/courseCreation';
 import { sessionCreation } from '../../services/sessionCreation';
 import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
+import { fixImageUrl } from '../../lib/utils';
 
-type QuestionType = 
+type QuestionType =
   | 'single_choice'      // Réponse simple (radio)
   | 'multiple_choice'    // Réponse multiple (checkbox)
   | 'short_text'         // Réponse courte
@@ -90,7 +91,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
   const { subdomain } = useSubdomainNavigation();
   const { courseUuid: paramCourseUuid } = useParams();
   const [searchParams] = useSearchParams();
-  
+
   const courseUuid = propCourseUuid || paramCourseUuid || searchParams.get('courseUuid');
   const sessionUuid = propSessionUuid || searchParams.get('sessionUuid');
   const documentId = searchParams.get('documentId');
@@ -238,7 +239,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     if (question && question.options) {
       const index = question.options.findIndex(opt => opt.id === optionId);
       if (index === -1) return;
-      
+
       const newOptions = [...question.options];
       if (direction === 'up' && index > 0) {
         [newOptions[index - 1], newOptions[index]] = [newOptions[index], newOptions[index - 1]];
@@ -306,8 +307,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     const question = questions.find(q => q.id === questionId);
     if (question && question.tableRows) {
       updateQuestion(questionId, {
-        tableRows: question.tableRows.map(row => 
-          row.id === rowId 
+        tableRows: question.tableRows.map(row =>
+          row.id === rowId
             ? { ...row, cells: row.cells.map((cell, idx) => idx === columnIndex ? value : cell) }
             : row
         )
@@ -333,7 +334,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     if (draggedQuestionId && draggedQuestionId !== targetId) {
       const draggedIndex = questions.findIndex(q => q.id === draggedQuestionId);
       const targetIndex = questions.findIndex(q => q.id === targetId);
-      
+
       if (draggedIndex !== -1 && targetIndex !== -1) {
         const newQuestions = [...questions];
         const [removed] = newQuestions.splice(draggedIndex, 1);
@@ -359,10 +360,10 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
       try {
         setLoading(true);
         setIsEditMode(true);
-        
+
         // Determine the document ID to fetch
         let docId: number | null = null;
-        
+
         if (documentId) {
           docId = parseInt(documentId);
         } else if (questionnaireUuid) {
@@ -370,7 +371,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           const listResponse = await courseCreation.getAllOrganizationDocuments({
             exclude_questionnaires: false
           });
-          
+
           if (listResponse.success && listResponse.data) {
             const allDocs = Array.isArray(listResponse.data) ? listResponse.data : (listResponse.data.data || []);
             const foundDoc = allDocs.find((doc: any) => doc.uuid === questionnaireUuid);
@@ -379,13 +380,13 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
             }
           }
         }
-        
+
         if (!docId) {
           showError('Erreur', 'Questionnaire non trouvé');
           setLoading(false);
           return;
         }
-        
+
         // Fetch the specific document/questionnaire
         // Try with ?include=questions parameter first
         let response;
@@ -395,19 +396,19 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           // If that fails, try without the parameter
           response = await apiService.get(`/api/organization/documents/${docId}`);
         }
-        
+
         console.log('📋 Questionnaire API Response:', response);
         console.log('📋 Full response structure:', JSON.stringify(response, null, 2));
-        
+
         if (response.success && response.data) {
           const questionnaire = response.data;
-          
+
           console.log('📋 Questionnaire Data:', questionnaire);
           console.log('📋 Has questions field?', !!questionnaire.questions);
           console.log('📋 Questions value:', questionnaire.questions);
           console.log('📋 All keys in questionnaire:', Object.keys(questionnaire));
           console.log('📋 Custom template:', questionnaire.custom_template);
-          
+
           // Check if questions are in a relation
           if (questionnaire.questionnaire_questions) {
             console.log('✅ Found questionnaire_questions relation');
@@ -415,15 +416,15 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           if (questionnaire.questions_relation) {
             console.log('✅ Found questions_relation');
           }
-          
+
           if (questionnaire && (questionnaire.is_questionnaire || questionnaire.questionnaire_type)) {
             setQuestionnaireId(questionnaire.id);
             setQuestionnaireTitle(questionnaire.name || '');
             setQuestionnaireDescription(questionnaire.description || '');
-            
+
             // Try to load questions from the response first
             let questionsData: any[] = [];
-            
+
             // Check multiple possible locations for questions
             if (questionnaire.questions && Array.isArray(questionnaire.questions) && questionnaire.questions.length > 0) {
               console.log('✅ Found questions in questionnaire.questions');
@@ -444,8 +445,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                 const questionsResponse = await apiService.get(`/api/organization/documents/${docId}/questions`);
                 console.log('📋 Questions API Response:', questionsResponse);
                 if (questionsResponse.success && questionsResponse.data) {
-                  questionsData = Array.isArray(questionsResponse.data) 
-                    ? questionsResponse.data 
+                  questionsData = Array.isArray(questionsResponse.data)
+                    ? questionsResponse.data
                     : (questionsResponse.data.questions || questionsResponse.data.data || []);
                   console.log('✅ Found questions from separate endpoint:', questionsData.length);
                 }
@@ -456,15 +457,15 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   const altResponse = await apiService.get(`/api/organization/questionnaires/${docId}/questions`);
                   console.log('📋 Alternative Questions API Response:', altResponse);
                   if (altResponse.success && altResponse.data) {
-                    questionsData = Array.isArray(altResponse.data) 
-                      ? altResponse.data 
+                    questionsData = Array.isArray(altResponse.data)
+                      ? altResponse.data
                       : (altResponse.data.questions || altResponse.data.data || []);
                     console.log('✅ Found questions from alternative endpoint:', questionsData.length);
                   }
                 } catch (altErr) {
                   console.warn('⚠️ Alternative endpoint also failed:', altErr);
                 }
-                
+
                 // Check if questions are in custom_template
                 if (questionnaire.custom_template) {
                   console.log('🔍 Checking custom_template for questions...');
@@ -491,10 +492,10 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                 }
               }
             }
-            
+
             console.log('📋 Final questionsData:', questionsData);
             console.log('📋 questionsData length:', questionsData.length);
-            
+
             // Map questions to the Question interface
             if (questionsData.length > 0) {
               console.log('✅ Mapping questions to Question interface...');
@@ -505,14 +506,14 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   question: q.question || '',
                   required: q.required || false,
                 };
-                
+
                 if (q.options && Array.isArray(q.options)) {
                   mapped.options = q.options.map((opt: string, optIndex: number) => ({
                     id: `opt-${index}-${optIndex}-${Date.now()}`,
                     text: opt
                   }));
                 }
-                
+
                 if (q.table_columns && q.table_rows) {
                   mapped.tableColumns = q.table_columns.map((col: string, colIndex: number) => ({
                     id: `col-${index}-${colIndex}-${Date.now()}`,
@@ -523,14 +524,14 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                     cells: Array.isArray(row) ? row : []
                   }));
                 }
-                
+
                 if (q.content) {
                   mapped.content = q.content;
                 }
-                
+
                 return mapped;
               });
-              
+
               console.log('✅ Loaded questions:', loadedQuestions);
               setQuestions(loadedQuestions);
             } else {
@@ -577,7 +578,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
         formDataToSend.append('is_certificate', '0');
         formDataToSend.append('is_questionnaire', '1');
         formDataToSend.append('questionnaire_type', 'custom');
-        
+
         if (questionnaireDescription.trim()) {
           formDataToSend.append('description', questionnaireDescription.trim());
         }
@@ -603,7 +604,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
         }))));
 
         const response = await sessionCreation.createDocumentEnhanced(sessionUuid, formDataToSend);
-        
+
         if (response.success) {
           showSuccess('Questionnaire créé avec succès');
           if (window.opener) {
@@ -635,7 +636,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
         };
 
         const response = await courseCreation.createQuestionnaire(courseUuid, questionnaireData);
-        
+
         if (response.success) {
           showSuccess('Questionnaire créé avec succès');
           if (window.opener) {
@@ -685,13 +686,13 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
               ...(q.content && { content: q.content })
             }))
           };
-          
+
           if (questionnaireDescription.trim()) {
             jsonData.description = questionnaireDescription.trim();
           }
-          
+
           const response = await apiService.put(`/api/organization/documents/${questionnaireId}`, jsonData);
-          
+
           if (response.success) {
             showSuccess('Questionnaire mis à jour avec succès');
             if (window.opener) {
@@ -711,7 +712,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           formDataToSend.append('is_certificate', String(0));
           formDataToSend.append('is_questionnaire', '1');
           formDataToSend.append('questionnaire_type', 'custom');
-          
+
           if (questionnaireDescription.trim()) {
             formDataToSend.append('description', questionnaireDescription.trim());
           }
@@ -731,7 +732,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
           }))));
 
           const response = await courseCreation.createOrganizationDocument(formDataToSend);
-          
+
           if (response.success) {
             showSuccess('Questionnaire créé avec succès');
             if (window.opener) {
@@ -807,9 +808,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
     <div className={`w-full ${isDark ? 'bg-gray-900' : 'bg-gray-50'} min-h-full`}>
       <div className="flex flex-col w-full px-6 py-6">
         {/* En-tête de la page */}
-        <div className={`sticky top-0 z-40 flex items-center justify-between py-4 mb-6 border-b ${
-          isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+        <div className={`sticky top-0 z-40 flex items-center justify-between py-4 mb-6 border-b ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -820,13 +820,13 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
               <ArrowLeft className={`h-6 w-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
             </Button>
             <div>
-              <h1 
+              <h1
                 className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
                 {isEditMode ? 'Modifier un questionnaire' : 'Créer un questionnaire'}
               </h1>
-              <p 
+              <p
                 className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
               >
                 {isEditMode ? 'Modifiez votre questionnaire personnalisé' : 'Configurez votre questionnaire personnalisé'}
@@ -868,14 +868,14 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
               <div className="mb-8">
                 {/* Logo et Nom organisme */}
                 <div className="flex items-center gap-3 mb-8">
-                  <div 
+                  <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {organization?.organization_logo ? (
-                      <img 
-                        src={organization.organization_logo} 
-                        alt="Logo" 
+                      <img
+                        src={fixImageUrl(organization.organization_logo)}
+                        alt="Logo"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (
@@ -895,22 +895,20 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                     value={questionnaireTitle}
                     onChange={(e) => setQuestionnaireTitle(e.target.value)}
                     placeholder="Titre"
-                    className={`text-center text-lg font-semibold border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 mb-3 ${
-                      isDark 
-                        ? 'bg-transparent text-gray-200 border-gray-600 focus:border-blue-500' 
-                        : 'bg-transparent text-gray-700 border-gray-300 focus:border-blue-500'
-                    }`}
+                    className={`text-center text-lg font-semibold border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 mb-3 ${isDark
+                      ? 'bg-transparent text-gray-200 border-gray-600 focus:border-blue-500'
+                      : 'bg-transparent text-gray-700 border-gray-300 focus:border-blue-500'
+                      }`}
                     style={{ fontSize: '18px', fontWeight: 600 }}
                   />
                   <Input
                     value={questionnaireDescription}
                     onChange={(e) => setQuestionnaireDescription(e.target.value)}
                     placeholder="Description"
-                    className={`text-center text-sm border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 ${
-                      isDark 
-                        ? 'bg-transparent text-gray-400 border-gray-600 focus:border-blue-500' 
-                        : 'bg-transparent text-gray-500 border-gray-300 focus:border-blue-500'
-                    }`}
+                    className={`text-center text-sm border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 ${isDark
+                      ? 'bg-transparent text-gray-400 border-gray-600 focus:border-blue-500'
+                      : 'bg-transparent text-gray-500 border-gray-300 focus:border-blue-500'
+                      }`}
                     style={{ fontSize: '12px' }}
                   />
                 </div>
@@ -921,86 +919,76 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                 <div className="flex justify-center my-6 relative">
                   <button
                     onClick={() => setShowAddQuestionMenu('initial')}
-                    className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${
-                      isDark 
-                        ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                        : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                    }`}
+                    className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${isDark
+                      ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                      : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                      }`}
                   >
                     <Plus className="w-5 h-5" />
                   </button>
                   {showAddQuestionMenu === 'initial' && (
-                    <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${
-                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                      }`}>
                       <button
                         onClick={() => addQuestion('single_choice')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <List className="w-4 h-4" />
                         <span className="text-sm">Réponse simple</span>
                       </button>
                       <button
                         onClick={() => addQuestion('multiple_choice')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <List className="w-4 h-4" />
                         <span className="text-sm">Réponse multiple</span>
                       </button>
                       <button
                         onClick={() => addQuestion('short_text')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Réponse courte</span>
                       </button>
                       <button
                         onClick={() => addQuestion('long_text')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Paragraphe</span>
                       </button>
                       <button
                         onClick={() => addQuestion('dropdown')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <ChevronDown className="w-4 h-4" />
                         <span className="text-sm">Liste déroulante</span>
                       </button>
                       <button
                         onClick={() => addQuestion('table')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <ListOrdered className="w-4 h-4" />
                         <span className="text-sm">Grille/Tableau</span>
                       </button>
                       <button
                         onClick={() => addQuestion('recommendation')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Info className="w-4 h-4" />
                         <span className="text-sm">Question de recommandation</span>
                       </button>
                       <button
                         onClick={() => addQuestion('pedagogy')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Pédagogie</span>
@@ -1018,86 +1006,76 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                     <div className="flex justify-center my-5 relative">
                       <button
                         onClick={() => setShowAddQuestionMenu(`after-${question.id}`)}
-                        className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${
-                          isDark 
-                            ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                            : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                        }`}
+                        className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${isDark
+                          ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                          : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                          }`}
                       >
                         <Plus className="w-5 h-5" />
                       </button>
                       {showAddQuestionMenu === `after-${question.id}` && (
-                        <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${
-                          isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                        }`}>
+                        <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                          }`}>
                           <button
                             onClick={() => addQuestion('single_choice', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <List className="w-4 h-4" />
                             <span className="text-sm">Réponse simple</span>
                           </button>
                           <button
                             onClick={() => addQuestion('multiple_choice', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <List className="w-4 h-4" />
                             <span className="text-sm">Réponse multiple</span>
                           </button>
                           <button
                             onClick={() => addQuestion('short_text', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <FileText className="w-4 h-4" />
                             <span className="text-sm">Réponse courte</span>
                           </button>
                           <button
                             onClick={() => addQuestion('long_text', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <FileText className="w-4 h-4" />
                             <span className="text-sm">Paragraphe</span>
                           </button>
                           <button
                             onClick={() => addQuestion('dropdown', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <ChevronDown className="w-4 h-4" />
                             <span className="text-sm">Liste déroulante</span>
                           </button>
                           <button
                             onClick={() => addQuestion('table', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <ListOrdered className="w-4 h-4" />
                             <span className="text-sm">Grille/Tableau</span>
                           </button>
                           <button
                             onClick={() => addQuestion('recommendation', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <Info className="w-4 h-4" />
                             <span className="text-sm">Question de recommandation</span>
                           </button>
                           <button
                             onClick={() => addQuestion('pedagogy', question.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <FileText className="w-4 h-4" />
                             <span className="text-sm">Pédagogie</span>
@@ -1113,21 +1091,19 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                     onDragStart={() => handleDragStart(question.id)}
                     onDragOver={(e) => handleDragOver(e, question.id)}
                     onDragEnd={handleDragEnd}
-                    className={`rounded-lg border p-5 mb-4 transition-all cursor-move ${
-                      isDark 
-                        ? 'bg-gray-800 border-gray-700 hover:shadow-lg hover:border-gray-600' 
-                        : 'bg-white border-gray-200 hover:shadow-md hover:border-gray-300'
-                    } ${draggedQuestionId === question.id ? 'opacity-60' : ''}`}
+                    className={`rounded-lg border p-5 mb-4 transition-all cursor-move ${isDark
+                      ? 'bg-gray-800 border-gray-700 hover:shadow-lg hover:border-gray-600'
+                      : 'bg-white border-gray-200 hover:shadow-md hover:border-gray-300'
+                      } ${draggedQuestionId === question.id ? 'opacity-60' : ''}`}
                   >
                     {/* En-tête de la question */}
                     <div className="flex items-center gap-3 mb-4">
                       {/* Numéro de question */}
-                      <div 
-                        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border ${
-                          isDark 
-                            ? 'bg-gray-700 border-gray-600 text-gray-300' 
-                            : 'bg-gray-100 border-gray-300 text-gray-700'
-                        }`}
+                      <div
+                        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border ${isDark
+                          ? 'bg-gray-700 border-gray-600 text-gray-300'
+                          : 'bg-gray-100 border-gray-300 text-gray-700'
+                          }`}
                       >
                         <span className="text-sm font-medium">{index + 1}</span>
                       </div>
@@ -1143,19 +1119,17 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                         <div className="relative type-menu">
                           <button
                             onClick={() => setShowTypeMenu({ ...showTypeMenu, [question.id]: !showTypeMenu[question.id] })}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                              isDark 
-                                ? 'bg-blue-900/30 text-blue-300 border border-blue-800' 
-                                : 'bg-blue-50 text-blue-600 border border-blue-200'
-                            }`}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${isDark
+                              ? 'bg-blue-900/30 text-blue-300 border border-blue-800'
+                              : 'bg-blue-50 text-blue-600 border border-blue-200'
+                              }`}
                           >
                             {questionTypeLabels[question.type]}
                             <ChevronDown className={`w-3 h-3 transition-transform ${showTypeMenu[question.id] ? 'rotate-180' : ''}`} />
                           </button>
                           {showTypeMenu[question.id] && (
-                            <div className={`absolute top-10 right-0 z-50 rounded-lg shadow-lg border min-w-[200px] type-menu ${
-                              isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                            }`}>
+                            <div className={`absolute top-10 right-0 z-50 rounded-lg shadow-lg border min-w-[200px] type-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                              }`}>
                               {Object.entries(questionTypeLabels).map(([type, label]) => (
                                 <button
                                   key={type}
@@ -1199,7 +1173,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                         updateQuestion(question.id, { type: newType });
                                       }
                                     } else {
-                                      updateQuestion(question.id, { 
+                                      updateQuestion(question.id, {
                                         type: newType,
                                         options: undefined,
                                         tableColumns: undefined,
@@ -1209,11 +1183,10 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                     }
                                     setShowTypeMenu({ ...showTypeMenu, [question.id]: false });
                                   }}
-                                  className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-100 transition-colors ${
-                                    question.type === type
-                                      ? isDark ? 'bg-blue-900/20 text-blue-300' : 'bg-blue-50 text-blue-600'
-                                      : isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                                  }`}
+                                  className={`w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-gray-100 transition-colors ${question.type === type
+                                    ? isDark ? 'bg-blue-900/20 text-blue-300' : 'bg-blue-50 text-blue-600'
+                                    : isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                                    }`}
                                 >
                                   <span className="text-sm">{label}</span>
                                 </button>
@@ -1225,9 +1198,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                         {/* Duplication */}
                         <button
                           onClick={() => duplicateQuestion(question.id)}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                            isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'
-                          }`}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'
+                            }`}
                         >
                           <Copy className="w-4 h-4" />
                         </button>
@@ -1246,11 +1218,10 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                     <div className="ml-10">
                       {/* Message pour question de recommandation */}
                       {question.type === 'recommendation' && (
-                        <div className={`mb-4 p-3 rounded-lg border ${
-                          isDark 
-                            ? 'bg-blue-900/20 border-blue-800' 
-                            : 'bg-blue-50 border-blue-200'
-                        }`}>
+                        <div className={`mb-4 p-3 rounded-lg border ${isDark
+                          ? 'bg-blue-900/20 border-blue-800'
+                          : 'bg-blue-50 border-blue-200'
+                          }`}>
                           <div className="flex items-start gap-2">
                             <Info className={`w-4 h-4 mt-0.5 ${isDark ? 'text-blue-300' : 'text-blue-600'}`} />
                             <p className={`text-xs ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
@@ -1295,11 +1266,10 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                           {question.options.map((option, optIndex) => (
                             <div key={option.id} className="flex items-center gap-3">
                               {/* Numéro option */}
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border ${
-                                isDark 
-                                  ? 'bg-gray-700 border-gray-600 text-gray-300' 
-                                  : 'bg-gray-100 border-gray-300 text-gray-700'
-                              }`}>
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border ${isDark
+                                ? 'bg-gray-700 border-gray-600 text-gray-300'
+                                : 'bg-gray-100 border-gray-300 text-gray-700'
+                                }`}>
                                 <span className="text-xs font-medium">{optIndex + 1}</span>
                               </div>
 
@@ -1321,22 +1291,20 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                 <button
                                   onClick={() => moveOption(question.id, option.id, 'up')}
                                   disabled={optIndex === 0}
-                                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                                    optIndex === 0
-                                      ? 'text-gray-300 cursor-not-allowed'
-                                      : isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'
-                                  }`}
+                                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${optIndex === 0
+                                    ? 'text-gray-300 cursor-not-allowed'
+                                    : isDark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'
+                                    }`}
                                 >
                                   <GripVertical className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => deleteOption(question.id, option.id)}
                                   disabled={question.options!.length <= 1}
-                                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                                    question.options!.length <= 1
-                                      ? 'text-gray-300 cursor-not-allowed'
-                                      : 'text-red-500 hover:bg-red-50'
-                                  }`}
+                                  className={`w-6 h-6 rounded flex items-center justify-center transition-colors ${question.options!.length <= 1
+                                    ? 'text-gray-300 cursor-not-allowed'
+                                    : 'text-red-500 hover:bg-red-50'
+                                    }`}
                                 >
                                   <X className="w-4 h-4" />
                                 </button>
@@ -1347,9 +1315,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                           {/* Bouton ajouter option */}
                           <button
                             onClick={() => addOption(question.id)}
-                            className={`ml-9 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 ${
-                              isDark ? 'text-blue-400 hover:text-blue-300' : ''
-                            }`}
+                            className={`ml-9 text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 ${isDark ? 'text-blue-400 hover:text-blue-300' : ''
+                              }`}
                           >
                             <Plus className="w-4 h-4" />
                             Ajouter une option
@@ -1405,9 +1372,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                       <Input
                                         value={col.label}
                                         onChange={(e) => updateTableColumn(question.id, col.id, e.target.value)}
-                                        className={`text-xs font-medium border-0 p-0 h-auto text-center ${
-                                          isDark ? 'bg-transparent text-gray-300' : 'bg-transparent text-gray-600'
-                                        }`}
+                                        className={`text-xs font-medium border-0 p-0 h-auto text-center ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent text-gray-600'
+                                          }`}
                                         placeholder="Texte"
                                       />
                                       {question.tableColumns!.length > 1 && (
@@ -1423,9 +1389,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                   <th className={`w-10 border ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                                     <button
                                       onClick={() => addTableColumn(question.id)}
-                                      className={`w-full h-full flex items-center justify-center transition-colors ${
-                                        isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-200'
-                                      }`}
+                                      className={`w-full h-full flex items-center justify-center transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-200'
+                                        }`}
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -1443,9 +1408,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                                         <Input
                                           value={cell}
                                           onChange={(e) => updateTableCell(question.id, row.id, cellIdx, e.target.value)}
-                                          className={`text-xs border-0 p-0 h-auto ${
-                                            isDark ? 'bg-transparent text-white' : 'bg-transparent'
-                                          }`}
+                                          className={`text-xs border-0 p-0 h-auto ${isDark ? 'bg-transparent text-white' : 'bg-transparent'
+                                            }`}
                                           placeholder="Texte"
                                         />
                                       </td>
@@ -1465,9 +1429,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                             <div className={`border-t p-2 ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                               <button
                                 onClick={() => addTableRow(question.id)}
-                                className={`w-full flex items-center justify-center py-2 transition-colors text-sm ${
-                                  isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
-                                }`}
+                                className={`w-full flex items-center justify-center py-2 transition-colors text-sm ${isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
+                                  }`}
                               >
                                 <Plus className="w-4 h-4 mr-2" />
                                 Ajouter une ligne
@@ -1498,86 +1461,76 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                 <div className="flex justify-center my-6 relative">
                   <button
                     onClick={() => setShowAddQuestionMenu('end')}
-                    className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${
-                      isDark 
-                        ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                        : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                    }`}
+                    className={`w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center transition-colors ${isDark
+                      ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                      : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                      }`}
                   >
                     <Plus className="w-5 h-5" />
                   </button>
                   {showAddQuestionMenu === 'end' && (
-                    <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${
-                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className={`absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[220px] question-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                      }`}>
                       <button
                         onClick={() => addQuestion('single_choice')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <List className="w-4 h-4" />
                         <span className="text-sm">Réponse simple</span>
                       </button>
                       <button
                         onClick={() => addQuestion('multiple_choice')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <List className="w-4 h-4" />
                         <span className="text-sm">Réponse multiple</span>
                       </button>
                       <button
                         onClick={() => addQuestion('short_text')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Réponse courte</span>
                       </button>
                       <button
                         onClick={() => addQuestion('long_text')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Paragraphe</span>
                       </button>
                       <button
                         onClick={() => addQuestion('dropdown')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <ChevronDown className="w-4 h-4" />
                         <span className="text-sm">Liste déroulante</span>
                       </button>
                       <button
                         onClick={() => addQuestion('table')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <ListOrdered className="w-4 h-4" />
                         <span className="text-sm">Grille/Tableau</span>
                       </button>
                       <button
                         onClick={() => addQuestion('recommendation')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Info className="w-4 h-4" />
                         <span className="text-sm">Question de recommandation</span>
                       </button>
                       <button
                         onClick={() => addQuestion('pedagogy')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Pédagogie</span>
@@ -1594,13 +1547,11 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
       {/* Modal d'Aperçu */}
       {previewMode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg shadow-xl ${
-            isDark ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            {/* En-tête de la modal */}
-            <div className={`sticky top-0 flex items-center justify-between p-4 border-b ${
-              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'
             }`}>
+            {/* En-tête de la modal */}
+            <div className={`sticky top-0 flex items-center justify-between p-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Aperçu du Questionnaire
               </h2>
@@ -1619,14 +1570,14 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
               {/* En-tête */}
               <div className="mb-8">
                 <div className="flex items-center gap-3 mb-4">
-                  <div 
+                  <div
                     className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {organization?.organization_logo ? (
-                      <img 
-                        src={organization.organization_logo} 
-                        alt="Logo" 
+                      <img
+                        src={organization.organization_logo}
+                        alt="Logo"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (
@@ -1660,20 +1611,18 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                   {questions.map((question, index) => (
                     <div key={question.id} className={`rounded-lg border p-5 ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
                       <div className="flex items-center gap-3 mb-4">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${
-                          isDark ? 'bg-gray-600 border-gray-500 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'
-                        }`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${isDark ? 'bg-gray-600 border-gray-500 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'
+                          }`}>
                           <span className="text-sm font-medium">{index + 1}</span>
                         </div>
                         <div className="flex-1">
                           <h3 className={`text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {question.question || 'Question sans titre'}
                           </h3>
-                          <span className={`text-xs px-2 py-1 rounded-xl ${
-                            isDark 
-                              ? 'bg-blue-900/30 text-blue-300' 
-                              : 'bg-blue-50 text-blue-600'
-                          }`}>
+                          <span className={`text-xs px-2 py-1 rounded-xl ${isDark
+                            ? 'bg-blue-900/30 text-blue-300'
+                            : 'bg-blue-50 text-blue-600'
+                            }`}>
                             {questionTypeLabels[question.type]}
                           </span>
                           {question.required && (
@@ -1750,7 +1699,7 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
                         </div>
                       ) : question.type === 'pedagogy' ? (
                         <div className="ml-10">
-                          <div 
+                          <div
                             className={`prose max-w-none ${isDark ? 'prose-invert' : ''}`}
                             dangerouslySetInnerHTML={{ __html: question.content || '<p class="text-gray-400 italic">Contenu vide</p>' }}
                           />
@@ -1763,9 +1712,8 @@ export const QuestionnaireCreationContent: React.FC<QuestionnaireCreationContent
             </div>
 
             {/* Footer de la modal */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 p-4 border-t ${
-              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`sticky bottom-0 flex items-center justify-end gap-3 p-4 border-t ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               <Button
                 variant="outline"
                 onClick={() => setPreviewMode(false)}

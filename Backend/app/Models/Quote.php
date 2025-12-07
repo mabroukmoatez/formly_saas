@@ -25,9 +25,7 @@ class Quote extends Model
         'payment_schedule_text',
         'notes',
         'terms',
-        'signed_document_path',
-        'is_imported',
-        'imported_document_path'
+        'signed_document_path'
     ];
 
     protected $casts = [
@@ -56,12 +54,6 @@ class Quote extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-    // Keep backward compatibility - return first invoice
     public function invoice()
     {
         return $this->hasOne(Invoice::class);
@@ -107,9 +99,7 @@ class Quote extends Model
 
     public function canBeConverted()
     {
-        // Allow conversion from draft, sent, or accepted statuses
-        // Allow multiple conversions - removed the invoice check
-        return in_array($this->status, ['draft', 'sent', 'accepted']);
+        return in_array($this->status, ['accepted', 'sent']) && !$this->invoice;
     }
 
     public function markAsAccepted()

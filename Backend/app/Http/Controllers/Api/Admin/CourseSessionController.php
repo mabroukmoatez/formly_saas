@@ -1744,6 +1744,98 @@ class CourseSessionController extends Controller
             ];
         })->toArray();
     }
+
+    // ============================================
+    // FORMATION PRACTICES
+    // ============================================
+
+    /**
+     * Get formation practices for a course session
+     * GET /api/admin/organization/course-sessions/{uuid}/formation-practices
+     */
+    public function getFormationPractices(Request $request, $uuid)
+    {
+        try {
+            $organizationId = $this->getOrganizationId($request);
+
+            $session = CourseSession::where('uuid', $uuid)
+                ->where('organization_id', $organizationId)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            // Get formation practices from the course
+            $course = $session->course;
+            $practices = $course ? ($course->formationPractices ?? collect()) : collect();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'practices' => $practices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching formation practices',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update formation practices for a course session
+     * POST /api/admin/organization/course-sessions/{uuid}/formation-practices
+     */
+    public function updateFormationPractices(Request $request, $uuid)
+    {
+        try {
+            $organizationId = $this->getOrganizationId($request);
+
+            $session = CourseSession::where('uuid', $uuid)
+                ->where('organization_id', $organizationId)
+                ->first();
+
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found'
+                ], 404);
+            }
+
+            // Get formation practices from the course
+            $course = $session->course;
+            $practices = $course ? ($course->formationPractices ?? collect()) : collect();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'practices' => $practices->map(function($practice) {
+                        return [
+                            'id' => $practice->id,
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating formation practices',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
 
 

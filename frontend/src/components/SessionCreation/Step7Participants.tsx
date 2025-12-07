@@ -9,11 +9,11 @@ import { useOrganization } from '../../contexts/OrganizationContext';
 import { useToast } from '../ui/toast';
 import { apiService } from '../../services/api';
 import { sessionCreation } from '../../services/sessionCreation';
-import { 
-  Plus, 
-  Trash2, 
-  Search, 
-  X, 
+import {
+  Plus,
+  Trash2,
+  Search,
+  X,
   Edit2,
   Mail,
   Upload,
@@ -121,7 +121,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
         // Filter out already enrolled participants
         const enrolledUserIds = safeParticipants.map(p => p.user_id);
         const availableStudents = students.filter(s => !enrolledUserIds.includes(s.id));
-        
+
         setAvailableStudents(availableStudents);
       }
     } catch (error: any) {
@@ -141,7 +141,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   // Debounce search
   useEffect(() => {
     if (!showAddModal) return;
-    
+
     const timeoutId = setTimeout(() => {
       loadStudents(searchQuery);
     }, 300);
@@ -162,7 +162,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
   }, [selectAll, availableStudents, participants]);
 
   const handleToggleStudent = (studentId: number) => {
-    setSelectedStudentIds(prev => 
+    setSelectedStudentIds(prev =>
       prev.includes(studentId)
         ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
@@ -364,7 +364,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
               Aucun participant pour le moment
             </p>
           </div>
-          
+
           <Button
             onClick={() => setShowAddModal(true)}
             style={{ backgroundColor: primaryColor }}
@@ -377,7 +377,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
 
         {/* Add Participants Modal */}
         {showAddModal && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -396,7 +396,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
               }
             }}
           >
-            <Card 
+            <Card
               className={`w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col ${isDark ? 'bg-gray-800' : 'bg-white'}`}
               onClick={(e) => e.stopPropagation()}
             >
@@ -480,13 +480,13 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                             className="w-4 h-4"
                           />
                           {student.avatar_url ? (
-                            <img 
-                              src={student.avatar_url} 
+                            <img
+                              src={student.avatar_url}
                               alt={student.name}
                               className="w-10 h-10 rounded-full"
                             />
                           ) : (
-                            <div 
+                            <div
                               className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
                               style={{ backgroundColor: primaryColor }}
                             >
@@ -530,9 +530,8 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                   borderColor: primaryColor
                 }}
               />
-              <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${
-                isDark ? 'text-white' : 'text-[#19294a]'
-              }`}>
+              <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${isDark ? 'text-white' : 'text-[#19294a]'
+                }`}>
                 Participants
               </h2>
               <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -576,9 +575,8 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                 borderColor: primaryColor
               }}
             />
-            <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${
-              isDark ? 'text-white' : 'text-[#19294a]'
-            }`}>
+            <h2 className={`[font-family:'Poppins',Helvetica] font-semibold text-[18px] ${isDark ? 'text-white' : 'text-[#19294a]'
+              }`}>
               Participants
             </h2>
             <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -596,9 +594,8 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
           <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
             <CardContent className="p-0">
               {/* Table Header */}
-              <div className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 border-b ${
-                isDark ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'
-              }`}>
+              <div className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 border-b ${isDark ? 'border-gray-700 bg-gray-750' : 'border-gray-200 bg-gray-50'
+                }`}>
                 <div></div>
                 <div className="font-medium">Nom&prenom</div>
                 <div className="font-medium">email</div>
@@ -613,13 +610,12 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                   const participantWithDetails = participant as ParticipantWithDetails;
                   const isEditing = editingTarif?.participantId === participant.id;
                   const tarifValue = participantWithDetails.tarif || 0;
-                  
+
                   return (
                     <div
                       key={participant.uuid}
-                      className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                        selectedParticipants.includes(participant.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                      }`}
+                      className={`grid grid-cols-[auto_1fr_1fr_1fr_auto_auto] gap-4 p-4 items-center hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedParticipants.includes(participant.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
                     >
                       {/* Checkbox */}
                       <input
@@ -638,13 +634,13 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                       {/* Name */}
                       <div className="flex items-center gap-2">
                         {participant.user?.avatar_url ? (
-                          <img 
-                            src={participant.user.avatar_url} 
+                          <img
+                            src={participant.user.avatar_url}
                             alt={participant.user.name}
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          <div 
+                          <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
                             style={{ backgroundColor: primaryColor }}
                           >
@@ -666,8 +662,8 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                           <div className="flex items-center gap-2 flex-1">
                             <Input
                               type="text"
-                              value={editingTarif.value}
-                              onChange={(e) => setEditingTarif({ ...editingTarif, value: e.target.value })}
+                              value={editingTarif?.value || ''}
+                              onChange={(e) => editingTarif && setEditingTarif({ ...editingTarif, value: e.target.value })}
                               onBlur={() => {
                                 if (editingTarif) {
                                   handleUpdateTarif(editingTarif.participantId, editingTarif.value);
@@ -690,9 +686,9 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                           <>
                             <span>{formatCurrency(tarifValue)}</span>
                             <button
-                              onClick={() => setEditingTarif({ 
-                                participantId: participant.id, 
-                                value: tarifValue.toString() 
+                              onClick={() => setEditingTarif({
+                                participantId: participant.id,
+                                value: tarifValue.toString()
                               })}
                               className="p-1 hover:bg-gray-200 rounded"
                             >
@@ -725,7 +721,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
 
       {/* Add Participants Modal */}
       {showAddModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -744,7 +740,7 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
             }
           }}
         >
-          <Card 
+          <Card
             className={`w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col ${isDark ? 'bg-gray-800' : 'bg-white'}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -828,13 +824,13 @@ export const Step7Participants: React.FC<Step7ParticipantsProps> = ({
                           className="w-4 h-4"
                         />
                         {student.avatar_url ? (
-                          <img 
-                            src={student.avatar_url} 
+                          <img
+                            src={student.avatar_url}
                             alt={student.name}
                             className="w-10 h-10 rounded-full"
                           />
                         ) : (
-                          <div 
+                          <div
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
                             style={{ backgroundColor: primaryColor }}
                           >

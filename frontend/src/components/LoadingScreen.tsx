@@ -1,6 +1,7 @@
 import React from 'react';
 import { useOrganization } from '../contexts/OrganizationContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { fixImageUrl } from '../lib/utils';
 
 /**
  * Enhanced Loading Screen Component
@@ -35,7 +36,7 @@ export const LoadingScreen: React.FC = () => {
             <img
               className="w-full h-full object-contain"
               alt={getOrganizationName()}
-              src={getLogoUrl()}
+              src={fixImageUrl(getLogoUrl())}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = '/assets/logos/login-logo.svg';

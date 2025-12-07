@@ -13,9 +13,9 @@ class Item extends Model
         'reference',
         'designation',
         'category',
-        'price_ht',       // Price without tax (HT = Hors Taxe)
-        'tva',            // TVA amount in euros (NOT the rate!)
-        'price_ttc',      // Price with tax (TTC = Toutes Taxes Comprises)
+        'price_ht',
+        'tva',
+        'price_ttc',
         'organization_id',
     ];
 
@@ -26,8 +26,6 @@ class Item extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
-
-    protected $appends = ['tax_rate'];
 
     // Relationship to the organization
     public function organization()
@@ -44,22 +42,6 @@ class Item extends Model
     public function getPriceWithoutTaxAttribute()
     {
         return $this->price_ht;
-    }
-
-    /**
-     * Calculate tax rate percentage from TVA amount and price_ht
-     *
-     * The 'tva' field stores the TVA amount in euros (e.g., 6€ for 120€ at 5%)
-     * This accessor converts it back to a percentage rate (e.g., 5%)
-     *
-     * @return float The TVA rate as a percentage (e.g., 5.0 for 5%)
-     */
-    public function getTaxRateAttribute()
-    {
-        if ($this->price_ht == 0) {
-            return 20; // Default to 20% if price is 0
-        }
-        return round(($this->tva / $this->price_ht) * 100, 2);
     }
 
     // Scope for organization filtering

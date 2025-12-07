@@ -8,6 +8,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { Plus, FileText, Upload, Trash2, ChevronDown, ChevronRight, Video, Image, Calendar, Save, X, Edit } from 'lucide-react';
+import { fixImageUrl } from '../../utils';
 import { QuizPill } from '../CourseCreation/QuizPill';
 import { DevoirPill } from '../CourseCreation/DevoirPill';
 import { ExaminPill } from '../CourseCreation/ExaminPill';
@@ -176,7 +177,7 @@ export const SubChapterExpandedContent: React.FC<SubChapterExpandedContentProps>
                     <div className="flex items-center gap-2">
                       {item.type === 'image' && (item.file || item.url) ? (
                         <img 
-                          src={item.url || (item.file ? URL.createObjectURL(item.file) : '')} 
+                          src={item.url ? fixImageUrl(item.url) : (item.file ? URL.createObjectURL(item.file) : '')} 
                           alt={item.title || 'Image'} 
                           className="w-8 h-8 object-cover rounded"
                         />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { DashboardLayout } from '../components/CommercialDashboard/Layout';
 import { useTheme } from '../contexts/ThemeContext';
 import { useOrganization } from '../contexts/OrganizationContext';
@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { X, Download, FileText, Calendar, User } from 'lucide-react';
+import { fixImageUrl } from '../lib/utils';
 
 export const DocumentPreviewPage: React.FC = () => {
   const { courseUuid, documentId } = useParams<{ courseUuid: string; documentId: string }>();
@@ -17,10 +18,10 @@ export const DocumentPreviewPage: React.FC = () => {
   const { isDark } = useTheme();
   const { organization } = useOrganization();
   const { error: showError } = useToast();
-  
+
   const primaryColor = organization?.primary_color || '#007aff';
   const secondaryColor = organization?.secondary_color || '#6a90b9';
-  
+
   const [document, setDocument] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,18 +36,18 @@ export const DocumentPreviewPage: React.FC = () => {
         // Load all documents and find the one we need
         const docsRes = await courseCreation.getDocumentsEnhanced(courseUuid);
         const questionnairesRes = await courseCreation.getDocumentsEnhanced(courseUuid, { questionnaires_only: true });
-        
+
         const allDocs = [
-          ...(docsRes.success ? docsRes.data : []),
-          ...(questionnairesRes.success ? questionnairesRes.data : [])
+          ...((docsRes as any).success ? (docsRes as any).data : []),
+          ...((questionnairesRes as any).success ? (questionnairesRes as any).data : [])
         ];
-        
+
         const doc = allDocs.find((d: any) => d.id.toString() === documentId || d.uuid === documentId);
-        
+
         if (!doc) {
           throw new Error('Document non trouvé');
         }
-        
+
         setDocument(doc);
       } catch (err: any) {
         console.error('Error loading document:', err);
@@ -102,6 +103,7 @@ export const DocumentPreviewPage: React.FC = () => {
     return '<p>Contenu non disponible</p>';
   };
 
+
   return (
     <DashboardLayout>
       <div className={`flex flex-col min-h-screen ${isDark ? 'bg-gray-900' : 'bg-[#f9f9f9]'}`}>
@@ -143,9 +145,9 @@ export const DocumentPreviewPage: React.FC = () => {
                   </Badge>
                 )}
                 <Badge className="bg-[#eee0ff] text-[#8c2ffe] rounded-[30px] px-3.5 py-0.5 [font-family:'Poppins',Helvetica] font-normal text-[13px]">
-                  {document.document_type === 'template' ? '📋 Template' : 
-                   document.document_type === 'custom_builder' ? '🎨 Custom Builder' : 
-                   '📤 Upload'}
+                  {document.document_type === 'template' ? '📋 Template' :
+                    document.document_type === 'custom_builder' ? '🎨 Custom Builder' :
+                      '📤 Upload'}
                 </Badge>
               </div>
 
@@ -195,7 +197,7 @@ export const DocumentPreviewPage: React.FC = () => {
           <Card className={`${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-[#dadfe8]'} rounded-[18px]`}>
             <CardContent className="p-[37px]">
               {/* Certificate Container with Background */}
-              <div 
+              <div
                 className="relative rounded-[10px] overflow-hidden"
                 style={{
                   // Apply landscape ratio for certificates
@@ -206,12 +208,10 @@ export const DocumentPreviewPage: React.FC = () => {
               >
                 {/* Certificate Background */}
                 {document.is_certificate && document.certificate_background_url && (
-                  <div 
+                  <div
                     className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
                     style={{
-                      backgroundImage: `url(${document.certificate_background_url.startsWith('http') 
-                        ? document.certificate_background_url 
-                        : `http://localhost:8000/storage/${document.certificate_background_url}`})`
+                      backgroundImage: `url(${fixImageUrl(document.certificate_background_url)})`
                     }}
                   />
                 )}
@@ -221,16 +221,16 @@ export const DocumentPreviewPage: React.FC = () => {
                   {/* Logo */}
                   {organization?.organization_logo_url && (
                     <div className="flex justify-center mb-8">
-                      <img 
-                        src={organization.organization_logo_url} 
-                        alt="Logo" 
+                      <img
+                        src={fixImageUrl(organization.organization_logo_url)}
+                        alt="Logo"
                         className="h-16 object-contain"
                       />
                     </div>
                   )}
 
                   {/* Document Content */}
-                  <div 
+                  <div
                     className={`prose max-w-none ${isDark ? 'prose-invert' : ''}`}
                     style={{
                       fontFamily: 'Poppins, Helvetica, sans-serif',
@@ -241,89 +241,89 @@ export const DocumentPreviewPage: React.FC = () => {
                 </div>
               </div>
 
-            {/* Questionnaire Questions */}
-            {document.is_questionnaire && document.questions && document.questions.length > 0 && (
-              <div className="mt-12 pt-8 border-t" style={{ borderColor: isDark ? '#374151' : '#e5e7eb' }}>
-                <h3 className={`font-semibold text-xl mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Questions ({document.questions.length})
-                </h3>
-                <div className="space-y-6">
-                  {document.questions.map((question: any, index: number) => (
-                    <div 
-                      key={question.id || index} 
-                      className={`p-6 rounded-[10px] ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className={`font-bold text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {index + 1}.
-                        </span>
-                        <div className="flex-1">
-                          <p className={`font-medium text-base mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {question.question}
-                            {question.required && (
-                              <span className="text-red-500 ml-1">*</span>
+              {/* Questionnaire Questions */}
+              {document.is_questionnaire && document.questions && document.questions.length > 0 && (
+                <div className="mt-12 pt-8 border-t" style={{ borderColor: isDark ? '#374151' : '#e5e7eb' }}>
+                  <h3 className={`font-semibold text-xl mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Questions ({document.questions.length})
+                  </h3>
+                  <div className="space-y-6">
+                    {document.questions.map((question: any, index: number) => (
+                      <div
+                        key={question.id || index}
+                        className={`p-6 rounded-[10px] ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`font-bold text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {index + 1}.
+                          </span>
+                          <div className="flex-1">
+                            <p className={`font-medium text-base mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {question.question}
+                              {question.required && (
+                                <span className="text-red-500 ml-1">*</span>
+                              )}
+                            </p>
+
+                            {/* Question Type Badge */}
+                            <Badge className={`mb-3 ${isDark ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                              {question.type === 'text' && '📝 Texte libre'}
+                              {question.type === 'multiple_choice' && '☑️ Choix multiple'}
+                              {question.type === 'rating' && '⭐ Notation'}
+                              {question.type === 'yes_no' && '❓ Oui/Non'}
+                            </Badge>
+
+                            {/* Options for multiple choice */}
+                            {question.type === 'multiple_choice' && question.options && (
+                              <div className="space-y-2 ml-4">
+                                {question.options.map((option: string, optIndex: number) => (
+                                  <div key={optIndex} className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded-full border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
+                                    <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                                      {option}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             )}
-                          </p>
-                          
-                          {/* Question Type Badge */}
-                          <Badge className={`mb-3 ${isDark ? 'bg-gray-600' : 'bg-gray-200'}`}>
-                            {question.type === 'text' && '📝 Texte libre'}
-                            {question.type === 'multiple_choice' && '☑️ Choix multiple'}
-                            {question.type === 'rating' && '⭐ Notation'}
-                            {question.type === 'yes_no' && '❓ Oui/Non'}
-                          </Badge>
 
-                          {/* Options for multiple choice */}
-                          {question.type === 'multiple_choice' && question.options && (
-                            <div className="space-y-2 ml-4">
-                              {question.options.map((option: string, optIndex: number) => (
-                                <div key={optIndex} className="flex items-center gap-2">
-                                  <div className={`w-4 h-4 rounded-full border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
-                                  <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>
-                                    {option}
-                                  </span>
+                            {/* Rating display */}
+                            {question.type === 'rating' && (
+                              <div className="flex items-center gap-2 ml-4">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                  <span key={star} className="text-2xl">⭐</span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Yes/No */}
+                            {question.type === 'yes_no' && (
+                              <div className="flex items-center gap-4 ml-4">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-4 h-4 rounded border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
+                                  <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Oui</span>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Rating display */}
-                          {question.type === 'rating' && (
-                            <div className="flex items-center gap-2 ml-4">
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <span key={star} className="text-2xl">⭐</span>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Yes/No */}
-                          {question.type === 'yes_no' && (
-                            <div className="flex items-center gap-4 ml-4">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-4 h-4 rounded border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
-                                <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Oui</span>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-4 h-4 rounded border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
+                                  <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Non</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-4 h-4 rounded border-2 ${isDark ? 'border-gray-500' : 'border-gray-400'}`}></div>
-                                <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>Non</span>
-                              </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
               {/* Footer Info */}
               <div className={`mt-12 pt-6 border-t text-center ${isDark ? 'text-gray-500 border-gray-700' : 'text-gray-500 border-gray-200'}`}>
                 <p className="[font-family:'Poppins',Helvetica] font-normal text-[13px]">
-                  Document généré le {new Date(document.generated_at || document.created_at).toLocaleDateString('fr-FR', { 
-                    day: 'numeric', 
-                    month: 'long', 
-                    year: 'numeric' 
+                  Document généré le {new Date(document.generated_at || document.created_at).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </p>
                 {organization?.organization_name && (

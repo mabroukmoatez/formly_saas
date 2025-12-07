@@ -370,9 +370,40 @@ export const GestionDesFormations: React.FC = () => {
   };
 
   const handlePublishCourse = async (courseUuid: string) => {
-    // TODO: Implement publish functionality
-    console.log('Publish course:', courseUuid);
-    setMenuOpenFor(null);
+    try {
+      setLoading(true);
+      setMenuOpenFor(null);
+
+      // Update course status to 1 (published/active)
+      const response = await courseCreation.updateCourseStatus(courseUuid, 1);
+
+      if (response.success) {
+        // Reload courses list to reflect the updated status
+        await loadCourses();
+        setSuccessMessage({
+          title: 'Formation publiée',
+          message: 'La formation a été publiée avec succès et est maintenant visible.'
+        });
+        setShowSuccessModal(true);
+      } else {
+        const errorMessage = response.message || 'Erreur inconnue';
+        setSuccessMessage({
+          title: 'Erreur',
+          message: `Erreur lors de la publication: ${errorMessage}`
+        });
+        setShowSuccessModal(true);
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la publication:', error);
+      const errorMessage = error?.message || 'Erreur inconnue';
+      setSuccessMessage({
+        title: 'Erreur',
+        message: `Erreur lors de la publication: ${errorMessage}`
+      });
+      setShowSuccessModal(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Close menu when clicking outside

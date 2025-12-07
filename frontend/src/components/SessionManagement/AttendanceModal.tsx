@@ -12,6 +12,7 @@ import { X, Calendar, Clock, HelpCircle, Loader2, RefreshCw } from 'lucide-react
 import { QRCodeSVG } from 'qrcode.react';
 import { courseSessionService } from '../../services/courseSession';
 import type { SessionData, SessionSlot } from './types';
+import { fixImageUrl } from '../../lib/utils';
 
 interface AttendanceModalProps {
   isOpen: boolean;
@@ -51,12 +52,12 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await courseSessionService.getAttendanceCode(uuid, slot.uuid, {
         regenerate
       });
-      
+
       if (response.success && response.data) {
         const code = response.data.numeric_code || response.data.code;
         // Format code as "XXX - XXX"
@@ -65,8 +66,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         } else {
           setAttendanceCode(code || '--- - ---');
         }
-        
-        setQrValue(response.data.qr_code_url || 
+
+        setQrValue(response.data.qr_code_url ||
           `${window.location.origin}/attendance/${uuid}/${slot.uuid}?code=${code}`);
       } else {
         throw new Error('Impossible de récupérer le code');
@@ -88,7 +89,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
   const loadCodeInfo = useCallback(async () => {
     const uuid = sessionUuid || session.uuid;
     if (!uuid || !slot?.uuid) return;
-    
+
     try {
       const response = await courseSessionService.getAttendanceCodeInfo(uuid, slot.uuid);
       if (response.success && response.data) {
@@ -112,7 +113,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className={`relative w-full max-w-md rounded-2xl shadow-2xl p-8 ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
         {/* Close button */}
@@ -126,9 +127,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-6">
           {organization?.organization_logo_url || organization?.organization_logo ? (
-            <img 
-              src={organization.organization_logo_url || organization.organization_logo || ''} 
-              alt={organization.organization_name || 'Organization'} 
+            <img
+              src={fixImageUrl(organization.organization_logo_url || organization.organization_logo || '')}
+              alt={organization.organization_name || 'Organization'}
               className="w-10 h-10 rounded-lg object-cover"
             />
           ) : (
@@ -147,7 +148,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
         <h1 className="text-center text-xl font-bold mb-1" style={{ color: primaryColor }}>
           {session.courseTitle || 'Nom De Formation'}
         </h1>
-        
+
         {/* Session Title */}
         <p className={`text-center mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           Session: {session.title || 'titre de la session'}
@@ -191,7 +192,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           <>
             <div className="flex justify-center mb-4">
               <div className="p-4 bg-white rounded-xl shadow-sm">
-                <QRCodeSVG 
+                <QRCodeSVG
                   value={qrValue}
                   size={200}
                   level="H"
@@ -200,14 +201,14 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
               </div>
             </div>
             <div className="text-center mb-4 flex items-center justify-center gap-4">
-              <button 
+              <button
                 onClick={() => loadAttendanceCode(true)}
                 className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
               >
                 <RefreshCw className="w-4 h-4" />
                 Régénérer
               </button>
-              <button 
+              <button
                 onClick={() => setShowInfoModal(true)}
                 className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
               >
@@ -218,9 +219,9 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
           </>
         ) : (
           <div className="text-center mb-8">
-            <div 
+            <div
               className="text-7xl font-bold tracking-wider"
-              style={{ 
+              style={{
                 color: '#1a2744',
                 fontFamily: "'Poppins', sans-serif",
                 letterSpacing: '0.1em'
@@ -229,14 +230,14 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
               {attendanceCode}
             </div>
             <div className="flex items-center justify-center gap-4 mt-4">
-              <button 
+              <button
                 onClick={() => loadAttendanceCode(true)}
                 className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
               >
                 <RefreshCw className="w-4 h-4" />
                 Régénérer le code
               </button>
-              <button 
+              <button
                 onClick={() => setShowInfoModal(true)}
                 className="text-blue-500 text-sm hover:underline inline-flex items-center gap-1"
               >
@@ -249,7 +250,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
 
         {/* Instruction */}
         <p className={`text-center text-lg ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-          {mode === 'qr' 
+          {mode === 'qr'
             ? 'Scannez le code QR pour confirmer votre présence'
             : 'Entrez ce code dans l\'application pour confirmer votre présence'
           }
@@ -267,11 +268,11 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
             >
               <X className="w-5 h-5" />
             </button>
-            
+
             <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Informations Code de Présence
             </h2>
-            
+
             {codeInfo ? (
               <div className="space-y-4">
                 <div>
@@ -295,8 +296,8 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                 {codeInfo.instructions && (
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Instructions</p>
-                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {codeInfo.instructions}
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {(codeInfo as any).instructions}
                     </p>
                   </div>
                 )}
@@ -307,7 +308,7 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({
                   <strong>Code:</strong> {attendanceCode}
                 </p>
                 <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-                  <strong>Séance:</strong> {slot?.title || slot?.date}
+                  <strong>Séance:</strong> {slot?.mode} - {slot?.date}
                 </p>
                 <p className={isDark ? 'text-gray-300' : 'text-gray-600'}>
                   <strong>Date:</strong> {slot?.date} de {slot?.startTime} à {slot?.endTime}
@@ -358,7 +359,7 @@ export const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className={`relative w-full max-w-sm rounded-xl shadow-xl p-6 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
         {/* Close button */}
@@ -378,11 +379,10 @@ export const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({
         <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => setIsPresent(true)}
-            className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
-              isPresent 
-                ? 'border-green-500 bg-green-50 text-green-600' 
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
+            className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${isPresent
+              ? 'border-green-500 bg-green-50 text-green-600'
+              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
           >
             <span className="flex items-center justify-center gap-2">
               {isPresent && <span className="text-green-500">✓</span>}
@@ -391,11 +391,10 @@ export const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({
           </button>
           <button
             onClick={() => setIsPresent(false)}
-            className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${
-              !isPresent 
-                ? 'border-red-500 bg-red-50 text-red-600' 
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-            }`}
+            className={`flex-1 py-2 px-4 rounded-lg border-2 transition-all ${!isPresent
+              ? 'border-red-500 bg-red-50 text-red-600'
+              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
           >
             Absent
           </button>
@@ -411,11 +410,10 @@ export const AttendanceEditModal: React.FC<AttendanceEditModalProps> = ({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Entrez la raison de l'absence..."
-              className={`w-full p-2 rounded-lg border resize-none h-20 ${
-                isDark 
-                  ? 'bg-gray-700 border-gray-600 text-white' 
-                  : 'bg-white border-gray-200'
-              }`}
+              className={`w-full p-2 rounded-lg border resize-none h-20 ${isDark
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'bg-white border-gray-200'
+                }`}
             />
           </div>
         )}

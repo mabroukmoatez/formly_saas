@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Download, Search, Plus, Send, Save, Loader2 } from 'lucide-react';
+import { X, Download, Search, Plus, Send, Save, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useOrganization } from '../../contexts/OrganizationContext';
@@ -14,6 +13,7 @@ import { ArticleSearchModal } from './ArticleSearchModal';
 import { ArticleCreationModal } from './ArticleCreationModal';
 import { InseeSearchInput } from './InseeSearchInput';
 import { Article, Invoice } from '../../services/commercial.types';
+import { fixImageUrl } from '../../lib/utils';
 
 interface InvoiceItem {
   id: string;
@@ -70,7 +70,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
         address: invoice.client?.address || invoice.client_address || '',
         phone: invoice.client?.phone || invoice.client_phone || '',
       });
-      
+
       // Load items if they exist
       if (invoice.items && invoice.items.length > 0) {
         const processedItems = invoice.items.map((item: any) => ({
@@ -144,10 +144,12 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
             unit_price: item.unit_price,
             tax_rate: item.tax_rate,
           })),
+          amount: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
+          status: 'draft'
         };
 
-        const createResponse = await commercialService.createInvoice(invoiceData);
-        
+        const createResponse = await commercialService.createInvoice(invoiceData as any);
+
         if (!createResponse.success || !createResponse.data) {
           showError('Erreur', 'Impossible de créer la facture');
           return;
@@ -155,7 +157,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
         // Handle both possible response structures
         const responseData = createResponse.data as any;
         invoiceId = String(responseData.invoice?.id || responseData.id);
-        
+
         if (!invoiceId) {
           showError('Erreur', 'ID de facture manquant dans la réponse');
           return;
@@ -235,10 +237,12 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
             unit_price: item.unit_price,
             tax_rate: item.tax_rate,
           })),
+          amount: items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
+          status: 'draft'
         };
 
-        const createResponse = await commercialService.createInvoice(invoiceData);
-        
+        const createResponse = await commercialService.createInvoice(invoiceData as any);
+
         if (!createResponse.success || !createResponse.data) {
           showError('Erreur', 'Impossible de créer la facture');
           return;
@@ -246,7 +250,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
         // Handle both possible response structures
         const responseData = createResponse.data as any;
         invoiceId = String(responseData.invoice?.id || responseData.id);
-        
+
         if (!invoiceId) {
           showError('Erreur', 'ID de facture manquant dans la réponse');
           return;
@@ -255,7 +259,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
       }
 
       // Send email
-      await commercialService.sendInvoiceEmail(invoiceId, clientInfo.email);
+      await commercialService.sendInvoiceEmail(invoiceId, { email: clientInfo.email });
       success('Email envoyé avec succès');
     } catch (err: any) {
       console.error('Email send error:', err);
@@ -355,7 +359,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
                   showError('Erreur', 'Veuillez remplir les informations du client et ajouter au moins un article');
                   return;
                 }
-                
+
                 // Validate items
                 for (const item of items) {
                   if (!item.designation || item.designation.trim() === '') {
@@ -431,7 +435,7 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
             <div className="flex items-center justify-between gap-4">
               <div className={`flex w-[219px] h-[60px] items-center justify-center rounded-[5px] bg-white ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                 {organization?.organization_logo_url ? (
-                  <img src={organization.organization_logo_url} alt="Logo" className="h-full object-contain" />
+                  <img src={fixImageUrl(organization.organization_logo_url)} alt="Logo" className="h-full object-contain" />
                 ) : (
                   <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                     {organization?.organization_name || 'Logo'}
@@ -467,12 +471,12 @@ export const InvoiceCreationModal: React.FC<InvoiceCreationModalProps> = ({
                         addressParts.push((settings as any).country);
                       }
                       const address = addressParts.join('\n');
-                      
+
                       const infoParts = [];
                       if ((settings as any).tva_number) infoParts.push(`N° TVA: ${(settings as any).tva_number}`);
                       if (settings.siret) infoParts.push(`SIRET: ${settings.siret}`);
                       if ((settings as any).rcs) infoParts.push(`RCS: ${(settings as any).rcs}`);
-                      
+
                       return [address, ...infoParts].filter(Boolean).join('\n') || 'Adresse\nN° TVA\nSIRET';
                     }
                     return organization?.description || 'Adresse\nN° TVA\nSIRET';

@@ -188,14 +188,8 @@ class QuoteManagementController extends Controller
             $client_id = $client->id;
         }
 
-        // Parse items if they're sent as JSON string (from FormData)
-        $itemsData = $request->items;
-        if (is_string($itemsData)) {
-            $itemsData = json_decode($itemsData, true);
-        }
-
         // Normalize items format FIRST before validation
-        $items = collect($itemsData)->map(function($item) use ($organization_id) {
+        $items = collect($request->items)->map(function($item) use ($organization_id) {
             // If reference is provided and has no explicit prices, fetch article details
             if (isset($item['reference']) && 
                 (!isset($item['price_ht']) || $item['price_ht'] == 0) &&
@@ -301,12 +295,6 @@ class QuoteManagementController extends Controller
                 $total_tva += $item_total_tva;
             }
 
-            // Handle PDF file upload for imported quotes
-            $imported_document_path = null;
-            if ($request->hasFile('imported_document')) {
-                $imported_document_path = $request->file('imported_document')->store('imported_quotes', 'public');
-            }
-
             $quote = Quote::create([
                 'organization_id' => $organization_id,
                 'quote_number' => $request->quote_number ?? 'DEV-' . date('Y') . '-' . str_pad(Quote::count() + 1, 4, '0', STR_PAD_LEFT),
@@ -321,8 +309,6 @@ class QuoteManagementController extends Controller
                 'payment_conditions' => $request->payment_conditions,
                 'notes' => $request->notes,
                 'terms' => $request->terms,
-                'is_imported' => $request->is_imported ?? 0,
-                'imported_document_path' => $imported_document_path,
             ]);
 
             foreach ($request->items as $itemData) {
@@ -418,7 +404,6 @@ class QuoteManagementController extends Controller
                 'payment_conditions' => $request->payment_conditions ?? $quote->payment_conditions,
                 'notes' => $request->notes ?? $quote->notes,
                 'terms' => $request->terms ?? $quote->terms,
-                'is_imported' => $request->is_imported ?? $quote->is_imported,
             ]);
 
             // Delete and recreate items
@@ -547,30 +532,6 @@ class QuoteManagementController extends Controller
             ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
     }
 
-    public function getImportedDocument($id)
-    {
-        $organization_id = $this->getOrganizationId();
-        $quote = Quote::where('id', $id)->where('organization_id', $organization_id)->first();
-
-        if (!$quote || !$quote->imported_document_path) {
-            return $this->failed([], 'No imported document found.');
-        }
-
-        $filePath = $quote->imported_document_path;
-
-        if (!Storage::disk('public')->exists($filePath)) {
-            return $this->failed([], 'Document file not found.');
-        }
-
-        $file = Storage::disk('public')->get($filePath);
-        $mimeType = Storage::disk('public')->mimeType($filePath);
-        $fileName = 'Devis-' . $quote->quote_number . '-importé.pdf';
-
-        return response($file, 200)
-            ->header('Content-Type', $mimeType)
-            ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
-    }
-
     /**
      * Convert quote to invoice
      */
@@ -585,14 +546,16 @@ class QuoteManagementController extends Controller
         if (!$quote) return $this->failed([], 'Quote not found.');
 
         // Allow conversion for 'accepted' or 'sent' status
-        if (!in_array($quote->status, ['accepted', 'sent', 'draft'])) {
-            return $this->failed([], 'Only draft, sent, or accepted quotes can be converted to invoices.');
+        if (!in_array($quote->status, ['accepted', 'sent'])) {
+            return $this->failed([], 'Only accepted or sent quotes can be converted to invoices.');
         }
 
-        // Allow multiple conversions - removed the check for existing invoice
-        // Users can convert the same quote multiple times to create multiple invoices
+        // Check if already converted
+        if ($quote->invoice) {
+            return $this->failed([], 'Quote already converted to invoice.');
+        }
 
-        try{
+        try {
             DB::beginTransaction();
 
             // Use custom invoice number if provided, otherwise auto-generate

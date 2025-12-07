@@ -83,11 +83,21 @@ export const CategoryButtons: React.FC<CategoryButtonsProps> = ({
 
     const loadPractices = async () => {
       try {
-        const response = isSession && sessionUuid
-          ? await sessionCreation.getSessionFormationPractices(sessionUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } }
-          : !isSession && courseUuid
-            ? await courseCreation.getCourseFormationPractices(courseUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } }
-            : null;
+        let response = null;
+        if (isSession && sessionUuid) {
+          try {
+            response = await sessionCreation.getSessionFormationPractices(sessionUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } };
+          } catch (err: any) {
+            if (err?.response?.status === 404) {
+              // Session not found or endpoint not available, skip silently
+              return;
+            } else {
+              throw err;
+            }
+          }
+        } else if (!isSession && courseUuid) {
+          response = await courseCreation.getCourseFormationPractices(courseUuid) as { success: boolean; data?: { practices: Array<{ id: number }> } };
+        }
 
         if (response?.success && response.data?.practices) {
           const practiceIds = response.data.practices.map((p: { id: number }) => p.id);

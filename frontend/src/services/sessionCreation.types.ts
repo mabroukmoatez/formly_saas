@@ -53,6 +53,18 @@ export interface SessionCreationFormData {
   isDraft: boolean;
   sessionUuid?: string;
   courseUuid?: string; // UUID of the source course when creating session from a course
+
+  // New fields for session creation/update
+  session_type: 'intra' | 'inter' | 'individual';
+  delivery_mode?: 'presentiel' | 'distanciel' | 'hybrid' | 'e-learning';
+  location_name?: string | null;
+  location_address?: string | null;
+  location_city?: string | null;
+  location_postal_code?: string | null;
+  location_room?: string | null;
+  location_building?: string | null;
+  platform_type?: string | null;
+  meeting_link?: string | null;
 }
 
 export interface SessionInstance {
@@ -263,6 +275,14 @@ export interface InstanceGenerationData {
   is_self_paced?: boolean;
   max_participants?: number;
   trainer_ids?: string[];
+
+  // Simplified schedule generation
+  morning_enabled?: boolean;
+  morning_start?: string;
+  morning_end?: string;
+  afternoon_enabled?: boolean;
+  afternoon_start?: string;
+  afternoon_end?: string;
 }
 
 // Time slot definitions

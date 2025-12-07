@@ -96,7 +96,7 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
       onClick={onClose}
     >
       <div
-        className={`relative max-w-[1400px] w-full max-h-[95vh] overflow-auto rounded-[18px] ${
+        className={`relative max-w-[900px] w-full max-h-[90vh] overflow-auto rounded-[18px] ${
           isDark ? 'bg-gray-900' : 'bg-white'
         } shadow-[0px_0px_75px_rgba(25,41,74,0.24)]`}
         onClick={(e) => e.stopPropagation()}

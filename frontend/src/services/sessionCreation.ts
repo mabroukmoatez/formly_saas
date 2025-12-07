@@ -362,7 +362,7 @@ class SessionCreationService {
   }
 
   updateSessionStatus(sessionUuid: UUID, status: number) {
-    return apiService.patch(`${this.orgSessionsBase}/${sessionUuid}/status`, { status });
+    return apiService.put(`${this.orgSessionsBase}/${sessionUuid}`, { status });
   }
 
   // Session Instances (Séances)

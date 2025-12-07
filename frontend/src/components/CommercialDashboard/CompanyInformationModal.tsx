@@ -10,7 +10,6 @@ import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
 import { useToast } from '../ui/toast';
 import { commercialService } from '../../services/commercial';
 import { fixImageUrl } from '../../lib/utils';
-import { InseeSearchInput } from './InseeSearchInput';
 
 interface BankAccount {
   id: string;

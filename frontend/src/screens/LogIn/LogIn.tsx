@@ -19,36 +19,36 @@ export const LogIn = (): JSX.Element => {
   const { t } = useLanguage();
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginBannerUrl, setLoginBannerUrl] = useState<string | null>(null);
   const [loginTemplate, setLoginTemplate] = useState<string>('minimal-1');
-  
+
   // Load login settings from organization data
   React.useEffect(() => {
     if (!organization) return;
-    
+
     // Priorité 1: login_banner_url depuis l'organisation
     if (organization.login_banner_url) {
       setLoginBannerUrl(organization.login_banner_url);
       console.log('✅ Using login_banner_url from organization:', organization.login_banner_url);
-    } 
+    }
     // Priorité 2: login_background_image_url (ancien champ pour compatibilité)
     else if (organization.login_background_image_url) {
       setLoginBannerUrl(organization.login_background_image_url);
       console.log('✅ Using login_background_image_url from organization:', organization.login_background_image_url);
     }
-    
+
     // Charger le modèle de connexion
     if (organization.login_template) {
       setLoginTemplate(organization.login_template);
       console.log('✅ Using login_template from organization:', organization.login_template);
     }
   }, [organization]);
-  
+
   // Debug: Log organization data to see what we're getting
   React.useEffect(() => {
     if (organization) {
@@ -65,7 +65,7 @@ export const LogIn = (): JSX.Element => {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !password.trim()) {
       return;
     }
@@ -73,11 +73,11 @@ export const LogIn = (): JSX.Element => {
     try {
       clearError();
       const organizationSubdomain = organization?.custom_domain || '';
-      
+
       // Try super admin login first if no organization subdomain
       let authResponse: any;
       let isSuperAdminLogin = false;
-      
+
       if (!organizationSubdomain || organizationSubdomain.trim() === '') {
         // Try super admin login first
         try {
@@ -91,12 +91,12 @@ export const LogIn = (): JSX.Element => {
           console.log('Super admin login failed, trying regular login:', superAdminErr);
         }
       }
-      
+
       // If super admin login didn't work, try regular login
       if (!isSuperAdminLogin) {
         authResponse = await apiService.login(email.trim(), password.trim(), organizationSubdomain);
       }
-      
+
       if (authResponse.success && authResponse.data?.user) {
         // Store auth data using the hook
         if (isSuperAdminLogin) {
@@ -107,28 +107,28 @@ export const LogIn = (): JSX.Element => {
         } else {
           await login(email.trim(), password.trim(), organizationSubdomain);
         }
-        
+
         // Check if user is super admin or if we used super admin login
         const user = authResponse.data.user;
-        const isSuperAdmin = isSuperAdminLogin || 
-                             user?.role_name?.toLowerCase().includes('super admin') || 
-                             user?.role_name?.toLowerCase().includes('superadmin') ||
-                             user?.role_name?.toLowerCase() === 'super admin';
-        
+        const isSuperAdmin = isSuperAdminLogin ||
+          user?.role_name?.toLowerCase().includes('super admin') ||
+          user?.role_name?.toLowerCase().includes('superadmin') ||
+          user?.role_name?.toLowerCase() === 'super admin';
+
         if (isSuperAdmin) {
           navigate('/superadmin/dashboard');
           return;
         }
-        
+
         // Check if user is a learner/apprenant
         // Note: user.role is a number, user.role_name is a string
         const roleName = user?.role_name;
         const roleNameStr = typeof roleName === 'string' ? roleName.toLowerCase() : '';
-        const isLearner = roleNameStr.includes('learner') || 
-                         roleNameStr.includes('apprenant') ||
-                         roleNameStr === 'learner' ||
-                         roleNameStr === 'apprenant';
-        
+        const isLearner = roleNameStr.includes('learner') ||
+          roleNameStr.includes('apprenant') ||
+          roleNameStr === 'learner' ||
+          roleNameStr === 'apprenant';
+
         if (isLearner) {
           // Redirect learner to learner dashboard
           if (organization?.custom_domain) {
@@ -139,14 +139,14 @@ export const LogIn = (): JSX.Element => {
           return;
         }
       }
-      
+
       // Navigate to dashboard after successful login (for non-super-admin and non-learner users)
       if (organization?.custom_domain) {
         navigate(`/${organization.custom_domain}/dashboard`);
       } else {
         navigate('/dashboard');
       }
-      
+
     } catch (err) {
       console.error('Login error:', err);
     }
@@ -200,7 +200,7 @@ export const LogIn = (): JSX.Element => {
    */
   const getLogoUrl = (): string => {
     if (organization?.organization_logo_url) {
-      return organization.organization_logo_url;
+      return fixImageUrl(organization.organization_logo_url);
     }
     return '/assets/logos/login-logo.svg';
   };
@@ -224,9 +224,8 @@ export const LogIn = (): JSX.Element => {
 
   return (
     <div
-      className={`w-full min-h-screen relative flex flex-col lg:flex-row login-template-${currentLoginTemplate} ${
-        isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-      }`}
+      className={`w-full min-h-screen relative flex flex-col lg:flex-row login-template-${currentLoginTemplate} ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+        }`}
       style={{
         '--org-primary-color': organization?.primary_color || '#007bff',
         '--org-secondary-color': organization?.secondary_color || '#6c757d',

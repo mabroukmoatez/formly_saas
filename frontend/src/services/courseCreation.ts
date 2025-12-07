@@ -646,8 +646,15 @@ class CourseCreationService {
   }
 
   // Email Templates (Global)
-  getEmailTemplates() {
-    return apiService.get(`${this.base}/email-templates`);
+  getEmailTemplates(params?: { page?: number; per_page?: number; search?: string }) {
+    // Utiliser le même endpoint que apiService.getEmailTemplates() pour la cohérence
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.per_page) queryParams.append('per_page', String(params.per_page));
+    if (params?.search) queryParams.append('search', params.search);
+    queryParams.append('type', 'email');
+    const qs = queryParams.toString();
+    return apiService.get(`/api/organization/white-label/library/templates?${qs}`);
   }
   createEmailTemplate(data: { name: string; subject: string; body: string; placeholders: string[]; is_default: boolean }) {
     return apiService.post(`${this.ccBase}/email-templates`, data);

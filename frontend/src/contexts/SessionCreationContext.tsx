@@ -48,59 +48,59 @@ import type {
 interface SessionCreationState {
   // Form data
   formData: SessionCreationFormData;
-  
+
   // Metadata
   metadata: SessionMetadata | null;
-  
+
   // Session instances (séances)
   instances: SessionInstance[];
-  
+
   // Session participants
   participants: SessionParticipant[];
-  
+
   // Session chapters (effectifs = hérités ou overridés)
   chapters: SessionChapter[];
-  
+
   // Session documents (effectifs = hérités ou overridés)
   documents: SessionDocument[];
-  
+
   // Trainers
   trainers: SessionTrainer[];
   courseTrainers: any[];
-  
+
   // Questionnaires
   questionnaires: any[];
   certificationModels: any[];
-  
+
   // Modules
   modules: any[];
-  
+
   // Objectives
   objectives: any[];
-  
+
   // Additional Fees
   additionalFees: any[];
-  
+
   // Workflow
   workflow: any | null;
   workflowActions: any[];
   emailTemplates: any[];
-  
+
   // UI state
   currentStep: number;
   isLoading: boolean;
   isSaving: boolean;
   error: string | null;
-  
+
   // ===== OVERRIDE SYSTEM =====
   // Indique si on est en mode "création de session" (vs "création de cours")
   isSessionMode: boolean;
-  
+
   // Flags d'override - true = les données sont overridées pour cette session
   hasChaptersOverride: boolean;
   hasDocumentsOverride: boolean;
   hasWorkflowOverride: boolean;
-  
+
   // Données du cours template (pour référence/comparaison)
   courseTemplate: {
     uuid: string;
@@ -111,7 +111,7 @@ interface SessionCreationState {
     chapters_count: number;
     documents_count: number;
   } | null;
-  
+
   // Champs overridés (null = hérite du cours)
   overrides: {
     title: string | null;
@@ -129,19 +129,20 @@ interface SessionCreationActions {
   // Form management
   updateFormField: (field: keyof SessionCreationFormData, value: any) => void;
   resetForm: () => void;
-  
+
   // Step management
   setCurrentStep: (step: number) => void;
   nextStep: () => void;
   previousStep: () => void;
-  
+
   // Session CRUD
   createSession: () => Promise<string | null>;
   updateSession: () => Promise<boolean>;
   deleteSession: () => Promise<boolean>;
+  updateSessionStatus: (status: string) => Promise<boolean>;
   loadSession: (sessionUuid: string) => Promise<boolean>;
   initializeSession: (sessionUuid?: string) => Promise<void>;
-  
+
   // Public APIs
   getAllSessions: (params?: any) => Promise<any>;
   getSessionDetailsBySlug: (slug: string) => Promise<any>;
@@ -149,7 +150,7 @@ interface SessionCreationActions {
   getSessionCategories: () => Promise<any>;
   getUpcomingInstances: (params?: any) => Promise<any>;
   searchSessions: (query: string) => Promise<any>;
-  
+
   // Student APIs
   getStudentEnrollments: (params?: any) => Promise<any>;
   enrollInSession: (sessionUuid: string) => Promise<any>;
@@ -158,19 +159,19 @@ interface SessionCreationActions {
   getStudentAttendance: (sessionUuid: string) => Promise<any>;
   accessSessionInstance: (instanceUuid: string) => Promise<any>;
   getStudentProgress: (sessionUuid: string) => Promise<any>;
-  
+
   // Organization APIs
   listOrganizationSessions: (params?: any) => Promise<any>;
-  
+
   // Metadata
   loadMetadata: () => Promise<void>;
   loadSubcategories: (categoryId: number) => Promise<void>;
-  
+
   // Session instances (séances)
   generateInstances: (data: InstanceGenerationData) => Promise<boolean>;
   getInstances: () => Promise<void>;
   cancelInstance: (instanceUuid: string, reason: string) => Promise<boolean>;
-  
+
   // Session participants
   enrollParticipant: (userId: number) => Promise<boolean>;
   enrollMultipleParticipants: (userIds: number[]) => Promise<boolean>;
@@ -183,43 +184,43 @@ interface SessionCreationActions {
   exportParticipants: (format?: 'xlsx' | 'csv') => Promise<void>;
   markAttendance: (instanceUuid: string, data: any) => Promise<boolean>;
   getAttendanceReport: () => Promise<any>;
-  
+
   // Session chapters
   getChapters: () => Promise<void>;
   loadChapters: () => Promise<void>;
   createChapter: (data: CreateSessionChapterData) => Promise<boolean>;
   updateChapter: (chapterUuid: string, data: UpdateSessionChapterData) => Promise<boolean>;
   deleteChapter: (chapterUuid: string) => Promise<boolean>;
-  
+
   // Sub-chapters
   createSubChapterAdapter: (chapterUuid: string, data: any) => Promise<any>;
   updateSubChapterAdapter: (chapterUuid: string, subChapterUuid: string, data: any) => Promise<boolean>;
   deleteSubChapterAdapter: (chapterUuid: string, subChapterUuid: string) => Promise<boolean>;
-  
+
   // Content
   createContentAdapter: (chapterUuid: string, data: any) => Promise<any>;
   updateContent: (chapterUuid: string, contentUuid: string, data: any) => Promise<boolean>;
   updateContentAdapter: (chapterUuid: string, contentUuid: string, data: any) => Promise<boolean>;
   deleteContent: (chapterUuid: string, contentUuid: string) => Promise<boolean>;
   deleteContentAdapter: (chapterUuid: string, contentUuid: string) => Promise<boolean>;
-  
+
   // Evaluations
   createEvaluationAdapter: (chapterUuid: string, data: any) => Promise<any>;
   updateEvaluationAdapter: (chapterUuid: string, evaluationUuid: string, data: any) => Promise<any>;
   deleteEvaluationAdapter: (chapterUuid: string, evaluationUuid: string) => Promise<boolean>;
-  
+
   // Support files
   uploadSupportFilesAdapter: (files: File[], chapterId: string, subChapterId?: string) => Promise<boolean>;
   deleteSupportFile: (chapterUuid: string, fileUuid: string) => Promise<boolean>;
   deleteSupportFileAdapter: (chapterUuid: string, fileUuid: string) => Promise<boolean>;
-  
+
   // Session documents
   getDocuments: () => Promise<void>;
   loadDocuments: () => Promise<void>;
   uploadDocument: (data: CreateSessionDocumentData) => Promise<boolean>;
   deleteDocument: (documentUuid: string) => Promise<boolean>;
   loadCertificationModels: () => Promise<void>;
-  
+
   // Questionnaires
   loadQuestionnaires: () => Promise<void>;
   createQuestionnaire: (data: any) => Promise<boolean>;
@@ -228,7 +229,7 @@ interface SessionCreationActions {
   updateQuestion: (questionnaireUuid: string, questionUuid: string, data: any) => Promise<boolean>;
   deleteQuestion: (questionnaireUuid: string, questionUuid: string) => Promise<boolean>;
   deleteQuestionnaire: (questionnaireId: number) => Promise<boolean>;
-  
+
   // Modules
   getModules: () => Promise<void>;
   loadModules: () => Promise<void>;
@@ -236,19 +237,19 @@ interface SessionCreationActions {
   updateModule: (moduleUuid: string, data: any) => Promise<boolean>;
   deleteModule: (moduleUuid: string) => Promise<boolean>;
   reorderModules: (modules: any[]) => Promise<boolean>;
-  
+
   // Objectives
   getObjectives: () => Promise<void>;
   loadObjectives: () => Promise<void>;
   createObjective: (data: any) => Promise<boolean>;
   updateObjective: (objectiveUuid: string, data: any) => Promise<boolean>;
   deleteObjective: (objectiveUuid: string) => Promise<boolean>;
-  
+
   // Additional Fees
   createAdditionalFee: (data: any) => Promise<boolean>;
   updateAdditionalFee: (feeUuid: string, data: any) => Promise<boolean>;
   deleteAdditionalFee: (feeUuid: string) => Promise<boolean>;
-  
+
   // Trainers
   getTrainers: (params?: { search?: string; per_page?: number }) => Promise<void>;
   loadTrainers: () => Promise<void>;
@@ -259,7 +260,7 @@ interface SessionCreationActions {
   removeTrainer: (trainerId: string) => Promise<boolean>;
   createTrainer: (data: CreateSessionTrainerData) => Promise<boolean>;
   updateTrainer: (trainerId: string, data: UpdateSessionTrainerData) => Promise<boolean>;
-  
+
   // Workflows (for Step8Deroulement)
   workflow: any | null;
   workflowActions: any[];
@@ -274,64 +275,64 @@ interface SessionCreationActions {
   reorderWorkflowActions: (workflowUuid: string, actionUuids: string[]) => Promise<boolean>;
   toggleWorkflowAction: (workflowUuid: string, actionUuid: string, enabled: boolean) => Promise<boolean>;
   loadEmailTemplates: () => Promise<void>;
-  
+
   // Auto-save
   autoSave: () => Promise<void>;
   saveDraft: () => Promise<void>;
-  
+
   // Media upload
   uploadIntroVideo?: (file: File) => Promise<boolean>;
   uploadIntroImage?: (file: File) => Promise<boolean>;
-  
+
   // Load data from course (for pre-filling when creating session from course)
   loadFromCourse: (courseUuid: string) => Promise<boolean>;
-  
+
   // Direct setters for pre-filling data
   setModules: (modules: any[]) => void;
   setObjectives: (objectives: any[]) => void;
   setChapters: (chapters: any[]) => void;
   setDocuments: (documents: any[]) => void;
   setQuestionnaires: (questionnaires: any[]) => void;
-  
+
   // Save all - saves SESSION OVERRIDES + SESSION data (séances + participants)
   // ⚠️ NE MODIFIE PAS le cours template!
   saveAll: () => Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }>;
-  
+
   // ===== OVERRIDE SYSTEM ACTIONS =====
-  
+
   // Enable session mode (modifications go to session, not course)
   enableSessionMode: () => void;
-  
+
   // Set override for a simple field
   setOverride: (field: keyof SessionCreationState['overrides'], value: any) => void;
-  
+
   // Reset an override (revert to course template value)
   resetOverride: (field: keyof SessionCreationState['overrides']) => void;
-  
+
   // Reset all overrides for a category
   resetAllOverrides: () => void;
-  
+
   // Initialize chapters override (copy from course to enable modifications)
   initializeChaptersOverride: () => Promise<boolean>;
-  
+
   // Initialize documents override
   initializeDocumentsOverride: () => Promise<boolean>;
-  
+
   // Initialize workflow override
   initializeWorkflowOverride: () => Promise<boolean>;
-  
+
   // Reset chapters to course template
   resetChaptersToTemplate: () => Promise<boolean>;
-  
+
   // Reset documents to course template
   resetDocumentsToTemplate: () => Promise<boolean>;
-  
+
   // Reset workflow to course template
   resetWorkflowToTemplate: () => Promise<boolean>;
-  
+
   // Check if a field is inherited or overridden
   isFieldInherited: (field: string) => boolean;
-  
+
   // Get the original course template value for comparison
   getCourseTemplateValue: (field: string) => any;
 }
@@ -406,7 +407,7 @@ const defaultState: SessionCreationState = {
   isLoading: false,
   isSaving: false,
   error: null,
-  
+
   // ===== OVERRIDE SYSTEM =====
   isSessionMode: false,
   hasChaptersOverride: false,
@@ -512,9 +513,9 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       const defaultEndDate = new Date(today);
       defaultEndDate.setDate(today.getDate() + 30);
       const formatDate = (date: Date) => date.toISOString().split('T')[0];
-      
+
       log.info('Creating session via courseSessionService', { courseUuid: state.formData.courseUuid });
-      
+
       // Déterminer le delivery_mode
       const getDeliveryMode = (): 'presentiel' | 'distanciel' | 'hybrid' | 'e-learning' => {
         const sessionType = state.formData.session_type?.toLowerCase();
@@ -523,7 +524,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         if (sessionType === 'hybride' || sessionType === 'hybrid') return 'hybrid';
         return 'presentiel';
       };
-      
+
       // Payload selon COURSE_SESSIONS_API.md (SESSIONS_API_DOCUMENTATION.md)
       const payload = {
         course_uuid: state.formData.courseUuid, // ✅ OBLIGATOIRE
@@ -555,18 +556,18 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         platform_type: state.formData.platform_type,
         meeting_link: state.formData.meeting_link,
       };
-      
+
       const response = await courseSessionService.createSession(payload);
       const sessionUuid = response.data?.uuid;
-      
+
       if (sessionUuid) {
-      setState(prev => ({
-        ...prev,
-        formData: { ...prev.formData, sessionUuid },
-        isLoading: false
-      }));
+        setState(prev => ({
+          ...prev,
+          formData: { ...prev.formData, sessionUuid },
+          isLoading: false
+        }));
         log.info('Session created successfully', { sessionUuid });
-      return sessionUuid;
+        return sessionUuid;
       } else {
         throw new Error('No session UUID in API response');
       }
@@ -599,18 +600,35 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         if (sessionType === 'distanciel' || sessionType === 'distance') return 'distanciel';
         if (sessionType === 'hybride' || sessionType === 'hybrid') return 'hybrid';
         return 'presentiel';
+        return 'presentiel';
       };
-      
+
+      // Helper to validate and format time (H:i)
+      const formatTime = (time: string | null | undefined): string | null => {
+        if (!time) return null;
+        if (time.length > 5) return time.substring(0, 5); // Trim seconds 09:00:00 -> 09:00
+        return time;
+      };
+
+      // Helper to validate and format date (YYYY-MM-DD)
+      const today = new Date();
+      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+      const formatValidDate = (dateVal: string | null | undefined): string => {
+        if (!dateVal) return formatDate(today);
+        if (dateVal.startsWith('-') || dateVal === 'Invalid Date') return formatDate(today);
+        return dateVal;
+      };
+
       // Payload selon SESSIONS_API_DOCUMENTATION.md
-      const updatePayload = {
+      const rawPayload = {
         title: state.formData.title || undefined,
         description: state.formData.description || undefined,
         session_type: 'inter' as const,
         delivery_mode: getDeliveryMode(),
-        start_date: state.formData.session_start_date,
-        end_date: state.formData.session_end_date,
-        default_start_time: state.formData.session_start_time || '09:00',
-        default_end_time: state.formData.session_end_time || '17:00',
+        start_date: formatValidDate(state.formData.session_start_date),
+        end_date: formatValidDate(state.formData.session_end_date),
+        default_start_time: formatTime(state.formData.session_start_time) || '09:00',
+        default_end_time: formatTime(state.formData.session_end_time) || '17:00',
         total_hours: state.formData.duration || undefined,
         total_days: state.formData.duration_days || undefined,
         max_participants: state.formData.max_participants || undefined,
@@ -629,15 +647,31 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         meeting_link: state.formData.meeting_link,
       };
 
-      log.debug('Updating session via courseSessionService', { sessionUuid: state.formData.sessionUuid });
-      
+      // Filter out undefined values to avoid sending invalid data to the API
+      const updatePayload = Object.fromEntries(
+        Object.entries(rawPayload).filter(([_, value]) => value !== undefined)
+      );
+
+      log.debug('Updating session via courseSessionService', {
+        sessionUuid: state.formData.sessionUuid,
+        payload: updatePayload
+      });
+
       await courseSessionService.updateSession(state.formData.sessionUuid, updatePayload);
       setState(prev => ({ ...prev, isSaving: false }));
       log.info('Session updated successfully');
       return true;
     } catch (error: any) {
       const errorInfo = parseApiError(error);
-      log.error('Failed to update session', errorInfo);
+
+      // Log detailed error information for debugging
+      log.error('Failed to update session', {
+        ...errorInfo,
+        sessionUuid: state.formData.sessionUuid,
+        validationErrors: error.response?.data?.errors || error.response?.data?.details,
+        statusCode: error.response?.status
+      });
+
       setState(prev => ({
         ...prev,
         isSaving: false,
@@ -673,25 +707,79 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
   }, [state.formData.sessionUuid]);
 
+  const updateSessionStatus = useCallback(async (status: string): Promise<boolean> => {
+    if (!state.formData.sessionUuid) return false;
+    try {
+      // Convert status string to number (active = 1, draft = 0, etc.)
+      const statusNumber = status === 'active' ? 1 : 0;
+      const result = await sessionCreationApi.updateSessionStatus(state.formData.sessionUuid, statusNumber);
+      return result.success;
+    } catch (error: any) {
+      log.error('Error updating session status', error);
+      return false;
+    }
+  }, [state.formData.sessionUuid]);
+
   const loadSession = useCallback(async (sessionUuid: string): Promise<boolean> => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const response: any = await sessionCreationApi.getSessionDetails(sessionUuid);
+      // Use sessionOverrideService to get session with ALL effective data including overrides
+      const response: any = await sessionOverrideService.getSessionWithEffectiveData(sessionUuid);
       const sessionData = response.data;
-      
+
+      // Map API response to form data structure
+      const mappedFormData = {
+        sessionUuid: sessionData.uuid,
+        courseUuid: sessionData.course_uuid,
+        title: sessionData.title || '',
+        subtitle: sessionData.subtitle || '',
+        description: sessionData.description || '',
+        category_id: sessionData.course?.category?.id || null,
+        subcategory_id: sessionData.course?.subcategory?.id || null,
+        session_language_id: sessionData.language?.id || sessionData.session_language_id || null,
+        difficulty_level_id: sessionData.difficulty_level?.id || sessionData.difficulty_level_id || null,
+        price: sessionData.pricing?.price_ttc || 0,
+        price_ht: sessionData.pricing?.price_ht || 0,
+        vat_percentage: sessionData.pricing?.vat_rate || 20,
+        currency: sessionData.pricing?.currency || 'EUR',
+        duration: sessionData.duration || 0,
+        duration_days: sessionData.total_days || 0,
+        session_start_date: sessionData.start_date || '',
+        session_end_date: sessionData.end_date || '',
+        session_start_time: sessionData.default_start_time || '09:00',
+        session_end_time: sessionData.default_end_time || '17:00',
+        max_participants: sessionData.max_participants || sessionData.participants?.max || 20,
+        target_audience: sessionData.target_audience || '',
+        prerequisites: sessionData.prerequisites || '',
+        intro_image_url: sessionData.image_url || sessionData.intro_image_url || '',
+        intro_video_url: sessionData.intro_video_url || sessionData.intro_video || '',
+        key_points: sessionData.key_points || [],
+        trainer_ids: (sessionData.trainers || []).map((t: any) => t.id || t.uuid),
+        isPublished: sessionData.is_published || false,
+        isDraft: sessionData.status === 'draft'
+      };
+
       setState(prev => ({
         ...prev,
         formData: {
           ...prev.formData,
-          ...sessionData,
-          sessionUuid
+          ...mappedFormData
         },
+        chapters: sessionData.effective_chapters || [],
+        documents: sessionData.effective_documents || [],
+        trainers: sessionData.trainers || [],
+        participants: Array.isArray(sessionData.participants) ? sessionData.participants : (sessionData.participants ? [sessionData.participants] : []),
+        instances: sessionData.slots || [],
+        hasChaptersOverride: !!sessionData.has_chapters_override,
+        hasDocumentsOverride: !!sessionData.has_documents_override,
+        hasWorkflowOverride: !!sessionData.has_workflow_override,
         isLoading: false
       }));
 
       return true;
     } catch (error: any) {
+      log.error('Error loading session with effective data', error);
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -848,8 +936,8 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   const loadMetadata = useCallback(async (): Promise<void> => {
     try {
       const response: any = await sessionCreationApi.getCreationMetadata();
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         metadata: {
           ...response.data,
           subcategories: []
@@ -868,10 +956,10 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           ...prev,
           metadata: prev.metadata ? {
             ...prev.metadata,
-            subcategories: (response.data || []).map((s: any) => ({ 
-              id: s.id, 
-              name: s.name, 
-              category_id: categoryId 
+            subcategories: (response.data || []).map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              category_id: categoryId
             }))
           } : null
         }));
@@ -894,7 +982,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.info('Generating slots for session', { sessionUuid: state.formData.sessionUuid, has_recurrence: data.has_recurrence });
-      
+
       // Déterminer start_time: priorité au morning_start si activé, sinon afternoon_start, sinon valeur par défaut
       let startTime = '09:00';
       if (data.morning_enabled && data.morning_start) {
@@ -904,7 +992,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       } else if (state.formData.session_start_time) {
         startTime = state.formData.session_start_time;
       }
-      
+
       // Déterminer end_time: priorité au afternoon_end si activé, sinon morning_end, sinon valeur par défaut
       let endTime = '17:00';
       if (data.afternoon_enabled && data.afternoon_end) {
@@ -920,7 +1008,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         // ===== SÉANCE UNIQUE =====
         // Utiliser POST /slots pour créer UNE SEULE séance
         log.info('Creating single slot (non-recurrent)', { start_date: data.start_date });
-        
+
         const singleSlotData = {
           title: `Séance du ${data.start_date}`,
           instance_type: data.instance_type || 'presentiel',
@@ -935,9 +1023,9 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           meeting_link: (data as any).meeting_link,
           trainer_uuids: (data as any).trainer_ids || state.formData.trainer_ids || []
         };
-        
+
         const response = await courseSessionService.createSlot(state.formData.sessionUuid, singleSlotData as any);
-        
+
         // Ajouter le nouveau slot à la liste existante
         if (response.data) {
           setState(prev => ({
@@ -952,7 +1040,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         // ===== SÉANCES RÉCURRENTES =====
         // Utiliser POST /generate-slots pour générer plusieurs séances
         log.info('Generating recurring slots', { selected_days: data.selected_days });
-        
+
         const generateSlotsData = {
           pattern: 'weekly',
           start_time: startTime,
@@ -993,7 +1081,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.debug('Loading slots for session', { sessionUuid: state.formData.sessionUuid });
-      
+
       // Essayer la nouvelle API d'abord
       try {
         const response = await courseSessionService.getSlots(state.formData.sessionUuid);
@@ -1001,7 +1089,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         log.debug('Slots loaded via new API', { count: response.data?.length || 0 });
       } catch (newApiError) {
         // Fallback to old API
-      const response: any = await sessionCreationApi.getSessionInstances(state.formData.sessionUuid);
+        const response: any = await sessionCreationApi.getSessionInstances(state.formData.sessionUuid);
         setState(prev => ({ ...prev, instances: response.data || [] }));
         log.debug('Slots loaded via fallback API');
       }
@@ -1020,7 +1108,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       try {
         await courseSessionService.deleteSlot(state.formData.sessionUuid!, instanceUuid);
       } catch {
-      await sessionCreationApi.cancelSessionInstance(instanceUuid, reason);
+        await sessionCreationApi.cancelSessionInstance(instanceUuid, reason);
       }
       await getInstances(); // Refresh instances
       return true;
@@ -1043,7 +1131,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.info('Adding participant to session', { sessionUuid: state.formData.sessionUuid });
-      
+
       // Essayer la nouvelle API d'abord
       try {
         await courseSessionService.addParticipant(state.formData.sessionUuid, {
@@ -1053,10 +1141,10 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         log.info('Participant added via new API');
       } catch (newApiError) {
         // Fallback to old API
-      await sessionCreationApi.enrollParticipant(state.formData.sessionUuid, userId);
+        await sessionCreationApi.enrollParticipant(state.formData.sessionUuid, userId);
         log.info('Participant added via fallback API');
       }
-      
+
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
@@ -1078,7 +1166,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.debug('Loading participants for session', { sessionUuid: state.formData.sessionUuid });
-      
+
       // Essayer la nouvelle API d'abord
       try {
         const response = await courseSessionService.getParticipants(state.formData.sessionUuid);
@@ -1130,7 +1218,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.info('Enrolling multiple participants', { sessionUuid: state.formData.sessionUuid, count: userIds.length });
-      
+
       // Essayer la nouvelle API d'abord
       try {
         await courseSessionService.enrollMultipleParticipants(state.formData.sessionUuid, { user_ids: userIds });
@@ -1140,7 +1228,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         await sessionCreationApi.enrollMultipleParticipants(state.formData.sessionUuid, userIds);
         log.info('Multiple participants enrolled via fallback API');
       }
-      
+
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
@@ -1194,7 +1282,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
     try {
       log.info('Removing participant from session', { sessionUuid: state.formData.sessionUuid });
-      
+
       // Essayer la nouvelle API d'abord (elle attend un UUID, pas un ID)
       try {
         // Note: La nouvelle API utilise participantUuid, l'ancienne utilise participantId
@@ -1203,10 +1291,10 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         log.info('Participant removed via new API');
       } catch (newApiError) {
         // Fallback to old API
-      await sessionCreationApi.deleteParticipant(state.formData.sessionUuid, participantId);
+        await sessionCreationApi.deleteParticipant(state.formData.sessionUuid, participantId);
         log.info('Participant removed via fallback API');
       }
-      
+
       await getParticipants(); // Refresh participants
       return true;
     } catch (error: any) {
@@ -1280,11 +1368,11 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       // Use creation-data API to get chapters with nested content, evaluations, support_files
       const response: any = await courseCreation.getCourseCreationData(state.formData.courseUuid);
       log.debug('Course creation data response for chapters', { response });
-      
+
       if (response.success && response.data) {
         // Extract chapters from step2_structure (includes content, evaluations, support_files)
         const chaptersData = response.data.step2_structure?.chapters || [];
-        log.info('Chapters with content loaded', { 
+        log.info('Chapters with content loaded', {
           count: chaptersData.length,
           firstChapter: chaptersData[0] ? {
             title: chaptersData[0].title,
@@ -1313,20 +1401,20 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
           setState(prev => ({ ...prev, hasChaptersOverride: true }));
         }
-        
+
         await sessionOverrideService.createSessionChapter(state.formData.sessionUuid, {
           title: data.title,
           description: data.description,
           order_index: data.order_index,
           duration: data.duration
         });
-        
+
         // Refresh effective chapters
         const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
         if (response.success && response.data) {
           setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
         }
-        
+
         log.info('Chapter created on SESSION (override)');
         return true;
       } catch (error: any) {
@@ -1334,7 +1422,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     // In COURSE MODE: create chapter on COURSE template
     if (!state.formData.courseUuid) return false;
 
@@ -1357,20 +1445,20 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
           setState(prev => ({ ...prev, hasChaptersOverride: true }));
         }
-        
+
         await sessionOverrideService.updateSessionChapter(state.formData.sessionUuid, chapterUuid, {
           title: data.title,
           description: data.description,
           order_index: data.order_index,
           duration: data.duration
         });
-        
+
         // Refresh effective chapters
         const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
         if (response.success && response.data) {
           setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
         }
-        
+
         log.info('Chapter updated on SESSION (override)');
         return true;
       } catch (error: any) {
@@ -1378,7 +1466,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     // In COURSE MODE: update chapter on COURSE template
     if (!state.formData.courseUuid) return false;
     try {
@@ -1400,15 +1488,15 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
           setState(prev => ({ ...prev, hasChaptersOverride: true }));
         }
-        
+
         await sessionOverrideService.deleteSessionChapter(state.formData.sessionUuid, chapterUuid);
-        
+
         // Refresh effective chapters
         const response = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid);
         if (response.success && response.data) {
           setState(prev => ({ ...prev, chapters: response.data.chapters || [] }));
         }
-        
+
         log.info('Chapter deleted from SESSION (override)');
         return true;
       } catch (error: any) {
@@ -1416,7 +1504,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     // In COURSE MODE: delete chapter from COURSE template
     if (!state.formData.courseUuid) return false;
     try {
@@ -1618,16 +1706,16 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         fileCount: files.length,
         fileNames: files.map(f => f.name)
       });
-      
+
       const response: any = await courseCreation.uploadSupportFiles(
         state.formData.courseUuid,
         chapterId,
         files,
         subChapterId
       );
-      
+
       log.debug('Support files upload response', { response });
-      
+
       if (response.success) {
         await loadChapters(); // Reload to ensure data consistency
         return true;
@@ -1736,7 +1824,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
           setState(prev => ({ ...prev, hasDocumentsOverride: true }));
         }
-        
+
         await sessionOverrideService.createSessionDocument(state.formData.sessionUuid, {
           title: data.title || data.name || 'Document',
           description: data.description,
@@ -1744,13 +1832,13 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           visibility: 'all',
           file: data.file
         });
-        
+
         // Refresh effective documents
         const response = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid);
         if (response.success && response.data) {
           setState(prev => ({ ...prev, documents: response.data.documents || [] }));
         }
-        
+
         log.info('Document uploaded to SESSION (override)');
         return true;
       } catch (error: any) {
@@ -1758,7 +1846,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     // In COURSE MODE: upload document to COURSE template
     if (!state.formData.courseUuid) return false;
 
@@ -1781,15 +1869,15 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
           setState(prev => ({ ...prev, hasDocumentsOverride: true }));
         }
-        
+
         await sessionOverrideService.deleteSessionDocument(state.formData.sessionUuid, documentUuid);
-        
+
         // Refresh effective documents
         const response = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid);
         if (response.success && response.data) {
           setState(prev => ({ ...prev, documents: response.data.documents || [] }));
         }
-        
+
         log.info('Document deleted from SESSION (override)');
         return true;
       } catch (error: any) {
@@ -1797,7 +1885,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     // In COURSE MODE: delete document from COURSE template
     if (!state.formData.courseUuid) return false;
     try {
@@ -1914,7 +2002,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       // Use COURSE API with courseUuid
       if (!state.formData.courseUuid) return false;
-      
+
       const response: any = await courseCreation.createModule(state.formData.courseUuid, data);
       if (response.success) {
         await getModules(); // Reload from backend
@@ -1983,14 +2071,14 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   const createObjective = useCallback(async (data: any): Promise<boolean> => {
     try {
       if (!state.formData.courseUuid) return false;
-      
+
       // Ensure we send title and description (backend expects both)
       const objectiveData = {
         title: data.title || data.description || 'Nouvel objectif',
         description: data.description || data.title || '',
         order_index: data.order_index || 0
       };
-      
+
       const response: any = await courseCreation.createObjective(state.formData.courseUuid, objectiveData);
       if (response.success) {
         await getObjectives(); // Reload from backend
@@ -2170,8 +2258,8 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       const response: any = await sessionCreationApi.getSessionWorkflow(state.formData.sessionUuid);
       if (response.success && response.data) {
-        setState(prev => ({ 
-          ...prev, 
+        setState(prev => ({
+          ...prev,
           workflow: response.data,
           workflowActions: response.data.actions || []
         }));
@@ -2312,9 +2400,259 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
    * Auto-save: Sauvegarde automatique avec délai
    * Sauvegarde le cours ET la session si les UUIDs existent
    */
+  const saveAll = useCallback(async (): Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }> => {
+    const result = {
+      success: false,
+      courseSuccess: false, // Now means "overrides saved" in session mode
+      sessionSuccess: false,
+      message: ''
+    };
+
+    setState(prev => ({ ...prev, isSaving: true, error: null }));
+
+    try {
+      // ═══════════════════════════════════════════════════════════════════════
+      // 1. SAVE OVERRIDES or COURSE (depending on mode)
+      // ═══════════════════════════════════════════════════════════════════════
+
+      if (state.isSessionMode && state.formData.sessionUuid) {
+        // ╔═══════════════════════════════════════════════════════════════════╗
+        // ║ SESSION MODE: Save OVERRIDES (course template is NEVER modified) ║
+        // ╚═══════════════════════════════════════════════════════════════════╝
+        try {
+          log.info('Step 1: Saving SESSION OVERRIDES (course template untouched)', {
+            sessionUuid: state.formData.sessionUuid,
+            overrides: state.overrides
+          });
+
+          // Build overrides payload - only include fields that differ from template
+          const overridesPayload: Record<string, any> = {};
+
+          // Check each override field
+          if (state.overrides.title !== null) {
+            overridesPayload.title_override = state.overrides.title;
+          }
+          if (state.overrides.subtitle !== null) {
+            overridesPayload.subtitle_override = state.overrides.subtitle;
+          }
+          if (state.overrides.description !== null) {
+            overridesPayload.description_override = state.overrides.description;
+          }
+          if (state.overrides.duration !== null) {
+            overridesPayload.duration_override = state.overrides.duration;
+          }
+          if (state.overrides.price_ht !== null) {
+            overridesPayload.price_ht_override = state.overrides.price_ht;
+          }
+          if (state.overrides.objectives !== null) {
+            overridesPayload.objectives_override = state.overrides.objectives;
+          }
+          if (state.overrides.prerequisites !== null) {
+            overridesPayload.prerequisites_override = state.overrides.prerequisites;
+          }
+
+          // Also check if title/description changed from form (auto-detect override)
+          if (state.courseTemplate) {
+            if (state.formData.title && state.formData.title !== state.courseTemplate.title) {
+              overridesPayload.title_override = state.formData.title;
+            }
+            if (state.formData.description && state.formData.description !== state.courseTemplate.description) {
+              overridesPayload.description_override = state.formData.description;
+            }
+            if (state.formData.price_ht && state.formData.price_ht !== state.courseTemplate.price_ht) {
+              overridesPayload.price_ht_override = state.formData.price_ht;
+            }
+          }
+
+          // Save overrides to session if any
+          if (Object.keys(overridesPayload).length > 0) {
+            await sessionOverrideService.updateSessionOverrides(state.formData.sessionUuid, overridesPayload);
+            log.info('Session overrides saved', overridesPayload);
+          }
+
+          result.courseSuccess = true; // Means "overrides saved successfully"
+          log.info('Session overrides saved successfully (course template untouched)');
+        } catch (overrideError: any) {
+          log.error('Error saving session overrides', overrideError);
+          result.message = `Erreur lors de la sauvegarde des modifications: ${overrideError.message || 'Erreur inconnue'}`;
+        }
+      } else if (state.formData.courseUuid && !state.isSessionMode) {
+        // ╔═══════════════════════════════════════════════════════════════════╗
+        // ║ COURSE MODE: Update the COURSE template (only when editing course)║
+        // ╚═══════════════════════════════════════════════════════════════════╝
+        try {
+          log.info('Step 1: Saving COURSE template (not in session mode)', { courseUuid: state.formData.courseUuid });
+
+          // Données du template de cours (contenu pédagogique)
+          const courseUpdateData = {
+            // Informations de base
+
+            // Contact et mise à jour
+            contacts: state.formData.contacts,
+            update_date: state.formData.update_date,
+
+            // Catégorie et langue
+            category_id: state.formData.category_id,
+            subcategory_id: state.formData.subcategory_id,
+            course_language_id: state.formData.session_language_id,
+            difficulty_level_id: state.formData.difficulty_level_id,
+
+            // Formation practices
+            formation_practice_ids: state.formData.formation_practice_ids
+          };
+
+          await courseCreation.updateCourse(state.formData.courseUuid, courseUpdateData);
+          result.courseSuccess = true;
+          log.info('Course template updated successfully');
+        } catch (courseError: any) {
+          log.error('Error saving course', courseError);
+          result.message = `Erreur lors de la sauvegarde du cours: ${courseError.message || 'Erreur inconnue'}`;
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 2. SAVE SESSION DATA (Instance planifiée)
+      // API: PUT /api/admin/organization/course-sessions/{sessionUuid}
+      // Selon docs/COURSE_SESSIONS_API.md
+      if (state.formData.sessionUuid) {
+        try {
+          log.info('Step 2: Saving SESSION instance', { sessionUuid: state.formData.sessionUuid });
+
+          // Get default dates
+          const today = new Date();
+          const defaultEndDate = new Date(today);
+          defaultEndDate.setDate(today.getDate() + 30);
+          const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+          // Helper to validate and format time (H:i)
+          const formatTime = (time: string | null | undefined): string | null => {
+            if (!time) return null;
+            if (time.length > 5) return time.substring(0, 5); // Trim seconds 09:00:00 -> 09:00
+            return time;
+          };
+
+          // Helper to validate and format date (YYYY-MM-DD)
+          const formatValidDate = (dateVal: string | null | undefined): string => {
+            if (!dateVal) return formatDate(today);
+            // Check for invalid dates like -0001-11-30, or if it's explicitly invalid
+            if (dateVal.startsWith('-') || dateVal === 'Invalid Date') return formatDate(today);
+            return dateVal;
+          };
+
+          // Données spécifiques à la SESSION (pas le contenu du cours)
+          // Selon COURSE_SESSIONS_API.md
+          const sessionUpdatePayload = {
+            // Lien vers le cours template
+            course_uuid: state.formData.courseUuid,
+
+            // Titre personnalisé (optionnel, si null le backend devrait utiliser le titre du cours,
+            // mais pour éviter des erreurs 422, on envoie le titre du form data ou du template)
+            title: state.formData.title || state.courseTemplate?.title || undefined,
+
+            // Description spécifique à cette session (optionnel)
+            // Si vide, on envoie undefined pour ne pas écraser la description du cours avec null
+            description: state.formData.description || undefined,
+
+            // Type de session: 'intra', 'inter', 'individual'
+            // TODO: Utiliser state.formData.session_type quand il sera disponible dans le formulaire
+            session_type: 'inter',
+
+            // Mode de délivrance: 'presentiel', 'distanciel', 'hybrid', 'e-learning'
+            delivery_mode: state.formData.delivery_mode || 'presentiel',
+
+            // Dates de la session
+            start_date: formatValidDate(state.formData.session_start_date),
+            end_date: formatValidDate(state.formData.session_end_date),
+
+            // Horaires par défaut - ensure H:i format
+            default_start_time: formatTime(state.formData.session_start_time) || '09:00',
+            default_end_time: formatTime(state.formData.session_end_time) || '17:00',
+
+            // Durée calculée
+            total_hours: state.formData.duration || null,
+            total_days: state.formData.duration_days || null,
+
+            // Participants
+            min_participants: 1,
+            max_participants: state.formData.max_participants || 20,
+
+            // Tarification spécifique (null = utilise le prix du cours)
+            price_ht: null, // Hérite du cours
+            vat_rate: state.formData.vat_percentage || 20,
+            pricing_type: 'per_person',
+
+            // Statut - Doit être une chaîne de caractères valide
+            status: state.formData.isPublished ? 'open' : 'draft',
+            is_published: state.formData.isPublished || false,
+            is_registration_open: state.formData.isPublished || false,
+
+            // Formateurs assignés
+            trainer_uuids: state.formData.trainer_ids || []
+          };
+
+          // Utiliser le nouveau service courseSessionService
+          log.info('Payload updateSession:', sessionUpdatePayload);
+          const updateResponse = await courseSessionService.updateSession(state.formData.sessionUuid, sessionUpdatePayload as any);
+
+          if (updateResponse.success) {
+            result.sessionSuccess = true;
+            log.info('Session instance updated successfully');
+          } else {
+            // Si l'API renvoie success: false mais ne lance pas d'exception
+            log.error('Update session failed (success: false)', updateResponse);
+            result.message += `${result.message ? ' | ' : ''}Erreur API session: ${updateResponse.message || 'Inconnue'}`;
+            // On ne lance pas le fallback, car il envoie un payload invalide (status: 1)
+          }
+        } catch (sessionError: any) {
+          log.error('Error saving session (exception)', sessionError);
+          // On ne lance pas le fallback, car il utilise une structure de payload dépréciée qui cause des erreurs 422
+          // et qui masque la vraie erreur.
+          result.message += `${result.message ? ' | ' : ''}Erreur lors de la sauvegarde de la session: ${sessionError.message || 'Erreur inconnue'}`;
+
+          // Log detailed validation errors if available
+          if (sessionError.response?.data?.errors) {
+            log.error('Validation errors:', sessionError.response.data.errors);
+            const validationMsgs = Object.values(sessionError.response.data.errors).flat().join(', ');
+            result.message += ` (${validationMsgs})`;
+          }
+        }
+      } else {
+        log.warn('No sessionUuid, cannot save session data');
+        result.message += `${result.message ? ' | ' : ''}Aucune session à sauvegarder`;
+      }
+
+      // Determine overall success
+      result.success = result.courseSuccess && result.sessionSuccess;
+      if (result.success) {
+        result.message = 'Cours et session sauvegardés avec succès';
+      } else if (result.courseSuccess && !result.sessionSuccess) {
+        result.message = 'Cours sauvegardé, mais erreur pour la session';
+      } else if (!result.courseSuccess && result.sessionSuccess) {
+        result.message = 'Session sauvegardée, mais erreur pour le cours';
+      }
+
+      setState(prev => ({ ...prev, isSaving: false }));
+      return result;
+
+    } catch (error: any) {
+      log.error('Unexpected error in saveAll', error);
+      setState(prev => ({
+        ...prev,
+        isSaving: false,
+        error: 'Erreur lors de la sauvegarde'
+      }));
+      return {
+        success: false,
+        courseSuccess: false,
+        sessionSuccess: false,
+        message: `Erreur inattendue: ${error.message || 'Erreur inconnue'}`
+      };
+    }
+  }, [state.formData]);
+
   const autoSave = useCallback(async (): Promise<void> => {
     if (state.isSaving) return;
-    
+
     // Au moins un UUID doit exister
     if (!state.formData.sessionUuid && !state.formData.courseUuid) return;
 
@@ -2326,14 +2664,14 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     // Set new timeout
     autoSaveTimeoutRef.current = setTimeout(async () => {
       log.debug('Auto-saving...');
-      
+
       // Si on a les deux UUIDs, utiliser saveAll
       if (state.formData.sessionUuid && state.formData.courseUuid) {
         const result = await saveAll();
         log.debug('Auto-save result', { result });
       } else if (state.formData.sessionUuid) {
         // Sinon juste la session
-      await updateSession();
+        await updateSession();
       } else if (state.formData.courseUuid) {
         // Ou juste le cours
         try {
@@ -2359,15 +2697,16 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
 
     setState(prev => ({ ...prev, formData: { ...prev.formData, isDraft: true } }));
-    
+
     // Utiliser saveAll si courseUuid existe pour sauvegarder les deux
     if (state.formData.courseUuid) {
       await saveAll();
     } else {
-    await updateSession();
+      await updateSession();
     }
   }, [state.formData.sessionUuid, state.formData.courseUuid, createSession, updateSession]);
 
+  // Media upload - same as courses
   // Media upload - same as courses
   const uploadIntroVideo = useCallback(async (file: File): Promise<boolean> => {
     // If sessionUuid is not available, create a new session first using NEW API
@@ -2377,7 +2716,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         log.error('Cannot create session without course_uuid - please select a course first');
         return false;
       }
-      
+
       try {
         const sessionUuid = await createSession();
         if (!sessionUuid) {
@@ -2389,9 +2728,9 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     try {
-      const result = await sessionCreationApi.uploadIntroVideo(state.formData.sessionUuid!, file);
+      const result = await sessionCreationApi.uploadIntroVideo(state.formData.sessionUuid!, file) as any;
       if (result.success) {
         setState(prev => ({
           ...prev,
@@ -2418,7 +2757,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         log.error('Cannot create session without course_uuid - please select a course first');
         return false;
       }
-      
+
       try {
         const sessionUuid = await createSession();
         if (!sessionUuid) {
@@ -2430,9 +2769,9 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
         return false;
       }
     }
-    
+
     try {
-      const result = await sessionCreationApi.uploadIntroImage(state.formData.sessionUuid!, file);
+      const result = await sessionCreationApi.uploadIntroImage(state.formData.sessionUuid!, file) as any;
       if (result.success) {
         setState(prev => ({
           ...prev,
@@ -2458,10 +2797,10 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   const initializeSession = useCallback(async (sessionUuid?: string) => {
     if (hasInitializedRef.current || isInitializingRef.current) return;
     isInitializingRef.current = true;
-    
+
     try {
       let uuid = sessionUuid || state.formData.sessionUuid;
-      
+
       // Si pas de UUID, créer une session en brouillon avec la NOUVELLE API
       if (!uuid) {
         // ⭐ NEW API requires course_uuid - cannot create session without a course
@@ -2470,7 +2809,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           isInitializingRef.current = false;
           return;
         }
-        
+
         // Use the createSession function which uses the NEW API
         const createdUuid = await createSession();
         if (createdUuid) {
@@ -2489,21 +2828,11 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
 
       // Charger les données existantes si on édite une session
       if (sessionUuid) {
-        try {
-          const sessionResult = await sessionCreationApi.getSessionDetails(sessionUuid);
-          if (sessionResult.success) {
-            const session = sessionResult.data;
-            setState(prev => ({
-              ...prev,
-              formData: {
-                ...prev.formData,
-                ...session,
-                sessionUuid: uuid
-              }
-            }));
-          }
-        } catch (error) {
-          log.error('Error loading existing session data', error);
+        // Load session data including form fields and overrides
+        const loaded = await loadSession(sessionUuid);
+        if (!loaded) {
+          isInitializingRef.current = false;
+          return;
         }
       }
 
@@ -2512,17 +2841,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       // Si c'est une nouvelle session créée à partir d'un cours, les données ont déjà été pré-remplies par loadFromCourse
       if (sessionUuid) {
         // Editing existing session - load all session data
-      await Promise.all([
-        getInstances(),
-        getParticipants(),
-        getChapters(),
-        getDocuments(),
-        getTrainers(),
-        loadQuestionnaires(),
-        loadWorkflows(),
-        getModules(),
-        getObjectives()
-      ]);
+        await Promise.all([
+          getInstances(),
+          getParticipants(),
+          getChapters(),
+          getDocuments(),
+          getTrainers(),
+          loadQuestionnaires(),
+          loadWorkflows(),
+          getModules(),
+          getObjectives()
+        ]);
       } else {
         // New session - only load instances, participants, trainers, workflows
         // DON'T load chapters, documents, questionnaires, modules, objectives
@@ -2533,9 +2862,8 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
           getTrainers(),
           loadWorkflows()
         ]);
-        log.info('New session - keeping pre-filled course data');
       }
-      
+
       hasInitializedRef.current = true;
     } catch (error) {
       log.error('Error initializing session', error);
@@ -2543,7 +2871,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
       isInitializingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.formData.sessionUuid, state.formData.courseUuid, createSession]); // Added createSession and courseUuid
+  }, [state.formData.sessionUuid, state.formData.courseUuid, createSession]);
 
   // Direct setters for pre-filling data from course
   const setModules = useCallback((modules: any[]) => {
@@ -2570,17 +2898,17 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
   const loadFromCourse = useCallback(async (courseUuid: string): Promise<boolean> => {
     try {
       log.info('Loading ALL data from course using creation-data API', { courseUuid });
-      
+
       // Use single API call to get ALL course data
       const response = await courseCreation.getCourseCreationData(courseUuid);
-      
+
       if (!response.success || !response.data) {
         log.error('Failed to load course creation data');
         return false;
       }
 
       const data = response.data;
-      
+
       // Extract data from the unified response
       const modulesData = data.additional_course_data?.modules || [];
       const objectivesData = data.additional_data?.objectives || [];
@@ -2714,16 +3042,16 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Initializing chapters override...');
       const response = await sessionOverrideService.initializeChaptersOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasChaptersOverride: true }));
-        
+
         // Reload effective chapters
         const chaptersResponse = await sessionOverrideService.getEffectiveChapters(state.formData.sessionUuid!);
         if (chaptersResponse.success && chaptersResponse.data) {
           setState(prev => ({ ...prev, chapters: chaptersResponse.data.chapters || [] }));
         }
-        
+
         log.info('Chapters override initialized successfully');
         return true;
       }
@@ -2746,16 +3074,16 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Initializing documents override...');
       const response = await sessionOverrideService.initializeDocumentsOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasDocumentsOverride: true }));
-        
+
         // Reload effective documents
         const docsResponse = await sessionOverrideService.getEffectiveDocuments(state.formData.sessionUuid!);
         if (docsResponse.success && docsResponse.data) {
           setState(prev => ({ ...prev, documents: docsResponse.data.documents || [] }));
         }
-        
+
         log.info('Documents override initialized successfully');
         return true;
       }
@@ -2778,16 +3106,16 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Initializing workflow override...');
       const response = await sessionOverrideService.initializeWorkflowOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasWorkflowOverride: true }));
-        
+
         // Reload effective workflow actions
         const workflowResponse = await sessionOverrideService.getEffectiveWorkflowActions(state.formData.sessionUuid!);
         if (workflowResponse.success && workflowResponse.data) {
           setState(prev => ({ ...prev, workflowActions: workflowResponse.data.workflow_actions || [] }));
         }
-        
+
         log.info('Workflow override initialized successfully');
         return true;
       }
@@ -2807,15 +3135,15 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Resetting chapters to course template...');
       const response = await sessionOverrideService.resetChaptersOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasChaptersOverride: false }));
-        
+
         // Reload chapters from course
         if (state.formData.courseUuid) {
           await loadFromCourse(state.formData.courseUuid);
         }
-        
+
         log.info('Chapters reset to template successfully');
         return true;
       }
@@ -2835,15 +3163,15 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Resetting documents to course template...');
       const response = await sessionOverrideService.resetDocumentsOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasDocumentsOverride: false }));
-        
+
         // Reload documents from course
         if (state.formData.courseUuid) {
           await loadFromCourse(state.formData.courseUuid);
         }
-        
+
         log.info('Documents reset to template successfully');
         return true;
       }
@@ -2863,15 +3191,15 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       log.info('Resetting workflow to course template...');
       const response = await sessionOverrideService.resetWorkflowOverride(state.formData.sessionUuid);
-      
+
       if (response.success) {
         setState(prev => ({ ...prev, hasWorkflowOverride: false }));
-        
+
         // Reload workflow from course
         if (state.formData.courseUuid) {
           await loadFromCourse(state.formData.courseUuid);
         }
-        
+
         log.info('Workflow reset to template successfully');
         return true;
       }
@@ -2887,7 +3215,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
    */
   const isFieldInherited = useCallback((field: string): boolean => {
     if (!state.isSessionMode) return false;
-    
+
     const overrideValue = state.overrides[field as keyof SessionCreationState['overrides']];
     return overrideValue === null || overrideValue === undefined;
   }, [state.isSessionMode, state.overrides]);
@@ -2909,261 +3237,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
    * 
    * @returns Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }>
    */
-  const saveAll = useCallback(async (): Promise<{ success: boolean; courseSuccess: boolean; sessionSuccess: boolean; message: string }> => {
-    const result = {
-      success: false,
-      courseSuccess: false, // Now means "overrides saved" in session mode
-      sessionSuccess: false,
-      message: ''
-    };
 
-    setState(prev => ({ ...prev, isSaving: true, error: null }));
-
-    try {
-      // ═══════════════════════════════════════════════════════════════════════
-      // 1. SAVE OVERRIDES or COURSE (depending on mode)
-      // ═══════════════════════════════════════════════════════════════════════
-      
-      if (state.isSessionMode && state.formData.sessionUuid) {
-        // ╔═══════════════════════════════════════════════════════════════════╗
-        // ║ SESSION MODE: Save OVERRIDES (course template is NEVER modified) ║
-        // ╚═══════════════════════════════════════════════════════════════════╝
-        try {
-          log.info('Step 1: Saving SESSION OVERRIDES (course template untouched)', { 
-            sessionUuid: state.formData.sessionUuid,
-            overrides: state.overrides 
-          });
-          
-          // Build overrides payload - only include fields that differ from template
-          const overridesPayload: Record<string, any> = {};
-          
-          // Check each override field
-          if (state.overrides.title !== null) {
-            overridesPayload.title_override = state.overrides.title;
-          }
-          if (state.overrides.subtitle !== null) {
-            overridesPayload.subtitle_override = state.overrides.subtitle;
-          }
-          if (state.overrides.description !== null) {
-            overridesPayload.description_override = state.overrides.description;
-          }
-          if (state.overrides.duration !== null) {
-            overridesPayload.duration_override = state.overrides.duration;
-          }
-          if (state.overrides.price_ht !== null) {
-            overridesPayload.price_ht_override = state.overrides.price_ht;
-          }
-          if (state.overrides.objectives !== null) {
-            overridesPayload.objectives_override = state.overrides.objectives;
-          }
-          if (state.overrides.prerequisites !== null) {
-            overridesPayload.prerequisites_override = state.overrides.prerequisites;
-          }
-          
-          // Also check if title/description changed from form (auto-detect override)
-          if (state.courseTemplate) {
-            if (state.formData.title && state.formData.title !== state.courseTemplate.title) {
-              overridesPayload.title_override = state.formData.title;
-            }
-            if (state.formData.description && state.formData.description !== state.courseTemplate.description) {
-              overridesPayload.description_override = state.formData.description;
-            }
-            if (state.formData.price_ht && state.formData.price_ht !== state.courseTemplate.price_ht) {
-              overridesPayload.price_ht_override = state.formData.price_ht;
-            }
-          }
-          
-          // Save overrides to session if any
-          if (Object.keys(overridesPayload).length > 0) {
-            await sessionOverrideService.updateSessionOverrides(state.formData.sessionUuid, overridesPayload);
-            log.info('Session overrides saved', overridesPayload);
-          }
-          
-          result.courseSuccess = true; // Means "overrides saved successfully"
-          log.info('Session overrides saved successfully (course template untouched)');
-        } catch (overrideError: any) {
-          log.error('Error saving session overrides', overrideError);
-          result.message = `Erreur lors de la sauvegarde des modifications: ${overrideError.message || 'Erreur inconnue'}`;
-        }
-      } else if (state.formData.courseUuid && !state.isSessionMode) {
-        // ╔═══════════════════════════════════════════════════════════════════╗
-        // ║ COURSE MODE: Update the COURSE template (only when editing course)║
-        // ╚═══════════════════════════════════════════════════════════════════╝
-        try {
-          log.info('Step 1: Saving COURSE template (not in session mode)', { courseUuid: state.formData.courseUuid });
-          
-          // Données du template de cours (contenu pédagogique)
-          const courseUpdateData = {
-            // Informations de base
-            title: state.formData.title,
-            subtitle: state.formData.subtitle,
-            description: state.formData.description,
-            
-            // Tarification
-            price_ht: state.formData.price_ht,
-            vat_percentage: state.formData.vat_percentage,
-            
-            // Durée théorique
-            duration: state.formData.duration,
-            duration_days: state.formData.duration_days,
-            
-            // Contenu pédagogique
-            target_audience: state.formData.target_audience,
-            prerequisites: state.formData.prerequisites,
-            methods: state.formData.methods,
-            specifics: state.formData.specifics,
-            
-            // Modalités
-            evaluation_modalities: state.formData.evaluation_modalities,
-            access_modalities: state.formData.access_modalities,
-            accessibility: state.formData.accessibility,
-            
-            // Contact et mise à jour
-            contacts: state.formData.contacts,
-            update_date: state.formData.update_date,
-            
-            // Catégorie et langue
-            category_id: state.formData.category_id,
-            subcategory_id: state.formData.subcategory_id,
-            course_language_id: state.formData.session_language_id,
-            difficulty_level_id: state.formData.difficulty_level_id,
-            
-            // Formation practices
-            formation_practice_ids: state.formData.formation_practice_ids
-          };
-
-          await courseCreation.updateCourse(state.formData.courseUuid, courseUpdateData);
-          result.courseSuccess = true;
-          log.info('Course template updated successfully');
-        } catch (courseError: any) {
-          log.error('Error saving course', courseError);
-          result.message = `Erreur lors de la sauvegarde du cours: ${courseError.message || 'Erreur inconnue'}`;
-        }
-      }
-
-      // ═══════════════════════════════════════════════════════════════════════
-      // 2. SAVE SESSION DATA (Instance planifiée)
-      // API: PUT /api/admin/organization/course-sessions/{sessionUuid}
-      // Selon docs/COURSE_SESSIONS_API.md
-      // ═══════════════════════════════════════════════════════════════════════
-      if (state.formData.sessionUuid) {
-        try {
-          log.info('Step 2: Saving SESSION instance', { sessionUuid: state.formData.sessionUuid });
-          
-          // Get default dates
-          const today = new Date();
-          const defaultEndDate = new Date(today);
-          defaultEndDate.setDate(today.getDate() + 30);
-          const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-          // Données spécifiques à la SESSION (pas le contenu du cours)
-          // Selon COURSE_SESSIONS_API.md
-          const sessionUpdatePayload = {
-            // Lien vers le cours template
-            course_uuid: state.formData.courseUuid,
-            
-            // Titre personnalisé (optionnel, null = utilise le titre du cours)
-            title: null, // La session hérite du titre du cours
-            
-            // Description spécifique à cette session (optionnel)
-            description: null,
-            
-            // Type de session: 'intra', 'inter', 'individual'
-            session_type: 'inter',
-            
-            // Mode de délivrance: 'presentiel', 'distanciel', 'hybrid', 'e-learning'
-            delivery_mode: 'presentiel',
-            
-            // Dates de la session
-            start_date: state.formData.session_start_date || formatDate(today),
-            end_date: state.formData.session_end_date || formatDate(defaultEndDate),
-            
-            // Horaires par défaut
-            default_start_time: state.formData.session_start_time || '09:00',
-            default_end_time: state.formData.session_end_time || '17:00',
-            
-            // Durée calculée
-            total_hours: state.formData.duration || null,
-            total_days: state.formData.duration_days || null,
-            
-            // Participants
-            min_participants: 1,
-            max_participants: state.formData.max_participants || 20,
-            
-            // Tarification spécifique (null = utilise le prix du cours)
-            price_ht: null, // Hérite du cours
-            vat_rate: state.formData.vat_percentage || 20,
-            pricing_type: 'per_person',
-            
-            // Statut
-            status: state.formData.isPublished ? 'open' : 'draft',
-            is_published: state.formData.isPublished || false,
-            is_registration_open: state.formData.isPublished || false,
-            
-            // Formateurs assignés
-            trainer_uuids: state.formData.trainer_ids || []
-          };
-
-          // Utiliser le nouveau service courseSessionService
-          await courseSessionService.updateSession(state.formData.sessionUuid, sessionUpdatePayload as any);
-          result.sessionSuccess = true;
-          log.info('Session instance updated successfully');
-        } catch (sessionError: any) {
-          log.error('Error saving session', sessionError);
-          // Fallback to old API if new one fails
-          try {
-            log.warn('Trying fallback to old session API');
-            const fallbackPayload = {
-              session_start_date: state.formData.session_start_date,
-              session_end_date: state.formData.session_end_date,
-              session_start_time: state.formData.session_start_time || '09:00',
-              session_end_time: state.formData.session_end_time || '17:00',
-              max_participants: state.formData.max_participants || 0,
-              course_uuid: state.formData.courseUuid,
-              title: state.formData.title,
-              status: state.formData.isPublished ? 1 : 0
-            };
-            await sessionCreationApi.updateSession(state.formData.sessionUuid, fallbackPayload);
-            result.sessionSuccess = true;
-            log.info('Session updated via fallback API');
-          } catch (fallbackError: any) {
-            log.error('Fallback also failed', fallbackError);
-            result.message += `${result.message ? ' | ' : ''}Erreur lors de la sauvegarde de la session: ${sessionError.message || 'Erreur inconnue'}`;
-          }
-        }
-      } else {
-        log.warn('No sessionUuid, cannot save session data');
-        result.message += `${result.message ? ' | ' : ''}Aucune session à sauvegarder`;
-      }
-
-      // Determine overall success
-      result.success = result.courseSuccess && result.sessionSuccess;
-      if (result.success) {
-        result.message = 'Cours et session sauvegardés avec succès';
-      } else if (result.courseSuccess && !result.sessionSuccess) {
-        result.message = 'Cours sauvegardé, mais erreur pour la session';
-      } else if (!result.courseSuccess && result.sessionSuccess) {
-        result.message = 'Session sauvegardée, mais erreur pour le cours';
-      }
-
-      setState(prev => ({ ...prev, isSaving: false }));
-      return result;
-
-    } catch (error: any) {
-      log.error('Unexpected error in saveAll', error);
-      setState(prev => ({ 
-        ...prev, 
-        isSaving: false, 
-        error: 'Erreur lors de la sauvegarde' 
-      }));
-      return {
-        success: false,
-        courseSuccess: false,
-        sessionSuccess: false,
-        message: `Erreur inattendue: ${error.message || 'Erreur inconnue'}`
-      };
-    }
-  }, [state.formData]);
 
   // Context value
   const contextValue: SessionCreationContextType = {
@@ -3176,6 +3250,7 @@ export const SessionCreationProvider: React.FC<{ children: ReactNode }> = ({ chi
     createSession,
     updateSession,
     deleteSession,
+    updateSessionStatus,
     loadSession,
     initializeSession,
     getAllSessions,

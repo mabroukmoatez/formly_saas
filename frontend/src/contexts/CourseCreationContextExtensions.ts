@@ -775,8 +775,15 @@ export const createStep6Actions = (courseUuid: string | null, handleApiCall: any
       undefined,
       'Failed to load email templates'
     );
-    if (result) {
-      setEmailTemplates(result.data);
+    if (result && result.data) {
+      // La réponse peut avoir la structure { data: { templates: [...], pagination: {...} } } ou { data: [...] }
+      const templates = Array.isArray(result.data) 
+        ? result.data 
+        : (result.data.templates || result.data.data || []);
+      setEmailTemplates(Array.isArray(templates) ? templates : []);
+    } else {
+      // Si pas de résultat, initialiser avec un tableau vide
+      setEmailTemplates([]);
     }
   },
 

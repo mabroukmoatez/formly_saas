@@ -46,7 +46,8 @@ import {
   Send,
   Eye,
   Edit3,
-  Trash2
+  Trash2,
+  Search
 } from 'lucide-react';
 
 export const Step6Deroulement: React.FC = () => {
@@ -96,11 +97,15 @@ export const Step6Deroulement: React.FC = () => {
     recipient: 'apprenant' as const,
     timing: 'immediate',
     emailTemplate: '',
+    emailTemplateId: null as number | string | null,
+    emailTemplateUuid: null as string | null,
     subject: '',
     body: '',
     scheduledTime: '',
     attachments: [] as any[]
   });
+  const [showEmailTemplateSelect, setShowEmailTemplateSelect] = useState(false);
+  const [emailTemplateSearch, setEmailTemplateSearch] = useState('');
 
   // Load data on component mount
   useEffect(() => {
@@ -111,6 +116,20 @@ export const Step6Deroulement: React.FC = () => {
     loadWorkflowExecutions();
     loadWorkflowAnalytics();
   }, [loadWorkflow, loadWorkflowActions, loadEmailTemplates]);
+
+  // Debug: Log email templates when they change (only in development)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Email templates loaded:', emailTemplates?.length || 0, emailTemplates);
+    }
+  }, [emailTemplates]);
+
+  // Open email template selection by default when modal opens with email type
+  useEffect(() => {
+    if (showActionModal && actionConfig.type === 'email' && !actionConfig.emailTemplateId) {
+      setShowEmailTemplateSelect(true);
+    }
+  }, [showActionModal, actionConfig.type, actionConfig.emailTemplateId]);
 
   // Load workflow triggers
   const loadWorkflowTriggers = async () => {
@@ -218,6 +237,8 @@ export const Step6Deroulement: React.FC = () => {
         execution_order: workflowActions.length + 1, // ✅ Backend expects 'execution_order'
         config: {
           email_template: actionConfig.emailTemplate,
+          email_id: actionConfig.emailTemplateId,
+          email_uuid: actionConfig.emailTemplateUuid,
           subject: actionConfig.subject,
           body: actionConfig.body,
           attachments: actionConfig.attachments || []
@@ -233,11 +254,15 @@ export const Step6Deroulement: React.FC = () => {
           recipient: 'apprenant',
           timing: 'immediate',
           emailTemplate: '',
+          emailTemplateId: null,
+          emailTemplateUuid: null,
           subject: '',
           body: '',
           scheduledTime: '',
           attachments: []
         });
+        setShowEmailTemplateSelect(false);
+        setEmailTemplateSearch('');
       }
     } catch (error: any) {
       // ('Failed to create action:', error);
@@ -260,6 +285,8 @@ export const Step6Deroulement: React.FC = () => {
         execution_order: editingAction.execution_order || editingAction.order_index || 1, // ✅ Backend expects 'execution_order'
         config: {
           email_template: actionConfig.emailTemplate,
+          email_id: actionConfig.emailTemplateId,
+          email_uuid: actionConfig.emailTemplateUuid,
           subject: actionConfig.subject,
           body: actionConfig.body,
           attachments: actionConfig.attachments || []
@@ -276,11 +303,15 @@ export const Step6Deroulement: React.FC = () => {
           recipient: 'apprenant',
           timing: 'immediate',
           emailTemplate: '',
+          emailTemplateId: null,
+          emailTemplateUuid: null,
           subject: '',
           body: '',
           scheduledTime: '',
           attachments: []
         });
+        setShowEmailTemplateSelect(false);
+        setEmailTemplateSearch('');
       }
     } catch (error: any) {
       // ('Failed to update action:', error);
@@ -508,6 +539,8 @@ export const Step6Deroulement: React.FC = () => {
                         recipient: action.recipient,
                         timing: action.timing,
                         emailTemplate: action.config?.email_template || '',
+                        emailTemplateId: action.config?.email_id || action.config?.email_template || null,
+                        emailTemplateUuid: action.config?.email_uuid || null,
                         subject: action.config?.subject || '',
                         body: action.config?.body || '',
                         scheduledTime: action.scheduled_time || '',
@@ -602,11 +635,15 @@ export const Step6Deroulement: React.FC = () => {
                       recipient: 'apprenant',
                       timing: 'immediate',
                       emailTemplate: '',
+                      emailTemplateId: null,
+                      emailTemplateUuid: null,
                       subject: '',
                       body: '',
                       scheduledTime: '',
                       attachments: []
                     });
+                    setShowEmailTemplateSelect(false);
+                    setEmailTemplateSearch('');
                   }}
                 >
                   <X className="w-4 h-4" />
@@ -693,6 +730,139 @@ export const Step6Deroulement: React.FC = () => {
                 {actionConfig.type === 'email' && (
                   <>
                     <div>
+                      <Label>Sélectionner un template d'email</Label>
+                      {/* Show selected template if exists */}
+                      {actionConfig.emailTemplateId && !showEmailTemplateSelect && (
+                        <div className={`p-3 rounded-lg border mt-2 ${isDark ? 'bg-blue-900/20 border-blue-500' : 'bg-blue-50 border-blue-500'}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Mail className="w-5 h-5" style={{ color: primaryColor }} />
+                              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {emailTemplates.find(t => 
+                                  (t.id && actionConfig.emailTemplateId && String(t.id) === String(actionConfig.emailTemplateId)) ||
+                                  (t.uuid && actionConfig.emailTemplateUuid && t.uuid === actionConfig.emailTemplateUuid) ||
+                                  (t.uuid && actionConfig.emailTemplateId && t.uuid === String(actionConfig.emailTemplateId))
+                                )?.name || 'Template sélectionné'}
+                              </span>
+                              <Check className="w-4 h-4" style={{ color: primaryColor }} />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setShowEmailTemplateSelect(true);
+                                setEmailTemplateSearch('');
+                              }}
+                            >
+                              Modifier
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Show template selection UI */}
+                      {(!actionConfig.emailTemplateId || showEmailTemplateSelect) && (
+                        <div className={`p-4 rounded-lg border mt-2 email-template-container ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-300'}`}>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Sélectionner un template d'email
+                              </span>
+                              {actionConfig.emailTemplateId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setShowEmailTemplateSelect(false);
+                                  }}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                            
+                            {emailTemplates && Array.isArray(emailTemplates) && emailTemplates.length > 0 ? (
+                              <>
+                                <div className="relative mb-3">
+                                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                                  <Input
+                                    value={emailTemplateSearch}
+                                    onChange={(e) => setEmailTemplateSearch(e.target.value)}
+                                    placeholder="Rechercher un template..."
+                                    className={`pl-10 ${isDark ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300'}`}
+                                  />
+                                </div>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                  {emailTemplates
+                                    .filter(tpl => {
+                                      const name = (tpl.name || '').toLowerCase();
+                                      // Exclure "Course Reminder" (mocké/hardcodé)
+                                      if (name === 'course reminder' || name === 'reminder' || name.includes('course reminder')) {
+                                        return false;
+                                      }
+                                      return name.includes(emailTemplateSearch.toLowerCase());
+                                    })
+                                    .map(tpl => (
+                                      <button
+                                        key={tpl.id || tpl.uuid || `template-${Math.random()}`}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          // Gérer id (number) ou uuid (string)
+                                          if (tpl.id !== undefined && tpl.id !== null) {
+                                            const templateId = typeof tpl.id === 'number' ? tpl.id : Number(tpl.id);
+                                            if (!isNaN(templateId)) {
+                                              setActionConfig({
+                                                ...actionConfig,
+                                                emailTemplateId: templateId,
+                                                emailTemplateUuid: null,
+                                                subject: tpl.subject || actionConfig.subject,
+                                                body: tpl.content || tpl.body || actionConfig.body
+                                              });
+                                            }
+                                          } else if (tpl.uuid) {
+                                            setActionConfig({
+                                              ...actionConfig,
+                                              emailTemplateUuid: tpl.uuid,
+                                              emailTemplateId: tpl.uuid,
+                                              subject: tpl.subject || actionConfig.subject,
+                                              body: tpl.content || tpl.body || actionConfig.body
+                                            });
+                                          }
+                                          setShowEmailTemplateSelect(false);
+                                          setEmailTemplateSearch('');
+                                        }}
+                                        className={`w-full p-3 rounded-lg border text-left flex items-center gap-3 transition-colors cursor-pointer ${
+                                          ((actionConfig.emailTemplateId && tpl.id && String(actionConfig.emailTemplateId) === String(tpl.id)) || 
+                                           (actionConfig.emailTemplateUuid && tpl.uuid && actionConfig.emailTemplateUuid === tpl.uuid) ||
+                                           (actionConfig.emailTemplateId && tpl.uuid && String(actionConfig.emailTemplateId) === tpl.uuid))
+                                            ? isDark ? 'border-blue-500 bg-blue-900/20' : 'border-blue-500 bg-blue-50'
+                                            : isDark ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-600' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                      >
+                                        <Mail className="w-5 h-5" style={{ color: primaryColor }} />
+                                        <span className={isDark ? 'text-gray-300' : 'text-gray-700'}>
+                                          {tpl.name || 'Template sans nom'}
+                                        </span>
+                                        {((actionConfig.emailTemplateId && tpl.id && String(actionConfig.emailTemplateId) === String(tpl.id)) || 
+                                          (actionConfig.emailTemplateUuid && tpl.uuid && actionConfig.emailTemplateUuid === tpl.uuid) ||
+                                          (actionConfig.emailTemplateId && tpl.uuid && String(actionConfig.emailTemplateId) === tpl.uuid)) && (
+                                          <Check className="w-4 h-4 ml-auto" style={{ color: primaryColor }} />
+                                        )}
+                                      </button>
+                                    ))}
+                                </div>
+                              </>
+                            ) : (
+                              <div className={`text-center py-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                Aucun template d'email disponible
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div>
                       <Label>Sujet de l'email</Label>
                       <Input
                         value={actionConfig.subject}
@@ -703,7 +873,7 @@ export const Step6Deroulement: React.FC = () => {
                     <div>
                       <Label>Contenu de l'email</Label>
                       <textarea
-                        className="w-full p-3 border rounded-lg resize-none"
+                        className={`w-full p-3 border rounded-lg resize-none ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                         rows={4}
                         value={actionConfig.body}
                         onChange={(e) => setActionConfig({...actionConfig, body: e.target.value})}

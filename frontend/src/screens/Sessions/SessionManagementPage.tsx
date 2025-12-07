@@ -33,8 +33,7 @@ import {
   type SlotParticipantAttendance
 } from '../../components/SessionManagement';
 
-// Course Selection Modal (from SessionCreation - working version)
-import { CourseSelectionModal } from '../../components/SessionCreation/CourseSelectionModal';
+// Course Selection Modal no longer needed - CreateSessionModal handles course selection
 
 // Services
 import { courseSessionService } from '../../services/courseSession';
@@ -80,7 +79,6 @@ export const SessionManagementPage: React.FC = () => {
   });
 
   // Modal states
-  const [showCourseSelectModal, setShowCourseSelectModal] = useState(false);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [showSessionActionModal, setShowSessionActionModal] = useState(false);
   const [showSessionDetailsModal, setShowSessionDetailsModal] = useState(false);
@@ -100,6 +98,34 @@ export const SessionManagementPage: React.FC = () => {
       return 'hybride';
     };
 
+    // Transform trainers - handle different API response structures
+    // API can return trainers as: { id, name, is_primary } or { uuid, id, name, user: {...} }
+    let sessionTrainers: SessionTrainer[] = [];
+    
+    // Check multiple possible locations for trainers in the response
+    const trainersData = s.trainers || s.session_trainers || s.course_trainers || [];
+    
+    if (trainersData && Array.isArray(trainersData) && trainersData.length > 0) {
+      sessionTrainers = trainersData
+        .filter((t: any) => t && (t.name || t.user?.name || t.trainer?.name)) // Filter out invalid trainers
+        .map((t: any) => ({
+          uuid: t.uuid || t.user_uuid || String(t.id || t.trainer_id || ''),
+          user_uuid: String(t.id || t.user_id || t.trainer_id || t.user?.id || t.trainer?.id || ''),
+          name: t.name || t.user?.name || t.trainer?.name || 'Formateur',
+          email: t.email || t.user?.email || t.trainer?.email || ''
+        }));
+    }
+    
+    // Debug log in development
+    if (process.env.NODE_ENV === 'development' && sessionTrainers.length === 0 && s.uuid) {
+      console.log('No trainers found for session:', s.uuid, 'Session data:', {
+        hasTrainers: !!s.trainers,
+        trainersLength: s.trainers?.length || 0,
+        trainers: s.trainers,
+        courseUuid: s.course?.uuid
+      });
+    }
+
     return {
       uuid: s.uuid,
       title: s.title || s.display_title,
@@ -111,12 +137,7 @@ export const SessionManagementPage: React.FC = () => {
       mode: getMode(),
       maxParticipants: s.participants.max || 30,
       currentParticipants: s.participants.confirmed || 0,
-      trainers: (s.trainers || []).map((t: any) => ({
-        uuid: t.uuid || String(t.id),
-        user_uuid: String(t.id),
-        name: t.name,
-        email: ''
-      })),
+      trainers: sessionTrainers,
       image: s.course?.image_url
     };
   };
@@ -130,8 +151,78 @@ export const SessionManagementPage: React.FC = () => {
       });
 
       if (response.success && response.data) {
+        // Handle paginated response structure
+        let sessionsList: any[] = [];
+        if (response.data.data && Array.isArray(response.data.data)) {
+          sessionsList = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          sessionsList = response.data;
+        } else if (response.data.sessions && Array.isArray(response.data.sessions)) {
+          sessionsList = response.data.sessions;
+        }
+
         // Transform API data to our types
-        const transformedSessions: SessionData[] = response.data.map(transformSession);
+        const transformedSessions: SessionData[] = await Promise.all(
+          sessionsList.map(async (s: any) => {
+            let sessionData = transformSession(s);
+            
+            // If no trainers in session, try multiple sources
+            if (!sessionData.trainers || sessionData.trainers.length === 0) {
+              // First, try to load from session details
+              try {
+                const sessionDetailsResponse = await courseSessionService.getSession(s.uuid);
+                if (sessionDetailsResponse.success && sessionDetailsResponse.data) {
+                  const sessionDetails = sessionDetailsResponse.data;
+                  const detailTrainers = sessionDetails.trainers || [];
+                  if (detailTrainers.length > 0) {
+                    sessionData.trainers = detailTrainers
+                      .filter((t: any) => t && (t.name || t.user?.name))
+                      .map((t: any) => ({
+                        uuid: t.uuid || String(t.id || ''),
+                        user_uuid: String(t.id || t.user_id || t.user?.id || ''),
+                        name: t.name || t.user?.name || 'Formateur',
+                        email: t.email || t.user?.email || ''
+                      }));
+                  }
+                }
+              } catch (err) {
+                console.warn('Could not load trainers from session details:', err);
+              }
+              
+              // If still no trainers, try to load from course
+              if ((!sessionData.trainers || sessionData.trainers.length === 0) && s.course?.uuid) {
+                try {
+                  const { courseCreation } = await import('../../services/courseCreation');
+                  const courseResponse = await courseCreation.getCourse(s.course.uuid);
+                  if (courseResponse.success && courseResponse.data) {
+                    const courseData = courseResponse.data;
+                    // Try multiple possible locations for trainers
+                    const courseTrainers = courseData.trainers || 
+                                         courseData.course_trainers || 
+                                         courseData.trainers_list ||
+                                         (courseData.course_trainers_list || []);
+                    
+                    if (courseTrainers.length > 0) {
+                      sessionData.trainers = courseTrainers
+                        .filter((t: any) => t && (t.name || t.user?.name || t.trainer?.name))
+                        .map((t: any) => ({
+                          uuid: t.uuid || t.user_uuid || String(t.id || t.trainer_id || ''),
+                          user_uuid: String(t.user_id || t.id || t.trainer_id || t.user?.id || t.trainer?.id || ''),
+                          name: t.name || t.user?.name || t.trainer?.name || 'Formateur',
+                          email: t.email || t.user?.email || t.trainer?.email || ''
+                        }));
+                    }
+                  }
+                } catch (err) {
+                  console.warn('Could not load trainers from course:', err);
+                }
+              }
+            }
+            
+            return sessionData;
+          })
+        );
+        
         setSessions(transformedSessions);
 
         // Transform for calendar view
@@ -219,14 +310,9 @@ export const SessionManagementPage: React.FC = () => {
   };
 
   const handleCreateSessionSubmit = (data: any) => {
-    console.log('Create session data:', data);
+    // This handler is no longer needed as CreateSessionModal now handles navigation directly
+    // But we keep it for backward compatibility
     setShowCreateSessionModal(false);
-    setShowCourseSelectModal(true);
-  };
-
-  const handleCourseSelected = (course: any) => {
-    setShowCourseSelectModal(false);
-    navigateToRoute(`/session-creation?courseUuid=${course.uuid}`);
   };
 
   const handleViewModeChange = (mode: 'table' | 'calendar') => {
@@ -533,12 +619,6 @@ export const SessionManagementPage: React.FC = () => {
         isOpen={showCreateSessionModal}
         onClose={() => setShowCreateSessionModal(false)}
         onCreate={handleCreateSessionSubmit}
-      />
-
-      <CourseSelectionModal
-        isOpen={showCourseSelectModal}
-        onClose={() => setShowCourseSelectModal(false)}
-        onSelectCourse={handleCourseSelected}
       />
 
       {editingParticipant && (

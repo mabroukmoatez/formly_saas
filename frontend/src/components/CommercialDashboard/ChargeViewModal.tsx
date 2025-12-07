@@ -3,7 +3,6 @@ import { X, Download, CreditCard, FileText, Calendar, Tag } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useToast } from '../ui/toast';
 import { Charge } from '../../services/commercial.types';
 
 interface ChargeViewModalProps {
@@ -20,50 +19,8 @@ export const ChargeViewModal: React.FC<ChargeViewModalProps> = ({
   primaryColor,
 }) => {
   const { isDark } = useTheme();
-  const { success, error: showError } = useToast();
 
   if (!isOpen || !charge) return null;
-
-  const handleDownloadDocument = async (doc: any) => {
-    try {
-      // Get base URL from env or default to localhost
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const filePath = doc.file_path.startsWith('/') ? doc.file_path.slice(1) : doc.file_path;
-      const fileUrl = `${baseURL}/storage/${filePath}`;
-
-      // Fetch the file with authentication
-      const response = await fetch(fileUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to download file');
-      }
-
-      // Create blob from response
-      const blob = await response.blob();
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = doc.original_name || 'document';
-      document.body.appendChild(link);
-      link.click();
-
-      // Cleanup
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      success('Document téléchargé avec succès');
-    } catch (err) {
-      console.error('Error downloading document:', err);
-      showError('Erreur', 'Impossible de télécharger le document');
-    }
-  };
 
   const getCategoryColor = (category: string): string => {
     const colors: Record<string, string> = {
@@ -91,9 +48,9 @@ export const ChargeViewModal: React.FC<ChargeViewModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div
+      <div 
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-[95%] max-w-[1400px] max-h-[95vh] overflow-hidden rounded-[20px] border border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-[0px_0px_69.41px_#19294a1a]`}
+        className={`relative w-[95%] max-w-[900px] max-h-[90vh] overflow-hidden rounded-[20px] border border-solid ${isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'} shadow-[0px_0px_69.41px_#19294a1a]`}
       >
         {/* Header */}
         <div className={`flex items-center justify-between p-6 border-b ${isDark ? 'border-gray-700 bg-gray-800' : 'bg-gray-50'}`}>
@@ -207,7 +164,10 @@ export const ChargeViewModal: React.FC<ChargeViewModalProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDownloadDocument(doc)}
+                        onClick={() => {
+                          const baseURL = 'http://localhost:8000';
+                          window.open(`${baseURL}/storage/${doc.file_path}`, '_blank');
+                        }}
                         className={`${isDark ? 'hover:bg-gray-600' : 'hover:bg-gray-100'}`}
                       >
                         <Download className="w-4 h-4" />

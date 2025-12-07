@@ -6,10 +6,10 @@ import { useOrganizationSettings } from '../../hooks/useOrganizationSettings';
 import { useOrganization } from '../../contexts/OrganizationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useLanguage } from '../../contexts/LanguageContext';
-import { 
-  Loader2, 
-  Building, 
-  FileText, 
+import {
+  Loader2,
+  Building,
+  FileText,
   Upload,
   Save,
   X,
@@ -31,23 +31,23 @@ export const GestionOrganisme = (): JSX.Element => {
     siret: '',
     naf_code: '',
     rcs: '',
-    
+
     // Déclaration d'activité
     nda: '',
     declaration_region: '',
     attribution_date: '',
     uai_number: '',
-    
+
     // Siège social
     address: '',
     address_complement: '',
     postal_code: '',
     city: '',
-    
+
     // Informations complémentaires
     email: '',
     phone: '',
-    
+
     // Documents
     welcome_booklet_file: null,
     internal_regulations_file: null,
@@ -99,10 +99,10 @@ export const GestionOrganisme = (): JSX.Element => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const formDataToSend = new FormData();
-      
+
       // Add text fields
       if (formData.organization_name) formDataToSend.append('organization_name', formData.organization_name);
       if (formData.siret) formDataToSend.append('siret', formData.siret);
@@ -118,7 +118,7 @@ export const GestionOrganisme = (): JSX.Element => {
       if (formData.city) formDataToSend.append('city', formData.city);
       if (formData.email) formDataToSend.append('email', formData.email);
       if (formData.phone) formDataToSend.append('phone', formData.phone);
-      
+
       // Add files
       if (formData.logo_file instanceof File) {
         formDataToSend.append('logo', formData.logo_file);
@@ -156,27 +156,27 @@ export const GestionOrganisme = (): JSX.Element => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <div 
+          <div
             className="w-12 h-12 rounded-[12px] flex items-center justify-center"
             style={{ backgroundColor: `${primaryColor}15` }}
           >
             <Building className="w-6 h-6" style={{ color: primaryColor }} />
           </div>
           <div>
-            <h1 
+            <h1
               className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
               style={{ fontFamily: 'Poppins, Helvetica' }}
             >
               Gestion de l'organisme
             </h1>
-            <p 
+            <p
               className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
             >
               Gérez les informations et documents de votre organisation
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {!isEditing ? (
             <Button
@@ -453,21 +453,6 @@ export const GestionOrganisme = (): JSX.Element => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Logo */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Logo de l'organisation
-              </Label>
-              <div className="flex items-center gap-4">
-                {settings?.organization_logo_url && (
-                  <div className="w-32 h-32 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden">
-                    <img src={settings.organization_logo_url} alt="Logo" className="w-full h-full object-contain" />
-                  </div>
-                )}
-                {isEditing && (
-                  <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer ${isDark ? 'border-gray-600 hover:border-gray-500 bg-gray-700' : 'border-gray-300 hover:border-gray-400 bg-gray-50'}`}>
-                    <Upload className="w-6 h-6 text-gray-400 mb-2" />
-                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       Cliquer pour uploader
                     </span>
                     <input
@@ -481,11 +466,11 @@ export const GestionOrganisme = (): JSX.Element => {
                     />
                   </label>
                 )}
-              </div>
-            </div>
+    </div>
+            </div >
 
-            {/* Livret d'accueil */}
-            <div className="space-y-2">
+  {/* Livret d'accueil */ }
+  < div className = "space-y-2" >
               <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Livret d'accueil
               </Label>
@@ -519,10 +504,10 @@ export const GestionOrganisme = (): JSX.Element => {
                   </label>
                 )}
               </div>
-            </div>
+            </div >
 
-            {/* Règlement intérieur */}
-            <div className="space-y-2">
+  {/* Règlement intérieur */ }
+  < div className = "space-y-2" >
               <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Règlement intérieur
               </Label>
@@ -556,10 +541,10 @@ export const GestionOrganisme = (): JSX.Element => {
                   </label>
                 )}
               </div>
-            </div>
+            </div >
 
-            {/* Certificat Qualiopi */}
-            <div className="space-y-2">
+  {/* Certificat Qualiopi */ }
+  < div className = "space-y-2" >
               <Label className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Certificat Qualiopi
               </Label>
@@ -593,11 +578,11 @@ export const GestionOrganisme = (): JSX.Element => {
                   </label>
                 )}
               </div>
-            </div>
-          </div>
+            </div >
+          </div >
         )}
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

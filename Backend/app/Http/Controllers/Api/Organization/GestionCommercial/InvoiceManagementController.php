@@ -198,14 +198,8 @@ class InvoiceManagementController extends Controller
             $client_id = $client->id;
         }
 
-        // Parse items if they're sent as JSON string (from FormData)
-        $itemsData = $request->items;
-        if (is_string($itemsData)) {
-            $itemsData = json_decode($itemsData, true);
-        }
-
         // Normalize items format FIRST before validation
-        $items = collect($itemsData)->map(function($item) use ($organization_id) {
+        $items = collect($request->items)->map(function($item) use ($organization_id) {
             // If reference is provided and has no explicit prices, fetch article details
             if (isset($item['reference']) && 
                 (!isset($item['price_ht']) || $item['price_ht'] == 0) &&
@@ -335,12 +329,6 @@ class InvoiceManagementController extends Controller
                 $total_tva += $item_total_tva;
             }
 
-            // Handle PDF file upload for imported invoices
-            $imported_document_path = null;
-            if ($request->hasFile('imported_document')) {
-                $imported_document_path = $request->file('imported_document')->store('imported_invoices', 'public');
-            }
-
             $invoice = Invoice::create([
                 'organization_id' => $organization_id,
                 'invoice_number' => $request->invoice_number ?? 'FAC-' . date('Y') . '-' . str_pad(Invoice::count() + 1, 4, '0', STR_PAD_LEFT),
@@ -357,8 +345,6 @@ class InvoiceManagementController extends Controller
                 'payment_schedule_text' => $request->payment_schedule_text,
                 'notes' => $request->notes,
                 'terms' => $request->terms,
-                'is_imported' => $request->is_imported ?? 0,
-                'imported_document_path' => $imported_document_path,
             ]);
 
             foreach ($request->items as $itemData) {
@@ -501,7 +487,6 @@ class InvoiceManagementController extends Controller
                     'payment_schedule_text' => $request->payment_schedule_text ?? $invoice->payment_schedule_text,
                     'notes' => $request->notes ?? $invoice->notes,
                     'terms' => $request->terms ?? $invoice->terms,
-                    'is_imported' => $request->is_imported ?? $invoice->is_imported,
                 ]);
 
                 // Delete old items and create new ones
@@ -537,7 +522,6 @@ class InvoiceManagementController extends Controller
                 'payment_schedule_text' => $request->payment_schedule_text ?? $invoice->payment_schedule_text,
                 'notes' => $request->notes ?? $invoice->notes,
                 'terms' => $request->terms ?? $invoice->terms,
-                'is_imported' => $request->is_imported ?? $invoice->is_imported,
             ]);
 
             return $this->success(['invoice' => $invoice->fresh()->load('client', 'items')], 'Invoice updated successfully.');
@@ -552,30 +536,6 @@ class InvoiceManagementController extends Controller
 
         $invoice->delete();
         return $this->success([], 'Invoice deleted successfully.');
-    }
-
-    public function getImportedDocument($id)
-    {
-        $organization_id = $this->getOrganizationId();
-        $invoice = Invoice::where('id', $id)->where('organization_id', $organization_id)->first();
-
-        if (!$invoice || !$invoice->imported_document_path) {
-            return $this->failed([], 'No imported document found.');
-        }
-
-        $filePath = $invoice->imported_document_path;
-
-        if (!Storage::disk('public')->exists($filePath)) {
-            return $this->failed([], 'Document file not found.');
-        }
-
-        $file = Storage::disk('public')->get($filePath);
-        $mimeType = Storage::disk('public')->mimeType($filePath);
-        $fileName = 'Facture-' . $invoice->invoice_number . '-importée.pdf';
-
-        return response($file, 200)
-            ->header('Content-Type', $mimeType)
-            ->header('Content-Disposition', 'inline; filename="' . $fileName . '"');
     }
 
     public function remindUnpaid(Request $request)

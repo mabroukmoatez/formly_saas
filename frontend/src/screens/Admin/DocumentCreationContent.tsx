@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { 
-  Eye, 
-  Check, 
-  Plus, 
-  Trash2, 
+import {
+  Eye,
+  Check,
+  Plus,
+  Trash2,
   ChevronDown,
   GripVertical,
   ArrowLeft,
@@ -31,6 +31,7 @@ import { sessionCreation } from '../../services/sessionCreation';
 import { apiService } from '../../services/api';
 import { DocumentRichTextEditor } from '../../components/CourseCreation/DocumentRichTextEditor';
 import { VariableDefinition, AVAILABLE_VARIABLES } from '../../components/CourseCreation/VariableSelector';
+import { fixImageUrl } from '../../lib/utils';
 
 interface DocumentField {
   id: string;
@@ -58,7 +59,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
   const { subdomain } = useSubdomainNavigation();
   const { courseUuid: paramCourseUuid } = useParams();
   const [searchParams] = useSearchParams();
-  
+
   const courseUuid = propCourseUuid || paramCourseUuid || searchParams.get('courseUuid');
   const sessionUuid = propSessionUuid || searchParams.get('sessionUuid');
   const documentId = searchParams.get('documentId');
@@ -114,7 +115,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
   const moveField = (id: string, direction: 'up' | 'down') => {
     const index = fields.findIndex(f => f.id === id);
     if (index === -1) return;
-    
+
     const newFields = [...fields];
     if (direction === 'up' && index > 0) {
       [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
@@ -133,7 +134,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
     if (draggedFieldId && draggedFieldId !== targetId) {
       const draggedIndex = fields.findIndex(f => f.id === draggedFieldId);
       const targetIndex = fields.findIndex(f => f.id === targetId);
-      
+
       if (draggedIndex !== -1 && targetIndex !== -1) {
         const newFields = [...fields];
         const [removed] = newFields.splice(draggedIndex, 1);
@@ -228,10 +229,10 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
 
     try {
       setSaving(true);
-      
+
       // Generate HTML content from fields
       let htmlContent = '';
-      
+
       // Document header
       htmlContent += `
         <div style="text-align: center; margin-bottom: 30px;">
@@ -300,12 +301,12 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
       // If backend expects 'true'/'false', use: isCertificate ? 'true' : 'false'
       // If backend expects boolean, send directly: isCertificate
       formData.append('is_certificate', String(isCertificate ? 1 : 0));
-      
+
       // Ajouter l'image de background si c'est un certificat
       if (isCertificate && certificateBackground) {
         formData.append('certificate_background', certificateBackground);
       }
-      
+
       // S'assurer que fields est toujours un array et non vide
       if (!fields || !Array.isArray(fields) || fields.length === 0) {
         showError('Erreur', 'Veuillez ajouter au moins un champ au document');
@@ -340,7 +341,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
 
       // Create or update document
       let response;
-      
+
       if (isEditMode && documentIdState) {
         // Update existing document
         const jsonData: any = {
@@ -350,11 +351,11 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
           is_certificate: isCertificate,
           custom_template: customTemplate
         };
-        
+
         if (certificateBackground && isCertificate) {
           jsonData.certificate_background = certificateBackground;
         }
-        
+
         if (sessionUuid) {
           // For sessions, use FormData - NOUVELLE API
           response = await apiService.put(`/api/admin/organization/course-sessions/${sessionUuid}/documents/${documentIdState}`, formData);
@@ -365,7 +366,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
           // Update orphan document at organization level - use FormData
           response = await apiService.put(`/api/organization/documents/${documentIdState}`, formData);
         }
-        
+
         if (response.success) {
           showSuccess('Document mis à jour avec succès');
           if (window.opener) {
@@ -386,7 +387,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
           // Create orphan document at organization level
           response = await courseCreation.createOrganizationDocument(formData);
         }
-        
+
         if (response.success) {
           showSuccess('Document créé avec succès');
           if (window.opener) {
@@ -445,34 +446,34 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
       try {
         setLoading(true);
         setIsEditMode(true);
-        
+
         const docId = parseInt(documentId);
         setDocumentIdState(docId);
-        
+
         // Fetch the specific document
         const response = await apiService.get(`/api/organization/documents/${docId}`);
-        
+
         console.log('📄 Document API Response:', response);
-        
+
         if (response.success && response.data) {
           const document = response.data;
-          
+
           console.log('📄 Document Data:', document);
           console.log('📄 Custom template:', document.custom_template);
-          
+
           setDocumentTitle(document.name || '');
           setIsCertificate(document.is_certificate || false);
-          
+
           if (document.certificate_background_url) {
             setCertificateBackground(document.certificate_background_url);
           }
-          
+
           // Load fields from custom_template
           if (document.custom_template) {
             console.log('📄 Custom template structure:', document.custom_template);
-            
+
             let loadedFields: DocumentField[] = [];
-            
+
             // Check if fields are directly in custom_template.fields
             if (document.custom_template.fields && Array.isArray(document.custom_template.fields)) {
               console.log('✅ Found fields in custom_template.fields:', document.custom_template.fields.length);
@@ -483,7 +484,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                   label: f.label || 'Text Field',
                   content: f.content || ''
                 };
-                
+
                 // Handle table data
                 if (f.tableData) {
                   field.tableData = f.tableData;
@@ -493,21 +494,21 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     rows: f.table_rows
                   };
                 }
-                
+
                 // Handle signature fields
                 if (f.signatureFields && Array.isArray(f.signatureFields)) {
                   field.signatureFields = f.signatureFields;
                 } else if (f.type === 'signature' && f.signature_fields) {
                   field.signatureFields = f.signature_fields;
                 }
-                
+
                 // Handle organization signature
                 if (f.organizationSignature) {
                   field.organizationSignature = f.organizationSignature;
                 } else if (f.organization_signature) {
                   field.organizationSignature = f.organization_signature;
                 }
-                
+
                 return field;
               });
             } else if (document.custom_template.pages && Array.isArray(document.custom_template.pages)) {
@@ -516,10 +517,10 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
               // For now, set empty fields - the user can add new fields
               loadedFields = [];
             }
-            
+
             setFields(loadedFields);
             console.log('✅ Loaded fields:', loadedFields);
-            
+
             if (loadedFields.length === 0) {
               console.warn('⚠️ No fields found in custom_template - document may need fields to be added');
             }
@@ -527,7 +528,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
             console.warn('⚠️ No custom_template found');
             setFields([]);
           }
-          
+
           // Load pages info
           if (document.custom_template && document.custom_template.pages) {
             setTotalPages(document.custom_template.total_pages || 1);
@@ -585,13 +586,13 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
               <ArrowLeft className={`h-6 w-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`} />
             </Button>
             <div>
-              <h1 
+              <h1
                 className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
                 style={{ fontFamily: 'Poppins, Helvetica' }}
               >
                 {isEditMode ? 'Modifier un document' : 'Créer un document'}
               </h1>
-              <p 
+              <p
                 className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
               >
                 {isEditMode ? 'Modifiez votre document personnalisé' : 'Configurez votre document personnalisé'}
@@ -605,19 +606,17 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
               <Button
                 variant="outline"
                 onClick={() => setShowVariableMenu(!showVariableMenu)}
-                className={`h-auto px-4 py-2 rounded-md ${
-                  isDark 
-                    ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
-                    : 'border-gray-300 text-gray-700 hover:bg-gray-100'
-                }`}
+                className={`h-auto px-4 py-2 rounded-md ${isDark
+                  ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
+                  : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                  }`}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Variables
               </Button>
               {showVariableMenu && (
-                <div className={`absolute top-12 right-0 z-50 rounded-lg shadow-lg border min-w-[300px] max-h-[500px] overflow-y-auto variable-menu ${
-                  isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                }`}>
+                <div className={`absolute top-12 right-0 z-50 rounded-lg shadow-lg border min-w-[300px] max-h-[500px] overflow-y-auto variable-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                  }`}>
                   <div className="p-2">
                     <div className={`text-xs font-semibold mb-2 px-3 py-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       Organisation
@@ -627,7 +626,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                         key={variable.key}
                         onClick={() => {
                           // Insert variable into active field or first text/legal field
-                          const targetField = activeFieldId 
+                          const targetField = activeFieldId
                             ? fields.find(f => f.id === activeFieldId)
                             : fields.find(f => f.type === 'text' || f.type === 'legal');
                           if (targetField) {
@@ -636,9 +635,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           }
                           setShowVariableMenu(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
-                        }`}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
+                          }`}
                       >
                         <div className="font-medium">{variable.label}</div>
                         <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -646,7 +644,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                         </div>
                       </button>
                     ))}
-                    
+
                     <div className={`text-xs font-semibold mb-2 mt-4 px-3 py-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       Apprenant
                     </div>
@@ -654,7 +652,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                       <button
                         key={variable.key}
                         onClick={() => {
-                          const targetField = activeFieldId 
+                          const targetField = activeFieldId
                             ? fields.find(f => f.id === activeFieldId)
                             : fields.find(f => f.type === 'text' || f.type === 'legal');
                           if (targetField) {
@@ -663,9 +661,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           }
                           setShowVariableMenu(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
-                        }`}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
+                          }`}
                       >
                         <div className="font-medium">{variable.label}</div>
                         <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -673,7 +670,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                         </div>
                       </button>
                     ))}
-                    
+
                     <div className={`text-xs font-semibold mb-2 mt-4 px-3 py-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       Formation
                     </div>
@@ -681,7 +678,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                       <button
                         key={variable.key}
                         onClick={() => {
-                          const targetField = activeFieldId 
+                          const targetField = activeFieldId
                             ? fields.find(f => f.id === activeFieldId)
                             : fields.find(f => f.type === 'text' || f.type === 'legal');
                           if (targetField) {
@@ -690,9 +687,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           }
                           setShowVariableMenu(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
-                        }`}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
+                          }`}
                       >
                         <div className="font-medium">{variable.label}</div>
                         <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -700,7 +696,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                         </div>
                       </button>
                     ))}
-                    
+
                     <div className={`text-xs font-semibold mb-2 mt-4 px-3 py-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                       Dates
                     </div>
@@ -708,7 +704,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                       <button
                         key={variable.key}
                         onClick={() => {
-                          const targetField = activeFieldId 
+                          const targetField = activeFieldId
                             ? fields.find(f => f.id === activeFieldId)
                             : fields.find(f => f.type === 'text' || f.type === 'legal');
                           if (targetField) {
@@ -717,9 +713,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           }
                           setShowVariableMenu(false);
                         }}
-                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors rounded-b-lg ${
-                          isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
-                        }`}
+                        className={`w-full text-left px-3 py-2 rounded hover:bg-gray-100 text-sm transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-gray-300' : 'text-gray-700'
+                          }`}
                       >
                         <div className="font-medium">{variable.label}</div>
                         <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -731,7 +726,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                 </div>
               )}
             </div>
-            
+
             <Button
               variant="outline"
               onClick={() => setPreviewMode(!previewMode)}
@@ -765,14 +760,14 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
               <div className="mb-8">
                 {/* Logo et Nom organisme */}
                 <div className="flex items-center gap-3 mb-8">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {organization?.organization_logo ? (
-                      <img 
-                        src={organization.organization_logo} 
-                        alt="Logo" 
+                      <img
+                        src={fixImageUrl(organization.organization_logo)}
+                        alt="Logo"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (
@@ -792,11 +787,10 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     value={documentTitle}
                     onChange={(e) => setDocumentTitle(e.target.value)}
                     placeholder="Titre de document"
-                    className={`text-center text-xl font-semibold border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 ${
-                      isDark 
-                        ? 'bg-transparent text-gray-200 border-gray-600 focus:border-blue-500' 
-                        : 'bg-transparent text-gray-700 border-gray-300 focus:border-blue-500'
-                    }`}
+                    className={`text-center text-xl font-semibold border-0 border-b-2 rounded-none focus:ring-0 p-0 pb-2 ${isDark
+                      ? 'bg-transparent text-gray-200 border-gray-600 focus:border-blue-500'
+                      : 'bg-transparent text-gray-700 border-gray-300 focus:border-blue-500'
+                      }`}
                     style={{ fontSize: '20px', fontWeight: 600, letterSpacing: '0.5px' }}
                   />
                 </div>
@@ -834,9 +828,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     <div className="flex items-center gap-4">
                       {certificateBackground ? (
                         <div className="relative">
-                          <img 
-                            src={certificateBackground} 
-                            alt="Background" 
+                          <img
+                            src={certificateBackground}
+                            alt="Background"
                             className="w-32 h-20 object-cover rounded border"
                           />
                           <button
@@ -847,11 +841,10 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           </button>
                         </div>
                       ) : (
-                        <label className={`flex flex-col items-center justify-center w-32 h-20 border-2 border-dashed rounded cursor-pointer transition-colors ${
-                          isDark 
-                            ? 'border-gray-600 hover:border-gray-500 bg-gray-800' 
-                            : 'border-gray-300 hover:border-gray-400 bg-white'
-                        }`}>
+                        <label className={`flex flex-col items-center justify-center w-32 h-20 border-2 border-dashed rounded cursor-pointer transition-colors ${isDark
+                          ? 'border-gray-600 hover:border-gray-500 bg-gray-800'
+                          : 'border-gray-300 hover:border-gray-400 bg-white'
+                          }`}>
                           <Upload className={`w-6 h-6 mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             Ajouter image
@@ -887,50 +880,44 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                 <div className="flex justify-center my-6 relative">
                   <button
                     onClick={() => setShowAddFieldMenu('initial')}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      isDark 
-                        ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                        : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                    }`}
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${isDark
+                      ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                      : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                      }`}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                   {showAddFieldMenu === 'initial' && (
-                    <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${
-                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                      }`}>
                       <button
                         onClick={() => { addField('text'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Champ texte</span>
                       </button>
                       <button
                         onClick={() => { addField('title_with_table'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Table className="w-4 h-4" />
                         <span className="text-sm">Titre avec tableau</span>
                       </button>
                       <button
                         onClick={() => { addField('signature'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <PenTool className="w-4 h-4" />
                         <span className="text-sm">Espace signature</span>
                       </button>
                       <button
                         onClick={() => { addField('legal'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Scale className="w-4 h-4" />
                         <span className="text-sm">Mentions légales</span>
@@ -948,50 +935,44 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     <div className="flex justify-center my-5 relative">
                       <button
                         onClick={() => setShowAddFieldMenu(`between-${index}`)}
-                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          isDark 
-                            ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                            : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                        }`}
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${isDark
+                          ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                          : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                          }`}
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                       {showAddFieldMenu === `between-${index}` && (
-                        <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${
-                          isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                        }`}>
+                        <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                          }`}>
                           <button
                             onClick={() => { addField('text'); setShowAddFieldMenu(null); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <FileText className="w-4 h-4" />
                             <span className="text-sm">Champ texte</span>
                           </button>
                           <button
                             onClick={() => { addField('title_with_table'); setShowAddFieldMenu(null); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <Table className="w-4 h-4" />
                             <span className="text-sm">Titre avec tableau</span>
                           </button>
                           <button
                             onClick={() => { addField('signature'); setShowAddFieldMenu(null); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <PenTool className="w-4 h-4" />
                             <span className="text-sm">Espace signature</span>
                           </button>
                           <button
                             onClick={() => { addField('legal'); setShowAddFieldMenu(null); }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                              isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                            }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                              }`}
                           >
                             <Scale className="w-4 h-4" />
                             <span className="text-sm">Mentions légales</span>
@@ -1007,11 +988,10 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                     onDragStart={() => handleDragStart(field.id)}
                     onDragOver={(e) => handleDragOver(e, field.id)}
                     onDragEnd={handleDragEnd}
-                    className={`rounded-lg p-5 mb-6 transition-all hover:shadow-md ${
-                      isDark 
-                        ? 'bg-gray-700 border border-gray-600' 
-                        : 'bg-white border border-gray-200'
-                    } ${draggedFieldId === field.id ? 'opacity-50' : ''}`}
+                    className={`rounded-lg p-5 mb-6 transition-all hover:shadow-md ${isDark
+                      ? 'bg-gray-700 border border-gray-600'
+                      : 'bg-white border border-gray-200'
+                      } ${draggedFieldId === field.id ? 'opacity-50' : ''}`}
                   >
                     {/* En-tête du champ */}
                     <div className="flex items-center justify-between mb-3">
@@ -1027,9 +1007,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           <Input
                             value={field.label}
                             onChange={(e) => updateField(field.id, { label: e.target.value })}
-                            className={`text-sm font-medium border-0 p-0 h-auto focus:ring-0 ${
-                              isDark ? 'bg-transparent text-white' : 'bg-transparent text-black'
-                            }`}
+                            className={`text-sm font-medium border-0 p-0 h-auto focus:ring-0 ${isDark ? 'bg-transparent text-white' : 'bg-transparent text-black'
+                              }`}
                             placeholder="Label du champ"
                           />
                         )}
@@ -1037,9 +1016,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setExpandedFieldId(expandedFieldId === field.id ? null : field.id)}
-                          className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${
-                            isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
-                          }`}
+                          className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
+                            }`}
                         >
                           <ChevronDown className={`w-5 h-5 transition-transform ${expandedFieldId === field.id ? 'rotate-180' : ''}`} />
                         </button>
@@ -1079,18 +1057,16 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                                     <Input
                                       value={col}
                                       onChange={(e) => updateTableColumn(field.id, colIdx, e.target.value)}
-                                      className={`text-sm font-medium border-0 p-0 h-auto text-center ${
-                                        isDark ? 'bg-transparent text-gray-300' : 'bg-transparent text-gray-600'
-                                      }`}
+                                      className={`text-sm font-medium border-0 p-0 h-auto text-center ${isDark ? 'bg-transparent text-gray-300' : 'bg-transparent text-gray-600'
+                                        }`}
                                     />
                                   </th>
                                 ))}
                                 <th className={`w-10 border ${isDark ? 'border-gray-500' : 'border-gray-300'}`}>
                                   <button
                                     onClick={() => addTableColumn(field.id)}
-                                    className={`w-full h-full flex items-center justify-center transition-colors ${
-                                      isDark ? 'text-gray-400 hover:bg-gray-500' : 'text-gray-500 hover:bg-gray-200'
-                                    }`}
+                                    className={`w-full h-full flex items-center justify-center transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-500' : 'text-gray-500 hover:bg-gray-200'
+                                      }`}
                                   >
                                     <Plus className="w-4 h-4" />
                                   </button>
@@ -1105,9 +1081,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                                       <Input
                                         value={cell}
                                         onChange={(e) => updateTableCell(field.id, rowIdx, cellIdx, e.target.value)}
-                                        className={`text-sm border-0 p-0 h-auto ${
-                                          isDark ? 'bg-transparent text-white' : 'bg-transparent'
-                                        }`}
+                                        className={`text-sm border-0 p-0 h-auto ${isDark ? 'bg-transparent text-white' : 'bg-transparent'
+                                          }`}
                                       />
                                     </td>
                                   ))}
@@ -1129,9 +1104,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           <div className={`border-t p-2 ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                             <button
                               onClick={() => addTableRow(field.id)}
-                              className={`w-full flex items-center justify-center py-2 transition-colors ${
-                                isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
-                              }`}
+                              className={`w-full flex items-center justify-center py-2 transition-colors ${isDark ? 'text-gray-400 hover:bg-gray-600' : 'text-gray-500 hover:bg-gray-100'
+                                }`}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Ajouter une ligne
@@ -1146,8 +1120,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                         </div>
                         <div className="flex flex-wrap gap-2 mb-4">
                           {field.signatureFields?.map((sig, idx) => (
-                            <Badge 
-                              key={idx} 
+                            <Badge
+                              key={idx}
                               className="px-3 py-1.5 text-xs font-medium rounded-md"
                               style={{ backgroundColor: '#FFE0B2', color: '#E65100' }}
                             >
@@ -1195,50 +1169,44 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                 <div className="flex justify-center my-6 relative">
                   <button
                     onClick={() => setShowAddFieldMenu('end')}
-                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      isDark 
-                        ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400' 
-                        : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
-                    }`}
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${isDark
+                      ? 'border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400'
+                      : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-500'
+                      }`}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                   {showAddFieldMenu === 'end' && (
-                    <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${
-                      isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
-                    }`}>
+                    <div className={`absolute top-10 left-1/2 -translate-x-1/2 z-50 rounded-lg shadow-lg border min-w-[200px] field-menu ${isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+                      }`}>
                       <button
                         onClick={() => { addField('text'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm">Champ texte</span>
                       </button>
                       <button
                         onClick={() => { addField('title_with_table'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Table className="w-4 h-4" />
                         <span className="text-sm">Titre avec tableau</span>
                       </button>
                       <button
                         onClick={() => { addField('signature'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <PenTool className="w-4 h-4" />
                         <span className="text-sm">Espace signature</span>
                       </button>
                       <button
                         onClick={() => { addField('legal'); setShowAddFieldMenu(null); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${
-                          isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors rounded-b-lg ${isDark ? 'hover:bg-gray-700 text-white' : 'text-gray-700'
+                          }`}
                       >
                         <Scale className="w-4 h-4" />
                         <span className="text-sm">Mentions légales</span>
@@ -1261,13 +1229,11 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
       {/* Modal d'Aperçu */}
       {previewMode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg shadow-xl ${
-            isDark ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            {/* En-tête de la modal */}
-            <div className={`sticky top-0 flex items-center justify-between p-4 border-b ${
-              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'
             }`}>
+            {/* En-tête de la modal */}
+            <div className={`sticky top-0 flex items-center justify-between p-4 border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Aperçu du Document
               </h2>
@@ -1287,14 +1253,14 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
               <div className="mb-8">
                 {/* Logo et Nom organisme */}
                 <div className="flex items-center gap-3 mb-8">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: `${primaryColor}20` }}
                   >
                     {organization?.organization_logo ? (
-                      <img 
-                        src={organization.organization_logo} 
-                        alt="Logo" 
+                      <img
+                        src={organization.organization_logo}
+                        alt="Logo"
                         className="w-full h-full object-contain rounded-lg"
                       />
                     ) : (
@@ -1310,7 +1276,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
 
                 {/* Titre du document */}
                 <div className="text-center mb-4">
-                  <h1 
+                  <h1
                     className={`font-semibold text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
                     style={{ letterSpacing: '0.5px' }}
                   >
@@ -1324,7 +1290,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
 
               {/* Aperçu du background si certificat */}
               {isCertificate && certificateBackground && (
-                <div className="mb-6 p-4 rounded-lg border border-dashed" style={{ 
+                <div className="mb-6 p-4 rounded-lg border border-dashed" style={{
                   backgroundImage: `url(${certificateBackground})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
@@ -1350,7 +1316,7 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                   {fields.map((field) => (
                     <div key={field.id}>
                       {field.type === 'text' || field.type === 'legal' ? (
-                        <div 
+                        <div
                           className={`prose max-w-none ${isDark ? 'prose-invert' : ''}`}
                           dangerouslySetInnerHTML={{ __html: field.content || '<p class="text-gray-400 italic">Contenu vide</p>' }}
                         />
@@ -1364,8 +1330,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                               <thead>
                                 <tr className={isDark ? 'bg-gray-600' : 'bg-gray-100'}>
                                   {field.tableData.columns.map((col, colIdx) => (
-                                    <th 
-                                      key={colIdx} 
+                                    <th
+                                      key={colIdx}
                                       className={`border p-3 text-sm font-medium ${isDark ? 'border-gray-500 text-gray-300' : 'border-gray-300 text-gray-600'}`}
                                     >
                                       {col}
@@ -1377,8 +1343,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                                 {field.tableData.rows.map((row, rowIdx) => (
                                   <tr key={rowIdx} className={`border-t ${isDark ? 'border-gray-600' : 'border-gray-300'}`}>
                                     {row.map((cell, cellIdx) => (
-                                      <td 
-                                        key={cellIdx} 
+                                      <td
+                                        key={cellIdx}
                                         className={`border p-3 text-sm ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-300 text-gray-700'}`}
                                       >
                                         {cell || '-'}
@@ -1411,9 +1377,9 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
                           </div>
                           {field.organizationSignature && (
                             <div className="mt-4">
-                              <img 
-                                src={field.organizationSignature} 
-                                alt="Signature organisation" 
+                              <img
+                                src={field.organizationSignature}
+                                alt="Signature organisation"
                                 className="max-w-[200px] h-auto"
                               />
                             </div>
@@ -1432,9 +1398,8 @@ export const DocumentCreationContent: React.FC<DocumentCreationContentProps> = (
             </div>
 
             {/* Footer de la modal */}
-            <div className={`sticky bottom-0 flex items-center justify-end gap-3 p-4 border-t ${
-              isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
+            <div className={`sticky bottom-0 flex items-center justify-end gap-3 p-4 border-t ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
               <Button
                 variant="outline"
                 onClick={() => setPreviewMode(false)}

@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { X, AlertCircle, CheckCircle } from 'lucide-react';
 import { DashboardLayout } from '../../components/CommercialDashboard';
 import { SessionCreationHeader } from '../../components/SessionCreation/SessionCreationHeader';
 import { SessionInformationForm } from '../../components/SessionCreation/SessionInformationForm';
@@ -19,7 +20,7 @@ import { Step5FormateurNew } from '../../components/SessionCreation/Step5Formate
 import { Step6Seances } from '../../components/SessionCreation/Step6Seances';
 import { Step7Participants } from '../../components/SessionCreation/Step7Participants';
 import { Step8WorkflowNew } from '../../components/SessionCreation/Step8WorkflowNew';
-import { CourseSelectionModal } from '../../components/SessionCreation/CourseSelectionModal';
+// CourseSelectionModal no longer needed - course selection is handled in CreateSessionModal
 import { useSessionCreation, SessionCreationProvider } from '../../contexts/SessionCreationContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -54,6 +55,8 @@ interface SelectedCourse {
 interface SessionCreationProps {
   sessionUuid?: string;
   courseUuid?: string; // Pre-selected course UUID from URL params
+  startDate?: string; // Start date from URL params
+  endDate?: string; // End date from URL params
   onSessionCreated?: (sessionUuid: string) => void;
   onSessionSaved?: () => void;
 }
@@ -61,6 +64,8 @@ interface SessionCreationProps {
 const SessionCreationContent: React.FC<SessionCreationProps> = ({
   sessionUuid,
   courseUuid: preSelectedCourseUuid,
+  startDate: preSelectedStartDate,
+  endDate: preSelectedEndDate,
   onSessionSaved
 }) => {
   const { t } = useLanguage();
@@ -160,6 +165,7 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
     autoSave,
     saveDraft,
     saveAll,
+    updateSessionStatus,
     isSaving,
     isLoading,
     uploadIntroVideo,
@@ -179,18 +185,25 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
   const [moduleUpdateTimeouts, setModuleUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
   const [objectiveUpdateTimeouts, setObjectiveUpdateTimeouts] = useState<{[key: string]: ReturnType<typeof setTimeout>}>({});
   
-  // Course selection modal state
-  const [showCourseModal, setShowCourseModal] = useState(false);
+  // Course selection state (no modal needed - course comes from URL params)
   const [selectedCourse, setSelectedCourse] = useState<SelectedCourse | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [courseDataLoaded, setCourseDataLoaded] = useState(false); // Track if course data is fully loaded
+  
+  // Publish confirmation modal state
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
-  // Show course selection modal when creating a new session (no sessionUuid and no pre-selected course)
+  // Set dates from URL params if provided
   useEffect(() => {
-    if (!sessionUuid && !selectedCourse && !isInitialized && !preSelectedCourseUuid) {
-      setShowCourseModal(true);
+    if (preSelectedStartDate && preSelectedEndDate) {
+      updateFormField('session_start_date', preSelectedStartDate);
+      updateFormField('session_end_date', preSelectedEndDate);
     }
-  }, [sessionUuid, selectedCourse, isInitialized, preSelectedCourseUuid]);
+  }, [preSelectedStartDate, preSelectedEndDate, updateFormField]);
+
+  // Don't show course selection modal if courseUuid is already in URL params
+  // The course will be auto-loaded in the next useEffect
 
   // Auto-load pre-selected course from URL params
   useEffect(() => {
@@ -206,7 +219,6 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
 
   // Handle course selection and pre-fill data using single API call
   const handleCourseSelected = async (course: SelectedCourse) => {
-    setShowCourseModal(false);
     setIsLoadingCourse(true);
     setCourseDataLoaded(false); // Reset flag
 
@@ -353,8 +365,8 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
   useEffect(() => {
     if (currentStep === 2) {
       const totalItems = chapters.length + documents.length;
-      const completedItems = chapters.filter(c => c.title.trim()).length + 
-                           documents.filter(d => d.name.trim()).length;
+      const completedItems = chapters.filter(c => (c.title && typeof c.title === 'string' && c.title.trim())).length +
+        documents.filter(d => (d.name && typeof d.name === 'string' && d.name.trim())).length;
       setStep2Progress(totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0);
     }
   }, [currentStep, chapters, documents]);
@@ -401,30 +413,35 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
     if (currentStep < 8) {
       setCurrentStep(currentStep + 1);
     } else if (currentStep === 8) {
-      // Handle session completion
-      // Use saveAll to save both COURSE changes and SESSION data
-      try {
-        const result = await saveAll();
-        if (result.success) {
-          showSuccess(t('session.completedSuccessfully') + ': ' + result.message);
-          // Call callback if provided
-          if (onSessionSaved) {
-            onSessionSaved();
-          }
-        } else {
-          // Partial success handling
-          if (result.courseSuccess && !result.sessionSuccess) {
-            showWarning('Cours sauvegardé, mais erreur pour la session: ' + result.message);
-          } else if (!result.courseSuccess && result.sessionSuccess) {
-            showWarning('Session sauvegardée, mais erreur pour le cours: ' + result.message);
-          } else {
-            showError(result.message || t('session.completionError'));
-          }
+      // Open publish confirmation modal
+      setShowPublishModal(true);
+    }
+  };
+
+  const handleConfirmPublish = async () => {
+    setIsPublishing(true);
+    try {
+      // First save all changes
+      await autoSave();
+
+      // Then update status to active (published)
+      const updated = await updateSessionStatus('active');
+      if (updated) {
+        showSuccess(t('session.completedSuccessfully') || 'Session publiée avec succès');
+        setShowPublishModal(false);
+
+        // Call callback if provided
+        if (onSessionSaved) {
+          onSessionSaved();
         }
-      } catch (error: any) {
-        console.error('Failed to complete session:', error);
-        showError(t('session.completionError'));
+      } else {
+        showError('Erreur lors de la publication de la session');
       }
+    } catch (error: any) {
+      console.error('Failed to publish session:', error);
+      showError(t('session.completionError') || 'Erreur lors de la publication de la session');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -712,21 +729,8 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
     }
   };
 
-  // Show course selection modal
-  if (showCourseModal && !sessionUuid) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <CourseSelectionModal
-          isOpen={showCourseModal}
-          onClose={() => {
-            // If user closes without selecting, redirect back
-            window.history.back();
-          }}
-          onSelectCourse={handleCourseSelected}
-        />
-      </div>
-    );
-  }
+  // Don't show course selection modal if courseUuid is provided in URL params
+  // The course will be auto-loaded
 
   if (!isInitialized || isLoadingCourse) {
     return <LoadingScreen />;
@@ -785,6 +789,97 @@ const SessionCreationContent: React.FC<SessionCreationProps> = ({
           </div>
         </div>
       </main>
+
+      {/* Modal de confirmation de publication */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-md mx-4 rounded-lg shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Confirmer la publication
+                </h3>
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={isPublishing}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="mb-6">
+                <div className={`flex items-start gap-4 p-4 rounded-lg ${
+                  isDark ? 'bg-blue-900/20 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <AlertCircle className={`w-6 h-6 flex-shrink-0 mt-0.5 ${
+                    isDark ? 'text-blue-400' : 'text-blue-600'
+                  }`} />
+                  <div className="flex-1">
+                    <p className={`font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Êtes-vous sûr de vouloir publier cette session ?
+                    </p>
+                    <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Une fois publiée, la session sera visible et accessible aux apprenants. 
+                      Vous pourrez toujours la modifier ou la désactiver par la suite.
+                    </p>
+                  </div>
+                </div>
+
+                {formData.title && (
+                  <div className={`mt-4 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Session à publier :
+                    </p>
+                    <p className={`font-medium mt-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {formData.title}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  disabled={isPublishing}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isDark
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmPublish}
+                  disabled={isPublishing}
+                  className="px-6 py-2 rounded-lg font-medium text-white transition-colors shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  style={{
+                    backgroundColor: isPublishing ? '#6b7280' : '#16a34a'
+                  }}
+                >
+                  {isPublishing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Publication...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Confirmer la publication
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

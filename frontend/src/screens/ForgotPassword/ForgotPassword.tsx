@@ -8,6 +8,7 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { LoginHeader } from '../../components/LoginHeader';
+import { fixImageUrl } from '../../lib/utils';
 
 export const ForgotPassword = (): JSX.Element => {
   const { forgotPassword, loading, error, clearError } = useAuth();
@@ -23,7 +24,7 @@ export const ForgotPassword = (): JSX.Element => {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       return;
     }
@@ -31,7 +32,7 @@ export const ForgotPassword = (): JSX.Element => {
     try {
       setIsSubmitting(true);
       clearError();
-      
+
       await forgotPassword(email.trim());
       setEmailSent(true);
     } catch (err) {
@@ -63,7 +64,7 @@ export const ForgotPassword = (): JSX.Element => {
    */
   const getLogoUrl = (): string => {
     if (organization?.organization_logo_url) {
-      return organization.organization_logo_url;
+      return fixImageUrl(organization.organization_logo_url);
     }
     return '/assets/logos/login-logo.svg';
   };
@@ -84,9 +85,8 @@ export const ForgotPassword = (): JSX.Element => {
 
   return (
     <div
-      className={`w-full min-h-screen relative flex flex-col lg:flex-row ${
-        isDark ? 'bg-gray-900' : 'bg-[#09294c]'
-      }`}
+      className={`w-full min-h-screen relative flex flex-col lg:flex-row ${isDark ? 'bg-gray-900' : 'bg-[#09294c]'
+        }`}
       style={{
         '--org-primary-color': organization?.primary_color || '#007bff',
         '--org-secondary-color': organization?.secondary_color || '#6c757d',
@@ -221,15 +221,15 @@ export const ForgotPassword = (): JSX.Element => {
               <div className="flex justify-center mb-6">
                 <CheckCircle className="w-16 h-16 text-green-400" />
               </div>
-              
+
               <h2 className="[font-family:'Urbanist',Helvetica] font-bold text-[#ffffff] text-3xl lg:text-4xl tracking-[-0.72px] leading-[42px] lg:leading-[56px] mb-4">
                 {t('auth.forgotPassword.emailSent')}
               </h2>
-              
+
               <p className="[font-family:'Urbanist',Helvetica] font-light text-[#d2d2d2] text-sm lg:text-base tracking-[-0.32px] leading-4 mb-8">
                 {t('auth.forgotPassword.emailSent')} {email}
               </p>
-              
+
               <Button
                 onClick={handleBackToLogin}
                 className="w-full h-[55px] lg:h-[61.71px] bg-colorsblue rounded-2xl [font-family:'Urbanist',Helvetica] font-bold text-[#ffffff] text-sm tracking-[-0.28px] leading-[14px] hover:bg-colorsblue/90 transition-colors"
