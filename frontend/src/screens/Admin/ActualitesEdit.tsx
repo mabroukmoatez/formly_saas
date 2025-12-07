@@ -38,6 +38,7 @@ import {
   Undo,
   Redo
 } from 'lucide-react';
+import { fixImageUrl } from '../../lib/utils';
 
 // Rich Text Editor Component
 interface RichTextEditorProps {
@@ -664,7 +665,7 @@ export const ActualitesEdit = ({ newsId }: ActualitesEditProps): JSX.Element => 
             {imagePreview ? (
               <div className="bg-white relative rounded-[14px] border-2 border-[#e2e2ea] overflow-hidden">
                 <img
-                  src={imagePreview}
+                  src={fixImageUrl(imagePreview)}
                   alt="Preview"
                   className="w-full h-[120px] object-cover"
                 />
