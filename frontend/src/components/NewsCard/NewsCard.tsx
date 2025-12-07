@@ -151,9 +151,9 @@ export const NewsCard: React.FC<NewsCardProps> = ({
             : '0 1px 3px rgba(0, 0, 0, 0.05)'
         }}
       >
-        <div className="flex h-full">
+        <div className="flex h-full p-4">
           {/* Image - Prend toute la hauteur */}
-          <div className="relative w-80 overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 flex-shrink-0 self-stretch">
+          <div className="relative w-80 overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 flex-shrink-0 self-stretch rounded-[20px]">
             {news.image_url ? (
               <img 
                 src={fixImageUrl(news.image_url)} 
@@ -167,7 +167,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
           </div>
 
           {/* Contenu */}
-          <div className="flex-1 p-6 flex flex-col min-h-[200px]">
+          <div className="flex-1 p-6 flex flex-col min-h-[180px]">
             {/* Badges et Date */}
             <div className="flex items-center gap-3 mb-4">
               <span className={`text-[14px] font-semibold ${isDark ? 'text-blue-400' : 'text-[#3b82f6]'}`}>
@@ -180,147 +180,130 @@ export const NewsCard: React.FC<NewsCardProps> = ({
               </Badge>
             </div>
 
-            {/* Titre */}
-            <h3 
-              className={`text-[20px] font-bold mb-3 line-clamp-2 ${
-                isDark ? 'text-white' : 'text-[#0f172a]'
-              }`}
-              style={{ 
-                fontFamily: 'Inter, -apple-system, sans-serif',
-                lineHeight: '1.3'
-              }}
-            >
-              {news.title}
-            </h3>
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex-1">
+                {/* Title */}
+                <h3
+                  className={`text-[18px] font-bold mb-2 line-clamp-2 ${isDark ? 'text-white' : 'text-[#0f172a]'}`}
+                  style={{
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    lineHeight: '1.3'
+                  }}
+                >
+                  {news.title}
+                </h3>
 
-            {/* Description */}
-            <p 
-              className={`text-[15px] mb-6 line-clamp-2 ${
-                isDark ? 'text-gray-400' : 'text-[#64748b]'
-              }`}
-              style={{ 
-                fontFamily: 'Inter, -apple-system, sans-serif',
-                lineHeight: '1.5'
-              }}
-            >
-              {news.short_description}
-            </p>
+                {/* Description */}
+                <p
+                  className={`text-[15px] line-clamp-2 ${isDark ? 'text-gray-400' : 'text-[#64748b]'}`}
+                  style={{
+                    fontFamily: 'Inter, -apple-system, sans-serif',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  {news.short_description}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
 
-            {/* Footer */}
-            <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-gray-700">
-              {/* Auteur et Date */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Avatar className="w-9 h-9">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-10 h-10">
                     {avatarUrl ? (
                       <AvatarImage 
-                        src={avatarUrl} 
+                        src={avatarUrl}
                         alt={news.author.name}
                         className="object-cover"
                       />
                     ) : null}
-                    <AvatarFallback 
+                    <AvatarFallback
                       className="text-white text-xs font-semibold"
                       style={{ backgroundColor: primaryColor }}
                     >
                       {getInitials(news.author.name || news.author.email || 'A')}
                     </AvatarFallback>
                   </Avatar>
-                </div>
-                <div className="flex flex-col">
-                  <span 
-                    className={`text-[14px] font-medium ${
-                      isDark ? 'text-[#1e293b]' : 'text-[#1e293b]'
-                    }`}
-                    style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}
-                  >
-                    {news.author.name}
-                  </span>
-                  <span 
-                    className={`text-[13px] ${
-                      isDark ? 'text-gray-500' : 'text-[#94a3b8]'
-                    }`}
-                    style={{ fontFamily: 'Inter, -apple-system, sans-serif' }}
-                  >
-                    {dateFormatted}
-                  </span>
-                </div>
-              </div>
-
-              {/* Menu Actions */}
-              <div className="relative" ref={menuRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowMenu(!showMenu);
-                  }}
-                  className={`h-8 w-8 rounded-md p-0 ${
-                    isDark 
-                      ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300' 
-                      : 'hover:bg-gray-100 text-[#94a3b8] hover:text-gray-700'
-                  }`}
-                >
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-                
-                {showMenu && (
-                  <div 
-                    className={`absolute right-0 bottom-full mb-2 w-44 rounded-lg shadow-xl z-[100] ${
-                      isDark 
-                        ? 'bg-gray-800 border border-gray-700' 
-                        : 'bg-white border border-gray-200'
-                    } overflow-visible`}
-                    style={{ 
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-                    }}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onView(news.id);
-                        setShowMenu(false);
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
-                        isDark 
-                          ? 'hover:bg-gray-700 text-gray-200' 
-                          : 'hover:bg-gray-50 text-gray-700'
-                      }`}
+                  <div className="flex flex-col">
+                    <span 
+                      className={`text-[14px] font-medium ${isDark ? 'text-[#d1d5db]' : 'text-[#1e293b]'}`}
                     >
-                      <Eye className="h-4 w-4" />
-                      Voir
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(news.id);
-                        setShowMenu(false);
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
-                        isDark 
-                          ? 'hover:bg-gray-700 text-gray-200' 
-                          : 'hover:bg-gray-50 text-gray-700'
-                      }`}
+                      {news.author.name}
+                    </span>
+                    <span 
+                      className={`text-[13px] ${isDark ? 'text-gray-500' : 'text-[#94a3b8]'}`}
                     >
-                      <Edit className="h-4 w-4" />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(news.id);
-                        setShowMenu(false);
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 text-red-600 ${
-                        isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Supprimer
-                    </button>
+                      {dateFormatted}
+                    </span>
                   </div>
-                )}
+                </div>
+
+                {/* Menu Actions */}
+                <div className="relative" ref={menuRef}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMenu(!showMenu);
+                    }}
+                    className={`h-8 w-8 rounded-md p-0 ${
+                      isDark 
+                        ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300'
+                        : 'hover:bg-gray-100 text-[#94a3b8] hover:text-gray-700'
+                    }`}
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+
+                  {showMenu && (
+                    <div
+                      className={`absolute right-0 bottom-full mb-2 w-44 rounded-lg shadow-xl z-[100] ${
+                        isDark 
+                          ? 'bg-gray-800 border border-gray-700'
+                          : 'bg-white border border-gray-200'
+                      }`}
+                    >
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onView(news.id);
+                          setShowMenu(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                          isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <Eye className="h-4 w-4" />
+                        Voir
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(news.id);
+                          setShowMenu(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 ${
+                          isDark ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <Edit className="h-4 w-4" />
+                        Modifier
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(news.id);
+                          setShowMenu(false);
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 text-red-600 ${
+                          isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -335,7 +318,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       onClick={() => onView(news.id)}
       className={`group relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-[20px] overflow-hidden cursor-pointer transition-all duration-250 ease-out hover:shadow-xl hover:-translate-y-0.5 ${
         isDark ? 'hover:border-gray-600' : 'hover:border-gray-300'
-      }`}
+      } ${viewMode === 'grid' ? 'p-5' : ''}`}
       style={{
         boxShadow: isDark 
           ? '0 1px 3px rgba(0, 0, 0, 0.05)' 
@@ -343,7 +326,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       }}
     >
       {/* Image */}
-      <div className="relative h-[200px] overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
+      <div className={`relative h-[150px] overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 ${viewMode === 'grid' ? 'rounded-[20px]' : ''} `}>
         {news.image_url ? (
           <img 
             src={fixImageUrl(news.image_url)} 
@@ -371,7 +354,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
 
         {/* Titre */}
         <h3 
-          className={`text-[20px] font-bold mb-3 line-clamp-2 ${
+          className={`text-[18px] font-bold mb-2 line-clamp-2 ${
             isDark ? 'text-white' : 'text-[#0f172a]'
           }`}
           style={{ 
@@ -396,7 +379,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
         </p>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
           {/* Auteur et Date */}
           <div className="flex items-center gap-3">
             <div className="relative">

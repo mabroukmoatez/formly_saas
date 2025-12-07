@@ -268,30 +268,8 @@ export const Actualites = (): JSX.Element => {
         {/* En-tête de Page */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <div 
-                className="w-12 h-12 rounded-[12px] flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: `${primaryColor}15` }}
-              >
-                <Newspaper className="w-6 h-6" style={{ color: primaryColor }} />
-              </div>
-              <div>
-                <h1 
-                  className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-                  style={{ fontFamily: 'Poppins, Helvetica' }}
-                >
-                  Actualités
-                </h1>
-                <p 
-                  className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-                >
-                  Gérez vos actualités et articles
-                </p>
-              </div>
-            </div>
-            
             {/* Bouton Nouvelle Actualités - Même style que les évènements */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 ml-auto">
               <Button
                 onClick={() => navigateToRoute('/actualites/create')}
                 className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#ecf1fd] hover:bg-[#d9e4fb]'} shadow-md hover:shadow-lg transition-all`}
