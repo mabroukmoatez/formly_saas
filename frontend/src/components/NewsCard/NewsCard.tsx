@@ -318,7 +318,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({
       onClick={() => onView(news.id)}
       className={`group relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-[20px] overflow-hidden cursor-pointer transition-all duration-250 ease-out hover:shadow-xl hover:-translate-y-0.5 ${
         isDark ? 'hover:border-gray-600' : 'hover:border-gray-300'
-      } ${viewMode === 'grid' ? 'p-5' : ''}`}
+      } ${viewMode === 'grid' ? 'p-4' : ''}`}
       style={{
         boxShadow: isDark 
           ? '0 1px 3px rgba(0, 0, 0, 0.05)' 

@@ -60,18 +60,19 @@ const EventCard: React.FC<{
     return (
       <Card 
         onClick={() => onView(event.id)}
-        className={`border-2 rounded-[12px] overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer ${
+        className={`border-2 rounded-[12px] overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer p-4 ${
           isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
         }`}
       >
-        <div className="flex">
+        <div className="flex h-full">
           {/* Image en pleine hauteur */}
-          <div className="relative w-80 h-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0">
+          <div className="relative w-80 h-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0 rounded-[18px]">
             {event.image_url ? (
               <img 
                 src={event.image_url} 
                 alt={event.title}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                style={{ minHeight: '100%' }}
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500" />
@@ -206,12 +207,12 @@ const EventCard: React.FC<{
   return (
     <Card 
       onClick={() => onView(event.id)}
-      className={`border-2 rounded-[18px] overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer ${
+      className={`border-2 rounded-[18px] overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer  p-4 ${
         isDark ? 'border-gray-700 bg-gray-800 hover:border-gray-600' : 'border-[#e2e2ea] bg-white hover:border-[#007aff]/20'
       }`}
     >
       {/* Image de l'événement */}
-      <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500">
+      <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 rounded-[18px]">
         {event.image_url ? (
           <img 
             src={event.image_url} 
@@ -501,29 +502,7 @@ export const Evenements = (): JSX.Element => {
     <div className="px-[27px] py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div 
-            className="w-12 h-12 rounded-[12px] flex items-center justify-center"
-            style={{ backgroundColor: `${organization?.primary_color || '#007aff'}15` }}
-          >
-            <Calendar className="w-6 h-6" style={{ color: organization?.primary_color || '#007aff' }} />
-          </div>
-          <div>
-            <h1 
-              className={`font-bold text-3xl ${isDark ? 'text-white' : 'text-[#19294a]'}`}
-              style={{ fontFamily: 'Poppins, Helvetica' }}
-            >
-              {t('events.title')}
-            </h1>
-            <p 
-              className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-[#6a90b9]'}`}
-            >
-              {t('events.subtitle')}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 ml-auto">
           <Button
             onClick={handleCreateEvent}
             className={`inline-flex items-center justify-center gap-2 px-[19px] py-2.5 h-auto rounded-xl border-0 ${isDark ? 'bg-blue-900 hover:bg-blue-800' : 'bg-[#ecf1fd] hover:bg-[#d9e4fb]'} shadow-md hover:shadow-lg transition-all`}
@@ -711,7 +690,7 @@ export const Evenements = (): JSX.Element => {
            : 'gap-3 grid-cols-1'
        }`}>
          {displayEvents.map((event) => (
-           <EventCard
+           <EventCard 
              key={event.id}
              event={event}
              isDark={isDark}
