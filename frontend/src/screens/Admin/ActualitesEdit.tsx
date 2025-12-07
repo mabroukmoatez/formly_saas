@@ -11,6 +11,7 @@ import { useNewsActions, useNewsCategories } from '../../hooks/useNews';
 import { useToast } from '../../components/ui/toast';
 import { ConfirmationModal } from '../../components/ui/confirmation-modal';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { fixImageUrl } from '../../lib/utils';
 import {
   Upload,
   Calendar,
@@ -354,7 +355,7 @@ export const ActualitesEdit = ({ newsId }: ActualitesEditProps): JSX.Element => 
             tags: news.tags ? news.tags.join(', ') : '',
           });
           if (news.image_url) {
-            setImagePreview(news.image_url);
+            setImagePreview(fixImageUrl(news.image_url));
           }
         }
       } catch (error) {
